@@ -64,7 +64,7 @@ export default function Agenda() {
   async function saveNueva(){
     if(!fPac) return msg('Seleccioná un paciente','error')
     setSaving(true)
-    const {error} = await supabase.from('citas').insert({paciente_id:fPac,fecha_hora:`${fecha}T${fHora}:00`,tipo_tratamiento:fTrat,estado:fEst,duracion_minutos:fDur,notas:fNotas||null})
+    const {error} = await supabase.from('citas').insert({paciente_id:fPac,fecha_hora:`${fecha}T${fHora}:00-03:00`,tipo_tratamiento:fTrat,estado:fEst,duracion_minutos:fDur,notas:fNotas||null})
     setSaving(false)
     if(error) return msg('Error: '+error.message,'error')
     setModal(null);msg('Cita agendada ✓');loadCitas()
@@ -73,7 +73,7 @@ export default function Agenda() {
   async function saveEditar(){
     if(!sel) return
     setSaving(true)
-    const {error} = await supabase.from('citas').update({fecha_hora:`${fecha}T${fHora}:00`,tipo_tratamiento:fTrat as TipoTratamiento,estado:fEst,duracion_minutos:fDur,notas:fNotas||null}).eq('id',sel.id)
+    const {error} = await supabase.from('citas').update({fecha_hora:`${fecha}T${fHora}:00-03:00`,tipo_tratamiento:fTrat as TipoTratamiento,estado:fEst,duracion_minutos:fDur,notas:fNotas||null}).eq('id',sel.id)
     setSaving(false)
     if(error) return msg('Error: '+error.message,'error')
     setModal(null);msg('Cita actualizada ✓');loadCitas()
