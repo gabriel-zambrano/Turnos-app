@@ -11,10 +11,10 @@ export async function POST(req: Request) {
   )
 
   const ahora = new Date()
-  const manana = new Date(ahora.toLocaleString('en-US', { timeZone: 'America/Argentina/Buenos_Aires' }))
-  manana.setDate(manana.getDate() + 1)
-  const desdeISO = new Date(manana.getFullYear(), manana.getMonth(), manana.getDate(), 0, 0, 0).toISOString()
-  const hastaISO = new Date(manana.getFullYear(), manana.getMonth(), manana.getDate(), 23, 59, 59).toISOString()
+const manana = new Date(ahora.toLocaleString('en-US', { timeZone: 'America/Argentina/Buenos_Aires' }))
+manana.setDate(manana.getDate() + 1)
+const desdeISO = new Date(manana.getFullYear(), manana.getMonth(), manana.getDate(), 3, 0, 0).toISOString()
+const hastaISO = new Date(manana.getFullYear(), manana.getMonth(), manana.getDate() + 1, 2, 59, 59).toISOString()
 
   const { data: citas, error } = await supabase
     .from('citas')
