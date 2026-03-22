@@ -18,7 +18,7 @@ export async function POST(req: Request) {
 
   const { data: citas, error } = await supabase
     .from('citas')
-    .select('id, fecha_hora, tratamiento, pacientes(nombre, email)')
+    .select('id, fecha_hora, tipo_tratamiento, pacientes(nombre, email)')
     .eq('estado', 'pendiente')
     .gte('fecha_hora', desdeISO)
     .lte('fecha_hora', hastaISO)
@@ -49,7 +49,7 @@ export async function POST(req: Request) {
             <p style="color:#333;font-size:15px">Te recordamos que tenés un turno programado:</p>
             <div style="background:#f4f6f8;border-radius:12px;padding:16px 20px;margin:20px 0">
               <p style="margin:0;font-size:14px;color:#666">📅 <strong style="color:#333">${horaAR}</strong></p>
-              <p style="margin:8px 0 0;font-size:14px;color:#666">🦷 Tratamiento: <strong style="color:#333">${cita.tratamiento}</strong></p>
+              <p style="margin:8px 0 0;font-size:14px;color:#666">🦷 Tratamiento: <strong style="color:#333">${cita.tipo_tratamiento}</strong></p>
               <p style="margin:8px 0 0;font-size:14px;color:#666">📍 Od. Walter Benegas — Odontología General</p>
             </div>
             <p style="color:#888;font-size:13px">Si necesitás cancelar o reprogramar, comunicate con el consultorio.</p>
