@@ -1,35 +1,61 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
 import { Sidebar } from '@/components/Sidebar'
-import { Badge, Toast, PageHeader, FilterBar, BtnPrimary, BtnSm, DataTable, TR, TD, Spinner, MetricCard, inputCss, selectCss, textareaCss, overlayCss, modalCss, modalTitleCss, footerCss, groupCss, labelCss, grid2Css, btnDarkCss, btnLightCss, btnRedCss } from '@/components/UI'
+import { Badge, Toast, PageHeader, BtnPrimary, BtnSm, Spinner, overlayCss, modalCss, modalTitleCss, footerCss, groupCss, labelCss, grid2Css, btnDarkCss, btnLightCss, btnRedCss, selectCss, textareaCss, inputCss } from '@/components/UI'
 import { TRAT_STYLE, ESTADO_STYLE, TRATAMIENTOS, ESTADOS, DURACIONES, horasDisponibles, hoyISO } from '@/lib/constants'
 import { supabase } from '@/lib/supabase'
 import type { EstadoCita, TipoTratamiento } from '@/types'
 
 interface CitaDB { id:string; paciente_id:string; fecha_hora:string; tipo_tratamiento:string; estado:string; notas:string|null; duracion_minutos:number; pacientes:{nombre:string;telefono:string}|null }
-interface Cita   { id:string; paciente_id:string; nombre:string; telefono:string; hora:string; fecha:string; tratamiento:string; estado:EstadoCita; duracion:number; notas:string }
+interface Cita   { id:string; paciente_id:string; nombre:string; telefono:string; hora:string; fecha:string; tratamiento:string; estado:EstadoCita; duracion:number; notas:string; minutos:number }
 interface PacMin { id:string; nombre:string; telefono:string }
 
 function toCita(c: CitaDB): Cita {
   const dt = new Date(c.fecha_hora)
-  return { id:c.id, paciente_id:c.paciente_id, nombre:c.pacientes?.nombre??'—', telefono:c.pacientes?.telefono??'—', hora:dt.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}), fecha:dt.toISOString().split('T')[0], tratamiento:c.tipo_tratamiento, estado:c.estado as EstadoCita, duracion:c.duracion_minutos, notas:c.notas??'' }
+  const ar = new Date(dt.toLocaleString('en-US', { timeZone: 'America/Argentina/Buenos_Aires' }))
+  const h = ar.getHours(), m = ar.getMinutes()
+  return {
+    id:c.id, paciente_id:c.paciente_id,
+    nombre:c.pacientes?.nombre??'—', telefono:c.pacientes?.telefono??'—',
+    hora:`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`,
+    fecha:dt.toISOString().split('T')[0],
+    tratamiento:c.tipo_tratamiento, estado:c.estado as EstadoCita,
+    duracion:c.duracion_minutos, notas:c.notas??'',
+    minutos: h * 60 + m
+  }
 }
 
-const FILTROS = [{k:'todas',l:'Todas'},{k:'pendiente',l:'Pendientes'},{k:'confirmado',l:'Confirmadas'},{k:'asistio',l:'Asistió'},{k:'cancelado',l:'Cancelado'}]
+function getFechaSemana(base: string): string[] {
+  const d = new Date(base + 'T12:00:00')
+  const dia = d.getDay()
+  const lunes = new Date(d)
+  lunes.setDate(d.getDate() - (dia === 0 ? 6 : dia - 1))
+  return Array.from({length:6}, (_,i) => {
+    const f = new Date(lunes)
+    f.setDate(lunes.getDate() + i)
+    return f.toISOString().split('T')[0]
+  })
+}
+
+const DIAS_LABEL = ['Lun','Mar','Mié','Jue','Vie','Sáb']
+const HORA_INICIO = 8
+const HORA_FIN = 20
+const SLOT_H = 48 // px por hora
 
 export default function Agenda() {
   const [citas,   setCitas]   = useState<Cita[]>([])
   const [pacs,    setPacs]    = useState<PacMin[]>([])
   const [loading, setLoading] = useState(true)
   const [saving,  setSaving]  = useState(false)
-  const [modal,   setModal]   = useState<'nueva'|'editar'|'borrar'|null>(null)
+  const [modal,   setModal]   = useState<'nueva'|'editar'|'borrar'|'detalle'|null>(null)
   const [sel,     setSel]     = useState<Cita|null>(null)
-  const [filtro,  setFiltro]  = useState('todas')
   const [fecha,   setFecha]   = useState(hoyISO())
   const [toast,   setToast]   = useState<{msg:string;tipo:string}|null>(null)
+  const [vista,   setVista]   = useState<'semana'|'dia'>('semana')
 
   const [fPac,   setFPac]   = useState('')
   const [fHora,  setFHora]  = useState('09:00')
+  const [fFecha, setFFecha] = useState(hoyISO())
   const [fTrat,  setFTrat]  = useState('Consulta')
   const [fEst,   setFEst]   = useState<EstadoCita>('pendiente')
   const [fDur,   setFDur]   = useState(30)
@@ -37,13 +63,19 @@ export default function Agenda() {
 
   function msg(m:string,tipo='ok'){setToast({msg:m,tipo});setTimeout(()=>setToast(null),3500)}
 
+  const semana = getFechaSemana(fecha)
+  const desdeISO = semana[0] + 'T00:00:00'
+  const hastaISO = semana[5] + 'T23:59:59'
+
   const loadCitas = useCallback(async()=>{
     setLoading(true)
-    const {data,error} = await supabase.from('citas').select('*, pacientes(nombre,telefono)').gte('fecha_hora',`${fecha}T00:00:00`).lte('fecha_hora',`${fecha}T23:59:59`).order('fecha_hora',{ascending:true})
+    const desde = vista==='semana' ? semana[0]+'T00:00:00' : fecha+'T00:00:00'
+    const hasta = vista==='semana' ? semana[5]+'T23:59:59' : fecha+'T23:59:59'
+    const {data,error} = await supabase.from('citas').select('*, pacientes(nombre,telefono)').gte('fecha_hora',desde).lte('fecha_hora',hasta).order('fecha_hora',{ascending:true})
     if(error) msg('Error: '+error.message,'error')
     else setCitas((data as CitaDB[]).map(toCita))
     setLoading(false)
-  },[fecha])
+  },[fecha, vista])
 
   const loadPacs = useCallback(async()=>{
     const {data} = await supabase.from('pacientes').select('id,nombre,telefono').order('nombre')
@@ -53,18 +85,15 @@ export default function Agenda() {
   useEffect(()=>{loadCitas()},[loadCitas])
   useEffect(()=>{loadPacs()},[loadPacs])
 
-  const lista = filtro==='todas'?citas:citas.filter(c=>c.estado===filtro)
-  const conf  = citas.filter(c=>c.estado==='confirmado').length
-  const pend  = citas.filter(c=>c.estado==='pendiente').length
-  const tasa  = citas.length>0?Math.round(conf/citas.length*100):0
-
-  function openNueva(){setFPac('');setFHora('09:00');setFTrat('Consulta');setFEst('pendiente');setFDur(30);setFNotas('');setSel(null);setModal('nueva')}
-  function openEditar(c:Cita){setSel(c);setFHora(c.hora);setFTrat(c.tratamiento);setFEst(c.estado);setFDur(c.duracion);setFNotas(c.notas);setModal('editar')}
+  function openNueva(f?:string, h?:string){
+    setFPac('');setFHora(h||'09:00');setFFecha(f||fecha);setFTrat('Consulta');setFEst('pendiente');setFDur(30);setFNotas('');setSel(null);setModal('nueva')
+  }
+  function openEditar(c:Cita){setSel(c);setFHora(c.hora);setFFecha(c.fecha);setFTrat(c.tratamiento);setFEst(c.estado);setFDur(c.duracion);setFNotas(c.notas);setModal('editar')}
 
   async function saveNueva(){
     if(!fPac) return msg('Seleccioná un paciente','error')
     setSaving(true)
-    const {error} = await supabase.from('citas').insert({paciente_id:fPac,fecha_hora:`${fecha}T${fHora}:00-03:00`,tipo_tratamiento:fTrat,estado:fEst,duracion_minutos:fDur,notas:fNotas||null})
+    const {error} = await supabase.from('citas').insert({paciente_id:fPac,fecha_hora:`${fFecha}T${fHora}:00-03:00`,tipo_tratamiento:fTrat,estado:fEst,duracion_minutos:fDur,notas:fNotas||null})
     setSaving(false)
     if(error) return msg('Error: '+error.message,'error')
     setModal(null);msg('Cita agendada ✓');loadCitas()
@@ -73,7 +102,7 @@ export default function Agenda() {
   async function saveEditar(){
     if(!sel) return
     setSaving(true)
-    const {error} = await supabase.from('citas').update({fecha_hora:`${fecha}T${fHora}:00-03:00`,tipo_tratamiento:fTrat as TipoTratamiento,estado:fEst,duracion_minutos:fDur,notas:fNotas||null}).eq('id',sel.id)
+    const {error} = await supabase.from('citas').update({fecha_hora:`${fFecha}T${fHora}:00-03:00`,tipo_tratamiento:fTrat as TipoTratamiento,estado:fEst,duracion_minutos:fDur,notas:fNotas||null}).eq('id',sel.id)
     setSaving(false)
     if(error) return msg('Error: '+error.message,'error')
     setModal(null);msg('Cita actualizada ✓');loadCitas()
@@ -94,59 +123,154 @@ export default function Agenda() {
     msg('Estado actualizado')
   }
 
+  const horas = Array.from({length: HORA_FIN - HORA_INICIO}, (_,i) => HORA_INICIO + i)
+  const totalH = (HORA_FIN - HORA_INICIO) * SLOT_H
+
+  function citasDelDia(f: string){ return citas.filter(c => c.fecha === f) }
+
+  function citaTop(c: Cita){ return (c.minutos - HORA_INICIO * 60) / 60 * SLOT_H }
+  function citaHeight(c: Cita){ return Math.max(c.duracion / 60 * SLOT_H, 22) }
+
+  const hoy = hoyISO()
+
   return (
     <div style={{display:'flex',minHeight:'100vh',fontFamily:'DM Sans, sans-serif'}}>
-      <Sidebar pendientes={pend}/>
-      <main style={{marginLeft:240,flex:1,background:'#f4f6f8'}}>
+      <Sidebar pendientes={citas.filter(c=>c.estado==='pendiente').length}/>
+      <main style={{marginLeft:240,flex:1,background:'#f4f6f8',minWidth:0}}>
         <PageHeader title="Agenda"
           right={
-            <div style={{display:'flex',gap:12,alignItems:'center'}}>
-              <input type="date" value={fecha} onChange={e=>setFecha(e.target.value)} style={{...inputCss,width:160,padding:'0.5rem 0.75rem',fontSize:13}}/>
-              <BtnPrimary onClick={openNueva}>
+            <div style={{display:'flex',gap:10,alignItems:'center'}}>
+              {/* Navegación semana */}
+              <button onClick={()=>{const d=new Date(fecha);d.setDate(d.getDate()-7);setFecha(d.toISOString().split('T')[0])}} style={{background:'#fff',border:'1px solid #e2e8ed',borderRadius:8,padding:'6px 10px',cursor:'pointer',fontSize:16}}>‹</button>
+              <input type="date" value={fecha} onChange={e=>setFecha(e.target.value)} style={{...inputCss,width:150,padding:'0.5rem 0.75rem',fontSize:13}}/>
+              <button onClick={()=>{const d=new Date(fecha);d.setDate(d.getDate()+7);setFecha(d.toISOString().split('T')[0])}} style={{background:'#fff',border:'1px solid #e2e8ed',borderRadius:8,padding:'6px 10px',cursor:'pointer',fontSize:16}}>›</button>
+              <button onClick={()=>setFecha(hoyISO())} style={{background:'#fff',border:'1px solid #e2e8ed',borderRadius:8,padding:'6px 12px',cursor:'pointer',fontSize:12,color:'#555'}}>Hoy</button>
+              {/* Toggle vista */}
+              <div style={{display:'flex',background:'#fff',border:'1px solid #e2e8ed',borderRadius:8,overflow:'hidden'}}>
+                {(['semana','dia'] as const).map(v=>(
+                  <button key={v} onClick={()=>setVista(v)} style={{padding:'6px 14px',fontSize:12,border:'none',cursor:'pointer',background:vista===v?'#0f1e2b':'transparent',color:vista===v?'#fff':'#555',fontFamily:'DM Sans, sans-serif'}}>{v==='semana'?'Semana':'Día'}</button>
+                ))}
+              </div>
+              <BtnPrimary onClick={()=>openNueva()}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                 Nueva cita
               </BtnPrimary>
             </div>
           }/>
 
-        <div style={{padding:'1.75rem 2rem',maxWidth:1100}}>
-          <div style={{display:'flex',gap:12,marginBottom:'1.5rem',flexWrap:'wrap'}}>
-            <MetricCard label="Total del día"    value={loading?'…':citas.length} accent="#0f1e2b"/>
-            <MetricCard label="Confirmadas"       value={loading?'…':conf}         accent="#1D9E75"/>
-            <MetricCard label="Pendientes"        value={loading?'…':pend}         accent="#EF9F27"/>
-            <MetricCard label="Tasa confirmación" value={loading?'…':`${tasa}%`}   accent={tasa>=85?'#1D9E75':'#D85A30'}/>
-          </div>
-          <FilterBar options={FILTROS} active={filtro} onChange={setFiltro}/>
-          {loading?<Spinner/>:(
-            <DataTable headers={['Hora','Paciente','Tratamiento','Duración','Estado','Acciones']} empty={lista.length===0} emptyMsg="Sin citas para este día. Usá + Nueva cita.">
-              {lista.map(c=>{
-                const tc=TRAT_STYLE[c.tratamiento]||TRAT_STYLE.Consulta
-                const es=ESTADO_STYLE[c.estado]||ESTADO_STYLE.pendiente
-                return(
-                  <TR key={c.id}>
-                    <TD first><div style={{fontWeight:700,fontSize:16,color:'#0f1e2b'}}>{c.hora}</div></TD>
-                    <TD><div style={{fontWeight:500,fontSize:14}}>{c.nombre}</div><div style={{fontSize:11,color:'#aaa',marginTop:2}}>{c.telefono}</div></TD>
-                    <TD><Badge bg={tc.bg} color={tc.color}>{c.tratamiento}</Badge></TD>
-                    <TD muted>{c.duracion} min</TD>
-                    <TD>
-                      <select value={c.estado} onChange={e=>cambiarEstado(c.id,e.target.value as EstadoCita)} style={{fontSize:12,padding:'4px 8px',borderRadius:7,border:`1px solid ${es.color}33`,background:es.bg,color:es.color,fontFamily:'DM Sans, sans-serif',outline:'none',cursor:'pointer'}}>
-                        {ESTADOS.map(est=><option key={est} value={est}>{est.charAt(0).toUpperCase()+est.slice(1)}</option>)}
-                      </select>
-                    </TD>
-                    <TD>
-                      <div style={{display:'flex',gap:6}}>
-                        <BtnSm variant="edit"   onClick={()=>openEditar(c)}>Editar</BtnSm>
-                        <BtnSm variant="delete" onClick={()=>{setSel(c);setModal('borrar')}}>Eliminar</BtnSm>
-                      </div>
-                    </TD>
-                  </TR>
-                )
-              })}
-            </DataTable>
+        <div style={{padding:'1.5rem 2rem'}}>
+          {loading ? <Spinner/> : (
+            <div style={{background:'#fff',border:'1px solid #e2e8ed',borderRadius:16,overflow:'hidden'}}>
+
+              {/* Header días */}
+              <div style={{display:'grid',gridTemplateColumns:`64px repeat(${vista==='semana'?6:1}, 1fr)`,borderBottom:'1px solid #e2e8ed'}}>
+                <div style={{padding:'12px 0',borderRight:'1px solid #e2e8ed'}}/>
+                {(vista==='semana'?semana:[fecha]).map((f,i)=>{
+                  const esHoy = f===hoy
+                  const d = new Date(f+'T12:00:00')
+                  const numDia = d.getDate()
+                  const label = vista==='semana' ? DIAS_LABEL[i] : ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'][d.getDay()]
+                  return(
+                    <div key={f} style={{padding:'10px 0',textAlign:'center',borderRight:'1px solid #f0f0f0'}}>
+                      <div style={{fontSize:11,color:'#999',textTransform:'uppercase',letterSpacing:1}}>{label}</div>
+                      <div style={{width:32,height:32,borderRadius:'50%',background:esHoy?'#0f1e2b':'transparent',color:esHoy?'#fff':'#1a1a1a',fontWeight:700,fontSize:15,display:'flex',alignItems:'center',justifyContent:'center',margin:'4px auto 0'}}>{numDia}</div>
+                    </div>
+                  )
+                })}
+              </div>
+
+              {/* Grid horario */}
+              <div style={{display:'grid',gridTemplateColumns:`64px repeat(${vista==='semana'?6:1}, 1fr)`,overflowY:'auto',maxHeight:'calc(100vh - 220px)'}}>
+
+                {/* Columna horas */}
+                <div style={{borderRight:'1px solid #e2e8ed',position:'relative',height:totalH}}>
+                  {horas.map(h=>(
+                    <div key={h} style={{position:'absolute',top:(h-HORA_INICIO)*SLOT_H,left:0,right:0,height:SLOT_H,borderTop:'1px solid #f0f0f0',paddingTop:4}}>
+                      <span style={{fontSize:10,color:'#bbb',paddingLeft:8}}>{String(h).padStart(2,'0')}:00</span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Columnas días */}
+                {(vista==='semana'?semana:[fecha]).map((f)=>{
+                  const citasF = citasDelDia(f)
+                  return(
+                    <div key={f} style={{position:'relative',height:totalH,borderRight:'1px solid #f0f0f0',cursor:'pointer'}}
+                      onClick={e=>{
+                        if((e.target as HTMLElement).closest('[data-cita]')) return
+                        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+                        const y = e.clientY - rect.top
+                        const minTot = Math.floor(y / SLOT_H * 60 / 30) * 30
+                        const h = Math.floor(minTot/60) + HORA_INICIO
+                        const m = minTot % 60
+                        openNueva(f, `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`)
+                      }}>
+                      {/* Líneas de hora */}
+                      {horas.map(h=>(
+                        <div key={h} style={{position:'absolute',top:(h-HORA_INICIO)*SLOT_H,left:0,right:0,height:SLOT_H,borderTop:'1px solid #f5f5f5'}}/>
+                      ))}
+                      {/* Citas */}
+                      {citasF.map(c=>{
+                        const tc = TRAT_STYLE[c.tratamiento]||TRAT_STYLE.Consulta
+                        const es = ESTADO_STYLE[c.estado]||ESTADO_STYLE.pendiente
+                        return(
+                          <div key={c.id} data-cita="1"
+                            onClick={e=>{e.stopPropagation();setSel(c);setModal('detalle')}}
+                            style={{
+                              position:'absolute',
+                              top:citaTop(c)+2,
+                              left:3, right:3,
+                              height:citaHeight(c)-4,
+                              background:tc.bg,
+                              borderLeft:`3px solid ${tc.dot}`,
+                              borderRadius:6,
+                              padding:'3px 6px',
+                              overflow:'hidden',
+                              cursor:'pointer',
+                              zIndex:1,
+                              boxShadow:'0 1px 3px rgba(0,0,0,0.08)'
+                            }}>
+                            <div style={{fontSize:11,fontWeight:700,color:tc.color,lineHeight:1.2}}>{c.hora} · {c.nombre}</div>
+                            {citaHeight(c)>30&&<div style={{fontSize:10,color:tc.color,opacity:0.8,marginTop:1}}>{c.tratamiento} · {c.duracion}min</div>}
+                            {citaHeight(c)>44&&<div style={{fontSize:10,marginTop:2}}><span style={{background:es.bg,color:es.color,padding:'1px 5px',borderRadius:4}}>{es.label}</span></div>}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
           )}
         </div>
       </main>
 
+      {/* Modal detalle */}
+      {modal==='detalle'&&sel&&(
+        <div style={overlayCss} onClick={()=>setModal(null)}>
+          <div style={{...modalCss,maxWidth:400}} onClick={e=>e.stopPropagation()}>
+            <div style={modalTitleCss}>{sel.nombre}</div>
+            <div style={{fontSize:14,color:'#555',lineHeight:2}}>
+              <div>📅 <strong>{sel.fecha}</strong> a las <strong>{sel.hora}</strong></div>
+              <div>🦷 {sel.tratamiento} · {sel.duracion} min</div>
+              <div>📞 {sel.telefono}</div>
+              {sel.notas&&<div>📝 {sel.notas}</div>}
+            </div>
+            <div style={{margin:'12px 0'}}>
+              <label style={labelCss}>Estado</label>
+              <select value={sel.estado} onChange={e=>{cambiarEstado(sel.id,e.target.value as EstadoCita);setSel({...sel,estado:e.target.value as EstadoCita})}} style={selectCss}>
+                {ESTADOS.map(est=><option key={est} value={est}>{est.charAt(0).toUpperCase()+est.slice(1)}</option>)}
+              </select>
+            </div>
+            <div style={footerCss}>
+              <button style={btnLightCss} onClick={()=>{setModal(null);setTimeout(()=>{setSel(sel);setModal('borrar')},50)}}>Eliminar</button>
+              <button style={btnDarkCss} onClick={()=>{setModal(null);setTimeout(()=>openEditar(sel),50)}}>Editar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal nueva */}
       {modal==='nueva'&&(
         <div style={overlayCss} onClick={()=>setModal(null)}>
           <div style={modalCss} onClick={e=>e.stopPropagation()}>
@@ -157,16 +281,16 @@ export default function Agenda() {
                 <option value="">— Seleccionar paciente —</option>
                 {pacs.map(p=><option key={p.id} value={p.id}>{p.nombre}</option>)}
               </select>
-              {pacs.length===0&&<span style={{fontSize:11,color:'#D85A30',marginTop:4,display:'block'}}>No hay pacientes. Primero cargalos en Pacientes.</span>}
             </div>
             <div style={grid2Css}>
-              <div style={groupCss}><label style={labelCss}>Horario *</label><select style={selectCss} value={fHora} onChange={e=>setFHora(e.target.value)}>{horasDisponibles().map(h=><option key={h} value={h}>{h}</option>)}</select></div>
-              <div style={groupCss}><label style={labelCss}>Duración</label><select style={selectCss} value={fDur} onChange={e=>setFDur(Number(e.target.value))}>{DURACIONES.map(d=><option key={d} value={d}>{d} min</option>)}</select></div>
+              <div style={groupCss}><label style={labelCss}>Fecha</label><input type="date" style={{...selectCss}} value={fFecha} onChange={e=>setFFecha(e.target.value)}/></div>
+              <div style={groupCss}><label style={labelCss}>Horario</label><select style={selectCss} value={fHora} onChange={e=>setFHora(e.target.value)}>{horasDisponibles().map(h=><option key={h} value={h}>{h}</option>)}</select></div>
             </div>
             <div style={grid2Css}>
               <div style={groupCss}><label style={labelCss}>Tratamiento</label><select style={selectCss} value={fTrat} onChange={e=>setFTrat(e.target.value)}>{TRATAMIENTOS.map(t=><option key={t} value={t}>{t}</option>)}</select></div>
-              <div style={groupCss}><label style={labelCss}>Estado</label><select style={selectCss} value={fEst} onChange={e=>setFEst(e.target.value as EstadoCita)}>{ESTADOS.map(est=><option key={est} value={est}>{est.charAt(0).toUpperCase()+est.slice(1)}</option>)}</select></div>
+              <div style={groupCss}><label style={labelCss}>Duración</label><select style={selectCss} value={fDur} onChange={e=>setFDur(Number(e.target.value))}>{DURACIONES.map(d=><option key={d} value={d}>{d} min</option>)}</select></div>
             </div>
+            <div style={groupCss}><label style={labelCss}>Estado</label><select style={selectCss} value={fEst} onChange={e=>setFEst(e.target.value as EstadoCita)}>{ESTADOS.map(est=><option key={est} value={est}>{est.charAt(0).toUpperCase()+est.slice(1)}</option>)}</select></div>
             <div style={groupCss}><label style={labelCss}>Notas</label><textarea style={textareaCss} value={fNotas} onChange={e=>setFNotas(e.target.value)} placeholder="Observaciones..."/></div>
             <div style={footerCss}>
               <button style={btnLightCss} onClick={()=>setModal(null)} disabled={saving}>Cancelar</button>
@@ -176,18 +300,20 @@ export default function Agenda() {
         </div>
       )}
 
+      {/* Modal editar */}
       {modal==='editar'&&(
         <div style={overlayCss} onClick={()=>setModal(null)}>
           <div style={modalCss} onClick={e=>e.stopPropagation()}>
             <div style={modalTitleCss}>Editar cita — {sel?.nombre}</div>
             <div style={grid2Css}>
+              <div style={groupCss}><label style={labelCss}>Fecha</label><input type="date" style={{...selectCss}} value={fFecha} onChange={e=>setFFecha(e.target.value)}/></div>
               <div style={groupCss}><label style={labelCss}>Horario</label><select style={selectCss} value={fHora} onChange={e=>setFHora(e.target.value)}>{horasDisponibles().map(h=><option key={h} value={h}>{h}</option>)}</select></div>
-              <div style={groupCss}><label style={labelCss}>Duración</label><select style={selectCss} value={fDur} onChange={e=>setFDur(Number(e.target.value))}>{DURACIONES.map(d=><option key={d} value={d}>{d} min</option>)}</select></div>
             </div>
             <div style={grid2Css}>
               <div style={groupCss}><label style={labelCss}>Tratamiento</label><select style={selectCss} value={fTrat} onChange={e=>setFTrat(e.target.value)}>{TRATAMIENTOS.map(t=><option key={t} value={t}>{t}</option>)}</select></div>
-              <div style={groupCss}><label style={labelCss}>Estado</label><select style={selectCss} value={fEst} onChange={e=>setFEst(e.target.value as EstadoCita)}>{ESTADOS.map(est=><option key={est} value={est}>{est.charAt(0).toUpperCase()+est.slice(1)}</option>)}</select></div>
+              <div style={groupCss}><label style={labelCss}>Duración</label><select style={selectCss} value={fDur} onChange={e=>setFDur(Number(e.target.value))}>{DURACIONES.map(d=><option key={d} value={d}>{d} min</option>)}</select></div>
             </div>
+            <div style={groupCss}><label style={labelCss}>Estado</label><select style={selectCss} value={fEst} onChange={e=>setFEst(e.target.value as EstadoCita)}>{ESTADOS.map(est=><option key={est} value={est}>{est.charAt(0).toUpperCase()+est.slice(1)}</option>)}</select></div>
             <div style={groupCss}><label style={labelCss}>Notas</label><textarea style={textareaCss} value={fNotas} onChange={e=>setFNotas(e.target.value)}/></div>
             <div style={footerCss}>
               <button style={btnLightCss} onClick={()=>setModal(null)} disabled={saving}>Cancelar</button>
@@ -197,6 +323,7 @@ export default function Agenda() {
         </div>
       )}
 
+      {/* Modal borrar */}
       {modal==='borrar'&&(
         <div style={overlayCss} onClick={()=>setModal(null)}>
           <div style={{...modalCss,maxWidth:380}} onClick={e=>e.stopPropagation()}>
