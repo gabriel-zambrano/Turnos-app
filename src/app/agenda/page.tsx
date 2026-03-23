@@ -6,8 +6,8 @@ import { TRAT_STYLE, ESTADO_STYLE, TRATAMIENTOS, ESTADOS, DURACIONES, horasDispo
 import { supabase } from '@/lib/supabase'
 import type { EstadoCita, TipoTratamiento } from '@/types'
 
-interface CitaDB { id:string; paciente_id:string; fecha_hora:string; tipo_tratamiento:string; estado:string; notas:string|null; duracion_minutos:number; pacientes:{nombre:string;telefono:string}|null }
-interface Cita   { id:string; paciente_id:string; nombre:string; telefono:string; hora:string; fecha:string; tratamiento:string; estado:EstadoCita; duracion:number; notas:string; minutos:number }
+interface CitaDB { id:string; paciente_id:string; fecha_hora:string; tipo_tratamiento:string; estado:string; notas:string|null; duracion_minutos:number; valor:number|null; sena:number|null; pacientes:{nombre:string;telefono:string}|null }
+interface Cita   { id:string; paciente_id:string; nombre:string; telefono:string; hora:string; fecha:string; tratamiento:string; estado:EstadoCita; duracion:number; notas:string; minutos:number; valor:number|null; sena:number|null }
 interface PacMin { id:string; nombre:string; telefono:string }
 
 function toCita(c: CitaDB): Cita {
@@ -21,7 +21,7 @@ function toCita(c: CitaDB): Cita {
     fecha:dt.toISOString().split('T')[0],
     tratamiento:c.tipo_tratamiento, estado:c.estado as EstadoCita,
     duracion:c.duracion_minutos, notas:c.notas??'',
-    minutos: h * 60 + m
+    minutos: h * 60 + m, valor:c.valor??null, sena:c.sena??null
   }
 }
 
@@ -59,7 +59,10 @@ export default function Agenda() {
   const [fTrat,  setFTrat]  = useState('Consulta')
   const [fEst,   setFEst]   = useState<EstadoCita>('pendiente')
   const [fDur,   setFDur]   = useState(30)
-  const [fNotas, setFNotas] = useState('')
+  const [fNotas,    setFNotas]    = useState('')
+  const [fValor,    setFValor]    = useState<number|''>('')
+  const [fSena,     setFSena]     = useState<number|''>('')
+  const [fDescuento,setFDescuento]= useState<number|''>('')
 
   function msg(m:string,tipo='ok'){setToast({msg:m,tipo});setTimeout(()=>setToast(null),3500)}
 
@@ -86,14 +89,14 @@ export default function Agenda() {
   useEffect(()=>{loadPacs()},[loadPacs])
 
   function openNueva(f?:string, h?:string){
-    setFPac('');setFHora(h||'09:00');setFFecha(f||fecha);setFTrat('Consulta');setFEst('pendiente');setFDur(30);setFNotas('');setSel(null);setModal('nueva')
+    setFPac('');setFHora(h||'09:00');setFFecha(f||fecha);setFTrat('Consulta');setFEst('pendiente');setFDur(30);setFNotas('');setFValor('');setFSena('');setFDescuento('');setSel(null);setModal('nueva')
   }
-  function openEditar(c:Cita){setSel(c);setFHora(c.hora);setFFecha(c.fecha);setFTrat(c.tratamiento);setFEst(c.estado);setFDur(c.duracion);setFNotas(c.notas);setModal('editar')}
+  function openEditar(c:Cita){setSel(c);setFHora(c.hora);setFFecha(c.fecha);setFTrat(c.tratamiento);setFEst(c.estado);setFDur(c.duracion);setFNotas(c.notas);setFValor((c as any).valor??'');setFSena((c as any).sena??'');setFDescuento('');setModal('editar')}
 
   async function saveNueva(){
     if(!fPac) return msg('Seleccioná un paciente','error')
     setSaving(true)
-    const {error} = await supabase.from('citas').insert({paciente_id:fPac,fecha_hora:`${fFecha}T${fHora}:00-03:00`,tipo_tratamiento:fTrat,estado:fEst,duracion_minutos:fDur,notas:fNotas||null})
+    const {error} = await supabase.from('citas').insert({paciente_id:fPac,fecha_hora:`${fFecha}T${fHora}:00-03:00`,tipo_tratamiento:fTrat,estado:fEst,duracion_minutos:fDur,notas:fNotas||null,valor:fValor||null,sena:fSena||null})
     setSaving(false)
     if(error) return msg('Error: '+error.message,'error')
     setModal(null);msg('Cita agendada ✓');loadCitas()
@@ -102,7 +105,7 @@ export default function Agenda() {
   async function saveEditar(){
     if(!sel) return
     setSaving(true)
-    const {error} = await supabase.from('citas').update({fecha_hora:`${fFecha}T${fHora}:00-03:00`,tipo_tratamiento:fTrat as TipoTratamiento,estado:fEst,duracion_minutos:fDur,notas:fNotas||null}).eq('id',sel.id)
+    const {error} = await supabase.from('citas').update({fecha_hora:`${fFecha}T${fHora}:00-03:00`,tipo_tratamiento:fTrat as TipoTratamiento,estado:fEst,duracion_minutos:fDur,notas:fNotas||null,valor:fValor||null,sena:fSena||null}).eq('id',sel.id)
     setSaving(false)
     if(error) return msg('Error: '+error.message,'error')
     setModal(null);msg('Cita actualizada ✓');loadCitas()
@@ -231,7 +234,7 @@ export default function Agenda() {
                               boxShadow:'0 1px 3px rgba(0,0,0,0.08)'
                             }}>
                             <div style={{fontSize:11,fontWeight:700,color:tc.color,lineHeight:1.2}}>{c.hora} · {c.nombre}</div>
-                            {citaHeight(c)>30&&<div style={{fontSize:10,color:tc.color,opacity:0.8,marginTop:1}}>{c.tratamiento} · {c.duracion}min</div>}
+                            {citaHeight(c)>30&&<div style={{fontSize:10,color:tc.color,opacity:0.8,marginTop:1}}>{c.tratamiento} · {c.duracion}min{c.valor?` · $${c.valor}`:''}</div>}
                             {citaHeight(c)>44&&<div style={{fontSize:10,marginTop:2}}><span style={{background:es.bg,color:es.color,padding:'1px 5px',borderRadius:4}}>{es.label}</span></div>}
                           </div>
                         )
@@ -253,6 +256,8 @@ export default function Agenda() {
             <div style={{fontSize:14,color:'#555',lineHeight:2}}>
               <div>📅 <strong>{sel.fecha}</strong> a las <strong>{sel.hora}</strong></div>
               <div>🦷 {sel.tratamiento} · {sel.duracion} min</div>
+{sel.valor&&<div>💰 Valor: <strong>${sel.valor}</strong>{sel.sena?<> · Seña: <strong>${sel.sena}</strong> · Saldo: <strong>${sel.valor-sel.sena}</strong></>:null}</div>}
+{(sel as any).valor&&<div>💰 Valor: <strong>${(sel as any).valor}</strong>{(sel as any).sena?<> · Seña: <strong>${(sel as any).sena}</strong> · Saldo: <strong>${(sel as any).valor-(sel as any).sena}</strong></>:null}</div>}
               <div>📞 {sel.telefono}</div>
               {sel.notas&&<div>📝 {sel.notas}</div>}
             </div>
@@ -292,6 +297,11 @@ export default function Agenda() {
             </div>
             <div style={groupCss}><label style={labelCss}>Estado</label><select style={selectCss} value={fEst} onChange={e=>setFEst(e.target.value as EstadoCita)}>{ESTADOS.map(est=><option key={est} value={est}>{est.charAt(0).toUpperCase()+est.slice(1)}</option>)}</select></div>
             <div style={groupCss}><label style={labelCss}>Notas</label><textarea style={textareaCss} value={fNotas} onChange={e=>setFNotas(e.target.value)} placeholder="Observaciones..."/></div>
+            <div style={grid2Css}>
+              <div style={groupCss}><label style={labelCss}>Valor ($)</label><input type="number" style={{...selectCss}} value={fValor} onChange={e=>setFValor(e.target.value===''?'':Number(e.target.value))} placeholder="0"/></div>
+              <div style={groupCss}><label style={labelCss}>Seña ($)</label><input type="number" style={{...selectCss}} value={fSena} onChange={e=>setFSena(e.target.value===''?'':Number(e.target.value))} placeholder="0"/></div>
+            </div>
+            {(fValor!==''||fSena!=='')&&<div style={{fontSize:13,color:'#888',padding:'0.25rem 0'}}>Saldo: <strong style={{color:'#222'}}>${(Number(fValor)||0)-(Number(fSena)||0)}</strong></div>}
             <div style={footerCss}>
               <button style={btnLightCss} onClick={()=>setModal(null)} disabled={saving}>Cancelar</button>
               <button style={{...btnDarkCss,opacity:saving?.6:1}} onClick={saveNueva} disabled={saving}>{saving?'Guardando...':'Agendar cita'}</button>
@@ -315,6 +325,11 @@ export default function Agenda() {
             </div>
             <div style={groupCss}><label style={labelCss}>Estado</label><select style={selectCss} value={fEst} onChange={e=>setFEst(e.target.value as EstadoCita)}>{ESTADOS.map(est=><option key={est} value={est}>{est.charAt(0).toUpperCase()+est.slice(1)}</option>)}</select></div>
             <div style={groupCss}><label style={labelCss}>Notas</label><textarea style={textareaCss} value={fNotas} onChange={e=>setFNotas(e.target.value)}/></div>
+            <div style={grid2Css}>
+              <div style={groupCss}><label style={labelCss}>Valor ($)</label><input type="number" style={{...selectCss}} value={fValor} onChange={e=>setFValor(e.target.value===''?'':Number(e.target.value))} placeholder="0"/></div>
+              <div style={groupCss}><label style={labelCss}>Seña ($)</label><input type="number" style={{...selectCss}} value={fSena} onChange={e=>setFSena(e.target.value===''?'':Number(e.target.value))} placeholder="0"/></div>
+            </div>
+            {(fValor!==''||fSena!=='')&&<div style={{fontSize:13,color:'#888',padding:'0.25rem 0'}}>Saldo: <strong style={{color:'#222'}}>${(Number(fValor)||0)-(Number(fSena)||0)}</strong></div>}
             <div style={footerCss}>
               <button style={btnLightCss} onClick={()=>setModal(null)} disabled={saving}>Cancelar</button>
               <button style={{...btnDarkCss,opacity:saving?.6:1}} onClick={saveEditar} disabled={saving}>{saving?'Guardando...':'Guardar cambios'}</button>

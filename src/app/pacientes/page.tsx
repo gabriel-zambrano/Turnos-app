@@ -14,6 +14,7 @@ interface PacDB {
   fecha_nacimiento: string | null
   ultimo_tratamiento: string | null
   creado_en: string
+  token: string | null
 }
 interface Pac {
   id: string
@@ -23,6 +24,7 @@ interface Pac {
   nacimiento: string
   tratamiento: string
   alta: string
+  token: string | null
 }
 function toPac(p: PacDB): Pac {
   return {
@@ -33,6 +35,7 @@ function toPac(p: PacDB): Pac {
     nacimiento: p.fecha_nacimiento ?? '',
     tratamiento: p.ultimo_tratamiento ?? 'Consulta',
     alta: p.creado_en?.split('T')[0] ?? '',
+    token: p.token ?? null,
   }
 }
 
@@ -214,6 +217,7 @@ export default function Pacientes() {
                       <div style={{ display: 'flex', gap: 6 }}>
                         <BtnSm variant="edit"   onClick={() => openEditar(p)}>Editar</BtnSm>
                         <BtnSm variant="delete" onClick={() => { setSel(p); setModal('borrar') }}>Eliminar</BtnSm>
+                        {p.token&&<BtnSm variant="edit" onClick={()=>{navigator.clipboard.writeText(`${window.location.origin}/paciente/${p.token}`);msg('Link copiado ✓')}}>Link</BtnSm>}
                       </div>
                     </TD>
                   </TR>
