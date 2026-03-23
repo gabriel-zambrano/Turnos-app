@@ -21,7 +21,8 @@ export const textareaCss: React.CSSProperties = { ...inputCss, resize: 'vertical
 
 // ── Modal ─────────────────────────────────────────
 export const overlayCss: React.CSSProperties = {
-  position: 'fixed', inset: 0,
+  position: 'fixed', inset: 0, // @ts-ignore
+  'data-overlay': '',
   background: 'rgba(15,30,43,0.5)',
   zIndex: 200,
   display: 'flex', alignItems: 'center', justifyContent: 'center',

@@ -38,3 +38,30 @@ body {
     padding-bottom: 0 !important;
   }
 }
+
+@media (max-width: 767px) {
+  [data-overlay] {
+    align-items: flex-end !important;
+    padding: 0 !important;
+  }
+  [data-modal] {
+    border-radius: 16px 16px 0 0 !important;
+    max-width: 100vw !important;
+    width: 100vw !important;
+    max-height: 85vh !important;
+    margin: 0 !important;
+  }
+}
+
+@media (max-width: 767px) {
+  div[style*="inset: 0"][style*="rgba(15, 30, 43"] {
+    align-items: flex-end !important;
+    padding: 0 !important;
+  }
+  div[style*="border-radius: 16px"] {
+    border-radius: 16px 16px 0 0 !important;
+    max-width: 100vw !important;
+    width: 100vw !important;
+    max-height: 85vh !important;
+  }
+}
