@@ -18,3 +18,23 @@ body {
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+
+@media (max-width: 767px) {
+  /* Modales full screen en mobile */
+  [style*="border-radius: 16px"][style*="padding: 1.75rem"] {
+    border-radius: 12px !important;
+    padding: 1.25rem !important;
+    margin: 0.75rem !important;
+    max-width: calc(100vw - 1.5rem) !important;
+  }
+  /* Grid 2 columnas → 1 columna en mobile */
+  [style*="grid-template-columns: 1fr 1fr"] {
+    grid-template-columns: 1fr !important;
+    gap: 0 !important;
+  }
+  /* Overlay centrado */
+  [style*="position: fixed"][style*="inset: 0"] {
+    align-items: flex-end !important;
+    padding-bottom: 0 !important;
+  }
+}
