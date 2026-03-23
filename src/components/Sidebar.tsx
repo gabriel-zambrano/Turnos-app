@@ -1,5 +1,6 @@
 'use client'
 import { usePathname, useRouter } from 'next/navigation'
+import { useState, useEffect } from 'react'
 import { DARK } from './UI'
 
 const NAV = [
@@ -19,12 +20,40 @@ const ICONS: Record<string, React.ReactNode> = {
 
 export function Sidebar({ pendientes = 0 }: { pendientes?: number }) {
   const pathname = usePathname()
-  const router   = useRouter()
+  const router = useRouter()
+  const [isMobile, setIsMobile] = useState(false)
 
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768)
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [])
+
+  // Mobile: barra inferior
+  if (isMobile) {
+    return (
+      <nav style={{ position: 'fixed', bottom: 0, left: 0, right: 0, height: 64, background: '#fff', borderTop: '1px solid #e2e8ed', display: 'flex', alignItems: 'center', justifyContent: 'space-around', zIndex: 100, fontFamily: 'DM Sans, sans-serif' }}>
+        {NAV.map(item => {
+          const active = pathname === item.href
+          return (
+            <button key={item.href} onClick={() => router.push(item.href)}
+              style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, padding: '0.5rem 1rem', border: 'none', background: 'transparent', cursor: 'pointer', color: active ? DARK : '#aaa', fontFamily: 'DM Sans, sans-serif', position: 'relative' }}>
+              <span style={{ color: active ? DARK : '#aaa' }}>{ICONS[item.icon]}</span>
+              <span style={{ fontSize: 10, fontWeight: active ? 600 : 400 }}>{item.label}</span>
+              {item.href === '/agenda' && pendientes > 0 && (
+                <span style={{ position: 'absolute', top: 4, right: 8, background: '#EF9F27', color: '#fff', fontSize: 9, fontWeight: 700, padding: '1px 5px', borderRadius: 10 }}>{pendientes}</span>
+              )}
+            </button>
+          )
+        })}
+      </nav>
+    )
+  }
+
+  // Desktop: sidebar lateral
   return (
     <aside style={{ width: 240, background: '#fff', borderRight: '1px solid #e2e8ed', display: 'flex', flexDirection: 'column', position: 'fixed', top: 0, left: 0, height: '100vh', zIndex: 100, fontFamily: 'DM Sans, sans-serif' }}>
-
-      {/* Logo */}
       <div style={{ padding: '1.25rem', borderBottom: '1px solid #e2e8ed' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
           <div style={{ width: 36, height: 36, borderRadius: 10, background: DARK, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -45,8 +74,6 @@ export function Sidebar({ pendientes = 0 }: { pendientes?: number }) {
           </div>
         </div>
       </div>
-
-      {/* Nav */}
       <nav style={{ flex: 1, padding: '1rem 0.75rem', display: 'flex', flexDirection: 'column', gap: 2 }}>
         <div style={{ fontSize: 10, color: '#b0bec5', letterSpacing: '0.1em', textTransform: 'uppercase', padding: '0.5rem 0.5rem 0.25rem', fontWeight: 600 }}>Principal</div>
         {NAV.map(item => {
@@ -63,8 +90,6 @@ export function Sidebar({ pendientes = 0 }: { pendientes?: number }) {
           )
         })}
       </nav>
-
-      {/* Footer */}
       <div style={{ padding: '1rem 0.75rem', borderTop: '1px solid #e2e8ed' }}>
         <button onClick={() => router.push('/login')} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '0.6rem 0.75rem', borderRadius: 8, fontSize: 13, color: '#b0bec5', cursor: 'pointer', border: 'none', background: 'transparent', width: '100%', fontFamily: 'DM Sans, sans-serif' }}>
           <span style={{ opacity: 0.6, display: 'flex' }}>{ICONS['out']}</span>

@@ -41,6 +41,8 @@ function toPac(p: PacDB): Pac {
 
 export default function Pacientes() {
   const [rows,    setRows]    = useState<Pac[]>([])
+  const [isMobile, setIsMobile] = useState(false)
+  useEffect(()=>{ const check = () => setIsMobile(window.innerWidth < 768); check(); window.addEventListener("resize", check); return () => window.removeEventListener("resize", check) },[])
   const [loading, setLoading] = useState(true)
   const [saving,  setSaving]  = useState(false)
   const [modal,   setModal]   = useState<'nuevo' | 'editar' | 'borrar' | null>(null)
@@ -157,7 +159,7 @@ export default function Pacientes() {
   return (
     <div style={{ display: 'flex', minHeight: '100vh', fontFamily: 'DM Sans, sans-serif' }}>
       <Sidebar/>
-      <main style={{ marginLeft: 240, flex: 1, background: '#f4f6f8' }}>
+      <main style={{ marginLeft: isMobile?0:240, flex: 1, background: "#f4f6f8", paddingBottom: isMobile?64:0 }}>
 
         <PageHeader title="Pacientes"
           right={

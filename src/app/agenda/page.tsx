@@ -58,6 +58,13 @@ export default function Agenda() {
   const [fBloqMotivo, setFBloqMotivo] = useState("")
   const [fBloqFecha, setFBloqFecha] = useState("")
   const [vista,   setVista]   = useState<'semana'|'dia'>('semana')
+  const [isMobile, setIsMobile] = useState(false)
+  useEffect(()=>{
+    const check = () => setIsMobile(window.innerWidth < 768)
+    check()
+    window.addEventListener("resize", check)
+    return () => window.removeEventListener("resize", check)
+  },[])
 
   const [fPac,   setFPac]   = useState('')
   const [fHora,  setFHora]  = useState('09:00')
@@ -172,7 +179,7 @@ export default function Agenda() {
   return (
     <div style={{display:'flex',minHeight:'100vh',fontFamily:'DM Sans, sans-serif'}}>
       <Sidebar pendientes={citas.filter(c=>c.estado==='pendiente').length}/>
-      <main style={{marginLeft:240,flex:1,background:'#f4f6f8',minWidth:0}}>
+      <main style={{marginLeft:isMobile?0:240,flex:1,background:'#f4f6f8',minWidth:0,paddingBottom:isMobile?64:0}}>
         <PageHeader title="Agenda"
           right={
             <div style={{display:'flex',gap:10,alignItems:'center'}}>

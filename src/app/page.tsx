@@ -12,6 +12,8 @@ const FILTROS = [{k:'todas',l:'Todas'},{k:'pendiente',l:'Pendientes'},{k:'confir
 
 export default function Dashboard() {
   const [citas,    setCitas]    = useState<Cita[]>([])
+  const [isMobile, setIsMobile] = useState(false)
+  useEffect(()=>{ const check = () => setIsMobile(window.innerWidth < 768); check(); window.addEventListener("resize", check); return () => window.removeEventListener("resize", check) },[])
   const [logs,     setLogs]     = useState<LogItem[]>([])
   const [loading,  setLoading]  = useState(true)
   const [enviando, setEnviando] = useState(false)
@@ -65,7 +67,7 @@ export default function Dashboard() {
   return (
     <div style={{display:'flex',minHeight:'100vh',fontFamily:'DM Sans, sans-serif'}}>
       <Sidebar pendientes={pend}/>
-      <main style={{marginLeft:240,flex:1,background:'#f4f6f8'}}>
+      <main style={{marginLeft:isMobile?0:240,flex:1,background:'#f4f6f8',paddingBottom:isMobile?64:0}}>
         <PageHeader title="Dashboard" sub={hoy}
           right={<span style={{fontSize:12,padding:'5px 12px',borderRadius:6,fontWeight:500,background:tasa>=85?'#E1F5EE':'#FAEEDA',color:tasa>=85?'#085041':'#633806'}}>Tasa: {tasa}%</span>}/>
 

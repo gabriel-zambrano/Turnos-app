@@ -8,6 +8,8 @@ interface LogDB { id:string; tipo_mensaje:string; estado_envio:string; mensaje_p
 
 export default function Recordatorios() {
   const [logs,    setLogs]    = useState<LogDB[]>([])
+  const [isMobile, setIsMobile] = useState(false)
+  useEffect(()=>{ const check = () => setIsMobile(window.innerWidth < 768); check(); window.addEventListener("resize", check); return () => window.removeEventListener("resize", check) },[])
   const [loading, setLoading] = useState(true)
 
   const load = useCallback(async()=>{
@@ -22,7 +24,7 @@ export default function Recordatorios() {
   return (
     <div style={{display:'flex',minHeight:'100vh',fontFamily:'DM Sans, sans-serif'}}>
       <Sidebar/>
-      <main style={{marginLeft:240,flex:1,background:'#f4f6f8'}}>
+      <main style={{marginLeft:isMobile?0:240,flex:1,background:'#f4f6f8',paddingBottom:isMobile?64:0}}>
         <PageHeader title="Recordatorios"/>
         <div style={{padding:'1.75rem 2rem',maxWidth:1100}}>
           <div style={{background:'#fff',border:'0.5px solid #e8e8e8',borderRadius:16,padding:'1.25rem 1.5rem',marginBottom:'1.5rem'}}>
