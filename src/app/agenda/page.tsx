@@ -206,9 +206,9 @@ export default function Agenda() {
             <div style={{background:'#fff',border:'1px solid #e2e8ed',borderRadius:16,overflow:'hidden'}}>
 
               {/* Header días */}
-              <div style={{display:'grid',gridTemplateColumns:`64px repeat(${vista==='semana'?6:1}, 1fr)`,borderBottom:'1px solid #e2e8ed'}}>
+              <div style={{display:'grid',gridTemplateColumns:`64px repeat(${isMobile?1:vista==='semana'?6:1}, 1fr)`,borderBottom:'1px solid #e2e8ed'}}>
                 <div style={{padding:'12px 0',borderRight:'1px solid #e2e8ed'}}/>
-                {(vista==='semana'?semana:[fecha]).map((f,i)=>{
+                {(isMobile||vista==='dia'?[fecha]:semana).map((f,i)=>{
                   const esHoy = f===hoy
                   const d = new Date(f+'T12:00:00')
                   const numDia = d.getDate()
@@ -223,7 +223,7 @@ export default function Agenda() {
               </div>
 
               {/* Grid horario */}
-              <div style={{display:'grid',gridTemplateColumns:`64px repeat(${vista==='semana'?6:1}, 1fr)`,overflowY:'auto',maxHeight:'calc(100vh - 220px)'}}>
+              <div style={{display:'grid',gridTemplateColumns:`64px repeat(${isMobile?1:vista==='semana'?6:1}, 1fr)`,overflowY:'auto',maxHeight:isMobile?'calc(100vh - 140px)':'calc(100vh - 220px)'}}>
 
                 {/* Columna horas */}
                 <div style={{borderRight:'1px solid #e2e8ed',position:'relative',height:totalH}}>
@@ -235,7 +235,7 @@ export default function Agenda() {
                 </div>
 
                 {/* Columnas días */}
-                {(vista==='semana'?semana:[fecha]).map((f)=>{
+                {(isMobile||vista==='dia'?[fecha]:semana).map((f)=>{
                   const citasF = citasDelDia(f)
                   return(
                     <div key={f} style={{position:'relative',height:totalH,borderRight:'1px solid #f0f0f0',cursor:'pointer'}}
