@@ -186,15 +186,42 @@ export default function Pacientes() {
             <MetricCard label="Resultado búsqueda" value={loading ? '…' : filtrados.length} accent="#378ADD"/>
           </div>
 
-          {loading ? <Spinner/> : (
+          {loading ? <Spinner/> : isMobile ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: '0.75rem' }}>
+              {filtrados.map((p, i) => {
+                const color = AVATAR_COLORS[i % AVATAR_COLORS.length]
+                const tc = TRAT_STYLE[p.tratamiento] || TRAT_STYLE.Consulta
+                return (
+                  <div key={p.id} style={{ background: '#fff', borderRadius: 12, padding: '1rem', boxShadow: '0 1px 4px rgba(0,0,0,0.07)', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div style={{ width: 40, height: 40, borderRadius: '50%', background: color + '22', border: `1.5px solid ${color}44`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color, flexShrink: 0 }}>
+                        {initials(p.nombre)}
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 600, fontSize: 15 }}>{p.nombre}</div>
+                        <div style={{ fontSize: 12, color: '#888' }}>{p.telefono}</div>
+                      </div>
+                      <Badge bg={tc.bg} color={tc.color}>{p.tratamiento}</Badge>
+                    </div>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <BtnSm variant="edit" onClick={() => openEditar(p)}>Editar</BtnSm>
+                      <BtnSm variant="delete" onClick={() => { setSel(p); setModal('borrar') }}>Eliminar</BtnSm>
+                      {p.token && <BtnSm variant="edit" onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/paciente/${p.token}`); msg('Link copiado ✓') }}>Link</BtnSm>}
+                    </div>
+                  </div>
+                )
+              })}
+              {filtrados.length === 0 && <div style={{ textAlign: 'center', color: '#aaa', padding: '2rem' }}>No hay pacientes.</div>}
+            </div>
+          ) : (
             <DataTable
               headers={['Paciente', 'Contacto', 'Edad', 'Tratamiento', 'Alta', '']}
               empty={filtrados.length === 0}
               emptyMsg="No hay pacientes. Hacé click en + Nuevo paciente para agregar el primero."
             >
               {filtrados.map((p, i) => {
-                const tc    = TRAT_STYLE[p.tratamiento] || TRAT_STYLE.Consulta
                 const color = AVATAR_COLORS[i % AVATAR_COLORS.length]
+                const tc    = TRAT_STYLE[p.tratamiento] || TRAT_STYLE.Consulta
                 return (
                   <TR key={p.id}>
                     <TD first>
@@ -226,6 +253,7 @@ export default function Pacientes() {
                 )
               })}
             </DataTable>
+          )}
           )}
         </div>
       </main>
