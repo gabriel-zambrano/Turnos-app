@@ -47,10 +47,16 @@ export default function Agenda() {
   const [pacs,    setPacs]    = useState<PacMin[]>([])
   const [loading, setLoading] = useState(true)
   const [saving,  setSaving]  = useState(false)
-  const [modal,   setModal]   = useState<'nueva'|'editar'|'borrar'|'detalle'|null>(null)
+  const [modal,   setModal]   = useState<'nueva'|'editar'|'borrar'|'detalle'|'bloqueo'|'menu'|null>(null)
   const [sel,     setSel]     = useState<Cita|null>(null)
   const [fecha,   setFecha]   = useState(hoyISO())
   const [toast,   setToast]   = useState<{msg:string;tipo:string}|null>(null)
+  const [menuPos, setMenuPos] = useState<{x:number;y:number;f:string;h:string}|null>(null)
+  const [bloqueos, setBloqueos] = useState<{id:string;fecha:string;hora_inicio:string;hora_fin:string;motivo:string|null}[]>([])
+  const [fBloqDesde, setFBloqDesde] = useState("08:00")
+  const [fBloqHasta, setFBloqHasta] = useState("12:00")
+  const [fBloqMotivo, setFBloqMotivo] = useState("")
+  const [fBloqFecha, setFBloqFecha] = useState("")
   const [vista,   setVista]   = useState<'semana'|'dia'>('semana')
 
   const [fPac,   setFPac]   = useState('')
@@ -85,8 +91,14 @@ export default function Agenda() {
     if(data) setPacs(data as PacMin[])
   },[])
 
-  useEffect(()=>{loadCitas()},[loadCitas])
+  useEffect(()=>{loadCitas();loadBloqueos(semana[0],semana[5])},[loadCitas])
   useEffect(()=>{loadPacs()},[loadPacs])
+  useEffect(()=>{
+    if(!menuPos) return
+    const handler = () => setMenuPos(null)
+    document.addEventListener("click", handler)
+    return () => document.removeEventListener("click", handler)
+  },[menuPos])
 
   function openNueva(f?:string, h?:string){
     setFPac('');setFHora(h||'09:00');setFFecha(f||fecha);setFTrat('Consulta');setFEst('pendiente');setFDur(30);setFNotas('');setFValor('');setFSena('');setFDescuento('');setSel(null);setModal('nueva')
@@ -124,6 +136,27 @@ export default function Agenda() {
     await supabase.from('citas').update({estado}).eq('id',id)
     setCitas(p=>p.map(c=>c.id===id?{...c,estado}:c))
     msg('Estado actualizado')
+  }
+
+  const loadBloqueos = async (desde: string, hasta: string) => {
+    const {data} = await supabase.from("bloqueos").select("*").gte("fecha", desde).lte("fecha", hasta)
+    if (data) setBloqueos(data)
+  }
+
+  async function saveBloqueo() {
+    if (!fBloqFecha) return msg("Seleccioná una fecha", "error")
+    if (fBloqDesde >= fBloqHasta) return msg("La hora de fin debe ser mayor al inicio", "error")
+    setSaving(true)
+    const {error} = await supabase.from("bloqueos").insert({fecha:fBloqFecha, hora_inicio:fBloqDesde, hora_fin:fBloqHasta, motivo:fBloqMotivo||null})
+    setSaving(false)
+    if (error) return msg("Error: "+error.message, "error")
+    setModal(null); msg("Horario bloqueado ✓"); loadBloqueos(semana[0], semana[5])
+  }
+
+  async function deletBloqueo(id: string) {
+    await supabase.from("bloqueos").delete().eq("id", id)
+    setBloqueos(p => p.filter(b => b.id !== id))
+    msg("Bloqueo eliminado")
   }
 
   const horas = Array.from({length: HORA_FIN - HORA_INICIO}, (_,i) => HORA_INICIO + i)
@@ -201,17 +234,32 @@ export default function Agenda() {
                     <div key={f} style={{position:'relative',height:totalH,borderRight:'1px solid #f0f0f0',cursor:'pointer'}}
                       onClick={e=>{
                         if((e.target as HTMLElement).closest('[data-cita]')) return
+                        e.stopPropagation()
                         const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
                         const y = e.clientY - rect.top
                         const minTot = Math.floor(y / SLOT_H * 60 / 30) * 30
                         const h = Math.floor(minTot/60) + HORA_INICIO
                         const m = minTot % 60
-                        openNueva(f, `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`)
+                        const hStr = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`
+                        setMenuPos({x:e.clientX, y:e.clientY, f, h:hStr})
                       }}>
                       {/* Líneas de hora */}
                       {horas.map(h=>(
                         <div key={h} style={{position:'absolute',top:(h-HORA_INICIO)*SLOT_H,left:0,right:0,height:SLOT_H,borderTop:'1px solid #f5f5f5'}}/>
                       ))}
+                      {/* Bloqueos */}
+                      {bloqueos.filter(b=>b.fecha===f).map(b=>{
+                        const [bh,bm] = b.hora_inicio.split(':').map(Number)
+                        const [eh,em] = b.hora_fin.split(':').map(Number)
+                        const top = (bh - HORA_INICIO + bm/60) * SLOT_H
+                        const height = ((eh + em/60) - (bh + bm/60)) * SLOT_H
+                        return (
+                          <div key={b.id} onClick={e=>{e.stopPropagation();if(confirm('¿Eliminar este bloqueo?'))deletBloqueo(b.id)}}
+                            style={{position:'absolute',top,left:2,right:2,height:Math.max(height-2,18),background:'repeating-linear-gradient(45deg,#e0e0e0,#e0e0e0 4px,#f0f0f0 4px,#f0f0f0 8px)',borderRadius:6,cursor:'pointer',display:'flex',alignItems:'center',padding:'0 8px',zIndex:1}}>
+                            <span style={{fontSize:10,fontWeight:600,color:'#888'}}>🚫 {b.motivo||'Bloqueado'} {b.hora_inicio.slice(0,5)}–{b.hora_fin.slice(0,5)}</span>
+                          </div>
+                        )
+                      })}
                       {/* Citas */}
                       {citasF.map(c=>{
                         const tc = TRAT_STYLE[c.tratamiento]||TRAT_STYLE.Consulta
@@ -351,7 +399,31 @@ export default function Agenda() {
           </div>
         </div>
       )}
-
+{/* Menu flotante slot */}
+     {menuPos&&(
+        <div style={{position:'fixed',top:menuPos.y,left:menuPos.x,zIndex:1000,background:'#fff',borderRadius:10,boxShadow:'0 4px 20px rgba(0,0,0,0.15)',padding:'0.5rem',display:'flex',flexDirection:'column',gap:4,minWidth:180}} onClick={e=>e.stopPropagation()}>
+          <button style={{padding:'0.6rem 1rem',borderRadius:7,border:'none',background:'#f5f5f5',cursor:'pointer',textAlign:'left',fontSize:13,fontWeight:500}} onClick={()=>{setMenuPos(null);openNueva(menuPos.f,menuPos.h)}}>📅 Nueva cita</button>
+          <button style={{padding:'0.6rem 1rem',borderRadius:7,border:'none',background:'#f5f5f5',cursor:'pointer',textAlign:'left',fontSize:13,fontWeight:500}} onClick={()=>{setMenuPos(null);setFBloqFecha(menuPos.f);setFBloqDesde(menuPos.h);setFBloqHasta(menuPos.h>='12:00'?'20:00':'12:00');setFBloqMotivo('');setModal('bloqueo')}}>🚫 Bloquear horario</button>
+        </div>
+      )}
+      {/* Modal bloqueo */}
+      {modal==='bloqueo'&&(
+        <div style={overlayCss} onClick={()=>setModal(null)}>
+          <div style={{...modalCss,maxWidth:400}} onClick={e=>e.stopPropagation()}>
+            <div style={modalTitleCss}>Bloquear horario</div>
+            <div style={groupCss}><label style={labelCss}>Fecha</label><input type="date" style={{...selectCss}} value={fBloqFecha} onChange={e=>setFBloqFecha(e.target.value)}/></div>
+            <div style={grid2Css}>
+              <div style={groupCss}><label style={labelCss}>Desde</label><input type="time" style={{...selectCss}} value={fBloqDesde} onChange={e=>setFBloqDesde(e.target.value)}/></div>
+              <div style={groupCss}><label style={labelCss}>Hasta</label><input type="time" style={{...selectCss}} value={fBloqHasta} onChange={e=>setFBloqHasta(e.target.value)}/></div>
+            </div>
+            <div style={groupCss}><label style={labelCss}>Motivo (opcional)</label><input type="text" style={{...selectCss}} value={fBloqMotivo} onChange={e=>setFBloqMotivo(e.target.value)} placeholder="Ej: Almuerzo, Reunión..."/></div>
+            <div style={footerCss}>
+              <button style={btnLightCss} onClick={()=>setModal(null)} disabled={saving}>Cancelar</button>
+              <button style={{...btnDarkCss,opacity:saving?0.6:1}} onClick={saveBloqueo} disabled={saving}>{saving?'Guardando...':'Bloquear'}</button>
+            </div>
+          </div>
+        </div>
+      )}
       {toast&&<Toast msg={toast.msg} tipo={toast.tipo}/>}
     </div>
   )
