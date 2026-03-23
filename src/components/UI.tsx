@@ -20,18 +20,17 @@ export const selectCss: React.CSSProperties = { ...inputCss }
 export const textareaCss: React.CSSProperties = { ...inputCss, resize: 'vertical', minHeight: 80 }
 
 // ── Modal ─────────────────────────────────────────
-export const overlayCss: React.CSSProperties = {
-  position: 'fixed', inset: 0, // @ts-ignore
-  'data-overlay': '',
+export const overlayCss = (isMobile = false): React.CSSProperties => ({
+  position: 'fixed', inset: 0,
   background: 'rgba(15,30,43,0.5)',
   zIndex: 200,
-  display: 'flex', alignItems: 'center', justifyContent: 'center',
-  padding: '1rem',
-}
-export const modalCss: React.CSSProperties = {
-  background: '#fff', borderRadius: 16, padding: '1.75rem',
-  width: '100%', maxWidth: 540, maxHeight: '90vh', overflowY: 'auto',
-}
+  display: 'flex', alignItems: isMobile ? 'flex-end' : 'center', justifyContent: 'center',
+  padding: isMobile ? 0 : '1rem',
+})
+export const modalCss = (isMobile = false): React.CSSProperties => ({
+  background: '#fff', borderRadius: isMobile ? '16px 16px 0 0' : 16, padding: '1.75rem',
+  width: '100%', maxWidth: isMobile ? '100vw' : 540, maxHeight: '90vh', overflowY: 'auto',
+})
 export const modalTitleCss: React.CSSProperties = { fontSize: 17, fontWeight: 600, color: DARK, marginBottom: '1.25rem' }
 export const footerCss: React.CSSProperties = { display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '1.25rem' }
 export const groupCss: React.CSSProperties = { marginBottom: '0.85rem' }

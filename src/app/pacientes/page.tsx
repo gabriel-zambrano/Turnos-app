@@ -260,8 +260,8 @@ export default function Pacientes() {
 
       {/* ── MODAL NUEVO ── */}
       {modal === 'nuevo' && (
-        <div style={overlayCss} onClick={() => setModal(null)}>
-          <div style={modalCss} onClick={e => e.stopPropagation()}>
+        <div style={overlayCss(isMobile)} onClick={() => setModal(null)}>
+          <div style={modalCss(isMobile)} onClick={e => e.stopPropagation()}>
             <div style={modalTitleCss}>Nuevo paciente</div>
 
             <div style={groupCss}>
@@ -328,8 +328,8 @@ export default function Pacientes() {
 
       {/* ── MODAL EDITAR ── */}
       {modal === 'editar' && (
-        <div style={overlayCss} onClick={() => setModal(null)}>
-          <div style={modalCss} onClick={e => e.stopPropagation()}>
+        <div style={overlayCss(isMobile)} onClick={() => setModal(null)}>
+          <div style={modalCss(isMobile)} onClick={e => e.stopPropagation()}>
             <div style={modalTitleCss}>Editar paciente</div>
 
             <div style={groupCss}>
@@ -373,8 +373,8 @@ export default function Pacientes() {
 
       {/* ── MODAL BORRAR ── */}
       {modal === 'borrar' && (
-        <div style={overlayCss} onClick={() => setModal(null)}>
-          <div style={{ ...modalCss, maxWidth: 380 }} onClick={e => e.stopPropagation()}>
+        <div style={overlayCss(isMobile)} onClick={() => setModal(null)}>
+          <div style={{...modalCss(isMobile), maxWidth: 380 }} onClick={e => e.stopPropagation()}>
             <div style={modalTitleCss}>Eliminar paciente</div>
             <p style={{ fontSize: 14, color: '#666', marginBottom: '1.5rem' }}>
               Vas a eliminar a <strong>{sel?.nombre}</strong>. Esta acción no se puede deshacer.

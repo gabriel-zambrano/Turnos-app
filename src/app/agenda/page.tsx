@@ -305,8 +305,8 @@ export default function Agenda() {
 
       {/* Modal detalle */}
       {modal==='detalle'&&sel&&(
-        <div style={overlayCss} onClick={()=>setModal(null)}>
-          <div style={{...modalCss,maxWidth:400}} onClick={e=>e.stopPropagation()}>
+        <div style={overlayCss(isMobile)} onClick={()=>setModal(null)}>
+          <div style={{...modalCss(isMobile),maxWidth:400}} onClick={e=>e.stopPropagation()}>
             <div style={modalTitleCss}>{sel.nombre}</div>
             <div style={{fontSize:14,color:'#555',lineHeight:2}}>
               <div>📅 <strong>{sel.fecha}</strong> a las <strong>{sel.hora}</strong></div>
@@ -332,8 +332,8 @@ export default function Agenda() {
 
       {/* Modal nueva */}
       {modal==='nueva'&&(
-        <div style={overlayCss} onClick={()=>setModal(null)}>
-          <div style={modalCss} onClick={e=>e.stopPropagation()}>
+        <div style={overlayCss(isMobile)} onClick={()=>setModal(null)}>
+          <div style={modalCss(isMobile)} onClick={e=>e.stopPropagation()}>
             <div style={modalTitleCss}>Nueva cita</div>
             <div style={groupCss}>
               <label style={labelCss}>Paciente *</label>
@@ -367,8 +367,8 @@ export default function Agenda() {
 
       {/* Modal editar */}
       {modal==='editar'&&(
-        <div style={overlayCss} onClick={()=>setModal(null)}>
-          <div style={modalCss} onClick={e=>e.stopPropagation()}>
+        <div style={overlayCss(isMobile)} onClick={()=>setModal(null)}>
+          <div style={modalCss(isMobile)} onClick={e=>e.stopPropagation()}>
             <div style={modalTitleCss}>Editar cita — {sel?.nombre}</div>
             <div style={grid2Css}>
               <div style={groupCss}><label style={labelCss}>Fecha</label><input type="date" style={{...selectCss}} value={fFecha} onChange={e=>setFFecha(e.target.value)}/></div>
@@ -395,8 +395,8 @@ export default function Agenda() {
 
       {/* Modal borrar */}
       {modal==='borrar'&&(
-        <div style={overlayCss} onClick={()=>setModal(null)}>
-          <div style={{...modalCss,maxWidth:380}} onClick={e=>e.stopPropagation()}>
+        <div style={overlayCss(isMobile)} onClick={()=>setModal(null)}>
+          <div style={{...modalCss(isMobile),maxWidth:380}} onClick={e=>e.stopPropagation()}>
             <div style={modalTitleCss}>Eliminar cita</div>
             <p style={{fontSize:14,color:'#666',marginBottom:'1.5rem'}}>Vas a eliminar la cita de <strong>{sel?.nombre}</strong> a las <strong>{sel?.hora}</strong>.</p>
             <div style={footerCss}>
@@ -415,8 +415,8 @@ export default function Agenda() {
       )}
       {/* Modal bloqueo */}
       {modal==='bloqueo'&&(
-        <div style={overlayCss} onClick={()=>setModal(null)}>
-          <div style={{...modalCss,maxWidth:400}} onClick={e=>e.stopPropagation()}>
+        <div style={overlayCss(isMobile)} onClick={()=>setModal(null)}>
+          <div style={{...modalCss(isMobile),maxWidth:400}} onClick={e=>e.stopPropagation()}>
             <div style={modalTitleCss}>Bloquear horario</div>
             <div style={groupCss}><label style={labelCss}>Fecha</label><input type="date" style={{...selectCss}} value={fBloqFecha} onChange={e=>setFBloqFecha(e.target.value)}/></div>
             <div style={grid2Css}>
