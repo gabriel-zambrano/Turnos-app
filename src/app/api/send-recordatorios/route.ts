@@ -18,7 +18,7 @@ const hastaISO = new Date(manana.getFullYear(), manana.getMonth(), manana.getDat
 
   const { data: citas, error } = await supabase
     .from('citas')
-    .select('id, fecha_hora, tipo_tratamiento, pacientes(nombre, email)')
+    .select('id, fecha_hora, tipo_tratamiento, pacientes(nombre, email, token)')
     .eq('estado', 'pendiente')
     .gte('fecha_hora', desdeISO)
     .lte('fecha_hora', hastaISO)
@@ -52,7 +52,12 @@ const hastaISO = new Date(manana.getFullYear(), manana.getMonth(), manana.getDat
               <p style="margin:8px 0 0;font-size:14px;color:#666">🦷 Tratamiento: <strong style="color:#333">${cita.tipo_tratamiento}</strong></p>
               <p style="margin:8px 0 0;font-size:14px;color:#666">📍 Od. Walter Benegas — Odontología General</p>
             </div>
-            <p style="color:#888;font-size:13px">Si necesitás cancelar o reprogramar, comunicate con el consultorio.</p>
+            ${paciente.token ? `
+            <div style="text-align:center;margin:24px 0;display:flex;gap:12px;justify-content:center">
+              <a href="${process.env.NEXT_PUBLIC_APP_URL}/paciente/${paciente.token}" style="display:inline-block;background:#1D9E75;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px">✓ Confirmar turno</a>
+              <a href="${process.env.NEXT_PUBLIC_APP_URL}/paciente/${paciente.token}" style="display:inline-block;background:#f4f6f8;color:#555;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px">Ver mi turno</a>
+            </div>` : ''}
+            <p style="color:#888;font-size:13px">Si necesitás cancelar o reprogramar, podés hacerlo desde el link de arriba.</p>
             <hr style="border:none;border-top:1px solid #eee;margin:24px 0"/>
             <p style="color:#aaa;font-size:12px;text-align:center">Este es un mensaje automático. Por favor no respondas este email.</p>
           </div>

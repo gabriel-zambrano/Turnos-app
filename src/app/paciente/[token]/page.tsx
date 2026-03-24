@@ -73,6 +73,14 @@ export default function PacientePage() {
   const [turnos, setTurnos] = useState<Turno[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
+  const [accion, setAccion] = useState<{id:string, tipo:'confirmado'|'cancelado'} | null>(null)
+
+  async function cambiarEstado(citaId: string, nuevoEstado: 'confirmado' | 'cancelado') {
+    setAccion({ id: citaId, tipo: nuevoEstado })
+    await supabase.from('citas').update({ estado: nuevoEstado }).eq('id', citaId)
+    setTurnos(prev => prev.map(t => t.id === citaId ? { ...t, estado: nuevoEstado } : t))
+    setAccion(null)
+  }
 
   useEffect(() => {
     async function load() {
@@ -141,6 +149,12 @@ export default function PacientePage() {
                     <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:8 }}>
                       <span style={{ background:est.bg, color:est.color, fontSize:11, fontWeight:600, padding:'3px 10px', borderRadius:20, whiteSpace:'nowrap' }}>{est.label}</span>
                       <button onClick={() => generateICS(t, paciente!)} style={{ fontSize:11, padding:'4px 10px', borderRadius:8, border:'1px solid #e2e8ed', background:'#fff', cursor:'pointer', color:'#555', whiteSpace:'nowrap' }}>📅 Agendar</button>
+                      {t.estado === 'pendiente' && (
+                        <div style={{ display:'flex', gap:6, marginTop:4 }}>
+                          <button onClick={() => cambiarEstado(t.id, 'confirmado')} disabled={accion?.id===t.id} style={{ fontSize:11, padding:'5px 12px', borderRadius:8, border:'none', background:'#D1E7DD', color:'#0A3622', cursor:'pointer', fontWeight:600 }}>{accion?.id===t.id&&accion.tipo==='confirmado'?'...':'✓ Confirmar'}</button>
+                          <button onClick={() => cambiarEstado(t.id, 'cancelado')} disabled={accion?.id===t.id} style={{ fontSize:11, padding:'5px 12px', borderRadius:8, border:'none', background:'#F8D7DA', color:'#58151C', cursor:'pointer', fontWeight:600 }}>{accion?.id===t.id&&accion.tipo==='cancelado'?'...':'✗ Cancelar'}</button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
