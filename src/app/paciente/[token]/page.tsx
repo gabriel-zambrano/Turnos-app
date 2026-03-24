@@ -34,6 +34,39 @@ function formatFecha(fechaHora: string) {
   return { dia: dias[ar.getDay()], fecha: `${ar.getDate()} de ${meses[ar.getMonth()]}`, hora }
 }
 
+function generateICS(t: Turno, paciente: Paciente) {
+  const start = new Date(t.fecha_hora)
+  const end = new Date(start.getTime() + t.duracion_minutos * 60000)
+  const fmt = (d: Date) => d.toISOString().replace(/[-:]/g,'').split('.')[0]+'Z'
+  const ics = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//DentalDesk//ES',
+    'BEGIN:VEVENT',
+    `UID:${t.id}@dentaldesk`,
+    `DTSTAMP:${fmt(new Date())}`,
+    `DTSTART:${fmt(start)}`,
+    `DTEND:${fmt(end)}`,
+    `SUMMARY:Turno odontológico - Dr. Walter Benegas`,
+    `DESCRIPTION:Tratamiento: ${t.tipo_tratamiento}${t.notas ? '\nNotas: ' + t.notas : ''}`,
+    'LOCATION:Consultorio Odontológico Dr. Walter Benegas',
+    'BEGIN:VALARM',
+    'TRIGGER:-PT60M',
+    'ACTION:DISPLAY',
+    'DESCRIPTION:Recordatorio turno odontológico',
+    'END:VALARM',
+    'END:VEVENT',
+    'END:VCALENDAR'
+  ].join('\r\n')
+  const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `turno-${t.fecha_hora.split('T')[0]}.ics`
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
 export default function PacientePage() {
   const { token } = useParams<{ token: string }>()
   const [paciente, setPaciente] = useState<Paciente | null>(null)
@@ -105,7 +138,10 @@ export default function PacientePage() {
                       <div style={{ fontSize:14, color:'#555', marginTop:4 }}>🦷 {t.tipo_tratamiento} · {t.duracion_minutos} min</div>
                       {t.notas && <div style={{ fontSize:13, color:'#888', marginTop:4 }}>📝 {t.notas}</div>}
                     </div>
-                    <span style={{ background:est.bg, color:est.color, fontSize:11, fontWeight:600, padding:'3px 10px', borderRadius:20, whiteSpace:'nowrap' }}>{est.label}</span>
+                    <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:8 }}>
+                      <span style={{ background:est.bg, color:est.color, fontSize:11, fontWeight:600, padding:'3px 10px', borderRadius:20, whiteSpace:'nowrap' }}>{est.label}</span>
+                      <button onClick={() => generateICS(t, paciente!)} style={{ fontSize:11, padding:'4px 10px', borderRadius:8, border:'1px solid #e2e8ed', background:'#fff', cursor:'pointer', color:'#555', whiteSpace:'nowrap' }}>📅 Agendar</button>
+                    </div>
                   </div>
                 </div>
               )
