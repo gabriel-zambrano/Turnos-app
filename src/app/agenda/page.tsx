@@ -182,22 +182,26 @@ export default function Agenda() {
       <main style={{marginLeft:isMobile?0:240,flex:1,background:'#f4f6f8',minWidth:0,paddingBottom:isMobile?64:0}}>
         <PageHeader title="Agenda"
           right={
-            <div style={{display:'flex',gap:10,alignItems:'center'}}>
-              {/* Navegación semana */}
-              <button onClick={()=>{const d=new Date(fecha);d.setDate(d.getDate()-7);setFecha(d.toISOString().split('T')[0])}} style={{background:'#fff',border:'1px solid #e2e8ed',borderRadius:8,padding:'6px 10px',cursor:'pointer',fontSize:16}}>‹</button>
-              <input type="date" value={fecha} onChange={e=>setFecha(e.target.value)} style={{...inputCss,width:150,padding:'0.5rem 0.75rem',fontSize:13}}/>
-              <button onClick={()=>{const d=new Date(fecha);d.setDate(d.getDate()+7);setFecha(d.toISOString().split('T')[0])}} style={{background:'#fff',border:'1px solid #e2e8ed',borderRadius:8,padding:'6px 10px',cursor:'pointer',fontSize:16}}>›</button>
-              <button onClick={()=>setFecha(hoyISO())} style={{background:'#fff',border:'1px solid #e2e8ed',borderRadius:8,padding:'6px 12px',cursor:'pointer',fontSize:12,color:'#555'}}>Hoy</button>
-              {/* Toggle vista */}
-              <div style={{display:'flex',background:'#fff',border:'1px solid #e2e8ed',borderRadius:8,overflow:'hidden'}}>
-                {(['semana','dia'] as const).map(v=>(
-                  <button key={v} onClick={()=>setVista(v)} style={{padding:'6px 14px',fontSize:12,border:'none',cursor:'pointer',background:vista===v?'#0f1e2b':'transparent',color:vista===v?'#fff':'#555',fontFamily:'DM Sans, sans-serif'}}>{v==='semana'?'Semana':'Día'}</button>
-                ))}
+            <div style={{display:'flex',flexDirection:isMobile?'column':'row',gap:isMobile?6:10,alignItems:isMobile?'flex-end':'center'}}>
+              {/* Fila 1: Navegación fecha */}
+              <div style={{display:'flex',gap:6,alignItems:'center'}}>
+                <button onClick={()=>{const d=new Date(fecha);d.setDate(d.getDate()-(vista==='semana'?7:1));setFecha(d.toISOString().split('T')[0])}} style={{background:'#fff',border:'1px solid #e2e8ed',borderRadius:8,padding:'6px 10px',cursor:'pointer',fontSize:16}}>‹</button>
+                <input type="date" value={fecha} onChange={e=>setFecha(e.target.value)} style={{...inputCss,width:isMobile?130:150,padding:'0.5rem 0.75rem',fontSize:13}}/>
+                <button onClick={()=>{const d=new Date(fecha);d.setDate(d.getDate()+(vista==='semana'?7:1));setFecha(d.toISOString().split('T')[0])}} style={{background:'#fff',border:'1px solid #e2e8ed',borderRadius:8,padding:'6px 10px',cursor:'pointer',fontSize:16}}>›</button>
+                <button onClick={()=>setFecha(hoyISO())} style={{background:'#fff',border:'1px solid #e2e8ed',borderRadius:8,padding:'6px 10px',cursor:'pointer',fontSize:12,color:'#555'}}>Hoy</button>
               </div>
-              <BtnPrimary onClick={()=>openNueva()}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                Nueva cita
-              </BtnPrimary>
+              {/* Fila 2: Toggle vista + Nueva cita */}
+              <div style={{display:'flex',gap:6,alignItems:'center'}}>
+                <div style={{display:'flex',background:'#fff',border:'1px solid #e2e8ed',borderRadius:8,overflow:'hidden'}}>
+                  {(['semana','dia'] as const).map(v=>(
+                    <button key={v} onClick={()=>setVista(v)} style={{padding:isMobile?'6px 10px':'6px 14px',fontSize:12,border:'none',cursor:'pointer',background:vista===v?'#0f1e2b':'transparent',color:vista===v?'#fff':'#555',fontFamily:'DM Sans, sans-serif'}}>{v==='semana'?'Semana':'Día'}</button>
+                  ))}
+                </div>
+                <BtnPrimary onClick={()=>openNueva()}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                  {!isMobile&&'Nueva cita'}
+                </BtnPrimary>
+              </div>
             </div>
           }/>
 

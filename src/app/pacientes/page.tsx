@@ -254,7 +254,6 @@ export default function Pacientes() {
               })}
             </DataTable>
           )}
-          )}
         </div>
       </main>
 
