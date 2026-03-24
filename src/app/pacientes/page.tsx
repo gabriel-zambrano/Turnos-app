@@ -111,12 +111,14 @@ export default function Pacientes() {
     if (!fNombre.trim()) return msg('El nombre es obligatorio', 'error')
     if (!fTelefono.startsWith('+')) return msg('El teléfono debe empezar con + (ej: +54911...)', 'error')
     setSaving(true)
+    const token = crypto.randomUUID()
     const { error } = await supabase.from('pacientes').insert({
       nombre: fNombre.trim(),
       telefono: fTelefono.trim(),
       email: fEmail.trim() || null,
       fecha_nacimiento: fNacimiento || null,
       ultimo_tratamiento: fTratamiento,
+      token,
     })
     setSaving(false)
     if (error) return msg('Error al guardar: ' + error.message, 'error')
@@ -206,7 +208,10 @@ export default function Pacientes() {
                     <div style={{ display: 'flex', gap: 6 }}>
                       <BtnSm variant="edit" onClick={() => openEditar(p)}>Editar</BtnSm>
                       <BtnSm variant="delete" onClick={() => { setSel(p); setModal('borrar') }}>Eliminar</BtnSm>
-                      {p.token && <BtnSm variant="edit" onClick={() => { const url = `${window.location.origin}/paciente/${p.token}`; const txt = encodeURIComponent(`Hola ${p.nombre}, te compartimos el link para ver y confirmar tu turno: ${url}`); window.open(`https://wa.me/${p.telefono?.replace(/\D/g,'')}?text=${txt}`, '_blank') }}>WhatsApp</BtnSm>}
+                      {p.token
+                      ? <BtnSm variant="edit" onClick={() => { const url = `${window.location.origin}/paciente/${p.token}`; const txt = encodeURIComponent(`Hola ${p.nombre}, te compartimos el link para ver y confirmar tu turno: ${url}`); window.open(`https://wa.me/${p.telefono?.replace(/\D/g,'')}?text=${txt}`, '_blank') }}>WhatsApp</BtnSm>
+                      : <BtnSm variant="edit" onClick={async()=>{ const tok=crypto.randomUUID(); await supabase.from('pacientes').update({token:tok}).eq('id',p.id); msg('Link generado ✓'); load() }}>Generar link</BtnSm>
+                    }
                     </div>
                   </div>
                 )
@@ -246,7 +251,10 @@ export default function Pacientes() {
                       <div style={{ display: 'flex', gap: 6 }}>
                         <BtnSm variant="edit"   onClick={() => openEditar(p)}>Editar</BtnSm>
                         <BtnSm variant="delete" onClick={() => { setSel(p); setModal('borrar') }}>Eliminar</BtnSm>
-                        {p.token&&<BtnSm variant="edit" onClick={()=>{const url=`${window.location.origin}/paciente/${p.token}`;const txt=encodeURIComponent(`Hola ${p.nombre}, te compartimos el link para ver y confirmar tu turno: ${url}`);window.open(`https://wa.me/${p.telefono?.replace(/\D/g,'')}?text=${txt}`,'_blank')}}>WhatsApp</BtnSm>}
+                        {p.token
+                        ? <BtnSm variant="edit" onClick={()=>{const url=`${window.location.origin}/paciente/${p.token}`;const txt=encodeURIComponent(`Hola ${p.nombre}, te compartimos el link para ver y confirmar tu turno: ${url}`);window.open(`https://wa.me/${p.telefono?.replace(/\D/g,'')}?text=${txt}`,'_blank')}}>WhatsApp</BtnSm>
+                        : <BtnSm variant="edit" onClick={async()=>{const tok=crypto.randomUUID();await supabase.from('pacientes').update({token:tok}).eq('id',p.id);msg('Link generado ✓');load()}}>Generar link</BtnSm>
+                      }
                       </div>
                     </TD>
                   </TR>
