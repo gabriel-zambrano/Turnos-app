@@ -206,7 +206,7 @@ export default function Pacientes() {
                     <div style={{ display: 'flex', gap: 6 }}>
                       <BtnSm variant="edit" onClick={() => openEditar(p)}>Editar</BtnSm>
                       <BtnSm variant="delete" onClick={() => { setSel(p); setModal('borrar') }}>Eliminar</BtnSm>
-                      {p.token && <BtnSm variant="edit" onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/paciente/${p.token}`); msg('Link copiado ✓') }}>Link</BtnSm>}
+                      {p.token && <><BtnSm variant="edit" onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/paciente/${p.token}`); msg('Link copiado ✓') }}>Link</BtnSm><BtnSm variant="edit" onClick={() => { const url = `${window.location.origin}/paciente/${p.token}`; const txt = encodeURIComponent(`Hola ${p.nombre}, te compartimos el link para ver y confirmar tu turno: ${url}`); window.open(`https://wa.me/${p.telefono?.replace(/\D/g,'')}?text=${txt}`, '_blank') }}>WhatsApp</BtnSm></> }
                     </div>
                   </div>
                 )
@@ -246,7 +246,7 @@ export default function Pacientes() {
                       <div style={{ display: 'flex', gap: 6 }}>
                         <BtnSm variant="edit"   onClick={() => openEditar(p)}>Editar</BtnSm>
                         <BtnSm variant="delete" onClick={() => { setSel(p); setModal('borrar') }}>Eliminar</BtnSm>
-                        {p.token&&<BtnSm variant="edit" onClick={()=>{navigator.clipboard.writeText(`${window.location.origin}/paciente/${p.token}`);msg('Link copiado ✓')}}>Link</BtnSm>}
+                        {p.token&&<><BtnSm variant="edit" onClick={()=>{navigator.clipboard.writeText(`${window.location.origin}/paciente/${p.token}`);msg('Link copiado ✓')}}>Link</BtnSm><BtnSm variant="edit" onClick={()=>{const url=`${window.location.origin}/paciente/${p.token}`;const txt=encodeURIComponent(`Hola ${p.nombre}, te compartimos el link para ver y confirmar tu turno: ${url}`);window.open(`https://wa.me/${p.telefono?.replace(/\D/g,'')}?text=${txt}`,'_blank')}}>WhatsApp</BtnSm></> }
                       </div>
                     </TD>
                   </TR>
