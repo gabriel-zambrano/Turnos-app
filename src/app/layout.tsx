@@ -20,12 +20,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             if (!canvas) return;
             const ctx = canvas.getContext('2d');
             let W, H, particles = [];
-            const COUNT = 55;
+            const COUNT = 80;
             const COLORS = [
               'rgba(56,138,221,',
               'rgba(24,95,165,',
               'rgba(29,158,117,',
               'rgba(185,210,240,',
+              'rgba(56,138,221,',
+              'rgba(99,163,230,',
             ];
             let mouse = { x: -999, y: -999 };
 
@@ -38,19 +40,19 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             Particle.prototype.reset = function() {
               this.x = Math.random() * W;
               this.y = Math.random() * H;
-              this.vx = (Math.random() - 0.5) * 0.4;
-              this.vy = (Math.random() - 0.5) * 0.4;
-              this.r = Math.random() * 2 + 1;
+              this.vx = (Math.random() - 0.5) * 0.5;
+              this.vy = (Math.random() - 0.5) * 0.5;
+              this.r = Math.random() * 3 + 1.5;
               this.color = COLORS[Math.floor(Math.random() * COLORS.length)];
-              this.alpha = Math.random() * 0.35 + 0.1;
+              this.alpha = Math.random() * 0.5 + 0.25;
             };
             Particle.prototype.update = function() {
               const dx = mouse.x - this.x;
               const dy = mouse.y - this.y;
               const dist = Math.sqrt(dx * dx + dy * dy);
-              if (dist < 120) {
-                this.vx -= (dx / dist) * 0.25;
-                this.vy -= (dy / dist) * 0.25;
+              if (dist < 150) {
+                this.vx -= (dx / dist) * 0.35;
+                this.vy -= (dy / dist) * 0.35;
               }
               this.vx *= 0.97;
               this.vy *= 0.97;
