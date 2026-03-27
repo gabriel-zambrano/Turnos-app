@@ -24,7 +24,7 @@ export default function Recordatorios() {
   return (
     <div style={{display:'flex',minHeight:'100vh',fontFamily:'DM Sans, sans-serif'}}>
       <Sidebar/>
-      <main style={{marginLeft:isMobile?0:240,flex:1,background:'#f4f6f8',paddingBottom:isMobile?80:0,minWidth:0,overflowX:'hidden'}}>
+      <main style={{marginLeft:isMobile?0:240,flex:1,background:'transparent',paddingBottom:isMobile?80:0,minWidth:0,overflowX:'hidden'}}>
         <PageHeader title="Recordatorios"/>
         <div style={{padding:isMobile?'0.75rem':'1.75rem 2rem',maxWidth:1100}}>
           <div style={{background:'#fff',border:'0.5px solid #e8e8e8',borderRadius:16,padding:'1.25rem',marginBottom:'1.5rem'}}>

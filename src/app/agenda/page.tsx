@@ -179,7 +179,7 @@ export default function Agenda() {
   return (
     <div style={{display:'flex',minHeight:'100vh',fontFamily:'DM Sans, sans-serif'}}>
       <Sidebar pendientes={citas.filter(c=>c.estado==='pendiente').length}/>
-      <main style={{marginLeft:isMobile?0:240,flex:1,background:'#f4f6f8',minWidth:0,paddingBottom:isMobile?64:0}}>
+      <main style={{marginLeft:isMobile?0:240,flex:1,background:'transparent',minWidth:0,paddingBottom:isMobile?64:0}}>
         <PageHeader title="Agenda"
           right={
             <div style={{display:'flex',flexDirection:isMobile?'column':'row',gap:isMobile?6:10,alignItems:isMobile?'flex-end':'center'}}>

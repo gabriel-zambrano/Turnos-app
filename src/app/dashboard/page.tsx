@@ -85,7 +85,7 @@ export default function Dashboard() {
   return (
     <div style={{display:'flex',minHeight:'100vh',fontFamily:'DM Sans, sans-serif'}}>
       <Sidebar pendientes={pend}/>
-      <main style={{marginLeft:isMobile?0:240,flex:1,background:'#f4f6f8',paddingBottom:isMobile?80:0,minWidth:0,overflowX:'hidden'}}>
+      <main style={{marginLeft:isMobile?0:240,flex:1,background:'transparent',paddingBottom:isMobile?80:0,minWidth:0,overflowX:'hidden'}}>
         <PageHeader title="Dashboard" sub={hoy}
           right={<span style={{fontSize:isMobile?11:12,padding:'5px 12px',borderRadius:6,fontWeight:500,background:tasa>=85?'#E1F5EE':'#FAEEDA',color:tasa>=85?'#085041':'#633806'}}>Tasa: {tasa}%</span>}
         />
