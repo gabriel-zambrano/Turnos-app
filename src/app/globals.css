@@ -56,3 +56,11 @@ body {
     gap: 0 !important;
   }
 }
+
+body {
+  background: transparent !important;
+}
+
+#particles-bg {
+  background: #f4f7fb;
+}
