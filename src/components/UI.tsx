@@ -1,8 +1,20 @@
 'use client'
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 
 // ── Tokens ────────────────────────────────────────
 export const DARK = '#0f1e2b'
+
+// ── Hook mobile ──────────────────────────────────
+function useIsMobile() {
+  const [m, setM] = useState(false)
+  useEffect(() => {
+    const check = () => setM(window.innerWidth < 768)
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [])
+  return m
+}
 
 // ── Shared styles ─────────────────────────────────
 export const inputCss: React.CSSProperties = {
@@ -71,31 +83,47 @@ export function Spinner() {
   )
 }
 
+// MetricCard — sin flex ni minWidth, el padre controla el grid
 export function MetricCard({ label, value, sub, accent }: { label: string; value: string | number; sub?: string; accent: string }) {
   return (
-    <div style={{ background: '#fff', border: '0.5px solid #e8e8e8', borderRadius: 16, padding: '1.1rem 1.3rem', flex: 1, minWidth: 130, borderTop: `3px solid ${accent}` }}>
-      <div style={{ fontSize: 11, color: '#888', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600, marginBottom: 6 }}>{label}</div>
-      <div style={{ fontSize: 26, fontWeight: 700, color: DARK, lineHeight: 1 }}>{value}</div>
-      {sub && <div style={{ fontSize: 12, color: '#aaa', marginTop: 4 }}>{sub}</div>}
+    <div style={{ background: '#fff', border: '0.5px solid #e8e8e8', borderRadius: 16, padding: '1rem 1.1rem', borderTop: `3px solid ${accent}`, minWidth: 0 }}>
+      <div style={{ fontSize: 10, color: '#888', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600, marginBottom: 6 }}>{label}</div>
+      <div style={{ fontSize: 24, fontWeight: 700, color: DARK, lineHeight: 1 }}>{value}</div>
+      {sub && <div style={{ fontSize: 11, color: '#aaa', marginTop: 4 }}>{sub}</div>}
     </div>
   )
 }
 
+// PageHeader — padding y altura adaptables a mobile
 export function PageHeader({ title, sub, right }: { title: string; sub?: string; right?: React.ReactNode }) {
+  const isMobile = useIsMobile()
   return (
-    <div style={{ background: '#fff', borderBottom: '0.5px solid #e5e5e5', padding: '0 2rem', height: 58, display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 50 }}>
-      <div>
-        <div style={{ fontSize: 16, fontWeight: 600, color: DARK }}>{title}</div>
-        {sub && <div style={{ fontSize: 12, color: '#aaa', textTransform: 'capitalize' }}>{sub}</div>}
+    <div style={{
+      background: '#fff',
+      borderBottom: '0.5px solid #e5e5e5',
+      padding: isMobile ? '0 1rem' : '0 2rem',
+      minHeight: 58,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      position: 'sticky',
+      top: 0,
+      zIndex: 50,
+      gap: 8,
+    }}>
+      <div style={{ minWidth: 0 }}>
+        <div style={{ fontSize: isMobile ? 15 : 16, fontWeight: 600, color: DARK }}>{title}</div>
+        {sub && <div style={{ fontSize: 11, color: '#aaa', textTransform: 'capitalize', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sub}</div>}
       </div>
-      {right}
+      {right && <div style={{ flexShrink: 0 }}>{right}</div>}
     </div>
   )
 }
 
+// FilterBar — sin marginBottom propio, el padre lo controla
 export function FilterBar({ options, active, onChange }: { options: { k: string; l: string }[]; active: string; onChange: (k: string) => void }) {
   return (
-    <div style={{ display: 'flex', gap: 6, marginBottom: '1rem', flexWrap: 'wrap' }}>
+    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
       {options.map(o => (
         <button key={o.k} onClick={() => onChange(o.k)} style={{ fontSize: 12, padding: '5px 14px', borderRadius: 8, cursor: 'pointer', fontWeight: 500, fontFamily: 'DM Sans, sans-serif', border: active === o.k ? `1.5px solid ${DARK}` : '0.5px solid #ddd', background: active === o.k ? DARK : '#fff', color: active === o.k ? '#fff' : '#666' }}>
           {o.l}
@@ -132,7 +160,7 @@ export function DataTable({ headers, empty, emptyMsg = 'Sin resultados', childre
           <thead>
             <tr>
               {headers.map((h, i) => (
-                <th key={h} style={{ fontSize: 11, fontWeight: 600, color: '#888', letterSpacing: '0.06em', textTransform: 'uppercase', padding: i === 0 ? '0.75rem 1rem 0.75rem 1.5rem' : '0.75rem 1rem', textAlign: 'left', borderBottom: '0.5px solid #eee' }}>
+                <th key={h} style={{ fontSize: 11, fontWeight: 600, color: '#888', letterSpacing: '0.06em', textTransform: 'uppercase', padding: i === 0 ? '0.75rem 1rem 0.75rem 1.5rem' : '0.75rem 1rem', textAlign: 'left', borderBottom: '0.5px solid #eee', whiteSpace: 'nowrap' }}>
                   {h}
                 </th>
               ))}
