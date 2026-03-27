@@ -1,0 +1,17 @@
+import HeroSection from '@/components/HeroSection'
+import ManifestoSection from '@/components/ManifestoSection'
+import ServicesSection from '@/components/ServicesSection'
+import SocialProofSection from '@/components/SocialProofSection'
+import CTASection from '@/components/CTASection'
+
+export default function Home() {
+  return (
+    <main style={{ background: '#07070f', minHeight: '100vh' }}>
+      <HeroSection />
+      <ManifestoSection />
+      <ServicesSection />
+      <SocialProofSection />
+      <CTASection />
+    </main>
+  )
+}
