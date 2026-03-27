@@ -9,9 +9,9 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="es">
-      <body style={{ background: 'transparent' }}>
+      <body>
         <canvas id="particles-bg"/>
-        <div style={{ position: 'relative', zIndex: 1, minHeight: '100vh', background: 'transparent' }}>
+        <div style={{ position: 'relative', zIndex: 1, minHeight: '100vh' }}>
           {children}
         </div>
         <script dangerouslySetInnerHTML={{ __html: `
@@ -22,12 +22,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             let W, H, particles = [];
             const COUNT = 80;
             const COLORS = [
-              'rgba(56,138,221,',
-              'rgba(24,95,165,',
-              'rgba(29,158,117,',
-              'rgba(185,210,240,',
-              'rgba(56,138,221,',
-              'rgba(99,163,230,',
+              [56,138,221],
+              [24,95,165],
+              [29,158,117],
+              [99,163,230],
+              [56,138,221],
             ];
             let mouse = { x: -999, y: -999 };
 
@@ -42,17 +41,17 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               this.y = Math.random() * H;
               this.vx = (Math.random() - 0.5) * 0.5;
               this.vy = (Math.random() - 0.5) * 0.5;
-              this.r = Math.random() * 3 + 1.5;
-              this.color = COLORS[Math.floor(Math.random() * COLORS.length)];
-              this.alpha = Math.random() * 0.5 + 0.25;
+              this.r = Math.random() * 3.5 + 1.5;
+              this.rgb = COLORS[Math.floor(Math.random() * COLORS.length)];
+              this.alpha = Math.random() * 0.55 + 0.2;
             };
             Particle.prototype.update = function() {
               const dx = mouse.x - this.x;
               const dy = mouse.y - this.y;
               const dist = Math.sqrt(dx * dx + dy * dy);
               if (dist < 150) {
-                this.vx -= (dx / dist) * 0.35;
-                this.vy -= (dy / dist) * 0.35;
+                this.vx -= (dx / dist) * 0.4;
+                this.vy -= (dy / dist) * 0.4;
               }
               this.vx *= 0.97;
               this.vy *= 0.97;
@@ -71,14 +70,18 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
             function draw() {
               ctx.clearRect(0, 0, W, H);
-              ctx.fillStyle = '#f4f7fb';
+              const grad = ctx.createLinearGradient(0, 0, W, H);
+              grad.addColorStop(0, '#eef4fc');
+              grad.addColorStop(0.5, '#f4f7fb');
+              grad.addColorStop(1, '#e8f2f9');
+              ctx.fillStyle = grad;
               ctx.fillRect(0, 0, W, H);
               for (let i = 0; i < particles.length; i++) {
                 const p = particles[i];
                 p.update();
                 ctx.beginPath();
                 ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-                ctx.fillStyle = p.color + p.alpha + ')';
+                ctx.fillStyle = 'rgba(' + p.rgb[0] + ',' + p.rgb[1] + ',' + p.rgb[2] + ',' + p.alpha + ')';
                 ctx.fill();
               }
               requestAnimationFrame(draw);
