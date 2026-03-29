@@ -24,7 +24,7 @@ export const ESTADO_STYLE: Record<string, {bg:string; color:string; label:string
 export function horasDisponibles(): string[] {
   const h: string[] = []
   for (let hh = 8; hh <= 19; hh++)
-    for (let mm = 0; mm < 60; mm += 30)
+    for (let mm = 0; mm < 60; mm += 20)
       h.push(`${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}`)
   return h
 }

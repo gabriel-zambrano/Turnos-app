@@ -248,7 +248,7 @@ export default function Agenda() {
                         e.stopPropagation()
                         const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
                         const y = e.clientY - rect.top
-                        const minTot = Math.floor(y / SLOT_H * 60 / 30) * 30
+                        const minTot = Math.floor(y / SLOT_H * 60 / 20) * 20
                         const h = Math.floor(minTot/60) + HORA_INICIO
                         const m = minTot % 60
                         const hStr = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`
