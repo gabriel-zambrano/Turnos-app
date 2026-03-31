@@ -26,14 +26,16 @@ function toCita(c: CitaDB): Cita {
 }
 
 function getFechaSemana(base: string): string[] {
-  const d = new Date(base + 'T12:00:00')
+  const [y, m, day] = base.split('-').map(Number)
+  const d = new Date(y, m - 1, day)
   const dia = d.getDay()
-  const lunes = new Date(d)
-  lunes.setDate(d.getDate() - (dia === 0 ? 6 : dia - 1))
+  const lunes = new Date(y, m - 1, day - (dia === 0 ? 6 : dia - 1))
   return Array.from({length:6}, (_,i) => {
-    const f = new Date(lunes)
-    f.setDate(lunes.getDate() + i)
-    return f.toISOString().split('T')[0]
+    const f = new Date(lunes.getFullYear(), lunes.getMonth(), lunes.getDate() + i)
+    const yy = f.getFullYear()
+    const mm = String(f.getMonth() + 1).padStart(2, '0')
+    const dd = String(f.getDate()).padStart(2, '0')
+    return `${yy}-${mm}-${dd}`
   })
 }
 

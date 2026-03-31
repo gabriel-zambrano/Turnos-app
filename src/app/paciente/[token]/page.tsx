@@ -110,7 +110,14 @@ export default function PacientePage() {
         .single()
       if (!pac) { setError(true); setLoading(false); return }
       setPaciente(pac)
-      const hoy = new Date().toISOString()
+      const hoy = (() => {
+      const now = new Date()
+      const ar = new Date(now.toLocaleString('en-US', { timeZone: 'America/Argentina/Buenos_Aires' }))
+      ar.setHours(0, 0, 0, 0)
+      const diff = now.getTime() - ar.getTime()
+      const utcMidnight = new Date(now.getTime() - diff)
+      return utcMidnight.toISOString()
+    })()
       const { data: citas } = await supabase
         .from('citas')
         .select('id, fecha_hora, tipo_tratamiento, estado, duracion_minutos, notas')
