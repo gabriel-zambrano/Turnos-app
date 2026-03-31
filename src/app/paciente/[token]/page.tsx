@@ -110,7 +110,7 @@ export default function PacientePage() {
         .single()
       if (!pac) { setError(true); setLoading(false); return }
       setPaciente(pac)
-      const hoy = (() => {
+      const hoy = new Date().toISOString().split('T')[0] + 'T00:00:00-03:00'
       const now = new Date()
       const ar = new Date(now.toLocaleString('en-US', { timeZone: 'America/Argentina/Buenos_Aires' }))
       ar.setHours(0, 0, 0, 0)

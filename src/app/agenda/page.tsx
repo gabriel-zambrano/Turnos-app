@@ -25,17 +25,26 @@ function toCita(c: CitaDB): Cita {
   }
 }
 
+function parseFechaLocal(base: string): Date {
+  // Soporta "YYYY-MM-DD" sin importar timezone del browser
+  const parts = base.replace(/\//g, '-').split('-')
+  const y = parseInt(parts[0] > parts[2] ? parts[0] : parts[2])
+  const m = parseInt(parts[1]) - 1
+  const d = parseInt(parts[0] > parts[2] ? parts[2] : parts[0])
+  return new Date(y, m, d)
+}
+function dateToISO(d: Date): string {
+  return d.getFullYear() + '-' +
+    String(d.getMonth() + 1).padStart(2, '0') + '-' +
+    String(d.getDate()).padStart(2, '0')
+}
 function getFechaSemana(base: string): string[] {
-  const [y, m, day] = base.split('-').map(Number)
-  const d = new Date(y, m - 1, day)
+  const d = parseFechaLocal(base)
   const dia = d.getDay()
-  const lunes = new Date(y, m - 1, day - (dia === 0 ? 6 : dia - 1))
+  const lunes = new Date(d.getFullYear(), d.getMonth(), d.getDate() - (dia === 0 ? 6 : dia - 1))
   return Array.from({length:6}, (_,i) => {
     const f = new Date(lunes.getFullYear(), lunes.getMonth(), lunes.getDate() + i)
-    const yy = f.getFullYear()
-    const mm = String(f.getMonth() + 1).padStart(2, '0')
-    const dd = String(f.getDate()).padStart(2, '0')
-    return `${yy}-${mm}-${dd}`
+    return dateToISO(f)
   })
 }
 
