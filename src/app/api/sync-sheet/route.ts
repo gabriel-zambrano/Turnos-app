@@ -21,19 +21,16 @@ export async function POST(req: Request) {
     const record = body.record ?? body;
     const type = body.type ?? "INSERT";
 
-    // Obtener datos del paciente
     const { data: paciente } = await supabase
       .from("pacientes")
-      .select("nombre, apellido, email, telefono")
+      .select("nombre, telefono, email")
       .eq("id", record.paciente_id)
       .single();
 
     const nombre = paciente?.nombre ?? "Sin nombre";
-    const apellido = paciente?.apellido ?? "";
     const email = paciente?.email ?? "";
     const telefono = paciente?.telefono ?? "";
 
-    // Formatear fecha y hora en Argentina
     const dt = new Date(record.fecha_hora);
     const ar = new Date(dt.toLocaleString("en-US", { timeZone: "America/Argentina/Buenos_Aires" }));
     const fecha = ar.toLocaleDateString("es-AR");
@@ -42,19 +39,18 @@ export async function POST(req: Request) {
     const sheets = google.sheets({ version: "v4", auth });
 
     if (type === "UPDATE") {
-      // Buscar fila por id de cita en columna J
       const res = await sheets.spreadsheets.values.get({
         spreadsheetId: process.env.GOOGLE_SHEET_ID,
-        range: "Turnos!A:J",
+        range: "Turnos!A:I",
       });
 
       const rows = res.data.values || [];
-      const rowIndex = rows.findIndex((row) => row[9] === record.id);
+      const rowIndex = rows.findIndex((row) => row[8] === record.id);
 
       if (rowIndex > 0) {
         await sheets.spreadsheets.values.update({
           spreadsheetId: process.env.GOOGLE_SHEET_ID,
-          range: `Turnos!H${rowIndex + 1}`,
+          range: `Turnos!G${rowIndex + 1}`,
           valueInputOption: "USER_ENTERED",
           requestBody: { values: [[record.estado ?? "pendiente"]] },
         });
@@ -62,15 +58,13 @@ export async function POST(req: Request) {
       }
     }
 
-    // INSERT
     await sheets.spreadsheets.values.append({
       spreadsheetId: process.env.GOOGLE_SHEET_ID,
-      range: "Turnos!A:J",
+      range: "Turnos!A:I",
       valueInputOption: "USER_ENTERED",
       requestBody: {
         values: [[
           nombre,
-          apellido,
           email,
           telefono,
           record.tipo_tratamiento ?? "",
