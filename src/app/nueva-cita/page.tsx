@@ -27,6 +27,8 @@ export default function NuevaCita() {
   const [tratamiento, setTratamiento] = useState('Consulta')
   const [fecha, setFecha] = useState('')
   const [hora, setHora] = useState('')
+  const [horasOcupadas, setHorasOcupadas] = useState<string[]>([])
+  const [cargandoHoras, setCargandoHoras] = useState(false)
   const [notas, setNotas] = useState('')
   const [sena, setSena] = useState('')
   const [guardando, setGuardando] = useState(false)
@@ -35,6 +37,7 @@ export default function NuevaCita() {
   const dropdownRef = useRef<HTMLDivElement>(null)
   const hoyMin = new Date().toISOString().split('T')[0]
 
+  // Buscar pacientes
   useEffect(() => {
     if (query.length < 2) { setPacientes([]); setShowDropdown(false); return }
     const timeout = setTimeout(async () => {
@@ -43,6 +46,31 @@ export default function NuevaCita() {
     }, 300)
     return () => clearTimeout(timeout)
   }, [query])
+
+  // Cargar horas ocupadas cuando cambia la fecha
+  useEffect(() => {
+    if (!fecha) { setHorasOcupadas([]); return }
+    setCargandoHoras(true)
+    setHora('')
+    const fetchOcupadas = async () => {
+      const { data } = await supabase
+        .from('citas')
+        .select('fecha_hora')
+        .gte('fecha_hora', `${fecha}T00:00:00`)
+        .lte('fecha_hora', `${fecha}T23:59:59`)
+        .not('estado', 'eq', 'cancelado')
+      if (data) {
+        const ocupadas = data.map(c => {
+          const dt = new Date(c.fecha_hora)
+          const ar = new Date(dt.toLocaleString('en-US', { timeZone: 'America/Argentina/Buenos_Aires' }))
+          return String(ar.getHours()).padStart(2,'0') + ':' + String(ar.getMinutes()).padStart(2,'0')
+        })
+        setHorasOcupadas(ocupadas)
+      }
+      setCargandoHoras(false)
+    }
+    fetchOcupadas()
+  }, [fecha])
 
   function seleccionarPaciente(p: Paciente) {
     setPacienteSeleccionado(p); setQuery(p.nombre); setShowDropdown(false); setCreandoPaciente(false)
@@ -54,9 +82,8 @@ export default function NuevaCita() {
   }
 
   function iniciarCreacion() {
-    setShowDropdown(false)
-    setCreandoPaciente(true)
-    setNuevoPaciente({nombre: query, telefono:'', email:''})
+    setShowDropdown(false); setCreandoPaciente(true)
+    setNuevoPaciente({nombre:query, telefono:'', email:''})
   }
 
   async function crearPaciente() {
@@ -92,7 +119,7 @@ export default function NuevaCita() {
     setTimeout(() => {
       setExito(false); setPacienteSeleccionado(null); setQuery(''); setFecha(''); setHora('')
       setNotas(''); setTratamiento('Consulta'); setSena(''); setCreandoPaciente(false)
-      setNuevoPaciente({nombre:'',telefono:'',email:''})
+      setNuevoPaciente({nombre:'',telefono:'',email:''}); setHorasOcupadas([])
     }, 2000)
   }
 
@@ -148,12 +175,8 @@ export default function NuevaCita() {
                 <input value={nuevoPaciente.telefono} onChange={e=>setNuevoPaciente(p=>({...p,telefono:e.target.value}))} placeholder="Teléfono *" type="tel" style={inputStyle}/>
                 <input value={nuevoPaciente.email} onChange={e=>setNuevoPaciente(p=>({...p,email:e.target.value}))} placeholder="Email (opcional)" type="email" style={inputStyle}/>
                 <div style={{display:'flex',gap:8,marginTop:4}}>
-                  <button onClick={()=>{setCreandoPaciente(false);setQuery('')}} style={{flex:1,padding:'0.7rem',borderRadius:10,border:'0.5px solid #e8e8e8',background:'#f4f7fb',color:'#666',fontSize:13,fontWeight:500,cursor:'pointer',fontFamily:'DM Sans, sans-serif'}}>
-                    Cancelar
-                  </button>
-                  <button onClick={crearPaciente} style={{flex:2,padding:'0.7rem',borderRadius:10,border:'none',background:'#0f1e2b',color:'#fff',fontSize:13,fontWeight:600,cursor:'pointer',fontFamily:'DM Sans, sans-serif'}}>
-                    Crear y seleccionar
-                  </button>
+                  <button onClick={()=>{setCreandoPaciente(false);setQuery('')}} style={{flex:1,padding:'0.7rem',borderRadius:10,border:'0.5px solid #e8e8e8',background:'#f4f7fb',color:'#666',fontSize:13,fontWeight:500,cursor:'pointer',fontFamily:'DM Sans, sans-serif'}}>Cancelar</button>
+                  <button onClick={crearPaciente} style={{flex:2,padding:'0.7rem',borderRadius:10,border:'none',background:'#0f1e2b',color:'#fff',fontSize:13,fontWeight:600,cursor:'pointer',fontFamily:'DM Sans, sans-serif'}}>Crear y seleccionar</button>
                 </div>
               </div>
             ) : (
@@ -164,7 +187,7 @@ export default function NuevaCita() {
                 </div>
                 {showDropdown && (
                   <div style={{position:'absolute',top:'calc(100% + 4px)',left:0,right:0,background:'#fff',borderRadius:12,border:'0.5px solid #e8e8e8',boxShadow:'0 8px 24px rgba(0,0,0,0.08)',zIndex:20,overflow:'hidden'}}>
-                    {pacientes.map((p,i) => (
+                    {pacientes.map((p) => (
                       <div key={p.id} onClick={()=>seleccionarPaciente(p)} style={{display:'flex',alignItems:'center',gap:10,padding:'0.75rem 1rem',cursor:'pointer',borderBottom:'0.5px solid #f0f0ee',background:'#fff'}}
                         onMouseEnter={e=>(e.currentTarget.style.background='#f4f7fb')}
                         onMouseLeave={e=>(e.currentTarget.style.background='#fff')}
@@ -220,14 +243,52 @@ export default function NuevaCita() {
 
         {/* Hora */}
         <div style={cardStyle}>
-          <label style={labelStyle}>Horario</label>
-          <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:6,maxHeight:180,overflowY:'auto'}}>
-            {HORAS.map(h => (
-              <button key={h} onClick={()=>setHora(h)} style={{padding:'0.6rem 0',borderRadius:8,border:'0.5px solid',fontSize:13,fontWeight:500,cursor:'pointer',fontFamily:'DM Sans, sans-serif',background:hora===h?'#0f1e2b':'#f4f7fb',color:hora===h?'#fff':'#555',borderColor:hora===h?'#0f1e2b':'#e8e8e8'}}>
-                {h}
-              </button>
-            ))}
+          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:10}}>
+            <label style={{...labelStyle,marginBottom:0}}>Horario</label>
+            {fecha && (
+              <div style={{display:'flex',alignItems:'center',gap:12,fontSize:11,color:'#aaa'}}>
+                <span style={{display:'flex',alignItems:'center',gap:4}}>
+                  <span style={{width:8,height:8,borderRadius:'50%',background:'#e8e8e8',display:'inline-block'}}/>
+                  Ocupado
+                </span>
+                <span style={{display:'flex',alignItems:'center',gap:4}}>
+                  <span style={{width:8,height:8,borderRadius:'50%',background:'#0f1e2b',display:'inline-block'}}/>
+                  Libre
+                </span>
+              </div>
+            )}
           </div>
+          {!fecha ? (
+            <div style={{textAlign:'center',padding:'1.5rem',color:'#ccc',fontSize:13}}>Seleccioná una fecha primero</div>
+          ) : cargandoHoras ? (
+            <div style={{textAlign:'center',padding:'1.5rem',color:'#aaa',fontSize:13}}>Cargando disponibilidad...</div>
+          ) : (
+            <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:6,maxHeight:200,overflowY:'auto'}}>
+              {HORAS.map(h => {
+                const ocupado = horasOcupadas.includes(h)
+                const seleccionado = hora === h
+                return (
+                  <button
+                    key={h}
+                    onClick={()=>!ocupado && setHora(h)}
+                    disabled={ocupado}
+                    title={ocupado ? 'Horario ocupado' : ''}
+                    style={{
+                      padding:'0.6rem 0',borderRadius:8,border:'0.5px solid',fontSize:13,fontWeight:500,
+                      fontFamily:'DM Sans, sans-serif',transition:'all 0.1s',
+                      cursor: ocupado ? 'not-allowed' : 'pointer',
+                      background: ocupado ? '#f0f0f0' : seleccionado ? '#0f1e2b' : '#f4f7fb',
+                      color: ocupado ? '#ccc' : seleccionado ? '#fff' : '#555',
+                      borderColor: ocupado ? '#e8e8e8' : seleccionado ? '#0f1e2b' : '#e8e8e8',
+                      textDecoration: ocupado ? 'line-through' : 'none',
+                    }}
+                  >
+                    {h}
+                  </button>
+                )
+              })}
+            </div>
+          )}
         </div>
 
         {/* Seña */}
@@ -235,14 +296,7 @@ export default function NuevaCita() {
           <label style={labelStyle}>Seña <span style={{fontWeight:400,textTransform:'none',letterSpacing:0}}>(opcional)</span></label>
           <div style={{display:'flex',alignItems:'center',background:'#f4f7fb',borderRadius:10,padding:'0 1rem'}}>
             <span style={{fontSize:15,color:'#aaa',fontWeight:500,marginRight:6}}>$</span>
-            <input
-              type="number"
-              value={sena}
-              onChange={e=>setSena(e.target.value)}
-              placeholder="0"
-              min="0"
-              style={{...inputStyle,background:'transparent',padding:'0.85rem 0'}}
-            />
+            <input type="number" value={sena} onChange={e=>setSena(e.target.value)} placeholder="0" min="0" style={{...inputStyle,background:'transparent',padding:'0.85rem 0'}}/>
           </div>
         </div>
 
