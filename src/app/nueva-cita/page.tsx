@@ -8,6 +8,14 @@ const TRATAMIENTOS = [
   'Extracción', 'Endodoncia', 'Implante', 'Prótesis', 'Otro'
 ]
 
+const DURACIONES = [
+  { label: "20 min", value: 20 },
+  { label: "40 min", value: 40 },
+  { label: "60 min", value: 60 },
+  { label: "80 min", value: 80 },
+  { label: "120 min", value: 120 },
+]
+
 const HORAS = [
   '08:00','08:30','09:00','09:30','10:00','10:30','11:00','11:30',
   '12:00','12:30','13:00','13:30','14:00','14:30','15:00','15:30',
@@ -30,6 +38,7 @@ export default function NuevaCita() {
   const [horasOcupadas, setHorasOcupadas] = useState<string[]>([])
   const [cargandoHoras, setCargandoHoras] = useState(false)
   const [notas, setNotas] = useState('')
+  const [duracion, setDuracion] = useState(20)
   const [sena, setSena] = useState('')
   const [guardando, setGuardando] = useState(false)
   const [exito, setExito] = useState(false)
@@ -111,7 +120,7 @@ export default function NuevaCita() {
       fecha_hora: fechaHora,
       estado: 'pendiente',
       notas: notas || null,
-      duracion_minutos: 30,
+      duracion_minutos: duracion,
       sena: sena ? parseFloat(sena) : null,
     })
     if (err) { setError('Error al guardar. Intentá de nuevo.'); setGuardando(false); return }
@@ -290,6 +299,23 @@ export default function NuevaCita() {
             </div>
           )}
         </div>
+            {/* Duración */}
+    <div style={cardStyle}>
+      <label style={labelStyle}>Duración</label>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:8}}>
+        {DURACIONES.map(d => (
+          <button key={d.value} onClick={()=>setDuracion(d.value)} style={{
+            padding:'0.6rem 0.2rem',borderRadius:10,border:'0.5px solid',fontSize:12,fontWeight:500,
+            cursor:'pointer',fontFamily:'DM Sans, sans-serif',textAlign:'center',
+            background:duracion===d.value?'#0f1e2b':'#f4f7fb',
+            color:duracion===d.value?'#fff':'#555',
+            borderColor:duracion===d.value?'#0f1e2b':'#e8e8e8',
+          }}>
+            {d.label}
+          </button>
+        ))}
+      </div>
+    </div>
 
         {/* Seña */}
         <div style={cardStyle}>
