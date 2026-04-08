@@ -26,12 +26,9 @@ function toCita(c: CitaDB): Cita {
 }
 
 function parseFechaLocal(base: string): Date {
-  // Soporta "YYYY-MM-DD" sin importar timezone del browser
-  const parts = base.replace(/\//g, '-').split('-')
-  const y = parseInt(parts[0] > parts[2] ? parts[0] : parts[2])
-  const m = parseInt(parts[1]) - 1
-  const d = parseInt(parts[0] > parts[2] ? parts[2] : parts[0])
-  return new Date(y, m, d)
+  const [y, m, d] = base.split('-').map(Number)
+  return new Date(y, m - 1, d)
+
 }
 function dateToISO(d: Date): string {
   return d.getFullYear() + '-' +
