@@ -1,6 +1,6 @@
 export const TRATAMIENTOS = ['Limpieza','Ortodoncia','Implante','Cirugia','Endodoncia','Blanqueamiento','Consulta','Otro']
 export const ESTADOS      = ['pendiente','confirmado','asistio','cancelado']
-export const DURACIONES   = [15,30,45,60,90,120]
+export const DURACIONES   = [20,40,60,80,120]
 export const AVATAR_COLORS = ['#1D9E75','#7F77DD','#378ADD','#EF9F27','#D85A30','#E24B4A']
 
 export const TRAT_STYLE: Record<string, {bg:string; color:string; dot:string}> = {
