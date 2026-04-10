@@ -1,19 +1,28 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 
 export function useAuth() {
   const router = useRouter()
+  const checked = useRef(false)
 
   useEffect(() => {
-    supabase.auth.onAuthStateChange((event, session) => {
-      console.log('AUTH EVENT:', event, 'SESSION:', session?.user?.email)
-      if (event === 'INITIAL_SESSION') {
-        if (!session) router.replace('/login')
-      } else if (event === 'SIGNED_OUT') {
+    // Primero intentar getSession (sincrónico desde localStorage)
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      checked.current = true
+      if (!session) {
         router.replace('/login')
       }
     })
-  }, [router])
+
+    // Escuchar cambios posteriores
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_OUT') {
+        router.replace('/login')
+      }
+    })
+
+    return () => subscription.unsubscribe()
+  }, [])
 }
