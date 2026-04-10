@@ -21,8 +21,7 @@ export default function Login() {
         setError('Error: ' + error.message)
         setLoading(false)
       } else {
-        router.refresh()
-      setTimeout(() => { window.location.href = '/' }, 100)
+        router.push('/')
       }
     } catch(e) {
       console.log('catch:', e)
