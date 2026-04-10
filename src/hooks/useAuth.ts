@@ -1,25 +1,23 @@
 'use client'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 
 export function useAuth() {
   const router = useRouter()
+  const [ready, setReady] = useState(false)
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      supabase.auth.getSession().then(({ data: { session } }) => {
-        if (!session) router.replace('/login')
-      })
-    }, 500)
-
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log('AUTH:', event, !!session)
+      if (event === 'INITIAL_SESSION') {
+        if (!session) router.replace('/login')
+        setReady(true)
+      }
       if (event === 'SIGNED_OUT') router.replace('/login')
     })
-
-    return () => {
-      clearTimeout(timer)
-      subscription.unsubscribe()
-    }
+    return () => subscription.unsubscribe()
   }, [])
+
+  return { ready }
 }

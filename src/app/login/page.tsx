@@ -21,7 +21,7 @@ export default function Login() {
         setError('Error: ' + error.message)
         setLoading(false)
       } else {
-        router.push('/')
+        router.push('/dashboard')
       }
     } catch(e) {
       console.log('catch:', e)
