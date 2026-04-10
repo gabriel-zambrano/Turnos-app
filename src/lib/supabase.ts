@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-import type { Turno, TurnoFormData, TurnoEstado } from '@/lib/types'
+import type { Turno, TurnoFormData, TurnoEstado } from '@/types'
 
 export const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
