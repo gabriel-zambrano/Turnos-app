@@ -1,4 +1,5 @@
 'use client'
+import { useAuth } from '@/hooks/useAuth'
 import { useState, useEffect, useCallback } from 'react'
 import { Sidebar } from '@/components/Sidebar'
 import { Badge, Toast, PageHeader, BtnPrimary, BtnSm, Spinner, overlayCss, modalCss, modalTitleCss, footerCss, groupCss, labelCss, grid2Css, btnDarkCss, btnLightCss, btnRedCss, selectCss, textareaCss, inputCss } from '@/components/UI'
@@ -51,6 +52,7 @@ const HORA_FIN = 20
 const SLOT_H = 48 // px por hora
 
 export default function Agenda() {
+  useAuth()
   const [citas,   setCitas]   = useState<Cita[]>([])
   const [pacs,    setPacs]    = useState<PacMin[]>([])
   const [loading, setLoading] = useState(true)

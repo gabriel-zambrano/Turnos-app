@@ -1,4 +1,5 @@
 'use client'
+import { useAuth } from '@/hooks/useAuth'
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
@@ -30,6 +31,7 @@ const DURACIONES = [
 interface Paciente { id:string; nombre:string; telefono:string; email:string }
 
 export default function NuevaCita() {
+  useAuth()
   const router = useRouter()
   const [query, setQuery] = useState('')
   const [pacientes, setPacientes] = useState<Paciente[]>([])

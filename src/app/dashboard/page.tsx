@@ -1,4 +1,5 @@
 'use client'
+import { useAuth } from '@/hooks/useAuth'
 import { useState, useEffect, useCallback } from 'react'
 import { Sidebar } from '@/components/Sidebar'
 import { Badge, Toast, PageHeader, FilterBar, Spinner, MetricCard } from '@/components/UI'
@@ -11,6 +12,7 @@ interface LogItem { id:string; paciente:string; canal:string; estado:string; hor
 const FILTROS = [{k:'todas',l:'Todas'},{k:'pendiente',l:'Pendientes'},{k:'confirmado',l:'Confirmadas'}]
 
 export default function Dashboard() {
+  useAuth()
   const [citas, setCitas] = useState<Cita[]>([])
   const [isMobile, setIsMobile] = useState(false)
   useEffect(()=>{
