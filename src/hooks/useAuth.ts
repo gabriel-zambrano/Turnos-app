@@ -11,14 +11,14 @@ export function useAuth() {
   useEffect(() => {
     // Si hay flag de sessionStorage, confiar en que está autenticado
     // y verificar en background
-    const flag = sessionStorage.getItem('authed')
+    const flag = localStorage.getItem('authed')
     if (flag) {
       setAuthed(true)
       setLoading(false)
       // Verificar en background igual
       supabase.auth.getSession().then(({ data: { session } }) => {
         if (!session) {
-          sessionStorage.removeItem('authed')
+          localStorage.removeItem('authed')
           setAuthed(false)
           router.replace('/login')
         }

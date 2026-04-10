@@ -21,7 +21,7 @@ export default function Login() {
         setError('Error: ' + error.message)
         setLoading(false)
       } else {
-        sessionStorage.setItem('authed', '1')
+        localStorage.setItem('authed', '1')
       setTimeout(() => window.location.replace('/dashboard'), 50)
       }
     } catch(e) {
