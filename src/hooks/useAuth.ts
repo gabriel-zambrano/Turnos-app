@@ -1,13 +1,17 @@
 'use client'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 
 export function useAuth() {
   const router = useRouter()
+  const [checked, setChecked] = useState(false)
+
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!checked) setChecked(true)
       if (!session) router.replace('/login')
     })
-  }, [router])
+    return () => subscription.unsubscribe()
+  }, [router, checked])
 }
