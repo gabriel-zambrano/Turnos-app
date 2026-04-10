@@ -12,8 +12,8 @@ interface LogItem { id:string; paciente:string; canal:string; estado:string; hor
 const FILTROS = [{k:'todas',l:'Todas'},{k:'pendiente',l:'Pendientes'},{k:'confirmado',l:'Confirmadas'}]
 
 export default function Dashboard() {
-  const { loading, authed } = useAuth()
-  if (loading) return null
+  const { loading: authLoading, authed } = useAuth()
+  if (authLoading) return null
   if (!authed) return null
   const [citas, setCitas] = useState<Cita[]>([])
   const [isMobile, setIsMobile] = useState(false)

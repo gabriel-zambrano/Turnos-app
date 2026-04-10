@@ -13,8 +13,8 @@ function toPac(p: PacDB): Pac {
 }
 
 export default function Pacientes() {
-  const { loading, authed } = useAuth()
-  if (loading) return null
+  const { loading: authLoading, authed } = useAuth()
+  if (authLoading) return null
   if (!authed) return null
   const [rows, setRows] = useState<Pac[]>([])
   const [isMobile, setIsMobile] = useState(false)

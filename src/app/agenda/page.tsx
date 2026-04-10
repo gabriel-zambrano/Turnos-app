@@ -52,8 +52,8 @@ const HORA_FIN = 20
 const SLOT_H = 48 // px por hora
 
 export default function Agenda() {
-  const { loading, authed } = useAuth()
-  if (loading) return null
+  const { loading: authLoading, authed } = useAuth()
+  if (authLoading) return null
   if (!authed) return null
   const [citas,   setCitas]   = useState<Cita[]>([])
   const [pacs,    setPacs]    = useState<PacMin[]>([])
