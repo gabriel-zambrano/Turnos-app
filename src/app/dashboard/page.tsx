@@ -15,12 +15,10 @@ export default function Dashboard() {
   const [authChecked, setAuthChecked] = useState(false)
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
-      console.log('DASHBOARD SESSION:', session?.user?.email)
       if (!session) window.location.replace('/login')
       else setAuthChecked(true)
     })
   }, [])
-  if (!authChecked) return null
   const [citas, setCitas] = useState<Cita[]>([])
   const [isMobile, setIsMobile] = useState(false)
   useEffect(()=>{
@@ -91,6 +89,8 @@ export default function Dashboard() {
     } catch(e){ msg('Error al enviar recordatorios','error') }
     finally { setEnviando(false) }
   }
+
+  if (!authChecked) return null
 
   return (
     <div style={{display:'flex',minHeight:'100vh',fontFamily:'DM Sans, sans-serif'}}>
