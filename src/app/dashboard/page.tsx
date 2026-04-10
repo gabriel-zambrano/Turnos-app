@@ -12,9 +12,15 @@ interface LogItem { id:string; paciente:string; canal:string; estado:string; hor
 const FILTROS = [{k:'todas',l:'Todas'},{k:'pendiente',l:'Pendientes'},{k:'confirmado',l:'Confirmadas'}]
 
 export default function Dashboard() {
-  const { loading: authLoading, authed } = useAuth()
-  if (authLoading) return null
-  if (!authed) return null
+  const [authChecked, setAuthChecked] = useState(false)
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log('DASHBOARD SESSION:', session?.user?.email)
+      if (!session) window.location.replace('/login')
+      else setAuthChecked(true)
+    })
+  }, [])
+  if (!authChecked) return null
   const [citas, setCitas] = useState<Cita[]>([])
   const [isMobile, setIsMobile] = useState(false)
   useEffect(()=>{
