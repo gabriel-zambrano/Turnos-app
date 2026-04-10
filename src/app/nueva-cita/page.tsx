@@ -31,7 +31,9 @@ const DURACIONES = [
 interface Paciente { id:string; nombre:string; telefono:string; email:string }
 
 export default function NuevaCita() {
-  useAuth()
+  const { loading, authed } = useAuth()
+  if (loading) return null
+  if (!authed) return null
   const router = useRouter()
   const [query, setQuery] = useState('')
   const [pacientes, setPacientes] = useState<Paciente[]>([])

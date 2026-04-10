@@ -8,7 +8,9 @@ import { supabase } from '@/lib/supabase'
 interface LogDB { id:string; tipo_mensaje:string; estado_envio:string; mensaje_preview:string|null; enviado_en:string|null; citas:{fecha_hora:string;pacientes:{nombre:string}|null}|null }
 
 export default function Recordatorios() {
-  useAuth()
+  const { loading, authed } = useAuth()
+  if (loading) return null
+  if (!authed) return null
   const [logs, setLogs] = useState<LogDB[]>([])
   const [isMobile, setIsMobile] = useState(false)
   useEffect(()=>{ const check = () => setIsMobile(window.innerWidth < 768); check(); window.addEventListener('resize', check); return () => window.removeEventListener('resize', check) },[])

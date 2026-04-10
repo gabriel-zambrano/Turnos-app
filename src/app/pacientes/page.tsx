@@ -13,7 +13,9 @@ function toPac(p: PacDB): Pac {
 }
 
 export default function Pacientes() {
-  useAuth()
+  const { loading, authed } = useAuth()
+  if (loading) return null
+  if (!authed) return null
   const [rows, setRows] = useState<Pac[]>([])
   const [isMobile, setIsMobile] = useState(false)
   useEffect(()=>{ const check = () => setIsMobile(window.innerWidth < 768); check(); window.addEventListener('resize', check); return () => window.removeEventListener('resize', check) },[])

@@ -5,19 +5,19 @@ import { supabase } from '@/lib/supabase'
 
 export function useAuth() {
   const router = useRouter()
-  const [ready, setReady] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [authed, setAuthed] = useState(false)
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      console.log('AUTH:', event, !!session)
-      if (event === 'INITIAL_SESSION') {
-        if (!session) router.replace('/login')
-        setReady(true)
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        setAuthed(true)
+      } else {
+        router.replace('/login')
       }
-      if (event === 'SIGNED_OUT') router.replace('/login')
+      setLoading(false)
     })
-    return () => subscription.unsubscribe()
   }, [])
 
-  return { ready }
+  return { loading, authed }
 }

@@ -35,7 +35,9 @@ const GRUPOS = {
 }
 
 export default function SeguimientoPage() {
-  useAuth()
+  const { loading, authed } = useAuth()
+  if (loading) return null
+  if (!authed) return null
   const isMobile = useIsMobile()
   const [alertas, setAlertas] = useState<PacienteAlerta[]>([])
   const [loading, setLoading] = useState(true)
