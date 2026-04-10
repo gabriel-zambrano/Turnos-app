@@ -13,12 +13,20 @@ export default function Login() {
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true); setError('')
-    const { error } = await supabase.auth.signInWithPassword({ email, password: pass })
-    if (error) {
-      setError('Credenciales incorrectas')
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password: pass })
+      console.log('data:', data)
+      console.log('error:', error)
+      if (error) {
+        setError('Error: ' + error.message)
+        setLoading(false)
+      } else {
+        router.push('/')
+      }
+    } catch(e) {
+      console.log('catch:', e)
+      setError('Error inesperado')
       setLoading(false)
-    } else {
-      router.push('/')
     }
   }
 
