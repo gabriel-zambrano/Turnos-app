@@ -1,5 +1,4 @@
 'use client'
-import { useAuth } from '@/hooks/useAuth'
 import { useState, useEffect, useCallback } from 'react'
 import { Sidebar } from '@/components/Sidebar'
 import { Badge, Toast, PageHeader, BtnPrimary, BtnSm, DataTable, TR, TD, Spinner, MetricCard, inputCss, selectCss, overlayCss, modalCss, modalTitleCss, footerCss, groupCss, labelCss, grid2Css, btnDarkCss, btnLightCss, btnRedCss } from '@/components/UI'
@@ -13,9 +12,6 @@ function toPac(p: PacDB): Pac {
 }
 
 export default function Pacientes() {
-  const { loading: authLoading, authed } = useAuth()
-  if (authLoading) return null
-  if (!authed) return null
   const [rows, setRows] = useState<Pac[]>([])
   const [isMobile, setIsMobile] = useState(false)
   useEffect(()=>{ const check = () => setIsMobile(window.innerWidth < 768); check(); window.addEventListener('resize', check); return () => window.removeEventListener('resize', check) },[])

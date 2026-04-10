@@ -1,5 +1,4 @@
 'use client'
-import { useAuth } from '@/hooks/useAuth'
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Sidebar } from '@/components/Sidebar'
@@ -35,9 +34,6 @@ const GRUPOS = {
 }
 
 export default function SeguimientoPage() {
-  const { loading: authLoading, authed } = useAuth()
-  if (authLoading) return null
-  if (!authed) return null
   const isMobile = useIsMobile()
   const [alertas, setAlertas] = useState<PacienteAlerta[]>([])
   const [loading, setLoading] = useState(true)
