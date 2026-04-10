@@ -1,5 +1,18 @@
 import { createClient } from '@supabase/supabase-js'
 
+// Tipos locales
+type TurnoEstado = 'pendiente' | 'confirmado' | 'cancelado' | 'completado'
+interface Turno {
+  id: string; nombre: string; apellido: string; email: string
+  telefono: string; servicio: string; fecha: string; hora: string
+  notas?: string; estado: TurnoEstado; created_at: string
+}
+interface TurnoFormData {
+  nombre: string; apellido: string; email: string; telefono: string
+  servicio: string; fecha: string; hora: string; notas?: string
+}
+
+
 export const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
