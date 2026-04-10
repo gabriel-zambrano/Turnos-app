@@ -21,7 +21,8 @@ export default function Login() {
         setError('Error: ' + error.message)
         setLoading(false)
       } else {
-        sessionStorage.setItem('authed', '1'); window.location.replace('/dashboard')
+        sessionStorage.setItem('authed', '1')
+      setTimeout(() => window.location.replace('/dashboard'), 50)
       }
     } catch(e) {
       console.log('catch:', e)
