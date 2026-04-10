@@ -21,7 +21,7 @@ export default function Login() {
         setError('Error: ' + error.message)
         setLoading(false)
       } else {
-        window.location.replace('/dashboard')
+        sessionStorage.setItem('authed', '1'); window.location.replace('/dashboard')
       }
     } catch(e) {
       console.log('catch:', e)
