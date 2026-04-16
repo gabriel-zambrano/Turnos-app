@@ -108,6 +108,7 @@ export default function NuevaCita() {
       nombre: nuevoPaciente.nombre,
       telefono: nuevoPaciente.telefono,
       email: nuevoPaciente.email || null,
+      tenant_id: '2845c423-affa-4ca2-9c5f-f4ec8e35701a',
     }).select().single()
     if (err || !data) { setError('Error al crear paciente'); return }
     seleccionarPaciente(data)
@@ -127,6 +128,7 @@ export default function NuevaCita() {
       notas: notas || null,
       duracion_minutos: duracion,
       sena: sena ? parseFloat(sena) : null,
+      tenant_id: '2845c423-affa-4ca2-9c5f-f4ec8e35701a',
     })
     if (err) { setError('Error al guardar. Intentá de nuevo.'); setGuardando(false); return }
     setGuardando(false); setExito(true)
