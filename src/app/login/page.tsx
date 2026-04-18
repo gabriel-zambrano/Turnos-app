@@ -1,7 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { supabase } from '@/lib/supabase'
+import { createClient } from '@/lib/supabase/client'
 
 export default function Login() {
   const router = useRouter()
@@ -10,7 +10,10 @@ export default function Login() {
   const [loading, setLoading] = useState(false)
   const [error,   setError]   = useState('')
 
+  const supabase = createClient()
+
   async function handleLogin(e: React.FormEvent) {
+
     e.preventDefault()
     setLoading(true); setError('')
     try {
@@ -22,7 +25,8 @@ export default function Login() {
         setLoading(false)
       } else {
         localStorage.setItem('authed', '1')
-      setTimeout(() => window.location.replace('/dashboard'), 50)
+        const destino = data.user?.email === 'studioandbrand@gmail.com' ? '/admin' : '/dashboard'
+        window.location.href = destino
       }
     } catch(e) {
       console.log('catch:', e)

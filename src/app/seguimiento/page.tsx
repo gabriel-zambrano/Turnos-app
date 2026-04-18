@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { supabase } from '@/lib/supabase'
+import { createClient } from '@/lib/supabase/client'
 import { Sidebar } from '@/components/Sidebar'
 import { PageHeader } from '@/components/UI'
 import { AVATAR_COLORS, initials } from '@/lib/constants'
@@ -34,6 +34,7 @@ const GRUPOS = {
 }
 
 export default function SeguimientoPage() {
+  const supabase = createClient()
   const isMobile = useIsMobile()
   const [alertas, setAlertas] = useState<PacienteAlerta[]>([])
   const [loading, setLoading] = useState(true)

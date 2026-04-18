@@ -1,4 +1,5 @@
 'use client'
+export const dynamic = 'force-dynamic'
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
@@ -120,6 +121,17 @@ export default function NuevaCita() {
     if (!hora) { setError('Elegí un horario'); return }
     setGuardando(true); setError('')
     const fechaHora = `${fecha}T${hora}:00-03:00`
+    console.log('INSERT CITAS PAYLOAD:', {  // ← AGREGÁ ESTA LÍNEA
+      paciente_id: pacienteSeleccionado.id,
+      tipo_tratamiento: tratamiento,
+      fecha_hora: fechaHora,
+      estado: 'pendiente',
+      notas: notas || null,
+      duracion_minutos: duracion,
+      sena: sena ? parseFloat(sena) : null,
+      tenant_id: '2845c423-affa-4ca2-9c5f-f4ec8e35701a',
+    })
+
     const { error: err } = await supabase.from('citas').insert({
       paciente_id: pacienteSeleccionado.id,
       tipo_tratamiento: tratamiento,
@@ -363,3 +375,4 @@ export default function NuevaCita() {
     </div>
   )
 }
+

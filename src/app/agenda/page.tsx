@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { Sidebar } from '@/components/Sidebar'
 import { Badge, Toast, PageHeader, BtnPrimary, BtnSm, Spinner, overlayCss, modalCss, modalTitleCss, footerCss, groupCss, labelCss, grid2Css, btnDarkCss, btnLightCss, btnRedCss, selectCss, textareaCss, inputCss } from '@/components/UI'
 import { TRAT_STYLE, ESTADO_STYLE, TRATAMIENTOS, ESTADOS, DURACIONES, horasDisponibles, hoyISO } from '@/lib/constants'
-import { supabase } from '@/lib/supabase'
+import { createClient } from '@/lib/supabase/client'
 import type { EstadoCita, TipoTratamiento } from '@/types'
 
 interface CitaDB { id:string; paciente_id:string; fecha_hora:string; tipo_tratamiento:string; estado:string; notas:string|null; duracion_minutos:number; valor:number|null; sena:number|null; pacientes:{nombre:string;telefono:string}|null }
@@ -51,6 +51,7 @@ const HORA_FIN = 20
 const SLOT_H = 48 // px por hora
 
 export default function Agenda() {
+  const supabase = createClient()
   const [citas,   setCitas]   = useState<Cita[]>([])
   const [pacs,    setPacs]    = useState<PacMin[]>([])
   const [loading, setLoading] = useState(true)
@@ -123,7 +124,7 @@ export default function Agenda() {
   async function saveNueva(){
     if(!fPac) return msg('Seleccioná un paciente','error')
     setSaving(true)
-    const {error} = await supabase.from('citas').insert({paciente_id:fPac,fecha_hora:`${fFecha}T${fHora}:00-03:00`,tipo_tratamiento:fTrat,estado:fEst,duracion_minutos:fDur,notas:fNotas||null,valor:fValor||null,sena:fSena||null})
+    const {error} = await supabase.from('citas').insert({paciente_id:fPac,fecha_hora:`${fFecha}T${fHora}:00-03:00`,tipo_tratamiento:fTrat,estado:fEst,duracion_minutos:fDur,notas:fNotas||null,valor:fValor||null,sena:fSena||null,tenant_id:'2845c423-affa-4ca2-9c5f-f4ec8e35701a'})
     setSaving(false)
     if(error) return msg('Error: '+error.message,'error')
     setModal(null);msg('Cita agendada ✓');loadCitas()
@@ -162,7 +163,7 @@ export default function Agenda() {
     if (!fBloqFecha) return msg("Seleccioná una fecha", "error")
     if (fBloqDesde >= fBloqHasta) return msg("La hora de fin debe ser mayor al inicio", "error")
     setSaving(true)
-    const {error} = await supabase.from("bloqueos").insert({fecha:fBloqFecha, hora_inicio:fBloqDesde, hora_fin:fBloqHasta, motivo:fBloqMotivo||null})
+    const {error} = await supabase.from("bloqueos").insert({fecha:fBloqFecha, hora_inicio:fBloqDesde, hora_fin:fBloqHasta, motivo:fBloqMotivo||null, tenant_id:'2845c423-affa-4ca2-9c5f-f4ec8e35701a'})
     setSaving(false)
     if (error) return msg("Error: "+error.message, "error")
     setModal(null); msg("Horario bloqueado ✓"); loadBloqueos(semana[0], semana[5])

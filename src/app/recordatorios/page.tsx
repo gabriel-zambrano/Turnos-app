@@ -2,11 +2,12 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Sidebar } from '@/components/Sidebar'
 import { PageHeader, Badge, Spinner } from '@/components/UI'
-import { supabase } from '@/lib/supabase'
+import { createClient } from '@/lib/supabase/client'
 
 interface LogDB { id:string; tipo_mensaje:string; estado_envio:string; mensaje_preview:string|null; enviado_en:string|null; citas:{fecha_hora:string;pacientes:{nombre:string}|null}|null }
 
 export default function Recordatorios() {
+  const supabase = createClient()
   const [logs, setLogs] = useState<LogDB[]>([])
   const [isMobile, setIsMobile] = useState(false)
   useEffect(()=>{ const check = () => setIsMobile(window.innerWidth < 768); check(); window.addEventListener('resize', check); return () => window.removeEventListener('resize', check) },[])

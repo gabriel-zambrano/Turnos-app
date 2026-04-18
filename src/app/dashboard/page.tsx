@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { Sidebar } from '@/components/Sidebar'
 import { Badge, Toast, PageHeader, FilterBar, Spinner, MetricCard } from '@/components/UI'
 import { TRAT_STYLE, ESTADO_STYLE, hoyISO } from '@/lib/constants'
-import { supabase } from '@/lib/supabase'
+import { createClient } from '@/lib/supabase/client'
 import type { EstadoCita } from '@/types'
 
 interface Cita { id:string; nombre:string; hora:string; tratamiento:string; estado:EstadoCita; telefono:string }
@@ -13,6 +13,7 @@ const FILTROS = [{k:'todas',l:'Todas'},{k:'pendiente',l:'Pendientes'},{k:'confir
 
 export default function Dashboard() {
   const [authChecked, setAuthChecked] = useState(false)
+  const supabase = createClient()
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!session) window.location.replace('/login')
