@@ -2,7 +2,8 @@
 export const dynamic = 'force-dynamic'
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { supabase } from '@/lib/supabase'
+import { createClient } from '@/lib/supabase/client'
+const supabase = createClient()
 
 const TRATAMIENTOS = [
   'Consulta', 'Ortodoncia', 'Blanqueamiento', 'Limpieza',
@@ -144,6 +145,22 @@ export default function NuevaCita() {
     })
     if (err) { setError('Error al guardar. Intentá de nuevo.'); setGuardando(false); return }
     setGuardando(false); setExito(true)
+    // Enviar email si tiene email
+    if (pacienteSeleccionado.email) {
+      fetch(`/api/confirmar-turno`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nombre: pacienteSeleccionado.nombre,
+          email: pacienteSeleccionado.email,
+          fecha,
+          hora,
+          tratamiento,
+          duracion,
+          notas: notas || null,
+        })
+      })
+    }
     setTimeout(() => {
       setExito(false); setPacienteSeleccionado(null); setQuery(''); setFecha(''); setHora('')
       setNotas(''); setTratamiento('Consulta'); setSena(''); setCreandoPaciente(false)
