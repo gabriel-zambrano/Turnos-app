@@ -3,10 +3,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
 
 export async function POST(req: NextRequest) {
   const authHeader = req.headers.get('authorization')
@@ -17,14 +13,23 @@ export async function POST(req: NextRequest) {
   const { fecha } = await req.json()
   if (!fecha) return NextResponse.json({ error: 'fecha requerida (YYYY-MM-DD)' }, { status: 400 })
 
-  const { data: citas } = await supabase
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+
+  const nextDay = new Date(new Date(fecha).getTime() + 86400000).toISOString().split('T')[0]
+
+  const { data: citas, error } = await supabase
     .from('citas')
     .select('id, fecha_hora, tipo_tratamiento, duracion_minutos, notas, pacientes(nombre, email, telefono)')
     .gte('fecha_hora', `${fecha}T03:00:00Z`)
-    .lte('fecha_hora', `${new Date(new Date(fecha).getTime() + 86400000).toISOString().split('T')[0]}T02:59:59Z`)
+    .lte('fecha_hora', `${nextDay}T02:59:59Z`)
     .in('estado', ['pendiente', 'confirmado'])
 
-  console.log("CITAS:", JSON.stringify(citas)); console.log("URL:", process.env.NEXT_PUBLIC_SUPABASE_URL?.slice(0,30), "KEY:", process.env.SUPABASE_SERVICE_ROLE_KEY?.slice(0,20)); console.log("URL:", process.env.NEXT_PUBLIC_SUPABASE_URL?.slice(0,30), "KEY:", process.env.SUPABASE_SERVICE_ROLE_KEY?.slice(0,20)); if (!citas || citas.length === 0) {
+  console.log('CITAS:', JSON.stringify(citas), 'ERROR:', JSON.stringify(error))
+
+  if (!citas || citas.length === 0) {
     return NextResponse.json({ ok: true, enviados: 0, mensaje: 'Sin citas para esa fecha' })
   }
 
