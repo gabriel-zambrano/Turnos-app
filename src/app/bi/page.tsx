@@ -127,7 +127,7 @@ export default function BiPage() {
 
   // ── Métricas ─────────────────────────────────────────────
   const total = citas.length
-  const completadas = citas.filter(c => c.estado === 'completado').length
+  const completadas = citas.filter(c => c.estado === 'confirmado').length
   const canceladas = citas.filter(c => c.estado === 'cancelado').length
   const noShows = citas.filter(c => c.no_show).length
   const ingresos = citas.reduce((s, c) => s + (c.valor ?? 0), 0)
@@ -140,7 +140,7 @@ export default function BiPage() {
   const ticketPromedio = completadas > 0 ? ingresos / completadas : 0
 
   // ── Por estado ───────────────────────────────────────────
-  const porEstado = ['completado', 'confirmado', 'pendiente', 'cancelado'].map(e => ({
+  const porEstado = ['co 'confirmado', 'pendiente', 'cancelado'].map(e => ({
     name: e.charAt(0).toUpperCase() + e.slice(1),
     value: citas.filter(c => c.estado === e).length,
     color: ESTADOS_COLOR[e]
@@ -176,7 +176,7 @@ export default function BiPage() {
     if (!mesMap[k]) mesMap[k] = { ingresos: 0, citas: 0, completadas: 0 }
     mesMap[k].ingresos += c.valor ?? 0
     mesMap[k].citas++
-    if (c.estado === 'completado') mesMap[k].completadas++
+    if (c.estado === 'confirmado') mesMap[k].completadas++
   })
   const porMes = Object.entries(mesMap).map(([mes, d]) => ({ mes, ...d }))
 
