@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
     .lte('fecha_hora', `${new Date(new Date(fecha).getTime() + 86400000).toISOString().split('T')[0]}T02:59:59Z`)
     .in('estado', ['pendiente', 'confirmado'])
 
-  console.log("CITAS:", JSON.stringify(citas)); if (!citas || citas.length === 0) {
+  console.log("CITAS:", JSON.stringify(citas)); console.log("URL:", process.env.NEXT_PUBLIC_SUPABASE_URL?.slice(0,30), "KEY:", process.env.SUPABASE_SERVICE_ROLE_KEY?.slice(0,20)); if (!citas || citas.length === 0) {
     return NextResponse.json({ ok: true, enviados: 0, mensaje: 'Sin citas para esa fecha' })
   }
 
