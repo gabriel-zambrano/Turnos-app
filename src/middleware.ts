@@ -17,7 +17,8 @@ export async function middleware(req: NextRequest) {
     pathname.startsWith('/favicon') ||
     pathname.startsWith('/api/') ||
     pathname.startsWith('/paciente') ||
-    pathname.startsWith('/auth')
+    pathname.startsWith('/auth') ||
+    pathname.startsWith('/login')
   ) {
     return NextResponse.next()
   }

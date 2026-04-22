@@ -1,9 +1,15 @@
+import * as Sentry from '@sentry/nextjs'
 import type { Metadata } from 'next'
 import './globals.css'
 
-export const metadata: Metadata = {
-  title: 'DentalDesk — Od. Walter Benegas',
-  description: 'Sistema de gestión de turnos odontológicos',
+export function generateMetadata(): Metadata {
+  return {
+    title: 'DentalDesk — Od. Walter Benegas',
+    description: 'Sistema de gestión de turnos odontológicos',
+    other: {
+      ...Sentry.getTraceData()
+    }
+  }
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
