@@ -20,8 +20,8 @@ export async function POST(req: NextRequest) {
   const { data: citas } = await supabase
     .from('citas')
     .select('id, fecha_hora, tipo_tratamiento, duracion_minutos, notas, pacientes(nombre, email, telefono)')
-    .gte('fecha_hora', `${fecha}T00:00:00`)
-    .lte('fecha_hora', `${fecha}T23:59:59`)
+    .gte('fecha_hora', `${fecha}T03:00:00Z`)
+    .lte('fecha_hora', `${new Date(new Date(fecha).getTime() + 86400000).toISOString().split('T')[0]}T02:59:59Z`)
     .in('estado', ['pendiente', 'confirmado'])
 
   if (!citas || citas.length === 0) {
