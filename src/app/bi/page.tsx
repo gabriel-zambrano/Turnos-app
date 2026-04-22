@@ -140,7 +140,7 @@ export default function BiPage() {
   const ticketPromedio = completadas > 0 ? ingresos / completadas : 0
 
   // ── Por estado ───────────────────────────────────────────
-  const porEstado = ['co 'confirmado', 'pendiente', 'cancelado'].map(e => ({
+  const porEstado = ['confirmado', 'pendiente', 'cancelado'].map(e => ({
     name: e.charAt(0).toUpperCase() + e.slice(1),
     value: citas.filter(c => c.estado === e).length,
     color: ESTADOS_COLOR[e]
