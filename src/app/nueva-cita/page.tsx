@@ -146,6 +146,7 @@ export default function NuevaCita() {
     if (err) { setError('Error al guardar. Intentá de nuevo.'); setGuardando(false); return }
     setGuardando(false); setExito(true)
     // Enviar email si tiene email
+    console.log("EMAIL PACIENTE:", pacienteSeleccionado.email)
     if (pacienteSeleccionado.email) {
       fetch(`/api/confirmar-turno`, {
         method: 'POST',
