@@ -103,6 +103,12 @@ export default function NuevaCita() {
   }
 
   async function crearPaciente() {
+    // Verificar si ya existe
+    const { data: existe } = await supabase.from('pacientes').select('id,nombre').or(`email.eq.${nuevoPaciente.email},telefono.eq.${nuevoPaciente.telefono}`).limit(1)
+    if (existe && existe.length > 0) {
+      setError(`⚠️ Ya existe un paciente con ese email o teléfono: ${existe[0].nombre}`)
+      return
+    }
     if (!nuevoPaciente.nombre) { setError('Ingresá el nombre del paciente'); return }
     if (!nuevoPaciente.telefono) { setError('Ingresá el teléfono'); return }
     setError('')
@@ -117,6 +123,14 @@ export default function NuevaCita() {
   }
 
   async function guardar() {
+    // Verificar cita duplicada
+    if (pacienteSeleccionado && fecha) {
+      const { data: citaExiste } = await supabase.from('citas').select('id').eq('paciente_id', pacienteSeleccionado.id).gte('fecha_hora', `${fecha}T00:00:00`).lte('fecha_hora', `${fecha}T23:59:59`).not('estado', 'eq', 'cancelado')
+      if (citaExiste && citaExiste.length > 0) {
+        setError(`⚠️ ${pacienteSeleccionado.nombre} ya tiene una cita agendada para el ${fecha}`)
+        return
+      }
+    }
     if (!pacienteSeleccionado) { setError('Seleccioná o creá un paciente'); return }
     if (!fecha) { setError('Elegí una fecha'); return }
     if (!hora) { setError('Elegí un horario'); return }

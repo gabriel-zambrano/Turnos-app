@@ -15,10 +15,10 @@ export async function POST(req: NextRequest) {
   const fechaFin = new Date(`${fecha}T${hora}:00-03:00`)
   fechaFin.setMinutes(fechaFin.getMinutes() + (duracion || 30))
   const fechaFinStr = fechaFin.toISOString().replace(/[-:]/g, '').split('.')[0] + '-0300'
-  const googleLink = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=Turno+Dr.+Benegas+-+${encodeURIComponent(tratamiento)}&dates=${fechaInicio}/${fechaFinStr}&details=${encodeURIComponent(`Turno con el Dr. Walter Benegas\nTratamiento: ${tratamiento}\n${notas ? 'Notas: ' + notas : ''}`)}&location=Consultorio+Dr.+Walter+Benegas,+Palermo,+CABA`
+  const googleLink = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=Turno+Dr.+Benegas+-+${encodeURIComponent(tratamiento)}&dates=${fechaInicio}/${fechaFinStr}&details=${encodeURIComponent(`Turno con el Dr. Walter Benegas\nTratamiento: ${tratamiento}\n${notas ? 'Notas: ' + notas : ''}`)}&location=Av.+Santa+Fe+3329+1°+B,+Palermo,+CABA`
 
   // Outlook
-  const outlookLink = `https://outlook.live.com/calendar/0/deeplink/compose?subject=${encodeURIComponent(`Turno Dr. Benegas - ${tratamiento}`)}&startdt=${fecha}T${hora}:00&enddt=${fechaFin.toISOString()}&body=${encodeURIComponent(`Turno con el Dr. Walter Benegas\nTratamiento: ${tratamiento}`)}&location=${encodeURIComponent('Palermo, CABA')}`
+  const outlookLink = `https://outlook.live.com/calendar/0/deeplink/compose?subject=${encodeURIComponent(`Turno Dr. Benegas - ${tratamiento}`)}&startdt=${fecha}T${hora}:00&enddt=${fechaFin.toISOString()}&body=${encodeURIComponent(`Turno con el Dr. Walter Benegas\nTratamiento: ${tratamiento}`)}&location=${encodeURIComponent('Av. Santa Fe 3329 1° B, Palermo, CABA')}`
 
   // iCal / Apple Calendar
   const icsLink = `${baseUrl}/api/ics?fecha=${fecha}&hora=${encodeURIComponent(hora)}&tratamiento=${encodeURIComponent(tratamiento)}&duracion=${duracion || 30}&notas=${encodeURIComponent(notas || '')}`
@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
                 <td>
                   <span style="font-size: 18px;">📍</span>
                   <span style="font-size: 11px; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-top: 4px;">Lugar</span>
-                  <span style="font-size: 15px; font-weight: 600; color: #0f1e2b;">Palermo, CABA</span>
+                  <span style="font-size: 15px; font-weight: 600; color: #0f1e2b;">Av. Santa Fe 3329 1° B, Palermo, CABA</span>
                 </td>
               </tr>
               ${notas ? `<tr><td style="padding-top: 12px;"><span style="font-size: 18px;">📝</span><span style="font-size: 11px; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-top: 4px;">Notas</span><span style="font-size: 14px; color: #0f1e2b;">${notas}</span></td></tr>` : ''}
