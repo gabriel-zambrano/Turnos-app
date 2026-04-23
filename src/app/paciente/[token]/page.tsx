@@ -1,7 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
-import { supabase } from '@/lib/supabase'
 
 interface Turno {
   id: string
@@ -96,28 +95,22 @@ export default function PacientePage() {
 
   async function cambiarEstado(citaId: string, nuevoEstado: 'confirmado' | 'cancelado') {
     setAccion({ id: citaId, tipo: nuevoEstado })
-    await supabase.from('citas').update({ estado: nuevoEstado }).eq('id', citaId)
+    await fetch(`/api/paciente/${token}/estado`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ citaId, estado: nuevoEstado }),
+    })
     setTurnos(prev => prev.map(t => t.id === citaId ? { ...t, estado: nuevoEstado } : t))
     setAccion(null)
   }
 
   useEffect(() => {
     async function load() {
-      const { data: pac } = await supabase
-        .from('pacientes')
-        .select('id, nombre, telefono')
-        .eq('token', token)
-        .single()
-      if (!pac) { setError(true); setLoading(false); return }
-      setPaciente(pac)
-      const hoy = new Date().toISOString().split('T')[0] + 'T00:00:00-03:00'
-      const { data: citas } = await supabase
-        .from('citas')
-        .select('id, fecha_hora, tipo_tratamiento, estado, duracion_minutos, notas')
-        .eq('paciente_id', pac.id)
-        .gte('fecha_hora', hoy)
-        .order('fecha_hora', { ascending: true })
-      setTurnos(citas || [])
+      const res = await fetch(`/api/paciente/${token}`)
+      if (!res.ok) { setError(true); setLoading(false); return }
+      const data = await res.json()
+      setPaciente(data.paciente)
+      setTurnos(data.turnos)
       setLoading(false)
     }
     load()
