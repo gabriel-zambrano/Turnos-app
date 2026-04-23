@@ -56,6 +56,8 @@ export default function Agenda() {
   const [pacs,    setPacs]    = useState<PacMin[]>([])
   const [loading, setLoading] = useState(true)
   const [saving,  setSaving]  = useState(false)
+  const [colisionAgenda, setColisionAgenda] = useState<{nombre:string; fecha:string}|null>(null)
+  const [sobreturnoAgenda, setSobreturnoAgenda] = useState<string|null>(null)
   const [modal,   setModal]   = useState<'nueva'|'editar'|'borrar'|'detalle'|'bloqueo'|'menu'|null>(null)
   const [sel,     setSel]     = useState<Cita|null>(null)
   const [fecha,   setFecha]   = useState(hoyISO())
@@ -121,8 +123,34 @@ export default function Agenda() {
   }
   function openEditar(c:Cita){setSel(c);setFHora(c.hora);setFFecha(c.fecha);setFTrat(c.tratamiento);setFEst(c.estado);setFDur(c.duracion);setFNotas(c.notas);setFValor((c as any).valor??'');setFSena((c as any).sena??'');setFDescuento('');setModal('editar')}
 
-  async function saveNueva(){
+ async function saveNueva(forzar = false){
     if(!fPac) return msg('Seleccioná un paciente','error')
+
+    // Colisión de horario
+    const resHoras = await fetch(`/api/horas-ocupadas?fecha=${fFecha}`)
+    const { ocupadas } = await resHoras.json()
+    if(ocupadas.includes(fHora) && !forzar){
+      setSobreturnoAgenda(fHora)
+      return
+    }
+
+    // Colisión de paciente
+    if(!forzar){
+      const resCitas = await fetch(`/api/citas-futuras?paciente_id=${fPac}`)
+      const { citas } = await resCitas.json()
+      if(citas && citas.length > 0){
+        const dt = new Date(citas[0].fecha_hora)
+        const ar = new Date(dt.toLocaleString('en-US', { timeZone: 'America/Argentina/Buenos_Aires' }))
+        const fechaLabel = ar.toLocaleDateString('es-AR', { weekday:'long', day:'numeric', month:'long' })
+        const horaLabel = String(ar.getHours()).padStart(2,'0') + ':' + String(ar.getMinutes()).padStart(2,'0')
+        const pacNombre = pacs.find(p=>p.id===fPac)?.nombre || 'El paciente'
+        setColisionAgenda({ nombre: pacNombre, fecha: `${fechaLabel} a las ${horaLabel}hs` })
+        return
+      }
+    }
+
+    setColisionAgenda(null)
+    setSobreturnoAgenda(null)
     setSaving(true)
     const {error} = await supabase.from('citas').insert({paciente_id:fPac,fecha_hora:`${fFecha}T${fHora}:00-03:00`,tipo_tratamiento:fTrat,estado:fEst,duracion_minutos:fDur,notas:fNotas||null,valor:fValor||null,sena:fSena||null,tenant_id:'2845c423-affa-4ca2-9c5f-f4ec8e35701a'})
     setSaving(false)
@@ -372,6 +400,25 @@ export default function Agenda() {
             {(fValor!==''||fSena!=='')&&<div style={{fontSize:13,color:'#888',padding:'0.25rem 0'}}>Saldo: <strong style={{color:'#222'}}>${(Number(fValor)||0)-(Number(fSena)||0)}</strong></div>}
             <div style={footerCss}>
               <button style={btnLightCss} onClick={()=>setModal(null)} disabled={saving}>Cancelar</button>
+              {sobreturnoAgenda && (
+              <div style={{background:'#FFF3E0',borderRadius:10,padding:'0.75rem',border:'0.5px solid #FFB74D',marginBottom:8}}>
+                <div style={{fontSize:13,fontWeight:600,color:'#92400E',marginBottom:6}}>Las {sobreturnoAgenda}hs ya está ocupado — ¿Sobreturno?</div>
+                <div style={{display:'flex',gap:8}}>
+                  <button style={btnLightCss} onClick={()=>setSobreturnoAgenda(null)}>Cancelar</button>
+                  <button style={{...btnDarkCss,background:'#F97316'}} onClick={()=>{setSobreturnoAgenda(null);saveNueva(true)}}>Confirmar sobreturno</button>
+                </div>
+              </div>
+            )}
+            {colisionAgenda && (
+              <div style={{background:'#FFF8E1',borderRadius:10,padding:'0.75rem',border:'0.5px solid #FFD54F',marginBottom:8}}>
+                <div style={{fontSize:13,fontWeight:600,color:'#92400E',marginBottom:2}}>{colisionAgenda.nombre} ya tiene un turno</div>
+                <div style={{fontSize:12,color:'#B45309',marginBottom:6}}>Turno existente: {colisionAgenda.fecha}</div>
+                <div style={{display:'flex',gap:8}}>
+                  <button style={btnLightCss} onClick={()=>setColisionAgenda(null)}>Cancelar</button>
+                  <button style={btnDarkCss} onClick={()=>{setColisionAgenda(null);saveNueva(true)}}>Agendar igual</button>
+                </div>
+              </div>
+            )}
               <button style={{...btnDarkCss,opacity:saving?.6:1}} onClick={saveNueva} disabled={saving}>{saving?'Guardando...':'Agendar cita'}</button>
             </div>
           </div>
