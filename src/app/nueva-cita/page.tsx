@@ -28,7 +28,6 @@ const DURACIONES = [
   { label: "120 min", value: 120 },
 ]
 
-
 interface Paciente { id:string; nombre:string; telefono:string; email:string }
 
 export default function NuevaCita() {
@@ -49,13 +48,13 @@ export default function NuevaCita() {
   const [sena, setSena] = useState('')
   const [guardando, setGuardando] = useState(false)
   const [exito, setExito] = useState(false)
-const [error, setError] = useState('')
-const [colisionPaciente, setColisionPaciente] = useState<{nombre:string; fecha:string}|null>(null)
-const [confirmarSobreturno, setConfirmarSobreturno] = useState<string|null>(null) // hora seleccionada  
-const dropdownRef = useRef<HTMLDivElement>(null)
+  const [error, setError] = useState('')
+  const [colisionPaciente, setColisionPaciente] = useState<{nombre:string; fecha:string}|null>(null)
+  const [confirmarSobreturno, setConfirmarSobreturno] = useState<string|null>(null)
+  const [esSobreturno, setEsSobreturno] = useState(false)
+  const dropdownRef = useRef<HTMLDivElement>(null)
   const hoyMin = new Date().toISOString().split('T')[0]
 
-  // Buscar pacientes
   useEffect(() => {
     if (query.length < 2) { setPacientes([]); setShowDropdown(false); return }
     const timeout = setTimeout(async () => {
@@ -65,11 +64,11 @@ const dropdownRef = useRef<HTMLDivElement>(null)
     return () => clearTimeout(timeout)
   }, [query])
 
-  // Cargar horas ocupadas cuando cambia la fecha
   useEffect(() => {
     if (!fecha) { setHorasOcupadas([]); return }
     setCargandoHoras(true)
     setHora('')
+    setEsSobreturno(false)
     const fetchOcupadas = async () => {
       const { data } = await supabase
         .from('citas')
@@ -90,6 +89,23 @@ const dropdownRef = useRef<HTMLDivElement>(null)
     fetchOcupadas()
   }, [fecha])
 
+  function resetFormulario() {
+    setPacienteSeleccionado(null)
+    setQuery('')
+    setFecha('')
+    setHora('')
+    setNotas('')
+    setTratamiento('Consulta')
+    setSena('')
+    setCreandoPaciente(false)
+    setNuevoPaciente({nombre:'',telefono:'',email:''})
+    setHorasOcupadas([])
+    setEsSobreturno(false)
+    setColisionPaciente(null)
+    setConfirmarSobreturno(null)
+    setError('')
+  }
+
   function seleccionarPaciente(p: Paciente) {
     setPacienteSeleccionado(p); setQuery(p.nombre); setShowDropdown(false); setCreandoPaciente(false)
   }
@@ -105,7 +121,6 @@ const dropdownRef = useRef<HTMLDivElement>(null)
   }
 
   async function crearPaciente() {
-    // Verificar si ya existe
     const { data: existe } = await supabase.from('pacientes').select('id,nombre').or(`email.eq.${nuevoPaciente.email},telefono.eq.${nuevoPaciente.telefono}`).limit(1)
     if (existe && existe.length > 0) {
       setError(`⚠️ Ya existe un paciente con ese email o teléfono: ${existe[0].nombre}`)
@@ -125,74 +140,79 @@ const dropdownRef = useRef<HTMLDivElement>(null)
   }
 
   async function guardar(forzar = false) {
-  if (!pacienteSeleccionado) { setError('Seleccioná o creá un paciente'); return }
-  if (!fecha) { setError('Elegí una fecha'); return }
-  if (!hora) { setError('Elegí un horario'); return }
+    if (!pacienteSeleccionado) { setError('Seleccioná o creá un paciente'); return }
+    if (!fecha) { setError('Elegí una fecha'); return }
+    if (!hora) { setError('Elegí un horario'); return }
 
-  setError('')
+    setError('')
 
-  // 1. Colisión de horario — siempre bloquea
-  if (horasOcupadas.includes(hora)) {
-    setError('⚠️ Ese horario ya está ocupado. Elegí otro.')
-    return
-  }
-
-  // 2. Colisión de paciente — avisa pero se puede forzar
-  if (!forzar) {
-    const hoyISO = new Date().toISOString()
-    const { data: citasFuturas } = await supabase
-      .from('citas')
-      .select('id, fecha_hora')
-      .eq('paciente_id', pacienteSeleccionado.id)
-      .gte('fecha_hora', hoyISO)
-      .not('estado', 'eq', 'cancelado')
-      .order('fecha_hora', { ascending: true })
-      .limit(1)
-
-    if (citasFuturas && citasFuturas.length > 0) {
-      const dt = new Date(citasFuturas[0].fecha_hora)
-      const ar = new Date(dt.toLocaleString('en-US', { timeZone: 'America/Argentina/Buenos_Aires' }))
-      const fechaLabel = ar.toLocaleDateString('es-AR', { weekday:'long', day:'numeric', month:'long' })
-      const horaLabel = String(ar.getHours()).padStart(2,'0') + ':' + String(ar.getMinutes()).padStart(2,'0')
-      setColisionPaciente({ nombre: pacienteSeleccionado.nombre, fecha: `${fechaLabel} a las ${horaLabel}hs` })
+    // 1. Colisión de horario — bloquea salvo sobreturno confirmado
+    if (horasOcupadas.includes(hora) && !esSobreturno) {
+      setError('⚠️ Ese horario ya está ocupado. Tocá el horario para activar sobreturno.')
       return
     }
-  }
 
-  setColisionPaciente(null)
-  setGuardando(true)
+    // 2. Colisión de paciente — avisa pero se puede forzar
+    if (!forzar) {
+      const hoyISO = new Date().toISOString()
+      const { data: citasFuturas } = await supabase
+        .from('citas')
+        .select('id, fecha_hora')
+        .eq('paciente_id', pacienteSeleccionado.id)
+        .gte('fecha_hora', hoyISO)
+        .not('estado', 'eq', 'cancelado')
+        .order('fecha_hora', { ascending: true })
+        .limit(1)
 
-  const fechaHora = `${fecha}T${hora}:00-03:00`
+      if (citasFuturas && citasFuturas.length > 0) {
+        const dt = new Date(citasFuturas[0].fecha_hora)
+        const ar = new Date(dt.toLocaleString('en-US', { timeZone: 'America/Argentina/Buenos_Aires' }))
+        const fechaLabel = ar.toLocaleDateString('es-AR', { weekday:'long', day:'numeric', month:'long' })
+        const horaLabel = String(ar.getHours()).padStart(2,'0') + ':' + String(ar.getMinutes()).padStart(2,'0')
+        setColisionPaciente({ nombre: pacienteSeleccionado.nombre, fecha: `${fechaLabel} a las ${horaLabel}hs` })
+        return
+      }
+    }
 
-  const { error: err } = await supabase.from('citas').insert({
-    paciente_id: pacienteSeleccionado.id,
-    tipo_tratamiento: tratamiento,
-    fecha_hora: fechaHora,
-    estado: 'pendiente',
-    notas: notas || null,
-    duracion_minutos: duracion,
-    sena: sena ? parseFloat(sena) : null,
-    tenant_id: '2845c423-affa-4ca2-9c5f-f4ec8e35701a',
-  })
+    setColisionPaciente(null)
+    setGuardando(true)
 
-  if (err) { setError('Error al guardar. Intentá de nuevo.'); setGuardando(false); return }
+    const fechaHora = `${fecha}T${hora}:00-03:00`
 
-  setGuardando(false); setExito(true)
-
-  if (pacienteSeleccionado.email) {
-    fetch(`/api/confirmar-turno`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ nombre: pacienteSeleccionado.nombre, email: pacienteSeleccionado.email, fecha, hora, tratamiento, duracion, notas: notas || null })
+    const { error: err } = await supabase.from('citas').insert({
+      paciente_id: pacienteSeleccionado.id,
+      tipo_tratamiento: tratamiento,
+      fecha_hora: fechaHora,
+      estado: 'pendiente',
+      notas: notas || null,
+      duracion_minutos: duracion,
+      sena: sena ? parseFloat(sena) : null,
+      tenant_id: '2845c423-affa-4ca2-9c5f-f4ec8e35701a',
     })
-  }
 
-  setTimeout(() => {
-    setExito(false); setPacienteSeleccionado(null); setQuery(''); setFecha(''); setHora('')
-    setNotas(''); setTratamiento('Consulta'); setSena(''); setCreandoPaciente(false)
-    setNuevoPaciente({nombre:'',telefono:'',email:''}); setHorasOcupadas([])
-  }, 2000)
-}
+    if (err) { setError('Error al guardar. Intentá de nuevo.'); setGuardando(false); return }
+
+    setGuardando(false)
+    setExito(true)
+
+    if (pacienteSeleccionado.email) {
+      fetch(`/api/confirmar-turno`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nombre: pacienteSeleccionado.nombre,
+          email: pacienteSeleccionado.email,
+          fecha, hora, tratamiento, duracion,
+          notas: notas || null
+        })
+      })
+    }
+
+    setTimeout(() => {
+      setExito(false)
+      resetFormulario()
+    }, 2000)
+  }
 
   const inputStyle = {width:'100%',border:'none',background:'#f4f7fb',borderRadius:10,padding:'0.85rem 1rem',fontSize:15,color:'#0f1e2b',fontFamily:'DM Sans, sans-serif',outline:'none',boxSizing:'border-box' as const}
   const labelStyle = {fontSize:11,fontWeight:600 as const,color:'#aaa',textTransform:'uppercase' as const,letterSpacing:1,marginBottom:10,display:'block' as const}
@@ -339,7 +359,7 @@ const dropdownRef = useRef<HTMLDivElement>(null)
                 const ocupado = horasOcupadas.includes(h)
                 const seleccionado = hora === h
                 return (
-                 <button
+                  <button
                     key={h}
                     onClick={() => {
                       if (ocupado) { setConfirmarSobreturno(h); return }
@@ -349,7 +369,7 @@ const dropdownRef = useRef<HTMLDivElement>(null)
                     style={{
                       padding:'0.6rem 0',borderRadius:8,border:'0.5px solid',fontSize:13,fontWeight:500,
                       fontFamily:'DM Sans, sans-serif',transition:'all 0.1s',
-                      cursor: ocupado ? 'not-allowed' : 'pointer',
+                      cursor:'pointer',
                       background: ocupado ? '#f0f0f0' : seleccionado ? '#0f1e2b' : '#f4f7fb',
                       color: ocupado ? '#ccc' : seleccionado ? '#fff' : '#555',
                       borderColor: ocupado ? '#e8e8e8' : seleccionado ? '#0f1e2b' : '#e8e8e8',
@@ -363,23 +383,24 @@ const dropdownRef = useRef<HTMLDivElement>(null)
             </div>
           )}
         </div>
-            {/* Duración */}
-    <div style={cardStyle}>
-      <label style={labelStyle}>Duración</label>
-      <div style={{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:8}}>
-        {DURACIONES.map(d => (
-          <button key={d.value} onClick={()=>setDuracion(d.value)} style={{
-            padding:'0.6rem 0.2rem',borderRadius:10,border:'0.5px solid',fontSize:12,fontWeight:500,
-            cursor:'pointer',fontFamily:'DM Sans, sans-serif',textAlign:'center',
-            background:duracion===d.value?'#0f1e2b':'#f4f7fb',
-            color:duracion===d.value?'#fff':'#555',
-            borderColor:duracion===d.value?'#0f1e2b':'#e8e8e8',
-          }}>
-            {d.label}
-          </button>
-        ))}
-      </div>
-    </div>
+
+        {/* Duración */}
+        <div style={cardStyle}>
+          <label style={labelStyle}>Duración</label>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:8}}>
+            {DURACIONES.map(d => (
+              <button key={d.value} onClick={()=>setDuracion(d.value)} style={{
+                padding:'0.6rem 0.2rem',borderRadius:10,border:'0.5px solid',fontSize:12,fontWeight:500,
+                cursor:'pointer',fontFamily:'DM Sans, sans-serif',textAlign:'center',
+                background:duracion===d.value?'#0f1e2b':'#f4f7fb',
+                color:duracion===d.value?'#fff':'#555',
+                borderColor:duracion===d.value?'#0f1e2b':'#e8e8e8',
+              }}>
+                {d.label}
+              </button>
+            ))}
+          </div>
+        </div>
 
         {/* Seña */}
         <div style={cardStyle}>
@@ -395,53 +416,50 @@ const dropdownRef = useRef<HTMLDivElement>(null)
           <label style={labelStyle}>Notas <span style={{fontWeight:400,textTransform:'none',letterSpacing:0}}>(opcional)</span></label>
           <textarea value={notas} onChange={e=>setNotas(e.target.value)} placeholder="Indicaciones, observaciones..." rows={3} style={{...inputStyle,resize:'none'}}/>
         </div>
+
+        {/* Alerta sobreturno */}
         {confirmarSobreturno && (
-            <div style={{background:'#FFF3E0',borderRadius:12,padding:'1rem',border:'0.5px solid #FFB74D'}}>
-              <div style={{display:'flex',gap:8,alignItems:'flex-start',marginBottom:10}}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#F97316" strokeWidth="2" strokeLinecap="round" style={{flexShrink:0,marginTop:1}}><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                <div>
-                  <div style={{fontSize:13,fontWeight:600,color:'#92400E',marginBottom:3}}>
-                    Horario ocupado — ¿Sobreturno?
-                  </div>
-                  <div style={{fontSize:12,color:'#B45309'}}>
-                    Las {confirmarSobreturno}hs ya tiene un paciente agendado
-                  </div>
-                </div>
-              </div>
-              <div style={{display:'flex',gap:8}}>
-                <button onClick={()=>setConfirmarSobreturno(null)} style={{flex:1,padding:'0.6rem',borderRadius:10,border:'0.5px solid #e8e8e8',background:'#f4f7fb',color:'#666',fontSize:13,fontWeight:500,cursor:'pointer',fontFamily:'DM Sans, sans-serif'}}>
-                  Cancelar
-                </button>
-                <button onClick={()=>{setHora(confirmarSobreturno);setConfirmarSobreturno(null)}} style={{flex:2,padding:'0.6rem',borderRadius:10,border:'none',background:'#F97316',color:'#fff',fontSize:13,fontWeight:600,cursor:'pointer',fontFamily:'DM Sans, sans-serif'}}>
-                  Confirmar sobreturno
-                </button>
+          <div style={{background:'#FFF3E0',borderRadius:12,padding:'1rem',border:'0.5px solid #FFB74D'}}>
+            <div style={{display:'flex',gap:8,alignItems:'flex-start',marginBottom:10}}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#F97316" strokeWidth="2" strokeLinecap="round" style={{flexShrink:0,marginTop:1}}><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              <div>
+                <div style={{fontSize:13,fontWeight:600,color:'#92400E',marginBottom:3}}>Horario ocupado — ¿Sobreturno?</div>
+                <div style={{fontSize:12,color:'#B45309'}}>Las {confirmarSobreturno}hs ya tiene un paciente agendado</div>
               </div>
             </div>
-)}
-        {colisionPaciente && (
-  <div style={{background:'#FFF8E1',borderRadius:12,padding:'1rem',border:'0.5px solid #FFD54F'}}>
-    <div style={{display:'flex',gap:8,alignItems:'flex-start',marginBottom:10}}>
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" strokeWidth="2" strokeLinecap="round" style={{flexShrink:0,marginTop:1}}><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-      <div>
-        <div style={{fontSize:13,fontWeight:600,color:'#92400E',marginBottom:3}}>
-          {colisionPaciente.nombre} ya tiene un turno
-        </div>
-        <div style={{fontSize:12,color:'#B45309'}}>
-          Turno existente: {colisionPaciente.fecha}
-        </div>
-      </div>
-    </div>
-    <div style={{display:'flex',gap:8}}>
-      <button onClick={()=>setColisionPaciente(null)} style={{flex:1,padding:'0.6rem',borderRadius:10,border:'0.5px solid #e8e8e8',background:'#f4f7fb',color:'#666',fontSize:13,fontWeight:500,cursor:'pointer',fontFamily:'DM Sans, sans-serif'}}>
-        Cancelar
-      </button>
-      <button onClick={()=>guardar(true)} style={{flex:2,padding:'0.6rem',borderRadius:10,border:'none',background:'#0f1e2b',color:'#fff',fontSize:13,fontWeight:600,cursor:'pointer',fontFamily:'DM Sans, sans-serif'}}>
-        Agendar igual
-      </button>
-    </div>
-  </div>
-)}
+            <div style={{display:'flex',gap:8}}>
+              <button onClick={()=>setConfirmarSobreturno(null)} style={{flex:1,padding:'0.6rem',borderRadius:10,border:'0.5px solid #e8e8e8',background:'#f4f7fb',color:'#666',fontSize:13,fontWeight:500,cursor:'pointer',fontFamily:'DM Sans, sans-serif'}}>
+                Cancelar
+              </button>
+              <button onClick={()=>{setHora(confirmarSobreturno);setEsSobreturno(true);setConfirmarSobreturno(null)}} style={{flex:2,padding:'0.6rem',borderRadius:10,border:'none',background:'#F97316',color:'#fff',fontSize:13,fontWeight:600,cursor:'pointer',fontFamily:'DM Sans, sans-serif'}}>
+                Confirmar sobreturno
+              </button>
+            </div>
+          </div>
+        )}
 
+        {/* Alerta colisión paciente */}
+        {colisionPaciente && (
+          <div style={{background:'#FFF8E1',borderRadius:12,padding:'1rem',border:'0.5px solid #FFD54F'}}>
+            <div style={{display:'flex',gap:8,alignItems:'flex-start',marginBottom:10}}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" strokeWidth="2" strokeLinecap="round" style={{flexShrink:0,marginTop:1}}><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+              <div>
+                <div style={{fontSize:13,fontWeight:600,color:'#92400E',marginBottom:3}}>{colisionPaciente.nombre} ya tiene un turno</div>
+                <div style={{fontSize:12,color:'#B45309'}}>Turno existente: {colisionPaciente.fecha}</div>
+              </div>
+            </div>
+            <div style={{display:'flex',gap:8}}>
+              <button onClick={()=>setColisionPaciente(null)} style={{flex:1,padding:'0.6rem',borderRadius:10,border:'0.5px solid #e8e8e8',background:'#f4f7fb',color:'#666',fontSize:13,fontWeight:500,cursor:'pointer',fontFamily:'DM Sans, sans-serif'}}>
+                Cancelar
+              </button>
+              <button onClick={()=>guardar(true)} style={{flex:2,padding:'0.6rem',borderRadius:10,border:'none',background:'#0f1e2b',color:'#fff',fontSize:13,fontWeight:600,cursor:'pointer',fontFamily:'DM Sans, sans-serif'}}>
+                Agendar igual
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Error */}
         {error && (
           <div style={{background:'#FAECE7',borderRadius:10,padding:'0.75rem 1rem',fontSize:13,color:'#D85A30',display:'flex',alignItems:'center',gap:8}}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
@@ -449,10 +467,10 @@ const dropdownRef = useRef<HTMLDivElement>(null)
           </div>
         )}
 
-       <button onClick={()=>guardar()} disabled={guardando} style={{width:'100%',padding:'1rem',borderRadius:14,border:'none',background:guardando?'#e5e5e5':'#0f1e2b',color:guardando?'#aaa':'#fff',fontWeight:700,fontSize:16,cursor:guardando?'not-allowed':'pointer',fontFamily:'DM Sans, sans-serif',display:'flex',alignItems:'center',justifyContent:'center',gap:8,marginBottom:'2rem'}}>
+        <button onClick={()=>guardar()} disabled={guardando} style={{width:'100%',padding:'1rem',borderRadius:14,border:'none',background:guardando?'#e5e5e5':'#0f1e2b',color:guardando?'#aaa':'#fff',fontWeight:700,fontSize:16,cursor:guardando?'not-allowed':'pointer',fontFamily:'DM Sans, sans-serif',display:'flex',alignItems:'center',justifyContent:'center',gap:8,marginBottom:'2rem'}}>
           {guardando
-            ?<><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{animation:'spin 1s linear infinite'}}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>Guardando...</>
-            :<><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Agendar turno</>
+            ? <><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{animation:'spin 1s linear infinite'}}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>Guardando...</>
+            : <><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Agendar turno</>
           }
         </button>
       </div>
@@ -466,4 +484,3 @@ const dropdownRef = useRef<HTMLDivElement>(null)
     </div>
   )
 }
-
