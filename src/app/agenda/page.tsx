@@ -419,7 +419,7 @@ export default function Agenda() {
                 </div>
               </div>
             )}
-              <button style={{...btnDarkCss,opacity:saving?.6:1}} onClick={saveNueva} disabled={saving}>{saving?'Guardando...':'Agendar cita'}</button>
+              <button style={{...btnDarkCss,opacity:saving?.6:1}} onClick={()=>saveNueva()} disabled={saving}>{saving?'Guardando...':'Agendar cita'}</button>
             </div>
           </div>
         </div>
