@@ -51,7 +51,8 @@ export default function NuevaCita() {
   const [exito, setExito] = useState(false)
 const [error, setError] = useState('')
 const [colisionPaciente, setColisionPaciente] = useState<{nombre:string; fecha:string}|null>(null)
-  const dropdownRef = useRef<HTMLDivElement>(null)
+const [confirmarSobreturno, setConfirmarSobreturno] = useState<string|null>(null) // hora seleccionada  
+const dropdownRef = useRef<HTMLDivElement>(null)
   const hoyMin = new Date().toISOString().split('T')[0]
 
   // Buscar pacientes
@@ -338,11 +339,13 @@ const [colisionPaciente, setColisionPaciente] = useState<{nombre:string; fecha:s
                 const ocupado = horasOcupadas.includes(h)
                 const seleccionado = hora === h
                 return (
-                  <button
+                 <button
                     key={h}
-                    onClick={()=>!ocupado && setHora(h)}
-                    disabled={ocupado}
-                    title={ocupado ? 'Horario ocupado' : ''}
+                    onClick={() => {
+                      if (ocupado) { setConfirmarSobreturno(h); return }
+                      setHora(h)
+                    }}
+                    title={ocupado ? 'Horario ocupado — tocá para sobreturno' : ''}
                     style={{
                       padding:'0.6rem 0',borderRadius:8,border:'0.5px solid',fontSize:13,fontWeight:500,
                       fontFamily:'DM Sans, sans-serif',transition:'all 0.1s',
@@ -392,6 +395,29 @@ const [colisionPaciente, setColisionPaciente] = useState<{nombre:string; fecha:s
           <label style={labelStyle}>Notas <span style={{fontWeight:400,textTransform:'none',letterSpacing:0}}>(opcional)</span></label>
           <textarea value={notas} onChange={e=>setNotas(e.target.value)} placeholder="Indicaciones, observaciones..." rows={3} style={{...inputStyle,resize:'none'}}/>
         </div>
+        {confirmarSobreturno && (
+            <div style={{background:'#FFF3E0',borderRadius:12,padding:'1rem',border:'0.5px solid #FFB74D'}}>
+              <div style={{display:'flex',gap:8,alignItems:'flex-start',marginBottom:10}}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#F97316" strokeWidth="2" strokeLinecap="round" style={{flexShrink:0,marginTop:1}}><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                <div>
+                  <div style={{fontSize:13,fontWeight:600,color:'#92400E',marginBottom:3}}>
+                    Horario ocupado — ¿Sobreturno?
+                  </div>
+                  <div style={{fontSize:12,color:'#B45309'}}>
+                    Las {confirmarSobreturno}hs ya tiene un paciente agendado
+                  </div>
+                </div>
+              </div>
+              <div style={{display:'flex',gap:8}}>
+                <button onClick={()=>setConfirmarSobreturno(null)} style={{flex:1,padding:'0.6rem',borderRadius:10,border:'0.5px solid #e8e8e8',background:'#f4f7fb',color:'#666',fontSize:13,fontWeight:500,cursor:'pointer',fontFamily:'DM Sans, sans-serif'}}>
+                  Cancelar
+                </button>
+                <button onClick={()=>{setHora(confirmarSobreturno);setConfirmarSobreturno(null)}} style={{flex:2,padding:'0.6rem',borderRadius:10,border:'none',background:'#F97316',color:'#fff',fontSize:13,fontWeight:600,cursor:'pointer',fontFamily:'DM Sans, sans-serif'}}>
+                  Confirmar sobreturno
+                </button>
+              </div>
+            </div>
+)}
         {colisionPaciente && (
   <div style={{background:'#FFF8E1',borderRadius:12,padding:'1rem',border:'0.5px solid #FFD54F'}}>
     <div style={{display:'flex',gap:8,alignItems:'flex-start',marginBottom:10}}>
