@@ -7,7 +7,7 @@ const supabase = createClient()
 
 const TRATAMIENTOS = [
   'Consulta', 'Ortodoncia', 'Blanqueamiento', 'Limpieza',
-  'Extracción', 'Endodoncia', 'Implante', 'Prótesis', 'Otro'
+  'Extracción', 'Caries', 'Implante', 'Otro'
 ]
 
 const HORAS = [
@@ -49,7 +49,8 @@ export default function NuevaCita() {
   const [sena, setSena] = useState('')
   const [guardando, setGuardando] = useState(false)
   const [exito, setExito] = useState(false)
-  const [error, setError] = useState('')
+const [error, setError] = useState('')
+const [colisionPaciente, setColisionPaciente] = useState<{nombre:string; fecha:string}|null>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const hoyMin = new Date().toISOString().split('T')[0]
 
@@ -122,66 +123,75 @@ export default function NuevaCita() {
     seleccionarPaciente(data)
   }
 
-  async function guardar() {
-    // Verificar cita duplicada
-    if (pacienteSeleccionado && fecha) {
-      const { data: citaExiste } = await supabase.from('citas').select('id').eq('paciente_id', pacienteSeleccionado.id).gte('fecha_hora', `${fecha}T00:00:00`).lte('fecha_hora', `${fecha}T23:59:59`).not('estado', 'eq', 'cancelado')
-      if (citaExiste && citaExiste.length > 0) {
-        setError(`⚠️ ${pacienteSeleccionado.nombre} ya tiene una cita agendada para el ${fecha}`)
-        return
-      }
-    }
-    if (!pacienteSeleccionado) { setError('Seleccioná o creá un paciente'); return }
-    if (!fecha) { setError('Elegí una fecha'); return }
-    if (!hora) { setError('Elegí un horario'); return }
-    setGuardando(true); setError('')
-    const fechaHora = `${fecha}T${hora}:00-03:00`
-    console.log('INSERT CITAS PAYLOAD:', {  // ← AGREGÁ ESTA LÍNEA
-      paciente_id: pacienteSeleccionado.id,
-      tipo_tratamiento: tratamiento,
-      fecha_hora: fechaHora,
-      estado: 'pendiente',
-      notas: notas || null,
-      duracion_minutos: duracion,
-      sena: sena ? parseFloat(sena) : null,
-      tenant_id: '2845c423-affa-4ca2-9c5f-f4ec8e35701a',
-    })
+  async function guardar(forzar = false) {
+  if (!pacienteSeleccionado) { setError('Seleccioná o creá un paciente'); return }
+  if (!fecha) { setError('Elegí una fecha'); return }
+  if (!hora) { setError('Elegí un horario'); return }
 
-    const { error: err } = await supabase.from('citas').insert({
-      paciente_id: pacienteSeleccionado.id,
-      tipo_tratamiento: tratamiento,
-      fecha_hora: fechaHora,
-      estado: 'pendiente',
-      notas: notas || null,
-      duracion_minutos: duracion,
-      sena: sena ? parseFloat(sena) : null,
-      tenant_id: '2845c423-affa-4ca2-9c5f-f4ec8e35701a',
-    })
-    if (err) { setError('Error al guardar. Intentá de nuevo.'); setGuardando(false); return }
-    setGuardando(false); setExito(true)
-    // Enviar email si tiene email
-    console.log("EMAIL PACIENTE:", pacienteSeleccionado.email)
-    if (pacienteSeleccionado.email) {
-      fetch(`/api/confirmar-turno`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          nombre: pacienteSeleccionado.nombre,
-          email: pacienteSeleccionado.email,
-          fecha,
-          hora,
-          tratamiento,
-          duracion,
-          notas: notas || null,
-        })
-      })
-    }
-    setTimeout(() => {
-      setExito(false); setPacienteSeleccionado(null); setQuery(''); setFecha(''); setHora('')
-      setNotas(''); setTratamiento('Consulta'); setSena(''); setCreandoPaciente(false)
-      setNuevoPaciente({nombre:'',telefono:'',email:''}); setHorasOcupadas([])
-    }, 2000)
+  setError('')
+
+  // 1. Colisión de horario — siempre bloquea
+  if (horasOcupadas.includes(hora)) {
+    setError('⚠️ Ese horario ya está ocupado. Elegí otro.')
+    return
   }
+
+  // 2. Colisión de paciente — avisa pero se puede forzar
+  if (!forzar) {
+    const hoyISO = new Date().toISOString()
+    const { data: citasFuturas } = await supabase
+      .from('citas')
+      .select('id, fecha_hora')
+      .eq('paciente_id', pacienteSeleccionado.id)
+      .gte('fecha_hora', hoyISO)
+      .not('estado', 'eq', 'cancelado')
+      .order('fecha_hora', { ascending: true })
+      .limit(1)
+
+    if (citasFuturas && citasFuturas.length > 0) {
+      const dt = new Date(citasFuturas[0].fecha_hora)
+      const ar = new Date(dt.toLocaleString('en-US', { timeZone: 'America/Argentina/Buenos_Aires' }))
+      const fechaLabel = ar.toLocaleDateString('es-AR', { weekday:'long', day:'numeric', month:'long' })
+      const horaLabel = String(ar.getHours()).padStart(2,'0') + ':' + String(ar.getMinutes()).padStart(2,'0')
+      setColisionPaciente({ nombre: pacienteSeleccionado.nombre, fecha: `${fechaLabel} a las ${horaLabel}hs` })
+      return
+    }
+  }
+
+  setColisionPaciente(null)
+  setGuardando(true)
+
+  const fechaHora = `${fecha}T${hora}:00-03:00`
+
+  const { error: err } = await supabase.from('citas').insert({
+    paciente_id: pacienteSeleccionado.id,
+    tipo_tratamiento: tratamiento,
+    fecha_hora: fechaHora,
+    estado: 'pendiente',
+    notas: notas || null,
+    duracion_minutos: duracion,
+    sena: sena ? parseFloat(sena) : null,
+    tenant_id: '2845c423-affa-4ca2-9c5f-f4ec8e35701a',
+  })
+
+  if (err) { setError('Error al guardar. Intentá de nuevo.'); setGuardando(false); return }
+
+  setGuardando(false); setExito(true)
+
+  if (pacienteSeleccionado.email) {
+    fetch(`/api/confirmar-turno`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nombre: pacienteSeleccionado.nombre, email: pacienteSeleccionado.email, fecha, hora, tratamiento, duracion, notas: notas || null })
+    })
+  }
+
+  setTimeout(() => {
+    setExito(false); setPacienteSeleccionado(null); setQuery(''); setFecha(''); setHora('')
+    setNotas(''); setTratamiento('Consulta'); setSena(''); setCreandoPaciente(false)
+    setNuevoPaciente({nombre:'',telefono:'',email:''}); setHorasOcupadas([])
+  }, 2000)
+}
 
   const inputStyle = {width:'100%',border:'none',background:'#f4f7fb',borderRadius:10,padding:'0.85rem 1rem',fontSize:15,color:'#0f1e2b',fontFamily:'DM Sans, sans-serif',outline:'none',boxSizing:'border-box' as const}
   const labelStyle = {fontSize:11,fontWeight:600 as const,color:'#aaa',textTransform:'uppercase' as const,letterSpacing:1,marginBottom:10,display:'block' as const}
@@ -382,6 +392,29 @@ export default function NuevaCita() {
           <label style={labelStyle}>Notas <span style={{fontWeight:400,textTransform:'none',letterSpacing:0}}>(opcional)</span></label>
           <textarea value={notas} onChange={e=>setNotas(e.target.value)} placeholder="Indicaciones, observaciones..." rows={3} style={{...inputStyle,resize:'none'}}/>
         </div>
+        {colisionPaciente && (
+  <div style={{background:'#FFF8E1',borderRadius:12,padding:'1rem',border:'0.5px solid #FFD54F'}}>
+    <div style={{display:'flex',gap:8,alignItems:'flex-start',marginBottom:10}}>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" strokeWidth="2" strokeLinecap="round" style={{flexShrink:0,marginTop:1}}><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      <div>
+        <div style={{fontSize:13,fontWeight:600,color:'#92400E',marginBottom:3}}>
+          {colisionPaciente.nombre} ya tiene un turno
+        </div>
+        <div style={{fontSize:12,color:'#B45309'}}>
+          Turno existente: {colisionPaciente.fecha}
+        </div>
+      </div>
+    </div>
+    <div style={{display:'flex',gap:8}}>
+      <button onClick={()=>setColisionPaciente(null)} style={{flex:1,padding:'0.6rem',borderRadius:10,border:'0.5px solid #e8e8e8',background:'#f4f7fb',color:'#666',fontSize:13,fontWeight:500,cursor:'pointer',fontFamily:'DM Sans, sans-serif'}}>
+        Cancelar
+      </button>
+      <button onClick={()=>guardar(true)} style={{flex:2,padding:'0.6rem',borderRadius:10,border:'none',background:'#0f1e2b',color:'#fff',fontSize:13,fontWeight:600,cursor:'pointer',fontFamily:'DM Sans, sans-serif'}}>
+        Agendar igual
+      </button>
+    </div>
+  </div>
+)}
 
         {error && (
           <div style={{background:'#FAECE7',borderRadius:10,padding:'0.75rem 1rem',fontSize:13,color:'#D85A30',display:'flex',alignItems:'center',gap:8}}>
