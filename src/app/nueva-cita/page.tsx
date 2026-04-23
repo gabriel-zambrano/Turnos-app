@@ -346,7 +346,7 @@ export default function NuevaCita() {
                   <button
                     key={h}
                     onClick={() => {
-                      if (ocupado) { setConfirmarSobreturno(h); return }
+               if (ocupado) { console.log('SOBRETURNO:', h, horasOcupadas); setConfirmarSobreturno(h); return }
                       setHora(h)
                     }}
                     title={ocupado ? 'Horario ocupado — tocá para sobreturno' : ''}
