@@ -70,19 +70,10 @@ export default function NuevaCita() {
     setHora('')
     setEsSobreturno(false)
     const fetchOcupadas = async () => {
-      const { data } = await supabase
-        .from('citas')
-        .select('fecha_hora')
-        .gte('fecha_hora', `${fecha}T00:00:00`)
-        .lte('fecha_hora', `${fecha}T23:59:59`)
-        .not('estado', 'eq', 'cancelado')
-      if (data) {
-        const ocupadas = data.map(c => {
-          const dt = new Date(c.fecha_hora)
-          const ar = new Date(dt.toLocaleString('en-US', { timeZone: 'America/Argentina/Buenos_Aires' }))
-          return String(ar.getHours()).padStart(2,'0') + ':' + String(ar.getMinutes()).padStart(2,'0')
-        })
-        setHorasOcupadas(ocupadas)
+      const res = await fetch(`/api/horas-ocupadas?fecha=${fecha}`)
+      if (res.ok) {
+        const data = await res.json()
+        setHorasOcupadas(data.ocupadas || [])
       }
       setCargandoHoras(false)
     }
@@ -154,15 +145,8 @@ export default function NuevaCita() {
 
     // 2. Colisión de paciente — avisa pero se puede forzar
     if (!forzar) {
-      const hoyISO = new Date().toISOString()
-      const { data: citasFuturas } = await supabase
-        .from('citas')
-        .select('id, fecha_hora')
-        .eq('paciente_id', pacienteSeleccionado.id)
-        .gte('fecha_hora', hoyISO)
-        .not('estado', 'eq', 'cancelado')
-        .order('fecha_hora', { ascending: true })
-        .limit(1)
+   const res = await fetch(`/api/citas-futuras?paciente_id=${pacienteSeleccionado.id}`)
+      const { citas: citasFuturas } = await res.json()
 
       if (citasFuturas && citasFuturas.length > 0) {
         const dt = new Date(citasFuturas[0].fecha_hora)
