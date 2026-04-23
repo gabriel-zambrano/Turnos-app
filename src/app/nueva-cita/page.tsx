@@ -449,7 +449,7 @@ const dropdownRef = useRef<HTMLDivElement>(null)
           </div>
         )}
 
-        <button onClick={guardar} disabled={guardando} style={{width:'100%',padding:'1rem',borderRadius:14,border:'none',background:guardando?'#e5e5e5':'#0f1e2b',color:guardando?'#aaa':'#fff',fontWeight:700,fontSize:16,cursor:guardando?'not-allowed':'pointer',fontFamily:'DM Sans, sans-serif',display:'flex',alignItems:'center',justifyContent:'center',gap:8,marginBottom:'2rem'}}>
+       <button onClick={()=>guardar()} disabled={guardando} style={{width:'100%',padding:'1rem',borderRadius:14,border:'none',background:guardando?'#e5e5e5':'#0f1e2b',color:guardando?'#aaa':'#fff',fontWeight:700,fontSize:16,cursor:guardando?'not-allowed':'pointer',fontFamily:'DM Sans, sans-serif',display:'flex',alignItems:'center',justifyContent:'center',gap:8,marginBottom:'2rem'}}>
           {guardando
             ?<><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{animation:'spin 1s linear infinite'}}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>Guardando...</>
             :<><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Agendar turno</>
