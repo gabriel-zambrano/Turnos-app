@@ -5,7 +5,7 @@ export const DARK = '#0a1e3d'
 export const BLUE = '#185FA5'
 export const BLUE_LIGHT = '#378ADD'
 
-function useIsMobile() {
+export function useIsMobile() {
   const [m, setM] = useState(false)
   useEffect(() => {
     const check = () => setM(window.innerWidth < 768)
@@ -17,7 +17,7 @@ function useIsMobile() {
 }
 
 export const inputCss: React.CSSProperties = {
-  padding: '0.6rem 0.85rem', border: '1px solid #dde5ef', borderRadius: 10,
+  padding: '0.75rem 0.85rem', minHeight: 44, border: '1px solid #dde5ef', borderRadius: 10,
   fontSize: 14, fontFamily: 'DM Sans, sans-serif', color: '#0a1e3d',
   background: 'rgba(255,255,255,0.8)', outline: 'none', width: '100%',
 }
@@ -31,7 +31,7 @@ export const overlayCss = (isMobile = false): React.CSSProperties => ({
 export const modalCss = (isMobile = false): React.CSSProperties => ({
   background: 'rgba(255,255,255,0.95)', backdropFilter: 'blur(20px)',
   borderRadius: isMobile ? '20px 20px 0 0' : 16, padding: '1.75rem',
-  width: '100%', maxWidth: isMobile ? '100vw' : 540, maxHeight: '90vh', overflowY: 'auto',
+  width: '100%', maxWidth: isMobile ? '100vw' : 540, maxHeight: isMobile ? '90dvh' : '90vh', overflowY: 'auto',
   border: '1px solid rgba(56,138,221,0.2)',
 })
 export const modalTitleCss: React.CSSProperties = { fontSize: 17, fontWeight: 600, color: DARK, marginBottom: '1.25rem' }
@@ -39,16 +39,16 @@ export const footerCss: React.CSSProperties = { display: 'flex', gap: '0.75rem',
 export const groupCss: React.CSSProperties = { marginBottom: '0.85rem' }
 export const labelCss: React.CSSProperties = { fontSize: 12, fontWeight: 500, color: '#4a6080', display: 'block', marginBottom: 5 }
 export const grid2Css: React.CSSProperties = { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }
-export const btnDarkCss: React.CSSProperties = { padding: '0.55rem 1.1rem', borderRadius: 9, fontSize: 13.5, fontWeight: 600, cursor: 'pointer', border: 'none', background: 'linear-gradient(135deg, #0a1e3d, #185FA5)', color: '#fff', fontFamily: 'DM Sans, sans-serif' }
-export const btnLightCss: React.CSSProperties = { padding: '0.55rem 1.1rem', borderRadius: 9, fontSize: 13.5, fontWeight: 500, cursor: 'pointer', border: '1px solid #dde5ef', background: 'rgba(255,255,255,0.8)', color: '#4a6080', fontFamily: 'DM Sans, sans-serif' }
-export const btnRedCss: React.CSSProperties = { padding: '0.55rem 1.1rem', borderRadius: 9, fontSize: 13.5, fontWeight: 500, cursor: 'pointer', border: 'none', background: '#D85A30', color: '#fff', fontFamily: 'DM Sans, sans-serif' }
+export const btnDarkCss: React.CSSProperties = { minHeight: 44, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '0.55rem 1.1rem', borderRadius: 9, fontSize: 13.5, fontWeight: 600, cursor: 'pointer', border: 'none', background: 'linear-gradient(135deg, #0a1e3d, #185FA5)', color: '#fff', fontFamily: 'DM Sans, sans-serif' }
+export const btnLightCss: React.CSSProperties = { minHeight: 44, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '0.55rem 1.1rem', borderRadius: 9, fontSize: 13.5, fontWeight: 500, cursor: 'pointer', border: '1px solid #dde5ef', background: 'rgba(255,255,255,0.8)', color: '#4a6080', fontFamily: 'DM Sans, sans-serif' }
+export const btnRedCss: React.CSSProperties = { minHeight: 44, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '0.55rem 1.1rem', borderRadius: 9, fontSize: 13.5, fontWeight: 500, cursor: 'pointer', border: 'none', background: '#D85A30', color: '#fff', fontFamily: 'DM Sans, sans-serif' }
 
 export function Badge({ bg, color, children }: { bg: string; color: string; children: React.ReactNode }) {
   return <span style={{ display: 'inline-flex', alignItems: 'center', fontSize: 11, fontWeight: 500, padding: '3px 9px', borderRadius: 6, background: bg, color, whiteSpace: 'nowrap' }}>{children}</span>
 }
 
-export function Toast({ msg, tipo }: { msg: string; tipo: string }) {
-  return <div style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', padding: '10px 22px', borderRadius: 10, fontSize: 13, fontWeight: 500, zIndex: 999, background: tipo === 'ok' ? 'linear-gradient(135deg,#0a1e3d,#185FA5)' : '#D85A30', color: '#fff', whiteSpace: 'nowrap', boxShadow: '0 4px 24px rgba(24,95,165,0.25)' }}>{msg}</div>
+export function Toast({ msg, tipo, isMobile }: { msg: string; tipo: string; isMobile?: boolean }) {
+  return <div style={{ position: 'fixed', bottom: isMobile ? 80 : 24, left: '50%', transform: 'translateX(-50%)', padding: '10px 22px', borderRadius: 10, fontSize: 13, fontWeight: 500, zIndex: 999, background: tipo === 'ok' ? 'linear-gradient(135deg,#0a1e3d,#185FA5)' : '#D85A30', color: '#fff', whiteSpace: 'nowrap', boxShadow: '0 4px 24px rgba(24,95,165,0.25)' }}>{msg}</div>
 }
 
 export function Spinner() {

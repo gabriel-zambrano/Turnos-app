@@ -3,12 +3,12 @@ import { usePathname, useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
 
 const NAV = [
-  { href: '/dashboard',     label: 'Dashboard',     icon: 'grid'  },
-  { href: '/agenda',        label: 'Agenda',        icon: 'cal'   },
-  { href: '/pacientes',     label: 'Pacientes',     icon: 'users' },
-  { href: '/seguimiento',   label: 'Seguimiento',   icon: 'radar' },
-  { href: '/recordatorios', label: 'Recordatorios', icon: 'bell'  },
-  { href: '/bi',            label: 'Analítica',     icon: 'chart' },
+  { href: '/dashboard',     label: 'Dashboard',  icon: 'grid'  },
+  { href: '/agenda',        label: 'Agenda',     icon: 'cal'   },
+  { href: '/pacientes',     label: 'Pacientes',  icon: 'users' },
+  { href: '/seguimiento',   label: 'Seguim.',    icon: 'radar' },
+  { href: '/recordatorios', label: 'Turnos',     icon: 'bell'  },
+  { href: '/bi',            label: 'Analítica',  icon: 'chart' },
 ]
 
 const ICONS: Record<string, React.ReactNode> = {
@@ -38,7 +38,7 @@ export function Sidebar({ pendientes }: { pendientes?: number }) {
         {NAV.map(item => {
           const active = path === item.href || (item.href !== '/dashboard' && path?.startsWith(item.href))
           return (
-            <button key={item.href} onClick={() => router.push(item.href)} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, padding: '8px 12px', borderRadius: 12, border: 'none', background: active ? 'linear-gradient(135deg,#e8f0fc,#dbeeff)' : 'transparent', color: active ? '#185FA5' : '#8fa3bc', cursor: 'pointer', fontFamily: 'DM Sans, sans-serif', position: 'relative' }}>
+            <button key={item.href} onClick={() => router.push(item.href)} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, padding: '8px 4px', borderRadius: 12, border: 'none', background: active ? 'linear-gradient(135deg,#e8f0fc,#dbeeff)' : 'transparent', color: active ? '#185FA5' : '#8fa3bc', cursor: 'pointer', fontFamily: 'DM Sans, sans-serif', position: 'relative', minWidth: 0 }}>
               {item.icon === 'bell' && pendientes && pendientes > 0
                 ? <span style={{ position: 'relative', display: 'inline-flex' }}>
                     {ICONS[item.icon]}

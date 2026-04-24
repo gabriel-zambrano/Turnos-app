@@ -24,12 +24,12 @@ export async function GET(
   if (!pac) {
     return NextResponse.json({ error: 'Link inválido' }, { status: 404 })
   }
-  const hoy = new Date().toISOString().split('T')[0] + 'T00:00:00-03:00'
+  const ahora = new Date().toISOString()
   const { data: citas } = await supabaseAdmin
     .from('citas')
     .select('id, fecha_hora, tipo_tratamiento, estado, duracion_minutos, notas')
     .eq('paciente_id', pac.id)
-    .gte('fecha_hora', hoy)
+    .gte('fecha_hora', ahora)
     .order('fecha_hora', { ascending: true })
   return NextResponse.json({
     paciente: { id: pac.id, nombre: pac.nombre, telefono: pac.telefono },

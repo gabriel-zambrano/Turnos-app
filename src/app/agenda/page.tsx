@@ -1,13 +1,13 @@
 'use client'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { Sidebar } from '@/components/Sidebar'
 import { Badge, Toast, PageHeader, BtnPrimary, BtnSm, Spinner, overlayCss, modalCss, modalTitleCss, footerCss, groupCss, labelCss, grid2Css, btnDarkCss, btnLightCss, btnRedCss, selectCss, textareaCss, inputCss } from '@/components/UI'
 import { TRAT_STYLE, ESTADO_STYLE, TRATAMIENTOS, ESTADOS, DURACIONES, horasDisponibles, hoyISO } from '@/lib/constants'
 import { createClient } from '@/lib/supabase/client'
 import type { EstadoCita, TipoTratamiento } from '@/types'
 
-interface CitaDB { id:string; paciente_id:string; fecha_hora:string; tipo_tratamiento:string; estado:string; notas:string|null; duracion_minutos:number; valor:number|null; sena:number|null; pacientes:{nombre:string;telefono:string}|null }
-interface Cita   { id:string; paciente_id:string; nombre:string; telefono:string; hora:string; fecha:string; tratamiento:string; estado:EstadoCita; duracion:number; notas:string; minutos:number; valor:number|null; sena:number|null }
+interface CitaDB { id:string; paciente_id:string; fecha_hora:string; tipo_tratamiento:string; estado:string; notas:string|null; duracion_minutos:number; valor:number|null; sena:number|null; pacientes:{nombre:string;telefono:string;token:string}|null }
+interface Cita   { id:string; paciente_id:string; nombre:string; telefono:string; token:string; hora:string; fecha:string; tratamiento:string; estado:EstadoCita; duracion:number; notas:string; minutos:number; valor:number|null; sena:number|null }
 interface PacMin { id:string; nombre:string; telefono:string }
 
 function toCita(c: CitaDB): Cita {
@@ -16,7 +16,7 @@ function toCita(c: CitaDB): Cita {
   const h = ar.getHours(), m = ar.getMinutes()
   return {
     id:c.id, paciente_id:c.paciente_id,
-    nombre:c.pacientes?.nombre??'—', telefono:c.pacientes?.telefono??'—',
+    nombre:c.pacientes?.nombre??'—', telefono:c.pacientes?.telefono??'—', token:c.pacientes?.token??'',
     hora:`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`,
     fecha:dt.toISOString().split('T')[0],
     tratamiento:c.tipo_tratamiento, estado:c.estado as EstadoCita,
@@ -45,7 +45,151 @@ function getFechaSemana(base: string): string[] {
   })
 }
 
-const DIAS_LABEL = ['Lun','Mar','Mié','Jue','Vie','Sáb']
+const DIAS_LABEL   = ['Lun','Mar','Mié','Jue','Vie','Sáb']
+const DIAS_STRIP   = ['L','M','X','J','V','S','D']
+const MESES_CORTOS = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic']
+
+function proximoSlot(): { hora: string; fecha: string } {
+  const now = new Date()
+  const ar  = new Date(now.toLocaleString('en-US', { timeZone: 'America/Argentina/Buenos_Aires' }))
+  const totalMin  = ar.getHours() * 60 + ar.getMinutes()
+  const nextMin   = Math.ceil(totalMin / 20) * 20
+  const slotH     = Math.floor(nextMin / 60)
+  const slotM     = nextMin % 60
+  if (slotH >= 20) {
+    const nextDay = new Date(ar.getFullYear(), ar.getMonth(), ar.getDate() + 1)
+    return { hora: '09:00', fecha: dateToISO(nextDay) }
+  }
+  if (slotH < 8) return { hora: '08:00', fecha: dateToISO(ar) }
+  return { hora: `${String(slotH).padStart(2,'0')}:${String(slotM).padStart(2,'0')}`, fecha: dateToISO(ar) }
+}
+
+function getFechaSemana7(base: string): string[] {
+  const d = parseFechaLocal(base)
+  const dia = d.getDay()
+  const lunes = new Date(d.getFullYear(), d.getMonth(), d.getDate() - (dia === 0 ? 6 : dia - 1))
+  return Array.from({length: 7}, (_, i) => {
+    const f = new Date(lunes.getFullYear(), lunes.getMonth(), lunes.getDate() + i)
+    return dateToISO(f)
+  })
+}
+
+function WeekStrip({ fechas, fechaActiva, fechasConCitas, onSelect, hoy }: {
+  fechas: string[]
+  fechaActiva: string
+  fechasConCitas: Set<string>
+  onSelect: (f: string) => void
+  hoy: string
+}) {
+  const esSemanaCurrent = fechas.includes(hoy)
+  return (
+    <div style={{
+      height: 64, display: 'flex', alignItems: 'center',
+      background: 'rgba(255,255,255,0.95)',
+      backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)',
+      borderBottom: '1px solid rgba(56,138,221,0.10)',
+      position: 'sticky', top: 56, zIndex: 49,
+    }}>
+      {fechas.map((f, i) => {
+        const activo    = f === fechaActiva
+        const esHoy     = f === hoy
+        const tieneCita = fechasConCitas.has(f)
+        const d         = parseFechaLocal(f)
+        const numDia    = d.getDate()
+        const mes       = MESES_CORTOS[d.getMonth()]
+        return (
+          <button key={f} onClick={() => onSelect(f)} style={{
+            flex: 1, height: 64, display: 'flex', flexDirection: 'column',
+            alignItems: 'center', justifyContent: 'center',
+            border: 'none', background: 'transparent', cursor: 'pointer', padding: 0,
+          }}>
+            <span style={{ fontSize: 10, fontWeight: 500, color: activo ? '#0a1e3d' : '#aab8c8', lineHeight: 1, marginBottom: 3 }}>
+              {DIAS_STRIP[i]}
+            </span>
+            <div style={{
+              width: 28, height: 28, borderRadius: '50%',
+              background: activo ? '#0a1e3d' : 'transparent',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <span style={{
+                fontSize: 14,
+                fontWeight: activo || esHoy ? 700 : 400,
+                color: activo ? '#fff' : esHoy ? '#0a1e3d' : '#333',
+                lineHeight: 1,
+              }}>{numDia}</span>
+            </div>
+            <span style={{
+              fontSize: 9, color: '#aab8c8', lineHeight: 1, marginTop: 2,
+              visibility: esSemanaCurrent ? 'hidden' : 'visible',
+            }}>{mes}</span>
+            <div style={{
+              width: 4, height: 4, borderRadius: '50%',
+              background: tieneCita ? '#388ADD' : 'transparent',
+              marginTop: 2,
+            }} />
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+function AgendaHeaderMobile({ fecha, vista, esHoy, onPrev, onNext, onVista, onNueva, onHoy }: {
+  fecha: string; vista: 'semana'|'dia'; esHoy: boolean
+  onPrev: ()=>void; onNext: ()=>void; onVista: (v:'semana'|'dia')=>void
+  onNueva: ()=>void; onHoy: ()=>void
+}) {
+  const d = parseFechaLocal(fecha)
+  const diaNum    = d.getDate()
+  const diaNombre = d.toLocaleDateString('es-AR', { weekday: 'short' })
+
+  const btnFlecha: React.CSSProperties = {
+    width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center',
+    border: 'none', background: 'transparent', fontSize: 22, color: '#0a1e3d',
+    cursor: 'pointer', borderRadius: 12, flexShrink: 0, fontFamily: 'DM Sans, sans-serif',
+  }
+
+  return (
+    <header style={{
+      height: 56, display: 'flex', alignItems: 'center', padding: '0 8px', gap: 4,
+      background: 'rgba(255,255,255,0.92)', backdropFilter: 'blur(16px)',
+      WebkitBackdropFilter: 'blur(16px)',
+      borderBottom: '1px solid rgba(56,138,221,0.10)',
+      position: 'sticky', top: 0, zIndex: 50,
+    }}>
+
+      <button onClick={onPrev} style={btnFlecha}>‹</button>
+
+      <button onClick={onHoy} style={{
+        flex: 1, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center',
+        border: 'none', background: 'transparent', cursor: 'pointer', gap: 6,
+        fontFamily: 'DM Sans, sans-serif',
+      }}>
+        {esHoy ? (
+          <>
+            <span style={{ fontSize: 13, fontWeight: 600, color: '#138A6B' }}>Hoy</span>
+            <span style={{ fontSize: 20, fontWeight: 700, color: '#0a1e3d', lineHeight: 1 }}>{diaNum}</span>
+          </>
+        ) : (
+          <>
+            <span style={{ fontSize: 13, fontWeight: 400, color: '#8fa3bc', textTransform: 'capitalize' }}>{diaNombre}</span>
+            <span style={{ fontSize: 20, fontWeight: 700, color: '#0a1e3d', lineHeight: 1 }}>{diaNum}</span>
+          </>
+        )}
+      </button>
+
+      <button onClick={onNext} style={btnFlecha}>›</button>
+
+      <button onClick={onNueva} style={{
+        width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center',
+        border: 'none', background: '#0a1e3d', color: '#fff',
+        borderRadius: 12, fontSize: 22, cursor: 'pointer', flexShrink: 0,
+        fontFamily: 'DM Sans, sans-serif',
+      }}>+</button>
+
+    </header>
+  )
+}
 const HORA_INICIO = 8
 const HORA_FIN = 20
 const SLOT_H = 48 // px por hora
@@ -56,7 +200,6 @@ export default function Agenda() {
   const [pacs,    setPacs]    = useState<PacMin[]>([])
   const [loading, setLoading] = useState(true)
   const [saving,  setSaving]  = useState(false)
-  const [colisionAgenda, setColisionAgenda] = useState<{nombre:string; fecha:string}|null>(null)
   const [sobreturnoAgenda, setSobreturnoAgenda] = useState<string|null>(null)
   const [modal,   setModal]   = useState<'nueva'|'editar'|'borrar'|'detalle'|'bloqueo'|'menu'|null>(null)
   const [sel,     setSel]     = useState<Cita|null>(null)
@@ -70,6 +213,9 @@ export default function Agenda() {
   const [fBloqFecha, setFBloqFecha] = useState("")
   const [vista,   setVista]   = useState<'semana'|'dia'>('semana')
   const [isMobile, setIsMobile] = useState(false)
+  const touchStart = useRef<{x:number; y:number} | null>(null)
+  const [ahora, setAhora] = useState(() => new Date())
+  useEffect(() => { const id = setInterval(() => setAhora(new Date()), 60_000); return () => clearInterval(id) }, [])
   useEffect(()=>{
     const check = () => setIsMobile(window.innerWidth < 768)
     check()
@@ -98,7 +244,7 @@ export default function Agenda() {
     setLoading(true)
     const desde = vista==='semana' ? semana[0]+'T00:00:00' : fecha+'T00:00:00'
     const hasta = vista==='semana' ? semana[5]+'T23:59:59' : fecha+'T23:59:59'
-    const {data,error} = await supabase.from('citas').select('*, pacientes(nombre,telefono)').gte('fecha_hora',desde).lte('fecha_hora',hasta).order('fecha_hora',{ascending:true})
+    const {data,error} = await supabase.from('citas').select('*, pacientes(nombre,telefono,token)').gte('fecha_hora',desde).lte('fecha_hora',hasta).order('fecha_hora',{ascending:true})
     if(error) msg('Error: '+error.message,'error')
     else setCitas((data as CitaDB[]).map(toCita))
     setLoading(false)
@@ -119,7 +265,7 @@ export default function Agenda() {
   },[menuPos])
 
   function openNueva(f?:string, h?:string){
-    setFPac('');setFHora(h||'09:00');setFFecha(f||fecha);setFTrat('Consulta');setFEst('pendiente');setFDur(30);setFNotas('');setFValor('');setFSena('');setFDescuento('');setSel(null);setModal('nueva')
+    setFPac('');setFHora(h||'09:00');setFFecha(f||fecha);setFTrat('Consulta');setFEst('pendiente');setFDur(30);setFNotas('');setFValor('');setFSena('');setFDescuento('');setSel(null);setSobreturnoAgenda(null);setModal('nueva')
   }
   function openEditar(c:Cita){setSel(c);setFHora(c.hora);setFFecha(c.fecha);setFTrat(c.tratamiento);setFEst(c.estado);setFDur(c.duracion);setFNotas(c.notas);setFValor((c as any).valor??'');setFSena((c as any).sena??'');setFDescuento('');setModal('editar')}
 
@@ -134,22 +280,6 @@ export default function Agenda() {
       return
     }
 
-    // Colisión de paciente
-    if(!forzar){
-      const resCitas = await fetch(`/api/citas-futuras?paciente_id=${fPac}`)
-      const { citas } = await resCitas.json()
-      if(citas && citas.length > 0){
-        const dt = new Date(citas[0].fecha_hora)
-        const ar = new Date(dt.toLocaleString('en-US', { timeZone: 'America/Argentina/Buenos_Aires' }))
-        const fechaLabel = ar.toLocaleDateString('es-AR', { weekday:'long', day:'numeric', month:'long' })
-        const horaLabel = String(ar.getHours()).padStart(2,'0') + ':' + String(ar.getMinutes()).padStart(2,'0')
-        const pacNombre = pacs.find(p=>p.id===fPac)?.nombre || 'El paciente'
-        setColisionAgenda({ nombre: pacNombre, fecha: `${fechaLabel} a las ${horaLabel}hs` })
-        return
-      }
-    }
-
-    setColisionAgenda(null)
     setSobreturnoAgenda(null)
     setSaving(true)
     const {error} = await supabase.from('citas').insert({paciente_id:fPac,fecha_hora:`${fFecha}T${fHora}:00-03:00`,tipo_tratamiento:fTrat,estado:fEst,duracion_minutos:fDur,notas:fNotas||null,valor:fValor||null,sena:fSena||null,tenant_id:'2845c423-affa-4ca2-9c5f-f4ec8e35701a'})
@@ -209,42 +339,56 @@ export default function Agenda() {
   function citasDelDia(f: string){ return citas.filter(c => c.fecha === f) }
 
   function citaTop(c: Cita){ return (c.minutos - HORA_INICIO * 60) / 60 * SLOT_H }
-  function citaHeight(c: Cita){ return Math.max(c.duracion / 60 * SLOT_H, 22) }
+  function citaHeight(c: Cita){ return Math.max(c.duracion / 60 * SLOT_H, isMobile ? 44 : 22) }
 
   const hoy = hoyISO()
+  const semana7 = getFechaSemana7(fecha)
+  const fechasConCitas = new Set(citas.map(c => c.fecha))
+  const ahoraTop = (ahora.getHours() * 60 + ahora.getMinutes() - HORA_INICIO * 60) / 60 * SLOT_H
 
   return (
     <div style={{display:'flex',minHeight:'100vh',fontFamily:'DM Sans, sans-serif'}}>
       <Sidebar pendientes={citas.filter(c=>c.estado==='pendiente').length}/>
       <main style={{marginLeft:isMobile?0:240,flex:1,background:'transparent',minWidth:0,paddingBottom:isMobile?64:0}}>
-        <PageHeader title="Agenda"
-          right={
-            <div style={{display:'flex',flexDirection:isMobile?'column':'row',gap:isMobile?6:10,alignItems:isMobile?'flex-end':'center'}}>
-              {/* Fila 1: Navegación fecha */}
-              <div style={{display:'flex',gap:6,alignItems:'center'}}>
-                <button onClick={()=>{const d=new Date(fecha);d.setDate(d.getDate()-(vista==='semana'?7:1));setFecha(d.toISOString().split('T')[0])}} style={{background:'#fff',border:'1px solid #e2e8ed',borderRadius:8,padding:'6px 10px',cursor:'pointer',fontSize:16}}>‹</button>
-                <input type="date" value={fecha} onChange={e=>setFecha(e.target.value)} style={{...inputCss,width:isMobile?130:150,padding:'0.5rem 0.75rem',fontSize:13}}/>
-                <button onClick={()=>{const d=new Date(fecha);d.setDate(d.getDate()+(vista==='semana'?7:1));setFecha(d.toISOString().split('T')[0])}} style={{background:'#fff',border:'1px solid #e2e8ed',borderRadius:8,padding:'6px 10px',cursor:'pointer',fontSize:16}}>›</button>
-                <button onClick={()=>setFecha(hoyISO())} style={{background:'#fff',border:'1px solid #e2e8ed',borderRadius:8,padding:'6px 10px',cursor:'pointer',fontSize:12,color:'#555'}}>Hoy</button>
-              </div>
-              {/* Fila 2: Toggle vista + Nueva cita */}
-              <div style={{display:'flex',gap:6,alignItems:'center'}}>
-                <div style={{display:'flex',background:'#fff',border:'1px solid #e2e8ed',borderRadius:8,overflow:'hidden'}}>
-                  {(['semana','dia'] as const).map(v=>(
-                    <button key={v} onClick={()=>setVista(v)} style={{padding:isMobile?'6px 10px':'6px 14px',fontSize:12,border:'none',cursor:'pointer',background:vista===v?'#0f1e2b':'transparent',color:vista===v?'#fff':'#555',fontFamily:'DM Sans, sans-serif'}}>{v==='semana'?'Semana':'Día'}</button>
-                  ))}
+        {isMobile
+          ? <>
+              <AgendaHeaderMobile
+                fecha={fecha} vista={vista} esHoy={fecha===hoy}
+                onPrev={()=>{ const d=parseFechaLocal(fecha); d.setDate(d.getDate()-7); setFecha(dateToISO(d)) }}
+                onNext={()=>{ const d=parseFechaLocal(fecha); d.setDate(d.getDate()+7); setFecha(dateToISO(d)) }}
+                onVista={setVista}
+                onNueva={()=>{const s=proximoSlot();openNueva(s.fecha,s.hora)}}
+                onHoy={()=>setFecha(hoyISO())}
+              />
+              <WeekStrip fechas={semana7} fechaActiva={fecha} fechasConCitas={fechasConCitas} onSelect={setFecha} hoy={hoy} />
+            </>
+          : <PageHeader title="Agenda"
+              right={
+                <div style={{display:'flex',gap:10,alignItems:'center'}}>
+                  <div style={{display:'flex',gap:6,alignItems:'center'}}>
+                    <button onClick={()=>{const d=new Date(fecha);d.setDate(d.getDate()-(vista==='semana'?7:1));setFecha(d.toISOString().split('T')[0])}} style={{background:'#fff',border:'1px solid #e2e8ed',borderRadius:8,padding:'6px 10px',cursor:'pointer',fontSize:16}}>‹</button>
+                    <input type="date" value={fecha} onChange={e=>setFecha(e.target.value)} style={{...inputCss,width:150,padding:'0.5rem 0.75rem',fontSize:13}}/>
+                    <button onClick={()=>{const d=new Date(fecha);d.setDate(d.getDate()+(vista==='semana'?7:1));setFecha(d.toISOString().split('T')[0])}} style={{background:'#fff',border:'1px solid #e2e8ed',borderRadius:8,padding:'6px 10px',cursor:'pointer',fontSize:16}}>›</button>
+                    <button onClick={()=>setFecha(hoyISO())} style={{background:'#fff',border:'1px solid #e2e8ed',borderRadius:8,padding:'6px 10px',cursor:'pointer',fontSize:12,color:'#555'}}>Hoy</button>
+                  </div>
+                  <div style={{display:'flex',gap:6,alignItems:'center'}}>
+                    <div style={{display:'flex',background:'#fff',border:'1px solid #e2e8ed',borderRadius:8,overflow:'hidden'}}>
+                      {(['semana','dia'] as const).map(v=>(
+                        <button key={v} onClick={()=>setVista(v)} style={{padding:'6px 14px',fontSize:12,border:'none',cursor:'pointer',background:vista===v?'#0f1e2b':'transparent',color:vista===v?'#fff':'#555',fontFamily:'DM Sans, sans-serif'}}>{v==='semana'?'Semana':'Día'}</button>
+                      ))}
+                    </div>
+                    <BtnPrimary onClick={()=>openNueva()}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                      Nueva cita
+                    </BtnPrimary>
+                  </div>
                 </div>
-                <BtnPrimary onClick={()=>openNueva()}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                  {!isMobile&&'Nueva cita'}
-                </BtnPrimary>
-              </div>
-            </div>
-          }/>
+              }/>
+        }
 
-        <div style={{padding:'1.5rem 2rem'}}>
+        <div style={{padding: isMobile ? 0 : '1.5rem 2rem'}}>
           {loading ? <Spinner/> : (
-            <div style={{background:'#fff',border:'1px solid #e2e8ed',borderRadius:16,overflow:'hidden'}}>
+            <div style={{background:'#fff',border:isMobile?'none':'1px solid #e2e8ed',borderRadius:isMobile?0:16,overflow:'hidden'}}>
 
               {/* Header días */}
               <div style={{display:'grid',gridTemplateColumns:`64px repeat(${isMobile?1:vista==='semana'?6:1}, 1fr)`,borderBottom:'1px solid #e2e8ed'}}>
@@ -264,7 +408,7 @@ export default function Agenda() {
               </div>
 
               {/* Grid horario */}
-              <div style={{display:'grid',gridTemplateColumns:`64px repeat(${isMobile?1:vista==='semana'?6:1}, 1fr)`,overflowY:'auto',maxHeight:isMobile?'calc(100vh - 140px)':'calc(100vh - 220px)'}}>
+              <div style={{display:'grid',gridTemplateColumns:`64px repeat(${isMobile?1:vista==='semana'?6:1}, 1fr)`,overflowY:'auto',overflowX:'hidden',maxHeight:isMobile?'calc(100vh - 184px)':'calc(100vh - 220px)'}}>
 
                 {/* Columna horas */}
                 <div style={{borderRight:'1px solid #e2e8ed',position:'relative',height:totalH}}>
@@ -280,6 +424,26 @@ export default function Agenda() {
                   const citasF = citasDelDia(f)
                   return(
                     <div key={f} style={{position:'relative',height:totalH,borderRight:'1px solid #f0f0f0',cursor:'pointer'}}
+                      onTouchStart={e=>{
+                        touchStart.current = {x:e.touches[0].clientX, y:e.touches[0].clientY}
+                      }}
+                      onTouchEnd={e=>{
+                        if(!touchStart.current) return
+                        const dx = Math.abs(e.changedTouches[0].clientX - touchStart.current.x)
+                        const dy = Math.abs(e.changedTouches[0].clientY - touchStart.current.y)
+                        touchStart.current = null
+                        if(dx > 8 || dy > 8) return
+                        e.preventDefault()
+                        e.stopPropagation()
+                        if((e.target as HTMLElement).closest('[data-cita]')) return
+                        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+                        const y = e.changedTouches[0].clientY - rect.top
+                        const minTot = Math.floor(y / SLOT_H * 60 / 20) * 20
+                        const h = Math.floor(minTot/60) + HORA_INICIO
+                        const m = minTot % 60
+                        const hStr = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`
+                        setMenuPos({x:e.changedTouches[0].clientX, y:e.changedTouches[0].clientY, f, h:hStr})
+                      }}
                       onClick={e=>{
                         if((e.target as HTMLElement).closest('[data-cita]')) return
                         e.stopPropagation()
@@ -295,6 +459,23 @@ export default function Agenda() {
                       {horas.map(h=>(
                         <div key={h} style={{position:'absolute',top:(h-HORA_INICIO)*SLOT_H,left:0,right:0,height:SLOT_H,borderTop:'1px solid #f5f5f5'}}/>
                       ))}
+                      {/* Slots ocupados */}
+                      {(()=>{
+                        const mins = new Set<number>()
+                        citasF.forEach(c=>{ for(let m=c.minutos;m<c.minutos+c.duracion;m+=30) mins.add(m) })
+                        return Array.from({length:(HORA_FIN-HORA_INICIO)*2},(_,i)=>{
+                          const minTot = HORA_INICIO*60+i*30
+                          return mins.has(minTot)
+                            ? <div key={i} style={{position:'absolute',top:i*(SLOT_H/2),left:0,right:0,height:SLOT_H/2,background:'rgba(0,0,0,0.04)',pointerEvents:'none'}}/>
+                            : null
+                        })
+                      })()}
+                      {/* Hora actual */}
+                      {f===hoy&&ahoraTop>=0&&ahoraTop<=totalH&&(
+                        <div style={{position:'absolute',top:ahoraTop,left:0,right:0,height:2,background:'#ef4444',zIndex:5,pointerEvents:'none'}}>
+                          <div style={{position:'absolute',left:-3,top:-3,width:8,height:8,borderRadius:'50%',background:'#ef4444'}}/>
+                        </div>
+                      )}
                       {/* Bloqueos */}
                       {bloqueos.filter(b=>b.fecha===f).map(b=>{
                         const [bh,bm] = b.hora_inicio.split(':').map(Number)
@@ -329,9 +510,22 @@ export default function Agenda() {
                               zIndex:1,
                               boxShadow:'0 1px 3px rgba(0,0,0,0.08)'
                             }}>
-                            <div style={{fontSize:11,fontWeight:700,color:tc.color,lineHeight:1.2}}>{c.hora} · {c.nombre}</div>
-                            {citaHeight(c)>30&&<div style={{fontSize:10,color:tc.color,opacity:0.8,marginTop:1}}>{c.tratamiento} · {c.duracion}min{c.valor?` · $${c.valor}`:''}</div>}
-                            {citaHeight(c)>44&&<div style={{fontSize:10,marginTop:2}}><span style={{background:es.bg,color:es.color,padding:'1px 5px',borderRadius:4}}>{es.label}</span></div>}
+                            {isMobile ? (
+                              <>
+                                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                                  <span style={{fontSize:11,fontWeight:700,color:tc.color,lineHeight:1}}>{c.hora}</span>
+                                  <span style={{width:6,height:6,borderRadius:'50%',background:es.color,flexShrink:0}}/>
+                                </div>
+                                <div style={{fontSize:13,fontWeight:600,color:tc.color,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',marginTop:2}}>{c.nombre}</div>
+                                {citaHeight(c)>64&&<div style={{fontSize:10,color:tc.color,opacity:0.7,marginTop:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{c.tratamiento}</div>}
+                              </>
+                            ) : (
+                              <>
+                                <div style={{fontSize:11,fontWeight:700,color:tc.color,lineHeight:1.2}}>{c.hora} · {c.nombre}</div>
+                                {citaHeight(c)>30&&<div style={{fontSize:10,color:tc.color,opacity:0.8,marginTop:1}}>{c.tratamiento} · {c.duracion}min{c.valor?` · $${c.valor}`:''}</div>}
+                                {citaHeight(c)>44&&<div style={{fontSize:10,marginTop:2}}><span style={{background:es.bg,color:es.color,padding:'1px 5px',borderRadius:4}}>{es.label}</span></div>}
+                              </>
+                            )}
                           </div>
                         )
                       })}
@@ -354,7 +548,7 @@ export default function Agenda() {
               <div>🦷 {sel.tratamiento} · {sel.duracion} min</div>
 {sel.valor&&<div>💰 Valor: <strong>${sel.valor}</strong>{sel.sena?<> · Seña: <strong>${sel.sena}</strong> · Saldo: <strong>${sel.valor-sel.sena}</strong></>:null}</div>}
 {(sel as any).valor&&<div>💰 Valor: <strong>${(sel as any).valor}</strong>{(sel as any).sena?<> · Seña: <strong>${(sel as any).sena}</strong> · Saldo: <strong>${(sel as any).valor-(sel as any).sena}</strong></>:null}</div>}
-              <div>📞 {sel.telefono}</div>
+              <div>📞 <a href={`tel:${sel.telefono}`} style={{color:'#185FA5',textDecoration:'none'}}>{sel.telefono}</a></div>
               {sel.notas&&<div>📝 {sel.notas}</div>}
             </div>
             <div style={{margin:'12px 0'}}>
@@ -363,6 +557,23 @@ export default function Agenda() {
                 {ESTADOS.map(est=><option key={est} value={est}>{est.charAt(0).toUpperCase()+est.slice(1)}</option>)}
               </select>
             </div>
+            {sel.token&&(
+              <button style={{...btnLightCss,width:'100%',marginTop:8,gap:6,color:'#128C7E',borderColor:'rgba(18,140,126,0.3)'}} onClick={()=>{
+                const tel = sel.telefono.replace(/\D/g,'').replace(/^0/,'')
+                const d   = parseFechaLocal(sel.fecha)
+                const fechaLarga = d.toLocaleDateString('es-AR',{weekday:'long',day:'numeric',month:'long'})
+                const txt = encodeURIComponent(
+                  `Hola ${sel.nombre} 👋 Te confirmamos tu turno en el Consultorio Dr. Walter Benegas:\n` +
+                  `📅 ${fechaLarga} a las ${sel.hora}hs\n` +
+                  `🦷 ${sel.tratamiento}\n` +
+                  `Podés ver tu turno acá: https://turnos.walterbenegas.com.ar/paciente/${sel.token}`
+                )
+                window.open(`https://wa.me/549${tel}?text=${txt}`,'_blank')
+              }}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.123.553 4.116 1.522 5.849L0 24l6.335-1.505A11.94 11.94 0 0 0 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.818 9.818 0 0 1-5.006-1.371l-.358-.214-3.759.893.952-3.653-.234-.374A9.818 9.818 0 0 1 2.182 12C2.182 6.57 6.57 2.182 12 2.182S21.818 6.57 21.818 12 17.43 21.818 12 21.818z"/></svg>
+                Enviar por WhatsApp
+              </button>
+            )}
             <div style={footerCss}>
               <button style={btnLightCss} onClick={()=>{setModal(null);setTimeout(()=>{setSel(sel);setModal('borrar')},50)}}>Eliminar</button>
               <button style={btnDarkCss} onClick={()=>{setModal(null);setTimeout(()=>openEditar(sel),50)}}>Editar</button>
@@ -409,16 +620,7 @@ export default function Agenda() {
                 </div>
               </div>
             )}
-            {colisionAgenda && (
-              <div style={{background:'#FFF8E1',borderRadius:10,padding:'0.75rem',border:'0.5px solid #FFD54F',marginBottom:8}}>
-                <div style={{fontSize:13,fontWeight:600,color:'#92400E',marginBottom:2}}>{colisionAgenda.nombre} ya tiene un turno</div>
-                <div style={{fontSize:12,color:'#B45309',marginBottom:6}}>Turno existente: {colisionAgenda.fecha}</div>
-                <div style={{display:'flex',gap:8}}>
-                  <button style={btnLightCss} onClick={()=>setColisionAgenda(null)}>Cancelar</button>
-                  <button style={btnDarkCss} onClick={()=>{setColisionAgenda(null);saveNueva(true)}}>Agendar igual</button>
-                </div>
-              </div>
-            )}
+
               <button style={{...btnDarkCss,opacity:saving?.6:1}} onClick={()=>saveNueva()} disabled={saving}>{saving?'Guardando...':'Agendar cita'}</button>
             </div>
           </div>
@@ -467,12 +669,17 @@ export default function Agenda() {
         </div>
       )}
 {/* Menu flotante slot */}
-     {menuPos&&(
-        <div style={{position:'fixed',top:menuPos.y,left:menuPos.x,zIndex:1000,background:'#fff',borderRadius:10,boxShadow:'0 4px 20px rgba(0,0,0,0.15)',padding:'0.5rem',display:'flex',flexDirection:'column',gap:4,minWidth:180}} onClick={e=>e.stopPropagation()}>
+     {menuPos&&(()=>{
+        const MENU_W = 188, MENU_H = 96
+        const safeX = Math.max(8, Math.min(menuPos.x, window.innerWidth  - MENU_W - 8))
+        const safeY = Math.max(64, Math.min(menuPos.y, window.innerHeight - MENU_H - (isMobile ? 72 : 8)))
+        return(
+        <div style={{position:'fixed',top:safeY,left:safeX,zIndex:1000,background:'#fff',borderRadius:10,boxShadow:'0 4px 20px rgba(0,0,0,0.15)',padding:'0.5rem',display:'flex',flexDirection:'column',gap:4,minWidth:180}} onClick={e=>e.stopPropagation()}>
           <button style={{padding:'0.6rem 1rem',borderRadius:7,border:'none',background:'#f5f5f5',cursor:'pointer',textAlign:'left',fontSize:13,fontWeight:500}} onClick={()=>{setMenuPos(null);openNueva(menuPos.f,menuPos.h)}}>📅 Nueva cita</button>
           <button style={{padding:'0.6rem 1rem',borderRadius:7,border:'none',background:'#f5f5f5',cursor:'pointer',textAlign:'left',fontSize:13,fontWeight:500}} onClick={()=>{setMenuPos(null);setFBloqFecha(menuPos.f);setFBloqDesde(menuPos.h);setFBloqHasta(menuPos.h>='12:00'?'20:00':'12:00');setFBloqMotivo('');setModal('bloqueo')}}>🚫 Bloquear horario</button>
         </div>
-      )}
+        )
+      })()}
       {/* Modal bloqueo */}
       {modal==='bloqueo'&&(
         <div style={overlayCss(isMobile)} onClick={()=>setModal(null)}>
@@ -491,7 +698,7 @@ export default function Agenda() {
           </div>
         </div>
       )}
-      {toast&&<Toast msg={toast.msg} tipo={toast.tipo}/>}
+      {toast&&<Toast msg={toast.msg} tipo={toast.tipo} isMobile={isMobile}/>}
     </div>
   )
 }

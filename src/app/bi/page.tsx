@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Sidebar } from '@/components/Sidebar'
+import { useIsMobile } from '@/components/UI'
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   LineChart, Line, PieChart, Pie, Cell, CartesianGrid, Legend
@@ -47,6 +48,7 @@ interface KPIProps {
   color?: string; trend?: number
 }
 function KPI({ label, value, sub, color, trend }: KPIProps) {
+  const isMobile = useIsMobile()
   return (
     <div style={{
       background: '#fff', borderRadius: 16, padding: '1.25rem 1.5rem',
@@ -54,7 +56,7 @@ function KPI({ label, value, sub, color, trend }: KPIProps) {
       boxShadow: '0 1px 4px rgba(0,0,0,0.04)'
     }}>
       <span style={{ fontSize: 11, fontWeight: 600, color: '#94a3b8', letterSpacing: '0.06em', textTransform: 'uppercase' }}>{label}</span>
-      <span style={{ fontSize: 30, fontWeight: 700, color: color ?? '#0f1e2b', lineHeight: 1 }}>{value}</span>
+      <span style={{ fontSize: isMobile ? 22 : 30, fontWeight: 700, color: color ?? '#0f1e2b', lineHeight: 1 }}>{value}</span>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
         {trend !== undefined && (
           <span style={{
@@ -102,7 +104,7 @@ export default function BiPage() {
   const [loading, setLoading] = useState(true)
   const [rango, setRango] = useState<'30' | '90' | '365'>('90')
   const [tab, setTab] = useState<'overview' | 'tratamientos' | 'financiero'>('overview')
-
+  const isMobile = useIsMobile()
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!session) window.location.replace('/login')
@@ -182,8 +184,8 @@ export default function BiPage() {
 
   // ── Styles ───────────────────────────────────────────────
   const tabBtn = (t: typeof tab) => ({
-    padding: '0.45rem 1rem', borderRadius: 8, border: 'none', cursor: 'pointer',
-    fontSize: 13, fontWeight: 600, fontFamily: 'DM Sans, sans-serif',
+    padding: isMobile ? '0.45rem 0.5rem' : '0.45rem 1rem', borderRadius: 8, border: 'none', cursor: 'pointer',
+    fontSize: isMobile ? 12 : 13, fontWeight: 600, fontFamily: 'DM Sans, sans-serif',
     background: tab === t ? '#0f1e2b' : 'transparent',
     color: tab === t ? '#fff' : '#64748b',
     transition: 'all 0.15s'
@@ -199,7 +201,7 @@ export default function BiPage() {
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: '#f4f7fb', fontFamily: 'DM Sans, sans-serif' }}>
       <Sidebar />
-      <main style={{ flex: 1, padding: '2rem', marginLeft: 240, minWidth: 0, overflowY: 'auto' }}>
+      <main style={{ flex: 1, padding: isMobile ? '1rem' : '2rem', marginLeft: 0, minWidth: 0, overflowY: 'auto', paddingBottom: 80 }}>
 
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.75rem', flexWrap: 'wrap', gap: 12 }}>
@@ -217,9 +219,9 @@ export default function BiPage() {
         </div>
 
         {/* Tabs */}
-        <div style={{ display: 'flex', gap: 4, background: '#f1f5f9', borderRadius: 10, padding: 4, marginBottom: '1.5rem', width: 'fit-content' }}>
+        <div style={{ display: 'flex', gap: 4, background: '#f1f5f9', borderRadius: 10, padding: 4, marginBottom: '1.5rem', width: '100%' }}>
           {(['overview', 'tratamientos', 'financiero'] as const).map(t => (
-            <button key={t} onClick={() => setTab(t)} style={tabBtn(t)}>
+            <button key={t} onClick={() => setTab(t)} style={{ ...tabBtn(t), flex: 1, minWidth: 0 }}>
               {t === 'overview' ? 'Resumen' : t === 'tratamientos' ? 'Tratamientos' : 'Financiero'}
             </button>
           ))}
@@ -249,7 +251,7 @@ export default function BiPage() {
                 </div>
 
                 {/* Gráficos */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: '1.25rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 14, marginBottom: '1.25rem' }}>
                   <Card title="Citas por semana">
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={porSemana} barSize={20}>
@@ -292,13 +294,13 @@ export default function BiPage() {
 
             {tab === 'tratamientos' && (
               <>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: '1.25rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 14, marginBottom: '1.25rem' }}>
                   <Card title="Citas por tratamiento" height={260}>
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={porTratamiento} layout="vertical" barSize={14}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false} />
                         <XAxis type="number" tick={{ fontSize: 10, fill: '#94a3b8' }} allowDecimals={false} />
-                        <YAxis type="category" dataKey="name" tick={{ fontSize: 10, fill: '#64748b' }} width={110} />
+                        <YAxis type="category" dataKey="name" tick={{ fontSize: 10, fill: '#64748b' }} width={isMobile ? 80 : 110} />
                         <Tooltip content={<CustomTooltip />} />
                         <Bar dataKey="citas" name="Citas" fill="#8b5cf6" radius={[0, 4, 4, 0]} />
                       </BarChart>
@@ -310,7 +312,7 @@ export default function BiPage() {
                       <BarChart data={porTratamiento} layout="vertical" barSize={14}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false} />
                         <XAxis type="number" tick={{ fontSize: 10, fill: '#94a3b8' }} tickFormatter={v => '$' + (v / 1000).toFixed(0) + 'k'} />
-                        <YAxis type="category" dataKey="name" tick={{ fontSize: 10, fill: '#64748b' }} width={110} />
+                        <YAxis type="category" dataKey="name" tick={{ fontSize: 10, fill: '#64748b' }} width={isMobile ? 80 : 110} />
                         <Tooltip content={<CustomTooltip />} />
                         <Bar dataKey="ingresos" name="Ingresos" fill="#10b981" radius={[0, 4, 4, 0]} />
                       </BarChart>
@@ -319,10 +321,11 @@ export default function BiPage() {
                 </div>
 
                 {/* Tabla de rentabilidad */}
-                <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #e8edf2', overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
+                <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #e8edf2', overflow: 'visible', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
                   <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid #f1f5f9', fontSize: 13, fontWeight: 600, color: '#0f1e2b' }}>
                     Rentabilidad por tratamiento
                   </div>
+                  <div style={{ overflowX: 'auto' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                     <thead>
                       <tr style={{ background: '#f8fafc' }}>
@@ -351,6 +354,7 @@ export default function BiPage() {
                       ))}
                     </tbody>
                   </table>
+                  </div>
                 </div>
               </>
             )}
