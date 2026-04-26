@@ -6,8 +6,9 @@ import { TRAT_STYLE, ESTADO_STYLE, TRATAMIENTOS, ESTADOS, DURACIONES, horasDispo
 import { createClient } from '@/lib/supabase/client'
 import type { EstadoCita, TipoTratamiento } from '@/types'
 
-interface CitaDB { id:string; paciente_id:string; fecha_hora:string; tipo_tratamiento:string; estado:string; notas:string|null; duracion_minutos:number; valor:number|null; sena:number|null; pacientes:{nombre:string;telefono:string;token:string}|null }
-interface Cita   { id:string; paciente_id:string; nombre:string; telefono:string; token:string; hora:string; fecha:string; tratamiento:string; estado:EstadoCita; duracion:number; notas:string; minutos:number; valor:number|null; sena:number|null }
+interface CitaDB { id:string; paciente_id:string; fecha_hora:string; tipo_tratamiento:string; estado:string; notas:string|null; duracion_minutos:number; valor:number|null; sena:number|null; medio_pago:string|null; pacientes:{nombre:string;telefono:string;token:string}|null }
+interface Cita   { id:string; paciente_id:string; nombre:string; telefono:string; token:string; hora:string; fecha:string; tratamiento:string; estado:EstadoCita; duracion:number; notas:string; minutos:number; valor:number|null; sena:number|null; medio_pago:string|null }
+const MEDIOS_PAGO = ['Efectivo','Transferencia','TDC 1 pago','TDC 3 cuotas s/i','Obra social','Sin cobrar']
 interface PacMin  { id:string; nombre:string; telefono:string }
 interface TratDB  { nombre:string; precio_base:number|null; duracion_default:number|null }
 
@@ -22,7 +23,7 @@ function toCita(c: CitaDB): Cita {
     fecha:dt.toISOString().split('T')[0],
     tratamiento:c.tipo_tratamiento, estado:c.estado as EstadoCita,
     duracion:c.duracion_minutos, notas:c.notas??'',
-    minutos: h * 60 + m, valor:c.valor??null, sena:c.sena??null
+    minutos: h * 60 + m, valor:c.valor??null, sena:c.sena??null, medio_pago:c.medio_pago??null
   }
 }
 
@@ -235,6 +236,7 @@ export default function Agenda() {
   const [fValor,    setFValor]    = useState<number|''>('')
   const [fSena,     setFSena]     = useState<number|''>('')
   const [fDescuento,setFDescuento]= useState<number|''>('')
+  const [fMedioPago, setFMedioPago] = useState('')
 
   function msg(m:string,tipo='ok'){setToast({msg:m,tipo});setTimeout(()=>setToast(null),3500)}
 
@@ -273,9 +275,9 @@ export default function Agenda() {
   },[menuPos])
 
   function openNueva(f?:string, h?:string){
-    setFPac('');setFHora(h||'09:00');setFFecha(f||fecha);setFTrat('Consulta');setFEst('pendiente');setFDur(30);setFNotas('');setFValor('');setFSena('');setFDescuento('');setSel(null);setSobreturnoAgenda(null);setModal('nueva')
+    setFPac('');setFHora(h||'09:00');setFFecha(f||fecha);setFTrat('Consulta');setFEst('pendiente');setFDur(30);setFNotas('');setFValor('');setFSena('');setFDescuento('');setFMedioPago('');setSel(null);setSobreturnoAgenda(null);setModal('nueva')
   }
-  function openEditar(c:Cita){setSel(c);setFHora(c.hora);setFFecha(c.fecha);setFTrat(c.tratamiento);setFEst(c.estado);setFDur(c.duracion);setFNotas(c.notas);setFValor((c as any).valor??'');setFSena((c as any).sena??'');setFDescuento('');setModal('editar')}
+  function openEditar(c:Cita){setSel(c);setFHora(c.hora);setFFecha(c.fecha);setFTrat(c.tratamiento);setFEst(c.estado);setFDur(c.duracion);setFNotas(c.notas);setFValor(c.valor??'');setFSena(c.sena??'');setFDescuento('');setFMedioPago(c.medio_pago??'');setModal('editar')}
 
   function onChangeTrat(nombre: string) {
     setFTrat(nombre)
@@ -299,7 +301,7 @@ export default function Agenda() {
 
     setSobreturnoAgenda(null)
     setSaving(true)
-    const {error} = await supabase.from('citas').insert({paciente_id:fPac,fecha_hora:`${fFecha}T${fHora}:00-03:00`,tipo_tratamiento:fTrat,estado:fEst,duracion_minutos:fDur,notas:fNotas||null,valor:fValor||null,sena:fSena||null,tenant_id:'2845c423-affa-4ca2-9c5f-f4ec8e35701a'})
+    const {error} = await supabase.from('citas').insert({paciente_id:fPac,fecha_hora:`${fFecha}T${fHora}:00-03:00`,tipo_tratamiento:fTrat,estado:fEst,duracion_minutos:fDur,notas:fNotas||null,valor:fValor||null,sena:fSena||null,medio_pago:fMedioPago||null,tenant_id:'2845c423-affa-4ca2-9c5f-f4ec8e35701a'})
     setSaving(false)
     if(error) return msg('Error: '+error.message,'error')
     setModal(null);msg('Cita agendada ✓');loadCitas()
@@ -308,7 +310,7 @@ export default function Agenda() {
   async function saveEditar(){
     if(!sel) return
     setSaving(true)
-    const {error} = await supabase.from('citas').update({fecha_hora:`${fFecha}T${fHora}:00-03:00`,tipo_tratamiento:fTrat as TipoTratamiento,estado:fEst,duracion_minutos:fDur,notas:fNotas||null,valor:fValor||null,sena:fSena||null}).eq('id',sel.id)
+    const {error} = await supabase.from('citas').update({fecha_hora:`${fFecha}T${fHora}:00-03:00`,tipo_tratamiento:fTrat as TipoTratamiento,estado:fEst,duracion_minutos:fDur,notas:fNotas||null,valor:fValor||null,sena:fSena||null,medio_pago:fMedioPago||null}).eq('id',sel.id)
     setSaving(false)
     if(error) return msg('Error: '+error.message,'error')
     setModal(null);msg('Cita actualizada ✓');loadCitas()
@@ -563,8 +565,8 @@ export default function Agenda() {
             <div style={{fontSize:14,color:'#555',lineHeight:2}}>
               <div>📅 <strong>{sel.fecha}</strong> a las <strong>{sel.hora}</strong></div>
               <div>🦷 {sel.tratamiento} · {sel.duracion} min</div>
-{sel.valor&&<div>💰 Valor: <strong>${sel.valor}</strong>{sel.sena?<> · Seña: <strong>${sel.sena}</strong> · Saldo: <strong>${sel.valor-sel.sena}</strong></>:null}</div>}
-{(sel as any).valor&&<div>💰 Valor: <strong>${(sel as any).valor}</strong>{(sel as any).sena?<> · Seña: <strong>${(sel as any).sena}</strong> · Saldo: <strong>${(sel as any).valor-(sel as any).sena}</strong></>:null}</div>}
+{sel.valor!=null&&<div>💰 Valor: <strong>${sel.valor}</strong>{sel.sena?<> · Seña: <strong>${sel.sena}</strong> · Saldo: <strong>${sel.valor-sel.sena}</strong></>:null}</div>}
+              {sel.medio_pago&&<div>💳 Medio de pago: <strong>{sel.medio_pago}</strong></div>}
               <div>📞 <a href={`tel:${sel.telefono}`} style={{color:'#185FA5',textDecoration:'none'}}>{sel.telefono}</a></div>
               {sel.notas&&<div>📝 {sel.notas}</div>}
             </div>
@@ -630,6 +632,7 @@ export default function Agenda() {
               <div style={groupCss}><label style={labelCss}>Seña ($)</label><input type="number" style={{...selectCss}} value={fSena} onChange={e=>setFSena(e.target.value===''?'':Number(e.target.value))} placeholder="0"/></div>
             </div>
             {(fValor!==''||fSena!=='')&&<div style={{fontSize:13,color:'#888',padding:'0.25rem 0'}}>Saldo: <strong style={{color:'#222'}}>${(Number(fValor)||0)-(Number(fSena)||0)}</strong></div>}
+            <div style={groupCss}><label style={labelCss}>Medio de pago</label><select style={selectCss} value={fMedioPago} onChange={e=>setFMedioPago(e.target.value)}><option value="">— Sin especificar —</option>{MEDIOS_PAGO.map(m=><option key={m} value={m}>{m}</option>)}</select></div>
             <div style={footerCss}>
               <button style={btnLightCss} onClick={()=>setModal(null)} disabled={saving}>Cancelar</button>
               {sobreturnoAgenda && (
@@ -668,6 +671,7 @@ export default function Agenda() {
               <div style={groupCss}><label style={labelCss}>Seña ($)</label><input type="number" style={{...selectCss}} value={fSena} onChange={e=>setFSena(e.target.value===''?'':Number(e.target.value))} placeholder="0"/></div>
             </div>
             {(fValor!==''||fSena!=='')&&<div style={{fontSize:13,color:'#888',padding:'0.25rem 0'}}>Saldo: <strong style={{color:'#222'}}>${(Number(fValor)||0)-(Number(fSena)||0)}</strong></div>}
+            <div style={groupCss}><label style={labelCss}>Medio de pago</label><select style={selectCss} value={fMedioPago} onChange={e=>setFMedioPago(e.target.value)}><option value="">— Sin especificar —</option>{MEDIOS_PAGO.map(m=><option key={m} value={m}>{m}</option>)}</select></div>
             <div style={footerCss}>
               <button style={btnLightCss} onClick={()=>setModal(null)} disabled={saving}>Cancelar</button>
               <button style={{...btnDarkCss,opacity:saving?.6:1}} onClick={saveEditar} disabled={saving}>{saving?'Guardando...':'Guardar cambios'}</button>

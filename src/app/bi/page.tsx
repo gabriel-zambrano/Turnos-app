@@ -20,6 +20,13 @@ interface Cita {
   no_show: boolean | null
   duracion_minutos: number
 }
+interface CitaFact {
+  fecha_hora: string
+  tipo_tratamiento: string
+  valor: number
+  medio_pago: string | null
+  estado: string
+}
 
 const COLORES = ['#6366f1','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4']
 const ESTADOS_COLOR: Record<string, string> = {
@@ -103,13 +110,36 @@ export default function BiPage() {
   const [citas, setCitas] = useState<Cita[]>([])
   const [loading, setLoading] = useState(true)
   const [rango, setRango] = useState<'30' | '90' | '365'>('90')
-  const [tab, setTab] = useState<'overview' | 'tratamientos' | 'financiero'>('overview')
+  const [tab, setTab] = useState<'overview' | 'tratamientos' | 'financiero' | 'facturacion'>('overview')
+  const [mesFact, setMesFact] = useState(() => { const d = new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0') })
+  const [citasFact, setCitasFact] = useState<CitaFact[]>([])
+  const [loadingFact, setLoadingFact] = useState(false)
   const isMobile = useIsMobile()
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!session) window.location.replace('/login')
     })
   }, [])
+
+  useEffect(() => {
+    if (tab !== 'facturacion') return
+    async function loadFact() {
+      setLoadingFact(true)
+      const [y, m] = mesFact.split('-').map(Number)
+      const ultimoDia = new Date(y, m, 0).getDate()
+      const { data } = await supabase
+        .from('citas')
+        .select('fecha_hora,tipo_tratamiento,valor,medio_pago,estado')
+        .gte('fecha_hora', `${mesFact}-01T00:00:00-03:00`)
+        .lte('fecha_hora', `${mesFact}-${String(ultimoDia).padStart(2,'0')}T23:59:59-03:00`)
+        .neq('estado', 'cancelado')
+        .gt('valor', 0)
+        .order('fecha_hora', { ascending: true })
+      setCitasFact((data as CitaFact[]) ?? [])
+      setLoadingFact(false)
+    }
+    loadFact()
+  }, [tab, mesFact])
 
   useEffect(() => {
     async function load() {
@@ -220,9 +250,9 @@ export default function BiPage() {
 
         {/* Tabs */}
         <div style={{ display: 'flex', gap: 4, background: '#f1f5f9', borderRadius: 10, padding: 4, marginBottom: '1.5rem', width: '100%' }}>
-          {(['overview', 'tratamientos', 'financiero'] as const).map(t => (
+          {(['overview', 'tratamientos', 'financiero', 'facturacion'] as const).map(t => (
             <button key={t} onClick={() => setTab(t)} style={{ ...tabBtn(t), flex: 1, minWidth: 0 }}>
-              {t === 'overview' ? 'Resumen' : t === 'tratamientos' ? 'Tratamientos' : 'Financiero'}
+              {t === 'overview' ? 'Resumen' : t === 'tratamientos' ? 'Tratamientos' : t === 'financiero' ? 'Financiero' : 'Facturacion'}
             </button>
           ))}
         </div>
@@ -358,6 +388,89 @@ export default function BiPage() {
                 </div>
               </>
             )}
+
+            {tab === 'facturacion' && (() => {
+              const totalFact = citasFact.reduce((s, c) => s + c.valor, 0)
+              const subtotales: Record<string, number> = {}
+              citasFact.forEach(c => {
+                const mp = c.medio_pago ?? 'Sin especificar'
+                subtotales[mp] = (subtotales[mp] ?? 0) + c.valor
+              })
+              function exportarCSV() {
+                const headers = ['Fecha','Tratamiento','Monto','Medio de pago']
+                const rows = citasFact.map(c => [
+                  new Date(c.fecha_hora).toLocaleDateString('es-AR',{timeZone:'America/Argentina/Buenos_Aires',day:'2-digit',month:'2-digit',year:'numeric'}),
+                  c.tipo_tratamiento,
+                  c.valor,
+                  c.medio_pago ?? ''
+                ])
+                const csv = [headers,...rows].map(r=>r.join(',')).join('\n')
+                const blob = new Blob([csv],{type:'text/csv;charset=utf-8;'})
+                const url = URL.createObjectURL(blob)
+                const a = document.createElement('a'); a.href=url; a.download=`facturacion-${mesFact}.csv`; a.click()
+                URL.revokeObjectURL(url)
+              }
+              return (
+                <>
+                  {/* Filtro mes */}
+                  <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'1.25rem',flexWrap:'wrap',gap:10}}>
+                    <div style={{display:'flex',alignItems:'center',gap:10}}>
+                      <label style={{fontSize:13,fontWeight:600,color:'#64748b'}}>Mes:</label>
+                      <input type="month" value={mesFact} onChange={e=>setMesFact(e.target.value)} style={{fontSize:13,padding:'5px 10px',borderRadius:8,border:'1px solid #e2e8f0',fontFamily:'DM Sans, sans-serif',color:'#0f1e2b'}}/>
+                    </div>
+                    <button onClick={exportarCSV} disabled={citasFact.length===0} style={{fontSize:12,fontWeight:600,padding:'6px 16px',borderRadius:8,border:'none',background:citasFact.length===0?'#e2e8f0':'#0f1e2b',color:citasFact.length===0?'#94a3b8':'#fff',cursor:citasFact.length===0?'not-allowed':'pointer',fontFamily:'DM Sans, sans-serif'}}>
+                      Exportar CSV
+                    </button>
+                  </div>
+                  {loadingFact ? (
+                    <div style={{display:'flex',justifyContent:'center',paddingTop:'3rem'}}>
+                      <div style={{width:32,height:32,border:'3px solid #e2e8f0',borderTopColor:'#6366f1',borderRadius:'50%',animation:'spin 0.7s linear infinite'}}/>
+                    </div>
+                  ) : (
+                    <div style={{background:'#fff',borderRadius:16,border:'1px solid #e8edf2',boxShadow:'0 1px 4px rgba(0,0,0,0.04)',overflow:'hidden'}}>
+                      <div style={{overflowX:'auto'}}>
+                        <table style={{width:'100%',borderCollapse:'collapse',fontSize:13}}>
+                          <thead>
+                            <tr style={{background:'#f8fafc'}}>
+                              {['Fecha','Tratamiento','Monto','Medio de pago'].map(h=>(
+                                <th key={h} style={{padding:'0.75rem 1.25rem',textAlign:'left',fontWeight:600,color:'#64748b',fontSize:11,textTransform:'uppercase',letterSpacing:'0.05em'}}>{h}</th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {citasFact.length === 0 ? (
+                              <tr><td colSpan={4} style={{padding:'2rem',textAlign:'center',color:'#94a3b8',fontSize:13}}>Sin citas facturadas en este mes</td></tr>
+                            ) : citasFact.map((c, i) => (
+                              <tr key={i} style={{borderTop:'1px solid #f1f5f9'}}>
+                                <td style={{padding:'0.75rem 1.25rem',color:'#64748b',whiteSpace:'nowrap'}}>{new Date(c.fecha_hora).toLocaleDateString('es-AR',{timeZone:'America/Argentina/Buenos_Aires',day:'2-digit',month:'2-digit',year:'numeric'})}</td>
+                                <td style={{padding:'0.75rem 1.25rem',fontWeight:500,color:'#0f1e2b'}}>{c.tipo_tratamiento}</td>
+                                <td style={{padding:'0.75rem 1.25rem',fontWeight:600,color:'#059669'}}>{fmt(c.valor)}</td>
+                                <td style={{padding:'0.75rem 1.25rem',color:'#64748b'}}>{c.medio_pago ?? <span style={{color:'#cbd5e1'}}>—</span>}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                          {citasFact.length > 0 && (
+                            <tfoot>
+                              <tr style={{borderTop:'2px solid #e2e8f0',background:'#f8fafc'}}>
+                                <td colSpan={2} style={{padding:'0.85rem 1.25rem',fontWeight:700,color:'#0f1e2b',fontSize:13}}>Total del mes</td>
+                                <td style={{padding:'0.85rem 1.25rem',fontWeight:700,color:'#059669',fontSize:14}}>{fmt(totalFact)}</td>
+                                <td style={{padding:'0.85rem 1.25rem'}}>
+                                  <div style={{display:'flex',flexDirection:'column',gap:2}}>
+                                    {Object.entries(subtotales).sort((a,b)=>b[1]-a[1]).map(([mp,sub])=>(
+                                      <span key={mp} style={{fontSize:11,color:'#64748b'}}>{mp}: <strong style={{color:'#0f1e2b'}}>{fmt(sub)}</strong></span>
+                                    ))}
+                                  </div>
+                                </td>
+                              </tr>
+                            </tfoot>
+                          )}
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )
+            })()}
 
             {tab === 'financiero' && (
               <>
