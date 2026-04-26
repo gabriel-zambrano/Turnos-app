@@ -8,7 +8,8 @@ import type { EstadoCita, TipoTratamiento } from '@/types'
 
 interface CitaDB { id:string; paciente_id:string; fecha_hora:string; tipo_tratamiento:string; estado:string; notas:string|null; duracion_minutos:number; valor:number|null; sena:number|null; pacientes:{nombre:string;telefono:string;token:string}|null }
 interface Cita   { id:string; paciente_id:string; nombre:string; telefono:string; token:string; hora:string; fecha:string; tratamiento:string; estado:EstadoCita; duracion:number; notas:string; minutos:number; valor:number|null; sena:number|null }
-interface PacMin { id:string; nombre:string; telefono:string }
+interface PacMin  { id:string; nombre:string; telefono:string }
+interface TratDB  { nombre:string; precio_base:number|null; duracion_default:number|null }
 
 function toCita(c: CitaDB): Cita {
   const dt = new Date(c.fecha_hora)
@@ -198,6 +199,7 @@ export default function Agenda() {
   const supabase = createClient()
   const [citas,   setCitas]   = useState<Cita[]>([])
   const [pacs,    setPacs]    = useState<PacMin[]>([])
+  const [tratamientosDB, setTratamientosDB] = useState<TratDB[]>([])
   const [loading, setLoading] = useState(true)
   const [saving,  setSaving]  = useState(false)
   const [sobreturnoAgenda, setSobreturnoAgenda] = useState<string|null>(null)
@@ -255,8 +257,14 @@ export default function Agenda() {
     if(data) setPacs(data as PacMin[])
   },[])
 
+  const loadTratamientos = useCallback(async()=>{
+    const {data} = await supabase.from('tratamientos').select('nombre,precio_base,duracion_default').eq('activo',true).order('nombre')
+    if(data) setTratamientosDB(data as TratDB[])
+  },[])
+
   useEffect(()=>{loadCitas();loadBloqueos(semana[0],semana[5])},[loadCitas])
   useEffect(()=>{loadPacs()},[loadPacs])
+  useEffect(()=>{loadTratamientos()},[loadTratamientos])
   useEffect(()=>{
     if(!menuPos) return
     const handler = () => setMenuPos(null)
@@ -268,6 +276,15 @@ export default function Agenda() {
     setFPac('');setFHora(h||'09:00');setFFecha(f||fecha);setFTrat('Consulta');setFEst('pendiente');setFDur(30);setFNotas('');setFValor('');setFSena('');setFDescuento('');setSel(null);setSobreturnoAgenda(null);setModal('nueva')
   }
   function openEditar(c:Cita){setSel(c);setFHora(c.hora);setFFecha(c.fecha);setFTrat(c.tratamiento);setFEst(c.estado);setFDur(c.duracion);setFNotas(c.notas);setFValor((c as any).valor??'');setFSena((c as any).sena??'');setFDescuento('');setModal('editar')}
+
+  function onChangeTrat(nombre: string) {
+    setFTrat(nombre)
+    const t = tratamientosDB.find(t => t.nombre === nombre)
+    if(t) {
+      if(t.duracion_default) setFDur(t.duracion_default)
+      if(t.precio_base != null) setFValor(t.precio_base)
+    }
+  }
 
  async function saveNueva(forzar = false){
     if(!fPac) return msg('Seleccioná un paciente','error')
@@ -603,7 +620,7 @@ export default function Agenda() {
               <div style={groupCss}><label style={labelCss}>Horario</label><select style={selectCss} value={fHora} onChange={e=>setFHora(e.target.value)}>{horasDisponibles().map(h=><option key={h} value={h}>{h}</option>)}</select></div>
             </div>
             <div style={grid2Css}>
-              <div style={groupCss}><label style={labelCss}>Tratamiento</label><select style={selectCss} value={fTrat} onChange={e=>setFTrat(e.target.value)}>{TRATAMIENTOS.map(t=><option key={t} value={t}>{t}</option>)}</select></div>
+              <div style={groupCss}><label style={labelCss}>Tratamiento</label><select style={selectCss} value={fTrat} onChange={e=>onChangeTrat(e.target.value)}>{(tratamientosDB.length?tratamientosDB.map(t=>t.nombre):TRATAMIENTOS).map(t=><option key={t} value={t}>{t}</option>)}</select></div>
               <div style={groupCss}><label style={labelCss}>Duración</label><select style={selectCss} value={fDur} onChange={e=>setFDur(Number(e.target.value))}>{DURACIONES.map(d=><option key={d} value={d}>{d} min</option>)}</select></div>
             </div>
             <div style={groupCss}><label style={labelCss}>Estado</label><select style={selectCss} value={fEst} onChange={e=>setFEst(e.target.value as EstadoCita)}>{ESTADOS.map(est=><option key={est} value={est}>{est.charAt(0).toUpperCase()+est.slice(1)}</option>)}</select></div>
