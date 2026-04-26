@@ -231,7 +231,7 @@ export default function BiPage() {
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: '#f4f7fb', fontFamily: 'DM Sans, sans-serif' }}>
       <Sidebar />
-      <main style={{ flex: 1, padding: isMobile ? '1rem' : '2rem', marginLeft: 0, minWidth: 0, overflowY: 'auto', paddingBottom: 80 }}>
+      <main style={{ flex: 1, padding: isMobile ? '1rem' : '2rem', marginLeft: isMobile ? 0 : 240, minWidth: 0, overflowY: 'auto', paddingBottom: 80 }}>
 
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.75rem', flexWrap: 'wrap', gap: 12 }}>
