@@ -3,12 +3,13 @@ import { usePathname, useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
 
 const NAV = [
-  { href: '/dashboard',     label: 'Dashboard',  icon: 'grid'  },
-  { href: '/agenda',        label: 'Agenda',     icon: 'cal'   },
-  { href: '/pacientes',     label: 'Pacientes',  icon: 'users' },
-  { href: '/seguimiento',   label: 'Seguim.',    icon: 'radar' },
-  { href: '/recordatorios', label: 'Turnos',     icon: 'bell'  },
-  { href: '/bi',            label: 'Analítica',  icon: 'chart' },
+  { href: '/dashboard',              label: 'Dashboard',    icon: 'grid'  },
+  { href: '/agenda',                 label: 'Agenda',       icon: 'cal'   },
+  { href: '/pacientes',              label: 'Pacientes',    icon: 'users' },
+  { href: '/seguimiento',            label: 'Seguim.',      icon: 'radar' },
+  { href: '/recordatorios',          label: 'Turnos',       icon: 'bell'  },
+  { href: '/bi',                     label: 'Analitica',    icon: 'chart' },
+  { href: '/admin/tratamientos',     label: 'Precios',      icon: 'trat', adminOnly: true },
 ]
 
 const ICONS: Record<string, React.ReactNode> = {
@@ -19,6 +20,7 @@ const ICONS: Record<string, React.ReactNode> = {
   radar: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>,
   chart: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>,
   out:   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>,
+  trat:  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>,
 }
 
 export function Sidebar({ pendientes }: { pendientes?: number }) {
@@ -35,7 +37,7 @@ export function Sidebar({ pendientes }: { pendientes?: number }) {
   if (isMobile) {
     return (
       <nav style={{ position: 'fixed', bottom: 0, left: 0, right: 0, height: 64, background: 'rgba(255,255,255,0.92)', backdropFilter: 'blur(16px)', borderTop: '1px solid rgba(56,138,221,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'space-around', zIndex: 100, padding: '0 8px' }}>
-        {NAV.map(item => {
+        {NAV.filter(item => !item.adminOnly).map(item => {
           const active = path === item.href || (item.href !== '/dashboard' && path?.startsWith(item.href))
           return (
             <button key={item.href} onClick={() => router.push(item.href)} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, padding: '8px 4px', borderRadius: 12, border: 'none', background: active ? 'linear-gradient(135deg,#e8f0fc,#dbeeff)' : 'transparent', color: active ? '#185FA5' : '#8fa3bc', cursor: 'pointer', fontFamily: 'DM Sans, sans-serif', position: 'relative', minWidth: 0 }}>
