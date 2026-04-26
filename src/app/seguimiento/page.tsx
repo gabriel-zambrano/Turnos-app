@@ -123,12 +123,12 @@ export default function SeguimientoPage() {
 
   function mensajeWA(p: PacienteAlerta) {
     const link = p.token ? `${window.location.origin}/paciente/${p.token}` : ''
-    const footer = `\n\n_Consultorio Dr. Walter Benegas — Palermo, CABA_`
+    const footer = `\n\n_Consultorio Dr. Walter Benegas - Av Santa Fe 3329 1 B - Palermo, CABA_`
     if (p.motivo === 'ortodoncia_vencida')
-      return `Hola ${p.nombre} 👋\n\nTe escribimos del consultorio del *Dr. Walter Benegas*. Notamos que ya pasaron ${p.diasDesde} días desde tu último ajuste de ortodoncia.\n\n¿Querés coordinar un turno?\n👉 ${link}${footer}`
+      return `Hola ${p.nombre},\n\nTe escribimos del consultorio del *Dr. Walter Benegas*. Notamos que ya pasaron ${p.diasDesde} dias desde tu ultimo ajuste de ortodoncia.\n\nQueres coordinar un turno?\n${link}${footer}`
     if (p.motivo === 'limpieza_vencida')
-      return `Hola ${p.nombre} 👋\n\nTe escribimos del consultorio del *Dr. Walter Benegas*. Ya pasaron más de 6 meses desde tu última limpieza dental.\n\n¿Querés sacar un turno?\n👉 ${link}${footer}`
-    return `Hola ${p.nombre} 👋\n\nTe escribimos del consultorio del *Dr. Walter Benegas*. Queremos recordarte que podés sacar turno cuando quieras.\n\n👉 ${link}${footer}`
+      return `Hola ${p.nombre},\n\nTe escribimos del consultorio del *Dr. Walter Benegas*. Ya pasaron mas de 6 meses desde tu ultima limpieza dental.\n\nQueres sacar un turno?\n${link}${footer}`
+    return `Hola ${p.nombre},\n\nTe escribimos del consultorio del *Dr. Walter Benegas*. Queriamos recordarte que podes sacar turno cuando quieras.\n\n${link}${footer}`
   }
 
   function enviarWA(p: PacienteAlerta) {

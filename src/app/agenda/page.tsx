@@ -563,13 +563,13 @@ export default function Agenda() {
                 const d   = parseFechaLocal(sel.fecha)
                 const fechaLarga = d.toLocaleDateString('es-AR',{weekday:'long',day:'numeric',month:'long'})
                 const txt = encodeURIComponent(
-                  `Hola ${sel.nombre} 👋\n\n` +
+                  `Hola ${sel.nombre},\n\n` +
                   `Te recordamos tu turno con el *Dr. Walter Benegas*:\n\n` +
-                  `📅 ${fechaLarga} a las *${sel.hora}hs*\n` +
-                  `🦷 ${sel.tratamiento}\n\n` +
-                  `Podés confirmar o cancelar tu turno acá:\n` +
-                  `👉 https://turnos.walterbenegas.com.ar/paciente/${sel.token}\n\n` +
-                  `_Consultorio Dr. Walter Benegas — Palermo, CABA_`
+                  `${fechaLarga} a las *${sel.hora}hs*\n` +
+                  `${sel.tratamiento}\n\n` +
+                  `Confirma o cancela tu turno aca:\n` +
+                  `https://turnos.walterbenegas.com.ar/paciente/${sel.token}\n\n` +
+                  `_Consultorio Dr. Walter Benegas - Av Santa Fe 3329 1 B - Palermo, CABA_`
                 )
                 window.open(`https://wa.me/${num}?text=${txt}`,'_blank')
               }}>

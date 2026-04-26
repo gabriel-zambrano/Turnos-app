@@ -120,7 +120,7 @@ export default function Pacientes() {
                       <BtnSm variant="edit" onClick={()=>openEditar(p)}>Editar</BtnSm>
                       <BtnSm variant="delete" onClick={()=>{setSel(p);setModal('borrar')}}>Eliminar</BtnSm>
                       {p.token
-                        ?<BtnSm variant="edit" onClick={()=>{const url=`https://turnos.walterbenegas.com.ar/paciente/${p.token}`;const txt=encodeURIComponent(`Hola ${p.nombre} 👋\n\nTe compartimos el link para ver y gestionar tu turno con el *Dr. Walter Benegas*:\n👉 ${url}\n\n_Consultorio Dr. Walter Benegas — Palermo, CABA_`);window.open(`https://wa.me/${normalizarTelefono(p.telefono??'')}?text=${txt}`,'_blank')}}>WhatsApp</BtnSm>
+                        ?<BtnSm variant="edit" onClick={()=>{const url=`https://turnos.walterbenegas.com.ar/paciente/${p.token}`;const txt=encodeURIComponent(`Hola ${p.nombre},\n\nTe compartimos el link para ver y gestionar tu turno con el *Dr. Walter Benegas*:\n${url}\n\n_Consultorio Dr. Walter Benegas - Av Santa Fe 3329 1 B - Palermo, CABA_`);window.open(`https://wa.me/${normalizarTelefono(p.telefono??'')}?text=${txt}`,'_blank')}}>WhatsApp</BtnSm>
                         :<BtnSm variant="edit" onClick={async()=>{const tok=crypto.randomUUID();await supabase.from('pacientes').update({token:tok}).eq('id',p.id);msg('Link generado ✓');load()}}>Generar link</BtnSm>
                       }
                     </div>
@@ -145,7 +145,7 @@ export default function Pacientes() {
                       <BtnSm variant="edit" onClick={()=>openEditar(p)}>Editar</BtnSm>
                       <BtnSm variant="delete" onClick={()=>{setSel(p);setModal('borrar')}}>Eliminar</BtnSm>
                       {p.token
-                        ?<BtnSm variant="edit" onClick={()=>{const url=`https://turnos.walterbenegas.com.ar/paciente/${p.token}`;const txt=encodeURIComponent(`Hola ${p.nombre} 👋\n\nTe compartimos el link para ver y gestionar tu turno con el *Dr. Walter Benegas*:\n👉 ${url}\n\n_Consultorio Dr. Walter Benegas — Palermo, CABA_`);window.open(`https://wa.me/${normalizarTelefono(p.telefono??'')}?text=${txt}`,'_blank')}}>WhatsApp</BtnSm>
+                        ?<BtnSm variant="edit" onClick={()=>{const url=`https://turnos.walterbenegas.com.ar/paciente/${p.token}`;const txt=encodeURIComponent(`Hola ${p.nombre},\n\nTe compartimos el link para ver y gestionar tu turno con el *Dr. Walter Benegas*:\n${url}\n\n_Consultorio Dr. Walter Benegas - Av Santa Fe 3329 1 B - Palermo, CABA_`);window.open(`https://wa.me/${normalizarTelefono(p.telefono??'')}?text=${txt}`,'_blank')}}>WhatsApp</BtnSm>
                         :<BtnSm variant="edit" onClick={async()=>{const tok=crypto.randomUUID();await supabase.from('pacientes').update({token:tok}).eq('id',p.id);msg('Link generado ✓');load()}}>Generar link</BtnSm>
                       }
                     </div></TD>

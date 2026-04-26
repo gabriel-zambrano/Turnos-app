@@ -74,13 +74,13 @@ function generateICS(t: Turno) {
 function compartirWhatsApp(t: Turno, paciente: Paciente, token: string) {
   const { dia, fecha, hora } = formatFecha(t.fecha_hora)
   const msg = encodeURIComponent(
-    `Hola ${paciente.nombre} 👋\n\n` +
+    `Hola ${paciente.nombre},\n\n` +
     `Te recordamos tu turno con el *Dr. Walter Benegas*:\n\n` +
-    `📅 ${dia} ${fecha} a las *${hora}hs*\n` +
-    `🦷 ${t.tipo_tratamiento}\n\n` +
-    `Podés confirmar o cancelar tu turno acá:\n` +
-    `👉 https://turnos.walterbenegas.com.ar/paciente/${token}\n\n` +
-    `_Consultorio Dr. Walter Benegas — Palermo, CABA_`
+    `${dia} ${fecha} a las *${hora}hs*\n` +
+    `${t.tipo_tratamiento}\n\n` +
+    `Confirma o cancela tu turno aca:\n` +
+    `https://turnos.walterbenegas.com.ar/paciente/${token}\n\n` +
+    `_Consultorio Dr. Walter Benegas - Av Santa Fe 3329 1 B - Palermo, CABA_`
   )
   window.open('https://wa.me/?text=' + msg, '_blank')
 }
