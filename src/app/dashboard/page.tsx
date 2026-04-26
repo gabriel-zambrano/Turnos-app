@@ -3,11 +3,12 @@ import { useAuth } from '@/hooks/useAuth'
 import { useState, useEffect, useCallback } from 'react'
 import { Sidebar } from '@/components/Sidebar'
 import { Badge, Toast, PageHeader, FilterBar, Spinner, MetricCard } from '@/components/UI'
-import { TRAT_STYLE, ESTADO_STYLE, hoyISO } from '@/lib/constants'
+import { TRAT_STYLE, ESTADO_STYLE, hoyISO, normalizarTelefono } from '@/lib/constants'
 import { createClient } from '@/lib/supabase/client'
 import type { EstadoCita } from '@/types'
 
 interface Cita { id:string; nombre:string; hora:string; tratamiento:string; estado:EstadoCita; telefono:string }
+interface CitaMañana extends Cita { token:string|null; fecha_hora:string }
 interface LogItem { id:string; paciente:string; canal:string; estado:string; hora:string }
 const FILTROS = [{k:'todas',l:'Todas'},{k:'pendiente',l:'Pendientes'},{k:'confirmado',l:'Confirmadas'}]
 
@@ -21,6 +22,7 @@ export default function Dashboard() {
     })
   }, [])
   const [citas, setCitas] = useState<Cita[]>([])
+  const [citasMañana, setCitasMañana] = useState<CitaMañana[]>([])
   const [isMobile, setIsMobile] = useState(false)
   useEffect(()=>{
     const check = () => setIsMobile(window.innerWidth < 768)
@@ -43,12 +45,26 @@ export default function Dashboard() {
 
   const load = useCallback(async()=>{
     setLoading(true)
-    const {data} = await supabase.from('citas').select('id,tipo_tratamiento,estado,fecha_hora,pacientes(nombre,telefono)').gte('fecha_hora',`${hoyISO()}T00:00:00`).lte('fecha_hora',`${hoyISO()}T23:59:59`).order('fecha_hora',{ascending:true})
-    if(data){
-      setCitas((data as any[]).map(c=>({
+    const man = new Date(new Date().toLocaleString('en-US',{timeZone:'America/Argentina/Buenos_Aires'}))
+    man.setDate(man.getDate()+1)
+    const manISO = man.getFullYear()+'-'+String(man.getMonth()+1).padStart(2,'0')+'-'+String(man.getDate()).padStart(2,'0')
+    const [resHoy, resMan] = await Promise.all([
+      supabase.from('citas').select('id,tipo_tratamiento,estado,fecha_hora,pacientes(nombre,telefono)').gte('fecha_hora',`${hoyISO()}T00:00:00`).lte('fecha_hora',`${hoyISO()}T23:59:59`).order('fecha_hora',{ascending:true}),
+      supabase.from('citas').select('id,tipo_tratamiento,estado,fecha_hora,pacientes(nombre,telefono,token)').gte('fecha_hora',`${manISO}T00:00:00-03:00`).lte('fecha_hora',`${manISO}T23:59:59-03:00`).order('fecha_hora',{ascending:true}),
+    ])
+    if(resHoy.data){
+      setCitas((resHoy.data as any[]).map(c=>({
         id:c.id, nombre:c.pacientes?.nombre??'—', telefono:c.pacientes?.telefono??'—',
         hora:new Date(c.fecha_hora).toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}),
         tratamiento:c.tipo_tratamiento, estado:c.estado,
+      })))
+    }
+    if(resMan.data){
+      setCitasMañana((resMan.data as any[]).map(c=>({
+        id:c.id, nombre:c.pacientes?.nombre??'—', telefono:c.pacientes?.telefono??'—',
+        hora:new Date(c.fecha_hora).toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit',timeZone:'America/Argentina/Buenos_Aires'}),
+        tratamiento:c.tipo_tratamiento, estado:c.estado,
+        token:c.pacientes?.token??null, fecha_hora:c.fecha_hora,
       })))
     }
     setLoading(false)
@@ -179,6 +195,50 @@ export default function Dashboard() {
                 <div style={{flex:1,background:'#FAECE7',borderRadius:10,padding:'0.7rem',textAlign:'center'}}><div style={{fontSize:20,fontWeight:700,color:'#712B13'}}>{logFail}</div><div style={{fontSize:11,color:'#D85A30'}}>Fallidos</div></div>
               </div>
             </div>
+          </div>
+          <div style={{marginTop:24}}>
+            <div style={{fontWeight:600,fontSize:14,marginBottom:12}}>Turnos de mañana ({citasMañana.length})</div>
+            {loading?<Spinner/>:citasMañana.length===0
+              ?<div style={{textAlign:'center',color:'#ccc',padding:'2rem',fontSize:13,background:'#fff',border:'0.5px solid #e8e8e8',borderRadius:12}}>Sin turnos para mañana</div>
+              :<div style={{display:'flex',flexDirection:'column',gap:8}}>
+                {citasMañana.map(c=>{
+                  const tc=TRAT_STYLE[c.tratamiento]||TRAT_STYLE.Consulta
+                  const ar=new Date(new Date(c.fecha_hora).toLocaleString('en-US',{timeZone:'America/Argentina/Buenos_Aires'}))
+                  const DIAS=['Domingo','Lunes','Martes','Miercoles','Jueves','Viernes','Sabado']
+                  const MESES=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre']
+                  const dia=DIAS[ar.getDay()]
+                  const fecha=ar.getDate()+' de '+MESES[ar.getMonth()]
+                  const hora=String(ar.getHours()).padStart(2,'0')+':'+String(ar.getMinutes()).padStart(2,'0')
+                  return(
+                    <div key={c.id} style={{background:'#fff',border:'0.5px solid #e5e5e5',borderRadius:12,padding:isMobile?'0.75rem':'0.85rem 1rem',display:'flex',alignItems:isMobile?'flex-start':'center',flexWrap:isMobile?'wrap':'nowrap',gap:isMobile?8:14}}>
+                      <div style={{fontSize:13,fontWeight:700,color:'#0f1e2b',minWidth:40,textAlign:'center'}}>{c.hora}</div>
+                      <div style={{width:8,height:8,borderRadius:'50%',background:tc.dot,flexShrink:0,marginTop:isMobile?4:0}}/>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{fontWeight:600,fontSize:14,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{c.nombre}</div>
+                        <div style={{marginTop:3}}><Badge bg={tc.bg} color={tc.color}>{c.tratamiento}</Badge></div>
+                      </div>
+                      {c.token&&(
+                        <button onClick={()=>{
+                          const txt=encodeURIComponent(
+                            `Hola ${c.nombre},\n\n`+
+                            `Te recordamos tu turno con el *Dr. Walter Benegas*:\n\n`+
+                            `${dia} ${fecha} a las *${hora}hs*\n`+
+                            `${c.tratamiento}\n\n`+
+                            `Confirma o cancela tu turno aca:\n`+
+                            `https://turnos.walterbenegas.com.ar/paciente/${c.token}\n\n`+
+                            `Recorda que los turnos no cancelados con mas de 48hs de anticipacion o no asistidos deben ser abonados.\n\n`+
+                            `_Consultorio Dr. Walter Benegas - Av. Santa Fe 3329 1 B - Palermo, CABA_`
+                          )
+                          window.open(`https://wa.me/${normalizarTelefono(c.telefono)}?text=${txt}`,'_blank')
+                        }} style={{fontSize:11,padding:'4px 10px',borderRadius:7,border:'0.5px solid rgba(18,140,126,0.3)',background:'#E1F5EE',color:'#085041',cursor:'pointer',fontWeight:500,fontFamily:'DM Sans, sans-serif',whiteSpace:'nowrap'}}>
+                          WhatsApp
+                        </button>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            }
           </div>
         </div>
       </main>
