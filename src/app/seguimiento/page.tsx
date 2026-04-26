@@ -123,7 +123,7 @@ export default function SeguimientoPage() {
 
   function mensajeWA(p: PacienteAlerta) {
     const link = p.token ? `${window.location.origin}/paciente/${p.token}` : ''
-    const footer = `\n\n_Consultorio Dr. Walter Benegas - Av Santa Fe 3329 1 B - Palermo, CABA_`
+    const footer = `\n\nRecorda que los turnos no cancelados con mas de 48hs de anticipacion o no asistidos deben ser abonados.\n\n_Consultorio Dr. Walter Benegas - Av. Santa Fe 3329 1 B - Palermo, CABA_`
     if (p.motivo === 'ortodoncia_vencida')
       return `Hola ${p.nombre},\n\nTe escribimos del consultorio del *Dr. Walter Benegas*. Notamos que ya pasaron ${p.diasDesde} dias desde tu ultimo ajuste de ortodoncia.\n\nQueres coordinar un turno?\n${link}${footer}`
     if (p.motivo === 'limpieza_vencida')

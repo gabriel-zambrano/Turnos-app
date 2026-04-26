@@ -80,7 +80,8 @@ function compartirWhatsApp(t: Turno, paciente: Paciente, token: string) {
     `${t.tipo_tratamiento}\n\n` +
     `Confirma o cancela tu turno aca:\n` +
     `https://turnos.walterbenegas.com.ar/paciente/${token}\n\n` +
-    `_Consultorio Dr. Walter Benegas - Av Santa Fe 3329 1 B - Palermo, CABA_`
+    `Recorda que los turnos no cancelados con mas de 48hs de anticipacion o no asistidos deben ser abonados.\n\n` +
+    `_Consultorio Dr. Walter Benegas - Av. Santa Fe 3329 1 B - Palermo, CABA_`
   )
   window.open('https://wa.me/?text=' + msg, '_blank')
 }
