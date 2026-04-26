@@ -83,6 +83,7 @@ export default function TratamientosPage() {
       precio_base: fPrecio === '' ? null : fPrecio,
       duracion_default: fDuracion === '' ? null : fDuracion,
       activo: true,
+      tenant_id: '2845c423-affa-4ca2-9c5f-f4ec8e35701a',
     })
     setGuardando(false)
     if (error) { msg('Error: ' + error.message, 'error'); return }
