@@ -34,6 +34,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true)
   const [enviando, setEnviando] = useState(false)
   const [filtro, setFiltro] = useState('todas')
+  const [mostrarMañana, setMostrarMañana] = useState(false)
   const [toast, setToast] = useState<{msg:string;tipo:string}|null>(null)
   const [hoy, setHoy] = useState('')
 
@@ -196,49 +197,56 @@ export default function Dashboard() {
               </div>
             </div>
           </div>
-          <div style={{marginTop:24}}>
-            <div style={{fontWeight:600,fontSize:14,marginBottom:12}}>Turnos de mañana ({citasMañana.length})</div>
-            {loading?<Spinner/>:citasMañana.length===0
-              ?<div style={{textAlign:'center',color:'#ccc',padding:'2rem',fontSize:13,background:'#fff',border:'0.5px solid #e8e8e8',borderRadius:12}}>Sin turnos para mañana</div>
-              :<div style={{display:'flex',flexDirection:'column',gap:8}}>
-                {citasMañana.map(c=>{
-                  const tc=TRAT_STYLE[c.tratamiento]||TRAT_STYLE.Consulta
-                  const ar=new Date(new Date(c.fecha_hora).toLocaleString('en-US',{timeZone:'America/Argentina/Buenos_Aires'}))
-                  const DIAS=['Domingo','Lunes','Martes','Miercoles','Jueves','Viernes','Sabado']
-                  const MESES=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre']
-                  const dia=DIAS[ar.getDay()]
-                  const fecha=ar.getDate()+' de '+MESES[ar.getMonth()]
-                  const hora=String(ar.getHours()).padStart(2,'0')+':'+String(ar.getMinutes()).padStart(2,'0')
-                  return(
-                    <div key={c.id} style={{background:'#fff',border:'0.5px solid #e5e5e5',borderRadius:12,padding:isMobile?'0.75rem':'0.85rem 1rem',display:'flex',alignItems:isMobile?'flex-start':'center',flexWrap:isMobile?'wrap':'nowrap',gap:isMobile?8:14}}>
-                      <div style={{fontSize:13,fontWeight:700,color:'#0f1e2b',minWidth:40,textAlign:'center'}}>{c.hora}</div>
-                      <div style={{width:8,height:8,borderRadius:'50%',background:tc.dot,flexShrink:0,marginTop:isMobile?4:0}}/>
-                      <div style={{flex:1,minWidth:0}}>
-                        <div style={{fontWeight:600,fontSize:14,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{c.nombre}</div>
-                        <div style={{marginTop:3}}><Badge bg={tc.bg} color={tc.color}>{c.tratamiento}</Badge></div>
-                      </div>
-                      {c.token&&(
-                        <button onClick={()=>{
-                          const txt=encodeURIComponent(
-                            `Hola ${c.nombre},\n\n`+
-                            `Te recordamos tu turno con el *Dr. Walter Benegas*:\n\n`+
-                            `${dia} ${fecha} a las *${hora}hs*\n`+
-                            `${c.tratamiento}\n\n`+
-                            `Confirma o cancela tu turno aca:\n`+
-                            `https://turnos.walterbenegas.com.ar/paciente/${c.token}\n\n`+
-                            `Recorda que los turnos no cancelados con mas de 48hs de anticipacion o no asistidos deben ser abonados.\n\n`+
-                            `_Consultorio Dr. Walter Benegas - Av. Santa Fe 3329 1 B - Palermo, CABA_`
-                          )
-                          window.open(`https://wa.me/${normalizarTelefono(c.telefono)}?text=${txt}`,'_blank')
-                        }} style={{fontSize:11,padding:'4px 10px',borderRadius:7,border:'0.5px solid rgba(18,140,126,0.3)',background:'#E1F5EE',color:'#085041',cursor:'pointer',fontWeight:500,fontFamily:'DM Sans, sans-serif',whiteSpace:'nowrap'}}>
-                          WhatsApp
-                        </button>
-                      )}
-                    </div>
-                  )
-                })}
+          <div style={{marginTop:32,borderTop:'1px solid #f0f0ee',paddingTop:24}}>
+            {/* Header */}
+            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:mostrarMañana?16:0}}>
+              <div style={{display:'flex',alignItems:'center',gap:10}}>
+                <span style={{fontWeight:700,fontSize:15,color:'#0a1e3d'}}>Turnos de mañana</span>
+                <span style={{fontSize:12,fontWeight:700,padding:'2px 10px',borderRadius:20,background:'#E1F5EE',color:'#138A6B'}}>{citasMañana.length}</span>
               </div>
-            }
+              <button onClick={()=>setMostrarMañana(v=>!v)} style={{fontSize:12,fontWeight:600,padding:'5px 14px',borderRadius:8,border:'0.5px solid #e0e0e0',background:'#fff',color:'#0a1e3d',cursor:'pointer',fontFamily:'DM Sans, sans-serif',display:'flex',alignItems:'center',gap:5}}>
+                {mostrarMañana?'Ocultar ▲':'Ver turnos ▼'}
+              </button>
+            </div>
+            {/* Lista colapsable */}
+            {mostrarMañana&&(
+              loading?<Spinner/>:citasMañana.length===0
+                ?<div style={{textAlign:'center',color:'#ccc',padding:'2rem',fontSize:13,background:'#fff',border:'0.5px solid #e8e8e8',borderRadius:12}}>Sin turnos para mañana</div>
+                :<div style={{display:'grid',gridTemplateColumns:isMobile?'1fr':'repeat(3,1fr)',gap:12}}>
+                  {citasMañana.map(c=>{
+                    const ar=new Date(new Date(c.fecha_hora).toLocaleString('en-US',{timeZone:'America/Argentina/Buenos_Aires'}))
+                    const DIAS=['Domingo','Lunes','Martes','Miercoles','Jueves','Viernes','Sabado']
+                    const MESES=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre']
+                    const dia=DIAS[ar.getDay()]
+                    const fecha=ar.getDate()+' de '+MESES[ar.getMonth()]
+                    const hora=String(ar.getHours()).padStart(2,'0')+':'+String(ar.getMinutes()).padStart(2,'0')
+                    return(
+                      <div key={c.id} style={{background:'#fff',borderRadius:12,padding:16,boxShadow:'0 2px 8px rgba(0,0,0,0.08)',display:'flex',flexDirection:'column',gap:8}}>
+                        <div style={{fontSize:22,fontWeight:700,color:'#138A6B',lineHeight:1}}>{c.hora}</div>
+                        <div style={{fontWeight:600,fontSize:14,color:'#0a1e3d',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{c.nombre}</div>
+                        <div style={{fontSize:13,color:'#8fa3bc'}}>{c.tratamiento}</div>
+                        {c.token&&(
+                          <button onClick={()=>{
+                            const txt=encodeURIComponent(
+                              `Hola ${c.nombre},\n\n`+
+                              `Te recordamos tu turno con el *Dr. Walter Benegas*:\n\n`+
+                              `${dia} ${fecha} a las *${hora}hs*\n`+
+                              `${c.tratamiento}\n\n`+
+                              `Confirma o cancela tu turno aca:\n`+
+                              `https://turnos.walterbenegas.com.ar/paciente/${c.token}\n\n`+
+                              `Recorda que los turnos no cancelados con mas de 48hs de anticipacion o no asistidos deben ser abonados.\n\n`+
+                              `_Consultorio Dr. Walter Benegas - Av. Santa Fe 3329 1 B - Palermo, CABA_`
+                            )
+                            window.open(`https://wa.me/${normalizarTelefono(c.telefono)}?text=${txt}`,'_blank')
+                          }} style={{marginTop:'auto',width:'100%',padding:'7px 0',borderRadius:8,border:'none',background:'#138A6B',color:'#fff',fontWeight:600,fontSize:12,cursor:'pointer',fontFamily:'DM Sans, sans-serif'}}>
+                            WhatsApp
+                          </button>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+            )}
           </div>
         </div>
       </main>
