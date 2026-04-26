@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Sidebar } from '@/components/Sidebar'
 import { Badge, Toast, PageHeader, BtnPrimary, BtnSm, DataTable, TR, TD, Spinner, MetricCard, inputCss, selectCss, overlayCss, modalCss, modalTitleCss, footerCss, groupCss, labelCss, grid2Css, btnDarkCss, btnLightCss, btnRedCss } from '@/components/UI'
-import { TRAT_STYLE, AVATAR_COLORS, TRATAMIENTOS, calcEdad, initials } from '@/lib/constants'
+import { TRAT_STYLE, AVATAR_COLORS, TRATAMIENTOS, calcEdad, initials, normalizarTelefono } from '@/lib/constants'
 import { createClient } from '@/lib/supabase/client'
 
 interface PacDB { id:string; nombre:string; telefono:string; email:string|null; fecha_nacimiento:string|null; ultimo_tratamiento:string|null; creado_en:string; token:string|null }
@@ -120,7 +120,7 @@ export default function Pacientes() {
                       <BtnSm variant="edit" onClick={()=>openEditar(p)}>Editar</BtnSm>
                       <BtnSm variant="delete" onClick={()=>{setSel(p);setModal('borrar')}}>Eliminar</BtnSm>
                       {p.token
-                        ?<BtnSm variant="edit" onClick={()=>{const url=`https://turnos.walterbenegas.com.ar/paciente/${p.token}`;const txt=encodeURIComponent(`Hola ${p.nombre}, te compartimos el link para ver y confirmar tu turno: ${url}`);window.open(`https://wa.me/${p.telefono?.replace(/\D/g,'')}?text=${txt}`,'_blank')}}>WhatsApp</BtnSm>
+                        ?<BtnSm variant="edit" onClick={()=>{const url=`https://turnos.walterbenegas.com.ar/paciente/${p.token}`;const txt=encodeURIComponent(`Hola ${p.nombre} 👋\n\nTe compartimos el link para ver y gestionar tu turno con el *Dr. Walter Benegas*:\n👉 ${url}\n\n_Consultorio Dr. Walter Benegas — Palermo, CABA_`);window.open(`https://wa.me/${normalizarTelefono(p.telefono??'')}?text=${txt}`,'_blank')}}>WhatsApp</BtnSm>
                         :<BtnSm variant="edit" onClick={async()=>{const tok=crypto.randomUUID();await supabase.from('pacientes').update({token:tok}).eq('id',p.id);msg('Link generado ✓');load()}}>Generar link</BtnSm>
                       }
                     </div>
@@ -145,7 +145,7 @@ export default function Pacientes() {
                       <BtnSm variant="edit" onClick={()=>openEditar(p)}>Editar</BtnSm>
                       <BtnSm variant="delete" onClick={()=>{setSel(p);setModal('borrar')}}>Eliminar</BtnSm>
                       {p.token
-                        ?<BtnSm variant="edit" onClick={()=>{const url=`https://turnos.walterbenegas.com.ar/paciente/${p.token}`;const txt=encodeURIComponent(`Hola ${p.nombre}, te compartimos el link para ver y confirmar tu turno: ${url}`);window.open(`https://wa.me/${p.telefono?.replace(/\D/g,'')}?text=${txt}`,'_blank')}}>WhatsApp</BtnSm>
+                        ?<BtnSm variant="edit" onClick={()=>{const url=`https://turnos.walterbenegas.com.ar/paciente/${p.token}`;const txt=encodeURIComponent(`Hola ${p.nombre} 👋\n\nTe compartimos el link para ver y gestionar tu turno con el *Dr. Walter Benegas*:\n👉 ${url}\n\n_Consultorio Dr. Walter Benegas — Palermo, CABA_`);window.open(`https://wa.me/${normalizarTelefono(p.telefono??'')}?text=${txt}`,'_blank')}}>WhatsApp</BtnSm>
                         :<BtnSm variant="edit" onClick={async()=>{const tok=crypto.randomUUID();await supabase.from('pacientes').update({token:tok}).eq('id',p.id);msg('Link generado ✓');load()}}>Generar link</BtnSm>
                       }
                     </div></TD>

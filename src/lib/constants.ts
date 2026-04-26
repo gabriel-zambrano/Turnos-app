@@ -44,3 +44,10 @@ export function initials(nombre: string): string {
 export function hoyISO(): string {
   return new Date().toISOString().split('T')[0]
 }
+
+export function normalizarTelefono(raw: string): string {
+  const digits = raw.replace(/\D/g, '')
+  if (digits.startsWith('549')) return digits
+  if (digits.startsWith('0'))   return '549' + digits.slice(1)
+  return '549' + digits
+}

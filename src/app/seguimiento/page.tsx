@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Sidebar } from '@/components/Sidebar'
 import { PageHeader } from '@/components/UI'
-import { AVATAR_COLORS, initials } from '@/lib/constants'
+import { AVATAR_COLORS, initials, normalizarTelefono } from '@/lib/constants'
 
 interface PacienteAlerta {
   id: string
@@ -123,16 +123,17 @@ export default function SeguimientoPage() {
 
   function mensajeWA(p: PacienteAlerta) {
     const link = p.token ? `${window.location.origin}/paciente/${p.token}` : ''
+    const footer = `\n\n_Consultorio Dr. Walter Benegas — Palermo, CABA_`
     if (p.motivo === 'ortodoncia_vencida')
-      return `Hola ${p.nombre}! 👋 Te escribimos del consultorio del Dr. Walter Benegas. Notamos que ya pasaron ${p.diasDesde} días desde tu último ajuste de ortodoncia. ¿Querés coordinar un turno? ${link}`
+      return `Hola ${p.nombre} 👋\n\nTe escribimos del consultorio del *Dr. Walter Benegas*. Notamos que ya pasaron ${p.diasDesde} días desde tu último ajuste de ortodoncia.\n\n¿Querés coordinar un turno?\n👉 ${link}${footer}`
     if (p.motivo === 'limpieza_vencida')
-      return `Hola ${p.nombre}! 👋 Te escribimos del consultorio del Dr. Walter Benegas. Ya pasaron más de 6 meses desde tu última limpieza dental. ¿Querés sacar un turno? ${link}`
-    return `Hola ${p.nombre}! 👋 Te escribimos del consultorio del Dr. Walter Benegas. Queremos recordarte que podés sacar turno cuando quieras. ${link}`
+      return `Hola ${p.nombre} 👋\n\nTe escribimos del consultorio del *Dr. Walter Benegas*. Ya pasaron más de 6 meses desde tu última limpieza dental.\n\n¿Querés sacar un turno?\n👉 ${link}${footer}`
+    return `Hola ${p.nombre} 👋\n\nTe escribimos del consultorio del *Dr. Walter Benegas*. Queremos recordarte que podés sacar turno cuando quieras.\n\n👉 ${link}${footer}`
   }
 
   function enviarWA(p: PacienteAlerta) {
     const txt = encodeURIComponent(mensajeWA(p))
-    const num = p.telefono?.replace(/\D/g, '')
+    const num = normalizarTelefono(p.telefono ?? '')
     window.open(`https://wa.me/${num}?text=${txt}`, '_blank')
     msg(`WhatsApp abierto para ${p.nombre}`)
   }

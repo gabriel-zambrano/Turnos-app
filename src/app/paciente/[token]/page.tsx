@@ -71,16 +71,16 @@ function generateICS(t: Turno) {
   document.body.removeChild(a)
 }
 
-function compartirWhatsApp(t: Turno, paciente: Paciente) {
-  const { full } = formatFecha(t.fecha_hora)
+function compartirWhatsApp(t: Turno, paciente: Paciente, token: string) {
+  const { dia, fecha, hora } = formatFecha(t.fecha_hora)
   const msg = encodeURIComponent(
-    'Recordatorio de turno\n\n' +
-    'Hola ' + paciente.nombre + ', te comparto los datos de tu turno:\n\n' +
-    'Tratamiento: ' + t.tipo_tratamiento + '\n' +
-    'Fecha: ' + full + '\n' +
-    'Duracion: ' + t.duracion_minutos + ' minutos\n' +
-    (t.notas ? 'Notas: ' + t.notas + '\n' : '') +
-    '\nConsultorio Odontologico Dr. Walter Benegas'
+    `Hola ${paciente.nombre} 👋\n\n` +
+    `Te recordamos tu turno con el *Dr. Walter Benegas*:\n\n` +
+    `📅 ${dia} ${fecha} a las *${hora}hs*\n` +
+    `🦷 ${t.tipo_tratamiento}\n\n` +
+    `Podés confirmar o cancelar tu turno acá:\n` +
+    `👉 https://turnos.walterbenegas.com.ar/paciente/${token}\n\n` +
+    `_Consultorio Dr. Walter Benegas — Palermo, CABA_`
   )
   window.open('https://wa.me/?text=' + msg, '_blank')
 }
@@ -164,7 +164,7 @@ export default function PacientePage() {
 
                   <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
                     <button
-                      onClick={() => compartirWhatsApp(t, paciente!)}
+                      onClick={() => compartirWhatsApp(t, paciente!, token)}
                       style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', gap:6, fontSize:12, padding:'8px 12px', borderRadius:10, border:'none', background:'linear-gradient(135deg,#25D366,#128C7E)', color:'#fff', cursor:'pointer', fontWeight:600, fontFamily:'DM Sans, system-ui' }}
                     >
                       Compartir por WhatsApp
