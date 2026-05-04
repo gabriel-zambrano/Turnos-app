@@ -9,6 +9,7 @@ const NAV = [
   { href: '/seguimiento',            label: 'Seguim.',      icon: 'radar' },
   { href: '/recordatorios',          label: 'Turnos',       icon: 'bell'  },
   { href: '/bi',                     label: 'Analitica',    icon: 'chart' },
+  { href: '/finanzas',               label: 'Finanzas',     icon: 'money' },
   { href: '/admin/tratamientos',     label: 'Precios',      icon: 'trat', adminOnly: true },
 ]
 
@@ -21,6 +22,7 @@ const ICONS: Record<string, React.ReactNode> = {
   chart: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>,
   out:   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>,
   trat:  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>,
+  money: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>,
 }
 
 export function Sidebar({ pendientes }: { pendientes?: number }) {
