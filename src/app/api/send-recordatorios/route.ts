@@ -38,7 +38,7 @@ const hastaISO = new Date(manana.getFullYear(), manana.getMonth(), manana.getDat
         hour: '2-digit', minute: '2-digit'
       })
 
-      const { error: emailError } = await resend.emails.send({
+      const { data: emailResult, error: emailError } = await resend.emails.send({
         from: 'DentalDesk <recordatorios@walterbenegas.com.ar>',
         to: paciente.email,
         subject: `Recordatorio de turno — ${horaAR}`,
@@ -64,12 +64,14 @@ const hastaISO = new Date(manana.getFullYear(), manana.getMonth(), manana.getDat
         `
       })
 
+      const resendId = emailResult?.data?.id ?? null
       await supabase.from('recordatorios_log').insert({
         cita_id: cita.id,
         tipo_mensaje: 'email',
         estado_envio: emailError ? 'fallido' : 'enviado',
         mensaje_preview: `Recordatorio turno ${horaAR}`,
-        enviado_en: new Date().toISOString()
+        enviado_en: new Date().toISOString(),
+        resend_email_id: resendId,
       })
 
       if (emailError) throw new Error(emailError.message)
