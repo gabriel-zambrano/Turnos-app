@@ -35,6 +35,7 @@ export default function Dashboard() {
   const [enviando, setEnviando] = useState(false)
   const [filtro, setFiltro] = useState('todas')
   const [mostrarMañana, setMostrarMañana] = useState(false)
+  const [enviandoEmail, setEnviandoEmail] = useState(false)
   const [toast, setToast] = useState<{msg:string;tipo:string}|null>(null)
   const [hoy, setHoy] = useState('')
 
@@ -106,6 +107,21 @@ export default function Dashboard() {
       msg(`${enviados.length} recordatorios enviados`)
     } catch(e){ msg('Error al enviar recordatorios','error') }
     finally { setEnviando(false) }
+  }
+
+  async function enviarEmailsMañana() {
+    if (citasMañana.length === 0) return
+    setEnviandoEmail(true)
+    try {
+      const res = await fetch('/api/send-recordatorios', { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Error del servidor')
+      msg(`📧 ${data.enviados ?? 0} emails enviados para mañana`)
+    } catch(e: any) {
+      msg('Error al enviar emails', 'error')
+    } finally {
+      setEnviandoEmail(false)
+    }
   }
 
   if (!authChecked) return null
@@ -204,9 +220,17 @@ export default function Dashboard() {
                 <span style={{fontWeight:700,fontSize:15,color:'#0a1e3d'}}>Turnos de mañana</span>
                 <span style={{fontSize:12,fontWeight:700,padding:'2px 10px',borderRadius:20,background:'#E1F5EE',color:'#138A6B'}}>{citasMañana.length}</span>
               </div>
-              <button onClick={()=>setMostrarMañana(v=>!v)} style={{fontSize:12,fontWeight:600,padding:'5px 14px',borderRadius:8,border:'0.5px solid #e0e0e0',background:'#fff',color:'#0a1e3d',cursor:'pointer',fontFamily:'DM Sans, sans-serif',display:'flex',alignItems:'center',gap:5}}>
-                {mostrarMañana?'Ocultar ▲':'Ver turnos ▼'}
-              </button>
+              <div style={{display:'flex',gap:8,alignItems:'center'}}>
+                <button onClick={enviarEmailsMañana} disabled={enviandoEmail||citasMañana.length===0} style={{fontSize:12,fontWeight:600,padding:'5px 14px',borderRadius:8,border:'none',background:enviandoEmail||citasMañana.length===0?'#e5e5e5':'#0f1e2b',color:enviandoEmail||citasMañana.length===0?'#aaa':'#fff',cursor:enviandoEmail||citasMañana.length===0?'not-allowed':'pointer',fontFamily:'DM Sans, sans-serif',display:'flex',alignItems:'center',gap:6}}>
+                  {enviandoEmail
+                    ? <><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{animation:'spin 1s linear infinite'}}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>Enviando...</>
+                    : <>📧 Emails ({citasMañana.length})</>
+                  }
+                </button>
+                <button onClick={()=>setMostrarMañana(v=>!v)} style={{fontSize:12,fontWeight:600,padding:'5px 14px',borderRadius:8,border:'0.5px solid #e0e0e0',background:'#fff',color:'#0a1e3d',cursor:'pointer',fontFamily:'DM Sans, sans-serif',display:'flex',alignItems:'center',gap:5}}>
+                  {mostrarMañana?'Ocultar ▲':'Ver turnos ▼'}
+                </button>
+              </div>
             </div>
             {/* Lista colapsable */}
             {mostrarMañana&&(
