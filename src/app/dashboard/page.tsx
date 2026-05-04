@@ -116,6 +116,17 @@ export default function Dashboard() {
       const res = await fetch('/api/send-recordatorios', { method: 'POST' })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Error del servidor')
+      const horaActual = new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'})
+      const registros = citasMañana.map(c => ({
+        paciente: c.nombre,
+        canal: 'Email',
+        estado: 'enviado',
+        hora: horaActual,
+      }))
+      if (registros.length > 0) {
+        await supabase.from('logs_envios').insert(registros)
+        await loadLogs()
+      }
       msg(`📧 ${data.enviados ?? 0} emails enviados para mañana`)
     } catch(e: any) {
       msg('Error al enviar emails', 'error')
