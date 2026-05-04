@@ -289,7 +289,29 @@ export default function FinanzasPage() {
                             {c.tipo_tratamiento} · {new Date(c.fecha_hora).toLocaleTimeString('es-AR',{ hour:'2-digit', minute:'2-digit', timeZone:'America/Argentina/Buenos_Aires' })}
                           </div>
                         </div>
-                        <div style={{ fontSize:14, fontWeight:700, color:'#1D9E75' }}>{fmt(getPrecio(c))}</div>
+                        <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+                          {editandoPrecio === c.id ? (
+                            <>
+                              <input
+                                type="number"
+                                autoFocus
+                                defaultValue={getPrecio(c)}
+                                onChange={e => setPrecioEdit(e.target.value === '' ? '' : Number(e.target.value))}
+                                style={{ width:90, fontSize:13, padding:'4px 8px', borderRadius:7, border:'1px solid #1D9E75', fontFamily:'DM Sans, sans-serif', textAlign:'right' }}
+                              />
+                              <button onClick={() => precioEdit !== '' && guardarPrecioCita(c.id, precioEdit as number)}
+                                style={{ fontSize:11, padding:'4px 8px', borderRadius:6, border:'none', background:'#1D9E75', color:'#fff', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>✓</button>
+                              <button onClick={() => setEditandoPrecio(null)}
+                                style={{ fontSize:11, padding:'4px 8px', borderRadius:6, border:'0.5px solid #e2e8f0', background:'#fff', color:'#888', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>×</button>
+                            </>
+                          ) : (
+                            <>
+                              <div style={{ fontSize:14, fontWeight:700, color: c.precio_cobrado !== null ? '#378ADD' : '#1D9E75' }}>{fmt(getPrecio(c))}</div>
+                              <button onClick={() => { setEditandoPrecio(c.id); setPrecioEdit(getPrecio(c)) }}
+                                style={{ fontSize:11, padding:'2px 7px', borderRadius:5, border:'0.5px solid #e2e8f0', background:'#fff', color:'#94a3b8', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>✎</button>
+                            </>
+                          )}
+                        </div>
                       </div>
                     ))}
                   </>
