@@ -82,7 +82,7 @@ export default function FinanzasPage() {
       supabase.from('costos_fijos').select('*').order('nombre'),
       supabase.from('meta_mensual').select('*').eq('mes', mesActual).eq('anio', anioActual).maybeSingle(),
       supabase.from('ingresos_manuales').select('*').gte('fecha', inicioFecha).lte('fecha', finFecha).order('fecha', { ascending: false }),
-      supabase.from('citas').select('id, fecha_hora, tipo_tratamiento, pacientes(nombre)').eq('estado', 'asistio').gte('fecha_hora', inicioMes).lte('fecha_hora', finMes).order('fecha_hora', { ascending: false }),
+      supabase.from('citas').select('id, fecha_hora, tipo_tratamiento, pacientes(nombre)').in('estado', ['confirmado', 'asistio']).gte('fecha_hora', inicioMes).lte('fecha_hora', finMes).order('fecha_hora', { ascending: false }),
     ])
     if (resTrat.data)    setTratamientos(resTrat.data)
     if (resCostos.data)  setCostos(resCostos.data)
