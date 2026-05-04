@@ -102,7 +102,7 @@ export default function Dashboard() {
       if(!res.ok) throw new Error('Error del servidor')
       const {enviados,fallidos} = await res.json()
       const horaActual = new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'})
-      const registros = [...enviados.map((nombre:string)=>({paciente:nombre,canal:'WhatsApp',estado:'enviado',hora:horaActual})),...fallidos.map((nombre:string)=>({paciente:nombre,canal:'WhatsApp',estado:'fallido',hora:horaActual}))]
+      const registros = [...enviados.map((nombre:string)=>({paciente:nombre,canal:'Email',estado:'enviado',hora:horaActual})),...fallidos.map((nombre:string)=>({paciente:nombre,canal:'Email',estado:'fallido',hora:horaActual}))]
       if(registros.length>0){ await supabase.from('logs_envios').insert(registros); await loadLogs() }
       msg(`${enviados.length} recordatorios enviados`)
     } catch(e){ msg('Error al enviar recordatorios','error') }
