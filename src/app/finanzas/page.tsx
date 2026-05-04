@@ -8,7 +8,7 @@ interface Tratamiento  { id: string; nombre: string; precio_base: number | null 
 interface CostoFijo    { id: string; nombre: string; monto: number; activo: boolean }
 interface MetaMensual  { id: string; mes: number; anio: number; meta_ingresos: number }
 interface IngresoManual { id: string; fecha: string; concepto: string; monto: number }
-interface CitaAsistida { id: string; fecha_hora: string; tipo_tratamiento: string; pacientes: { nombre: string } | null }
+interface CitaAsistida { id: string; fecha_hora: string; tipo_tratamiento: string; precio_cobrado: number | null; pacientes: { nombre: string } | null }
 
 const inputSt: React.CSSProperties = {
   fontSize: 13, padding: '7px 10px', borderRadius: 8,
@@ -55,6 +55,8 @@ export default function FinanzasPage() {
   const [fMonto, setFMonto]             = useState<number | ''>('')
   const [fFecha, setFFecha]             = useState(hoyAR())
   const [saving, setSaving]             = useState(false)
+  const [editandoPrecio, setEditandoPrecio] = useState<string | null>(null)
+  const [precioEdit, setPrecioEdit]       = useState<number | ''>(``)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -82,7 +84,7 @@ export default function FinanzasPage() {
       supabase.from('costos_fijos').select('*').order('nombre'),
       supabase.from('meta_mensual').select('*').eq('mes', mesActual).eq('anio', anioActual).maybeSingle(),
       supabase.from('ingresos_manuales').select('*').gte('fecha', inicioFecha).lte('fecha', finFecha).order('fecha', { ascending: false }),
-      supabase.from('citas').select('id, fecha_hora, tipo_tratamiento, pacientes(nombre)').in('estado', ['confirmado', 'asistio']).gte('fecha_hora', inicioMes).lte('fecha_hora', finMes).order('fecha_hora', { ascending: false }),
+      supabase.from('citas').select('id, fecha_hora, tipo_tratamiento, precio_cobrado, pacientes(nombre)').in('estado', ['confirmado', 'asistio']).gte('fecha_hora', inicioMes).lte('fecha_hora', finMes).order('fecha_hora', { ascending: false }),
     ])
     if (resTrat.data)    setTratamientos(resTrat.data)
     if (resCostos.data)  setCostos(resCostos.data)
@@ -96,6 +98,7 @@ export default function FinanzasPage() {
 
   // ── Cálculos ───────────────────────────────────────────────────────────────
   const precioMap     = Object.fromEntries(tratamientos.map(t => [t.nombre, t.precio_base || 0]))
+  const getPrecio = (c: CitaAsistida) => c.precio_cobrado ?? precioMap[c.tipo_tratamiento] ?? 0
   const totalCostos   = costos.filter(c => c.activo).reduce((s, c) => s + c.monto, 0)
   const metaIngresos  = meta?.meta_ingresos || 0
   const hoy           = hoyAR()
@@ -104,12 +107,12 @@ export default function FinanzasPage() {
     const ar = new Date(c.fecha_hora).toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' })
     return ar === hoy
   })
-  const totalCitasHoy = citasHoy.reduce((s, c) => s + (precioMap[c.tipo_tratamiento] || 0), 0)
+  const totalCitasHoy = citasHoy.reduce((s, c) => s + (getPrecio(c)), 0)
   const manualesHoy   = manuales.filter(m => m.fecha === hoy)
   const totalManualHoy = manualesHoy.reduce((s, m) => s + m.monto, 0)
   const totalHoy      = totalCitasHoy + totalManualHoy
 
-  const totalCitasMes = citasAsistidas.reduce((s, c) => s + (precioMap[c.tipo_tratamiento] || 0), 0)
+  const totalCitasMes = citasAsistidas.reduce((s, c) => s + (getPrecio(c)), 0)
   const totalManualMes = manuales.reduce((s, m) => s + m.monto, 0)
   const totalMes      = totalCitasMes + totalManualMes
 
@@ -125,13 +128,20 @@ export default function FinanzasPage() {
     const map: Record<string, number> = {}
     citasAsistidas.forEach(c => {
       const d = new Date(c.fecha_hora).toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' })
-      map[d] = (map[d] || 0) + (precioMap[c.tipo_tratamiento] || 0)
+      map[d] = (map[d] || 0) + (getPrecio(c))
     })
     manuales.forEach(m => { map[m.fecha] = (map[m.fecha] || 0) + m.monto })
     return Object.entries(map).sort((a, b) => b[0].localeCompare(a[0])).slice(0, 15)
   })()
 
   // ── Acciones ───────────────────────────────────────────────────────────────
+  async function guardarPrecioCita(id: string, precio: number) {
+    await supabase.from('citas').update({ precio_cobrado: precio }).eq('id', id)
+    setEditandoPrecio(null)
+    msg('Precio actualizado ✓')
+    load()
+  }
+
   async function guardarMeta() {
     if (fMeta === '' || Number(fMeta) < 0) return msg('Ingresá una meta válida', 'error')
     setSaving(true)
@@ -279,7 +289,7 @@ export default function FinanzasPage() {
                             {c.tipo_tratamiento} · {new Date(c.fecha_hora).toLocaleTimeString('es-AR',{ hour:'2-digit', minute:'2-digit', timeZone:'America/Argentina/Buenos_Aires' })}
                           </div>
                         </div>
-                        <div style={{ fontSize:14, fontWeight:700, color:'#1D9E75' }}>{fmt(precioMap[c.tipo_tratamiento] || 0)}</div>
+                        <div style={{ fontSize:14, fontWeight:700, color:'#1D9E75' }}>{fmt(getPrecio(c))}</div>
                       </div>
                     ))}
                   </>
