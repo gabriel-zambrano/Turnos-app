@@ -64,7 +64,7 @@ const hastaISO = new Date(manana.getFullYear(), manana.getMonth(), manana.getDat
         `
       })
 
-      const resendId = emailResult?.data?.id ?? null
+      const resendId = emailResult?.id ?? null
       await supabase.from('recordatorios_log').insert({
         cita_id: cita.id,
         tipo_mensaje: 'email',
