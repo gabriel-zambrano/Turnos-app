@@ -88,7 +88,7 @@ export default function FinanzasPage() {
     if (resCostos.data)  setCostos(resCostos.data)
     if (resMeta.data)    setMeta(resMeta.data)
     if (resManuales.data) setManuales(resManuales.data)
-    if (resCitas.data)   setCitasAsistidas(resCitas.data as CitaAsistida[])
+    if (resCitas.data)   setCitasAsistidas(resCitas.data as unknown as CitaAsistida[])
     setLoading(false)
   }, [mesActual, anioActual])
 
