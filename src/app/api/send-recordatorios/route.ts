@@ -19,7 +19,7 @@ const hastaISO = new Date(manana.getFullYear(), manana.getMonth(), manana.getDat
   const { data: citas, error } = await supabase
     .from('citas')
     .select('id, fecha_hora, tipo_tratamiento, pacientes(nombre, email, token)')
-    .eq('estado', 'pendiente')
+    .in('estado', ['pendiente', 'confirmado'])
     .gte('fecha_hora', desdeISO)
     .lte('fecha_hora', hastaISO)
 
