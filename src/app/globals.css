@@ -30,6 +30,70 @@ body {
     0 2px 8px rgba(10,30,61,0.05),
     0 8px 32px rgba(56,138,221,0.08),
     inset 0 1px 0 rgba(255,255,255,0.95);
+  transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.glass-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(255,255,255,0.9);
+  box-shadow:
+    0 12px 30px rgba(10,30,61,0.06),
+    0 16px 36px var(--card-accent-alpha, rgba(56,138,221,0.1)),
+    inset 0 1px 0 rgba(255,255,255,0.95);
+}
+
+/* Premium glassmorphic utility classes */
+.glass-container {
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  box-shadow: 0 4px 20px rgba(56, 138, 221, 0.04);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.glass-container:hover {
+  border-color: rgba(24, 95, 165, 0.15);
+  box-shadow: 0 8px 30px rgba(24, 95, 165, 0.06);
+}
+
+/* Interactive hover scaling */
+.interactive-item {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.interactive-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(24, 95, 165, 0.06);
+  border-color: rgba(24, 95, 165, 0.2) !important;
+}
+
+/* Premium buttons and transitions */
+.btn-premium {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.btn-premium:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.08);
+  box-shadow: 0 6px 16px rgba(24, 95, 165, 0.15) !important;
+}
+
+.btn-premium:active {
+  transform: translateY(1px);
+  filter: brightness(0.95);
+}
+
+/* Input focus styles */
+input, select, textarea {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+input:focus, select:focus, textarea:focus {
+  border-color: #185FA5 !important;
+  box-shadow: 0 0 0 3px rgba(24, 95, 165, 0.15) !important;
+  background: #ffffff !important;
 }
 
 ::-webkit-scrollbar { width: 4px; }
@@ -41,6 +105,31 @@ body {
 }
 @keyframes spin {
   to { transform: rotate(360deg); }
+}
+
+/* Floating Capsule Navbar for Mobile */
+.mobile-nav-floating {
+  position: fixed;
+  bottom: 16px;
+  left: 16px;
+  right: 16px;
+  height: 66px;
+  background: rgba(255, 255, 255, 0.72) !important;
+  backdrop-filter: blur(24px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.8) !important;
+  border-radius: 20px !important;
+  box-shadow: 0 10px 30px rgba(10, 30, 61, 0.08) !important;
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  z-index: 1000;
+  padding: 0 8px;
+}
+
+/* Progress Glow Effect */
+.progress-glow {
+  box-shadow: 0 0 14px var(--glow-color, rgba(29, 158, 117, 0.25));
 }
 
 @media (max-width: 767px) {

@@ -1,6 +1,7 @@
 import { Resend } from 'resend'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { TENANT_REGISTRY } from '@/components/TenantContext'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 const supabaseAdmin = createClient(
@@ -9,18 +10,26 @@ const supabaseAdmin = createClient(
 )
 
 export async function POST(req: NextRequest) {
-  const { citas } = await req.json()
+  const { citas, tenantId } = await req.json()
 
   if (!citas || !Array.isArray(citas) || citas.length === 0) {
     return NextResponse.json({ enviados: [], fallidos: [] })
   }
 
+  const tid = tenantId || '2845c423-affa-4ca2-9c5f-f4ec8e35701a'
+  const registry = TENANT_REGISTRY[tid] || {
+    nombre: 'DentalDesk',
+    direccion: 'Dirección del consultorio',
+    telefono: '',
+  }
+
   const ids = citas.map((c: any) => c.id)
 
-  // Buscar emails en Supabase usando los IDs que manda el dashboard
+  // Buscar emails en Supabase usando los IDs que manda el dashboard, filtrando por tenant_id por seguridad
   const { data: citasDB, error: dbError } = await supabaseAdmin
     .from('citas')
     .select('id, fecha_hora, tipo_tratamiento, pacientes(nombre, email, token)')
+    .eq('tenant_id', tid)
     .in('id', ids)
 
   if (dbError) {
@@ -49,9 +58,11 @@ export async function POST(req: NextRequest) {
       timeZone: 'America/Argentina/Buenos_Aires'
     })
 
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://walterbenegas.com.ar'
+
     const linkConfirmar = paciente.token
       ? `<div style="text-align:center;margin:24px 0">
-           <a href="${process.env.NEXT_PUBLIC_APP_URL}/paciente/${paciente.token}"
+           <a href="${appUrl}/paciente/${paciente.token}"
               style="display:inline-block;background:#1D9E75;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px">
              ✓ Confirmar turno
            </a>
@@ -59,7 +70,7 @@ export async function POST(req: NextRequest) {
       : ''
 
     const { error } = await resend.emails.send({
-      from: 'Consultorio Dr. Benegas <turnos@walterbenegas.com.ar>',
+      from: `${registry.nombre} <turnos@walterbenegas.com.ar>`,
       to: paciente.email,
       subject: `📅 Recordatorio — Hoy tenés turno a las ${hora}hs`,
       html: `
@@ -69,7 +80,7 @@ export async function POST(req: NextRequest) {
               <div style="font-size:40px;margin-bottom:12px">⏰</div>
               <h1 style="font-size:20px;font-weight:700;color:#0f1e2b;margin:0">Recordatorio de turno</h1>
               <p style="font-size:14px;color:#94a3b8;margin:6px 0 0">
-                Hola <strong>${nombre}</strong>, hoy tenés turno con el Dr. Walter Benegas.
+                Hola <strong>${nombre}</strong>, hoy tenés turno con ${registry.nombre}.
               </p>
             </div>
             <div style="background:#f4f7fb;border-radius:12px;padding:20px;margin-bottom:24px">
@@ -84,7 +95,7 @@ export async function POST(req: NextRequest) {
                 </td></tr>
                 <tr><td>
                   <span style="font-size:11px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em">Lugar</span><br/>
-                  <span style="font-size:15px;font-weight:600;color:#0f1e2b">Av. Santa Fe 3329 1° B, Palermo, CABA</span>
+                  <span style="font-size:15px;font-weight:600;color:#0f1e2b">${registry.direccion}</span>
                 </td></tr>
               </table>
             </div>

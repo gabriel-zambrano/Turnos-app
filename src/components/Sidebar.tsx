@@ -1,6 +1,7 @@
 'use client'
 import { usePathname, useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
+import { useTenantContext } from '@/components/TenantContext'
 
 const NAV = [
   { href: '/dashboard',              label: 'Dashboard',    icon: 'grid'  },
@@ -28,6 +29,7 @@ const ICONS: Record<string, React.ReactNode> = {
 export function Sidebar({ pendientes }: { pendientes?: number }) {
   const path = usePathname()
   const router = useRouter()
+  const { tenant, loading: tenantLoading } = useTenantContext()
   const [isMobile, setIsMobile] = useState(false)
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768)
@@ -37,16 +39,17 @@ export function Sidebar({ pendientes }: { pendientes?: number }) {
   }, [])
 
   if (isMobile) {
+    const activeColor = tenant?.secondaryColor || '#185FA5'
     return (
-      <nav style={{ position: 'fixed', bottom: 0, left: 0, right: 0, height: 64, background: 'rgba(255,255,255,0.92)', backdropFilter: 'blur(16px)', borderTop: '1px solid rgba(56,138,221,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'space-around', zIndex: 100, padding: '0 8px' }}>
+      <nav className="mobile-nav-floating">
         {NAV.filter(item => !item.adminOnly).map(item => {
           const active = path === item.href || (item.href !== '/dashboard' && path?.startsWith(item.href))
           return (
-            <button key={item.href} onClick={() => router.push(item.href)} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, padding: '8px 4px', borderRadius: 12, border: 'none', background: active ? 'linear-gradient(135deg,#e8f0fc,#dbeeff)' : 'transparent', color: active ? '#185FA5' : '#8fa3bc', cursor: 'pointer', fontFamily: 'DM Sans, sans-serif', position: 'relative', minWidth: 0 }}>
+            <button key={item.href} onClick={() => router.push(item.href)} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, padding: '6px 4px', borderRadius: 14, border: 'none', background: active ? `linear-gradient(135deg, ${activeColor}15, ${activeColor}25)` : 'transparent', color: active ? activeColor : '#8fa3bc', cursor: 'pointer', fontFamily: 'DM Sans, sans-serif', position: 'relative', minWidth: 0 }}>
               {item.icon === 'bell' && pendientes && pendientes > 0
                 ? <span style={{ position: 'relative', display: 'inline-flex' }}>
                     {ICONS[item.icon]}
-                    <span style={{ position: 'absolute', top: -4, right: -6, background: '#185FA5', color: '#fff', borderRadius: '50%', width: 14, height: 14, fontSize: 9, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>{pendientes}</span>
+                    <span style={{ position: 'absolute', top: -4, right: -6, background: activeColor, color: '#fff', borderRadius: '50%', width: 14, height: 14, fontSize: 9, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>{pendientes}</span>
                   </span>
                 : ICONS[item.icon]
               }
@@ -58,22 +61,26 @@ export function Sidebar({ pendientes }: { pendientes?: number }) {
     )
   }
 
+  const secondaryColor = tenant?.secondaryColor || '#185FA5'
+  const primaryColor = tenant?.primaryColor || '#0a1e3d'
+  const accentColor = tenant?.accentColor || '#138A6B'
+
   return (
-    <aside style={{ width: 240, minHeight: '100vh', position: 'fixed', top: 0, left: 0, background: 'rgba(255,255,255,0.9)', backdropFilter: 'blur(16px)', borderRight: '1px solid rgba(56,138,221,0.12)', display: 'flex', flexDirection: 'column', zIndex: 100 }}>
+    <aside style={{ width: 240, minHeight: '100vh', position: 'fixed', top: 0, left: 0, background: 'rgba(255,255,255,0.72)', backdropFilter: 'blur(20px)', borderRight: '1px solid rgba(56,138,221,0.12)', display: 'flex', flexDirection: 'column', zIndex: 100 }}>
       <div style={{ padding: '1.5rem 1.25rem 1rem', borderBottom: '1px solid rgba(56,138,221,0.08)' }}>
-        <div style={{ fontSize: 15, fontWeight: 700, color: '#0a1e3d', letterSpacing: '-0.3px' }}>DentalDesk</div>
-        <div style={{ fontSize: 11, color: '#8fa3bc', marginTop: 2 }}>Od. Walter Benegas</div>
+        <div style={{ fontSize: 15, fontWeight: 700, color: primaryColor, letterSpacing: '-0.3px' }}>DentalDesk</div>
+        <div style={{ fontSize: 11, color: '#8fa3bc', marginTop: 2 }}>{tenantLoading ? 'Cargando...' : tenant?.nombre}</div>
       </div>
 
       <nav style={{ flex: 1, padding: '0.75rem 0.75rem' }}>
         {NAV.map(item => {
           const active = path === item.href || (item.href !== '/dashboard' && path?.startsWith(item.href))
           return (
-            <button key={item.href} onClick={() => router.push(item.href)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 10, border: active ? '1px solid rgba(56,138,221,0.2)' : '1px solid transparent', background: active ? 'linear-gradient(135deg,#e8f0fc,#dbeeff)' : 'transparent', color: active ? '#185FA5' : '#8fa3bc', cursor: 'pointer', fontFamily: 'DM Sans, sans-serif', fontSize: 13, fontWeight: active ? 600 : 400, marginBottom: 2, textAlign: 'left', position: 'relative' }}>
+            <button key={item.href} onClick={() => router.push(item.href)} className="btn-premium" style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 10, border: active ? `1px solid ${secondaryColor}25` : '1px solid transparent', background: active ? `linear-gradient(135deg, ${secondaryColor}12, ${secondaryColor}22)` : 'transparent', color: active ? secondaryColor : '#8fa3bc', cursor: 'pointer', fontFamily: 'DM Sans, sans-serif', fontSize: 13, fontWeight: active ? 600 : 400, marginBottom: 2, textAlign: 'left', position: 'relative' }}>
               {ICONS[item.icon]}
               {item.label}
               {item.icon === 'grid' && pendientes && pendientes > 0
-                ? <span style={{ marginLeft: 'auto', background: 'linear-gradient(135deg,#185FA5,#378ADD)', color: '#fff', borderRadius: 10, padding: '1px 7px', fontSize: 10, fontWeight: 700 }}>{pendientes}</span>
+                ? <span style={{ marginLeft: 'auto', background: `linear-gradient(135deg, ${secondaryColor}, ${accentColor})`, color: '#fff', borderRadius: 10, padding: '1px 7px', fontSize: 10, fontWeight: 700 }}>{pendientes}</span>
                 : null
               }
             </button>

@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { useTenantContext } from '@/components/TenantContext'
 const supabase = createClient()
 
 const TRATAMIENTOS = [
@@ -32,6 +33,7 @@ interface Paciente { id:string; nombre:string; telefono:string; email:string }
 
 export default function NuevaCita() {
   const router = useRouter()
+  const { tenant, loading: tenantLoading } = useTenantContext()
   const [query, setQuery] = useState('')
   const [pacientes, setPacientes] = useState<Paciente[]>([])
   const [pacienteSeleccionado, setPacienteSeleccionado] = useState<Paciente|null>(null)
@@ -56,21 +58,21 @@ export default function NuevaCita() {
   const hoyMin = new Date().toISOString().split('T')[0]
 
   useEffect(() => {
-    if (query.length < 2) { setPacientes([]); setShowDropdown(false); return }
+    if (query.length < 2 || !tenant) { setPacientes([]); setShowDropdown(false); return }
     const timeout = setTimeout(async () => {
-      const { data } = await supabase.from('pacientes').select('id,nombre,telefono,email').ilike('nombre',`%${query}%`).limit(6)
+      const { data } = await supabase.from('pacientes').select('id,nombre,telefono,email').eq('tenant_id', tenant.id).ilike('nombre',`%${query}%`).limit(6)
       if (data) { setPacientes(data); setShowDropdown(true) }
     }, 300)
     return () => clearTimeout(timeout)
-  }, [query])
+  }, [query, tenant])
 
   useEffect(() => {
-    if (!fecha) { setHorasOcupadas([]); return }
+    if (!fecha || !tenant) { setHorasOcupadas([]); return }
     setCargandoHoras(true)
     setHora('')
     setEsSobreturno(false)
     const fetchOcupadas = async () => {
-      const res = await fetch(`/api/horas-ocupadas?fecha=${fecha}`)
+      const res = await fetch(`/api/horas-ocupadas?fecha=${fecha}&tenant_id=${tenant.id}`)
       if (res.ok) {
         const data = await res.json()
         setHorasOcupadas(data.ocupadas || [])
@@ -78,7 +80,7 @@ export default function NuevaCita() {
       setCargandoHoras(false)
     }
     fetchOcupadas()
-  }, [fecha])
+  }, [fecha, tenant])
 
   function resetFormulario() {
     setPacienteSeleccionado(null)
@@ -119,12 +121,13 @@ export default function NuevaCita() {
     }
     if (!nuevoPaciente.nombre) { setError('Ingresá el nombre del paciente'); return }
     if (!nuevoPaciente.telefono) { setError('Ingresá el teléfono'); return }
+    if (!tenant) return
     setError('')
     const { data, error: err } = await supabase.from('pacientes').insert({
       nombre: nuevoPaciente.nombre,
       telefono: nuevoPaciente.telefono,
       email: nuevoPaciente.email || null,
-      tenant_id: '2845c423-affa-4ca2-9c5f-f4ec8e35701a',
+      tenant_id: tenant.id,
     }).select().single()
     if (err || !data) { setError('Error al crear paciente'); return }
     seleccionarPaciente(data)
@@ -171,7 +174,7 @@ export default function NuevaCita() {
       notas: notas || null,
       duracion_minutos: duracion,
       sena: sena ? parseFloat(sena) : null,
-      tenant_id: '2845c423-affa-4ca2-9c5f-f4ec8e35701a',
+      tenant_id: tenant?.id,
     })
 
     if (err) { setError('Error al guardar. Intentá de nuevo.'); setGuardando(false); return }
@@ -187,7 +190,8 @@ export default function NuevaCita() {
           nombre: pacienteSeleccionado.nombre,
           email: pacienteSeleccionado.email,
           fecha, hora, tratamiento, duracion,
-          notas: notas || null
+          notas: notas || null,
+          tenantId: tenant?.id
         })
       })
     }
@@ -220,7 +224,7 @@ export default function NuevaCita() {
         </button>
         <div>
           <div style={{fontWeight:700,fontSize:16,color:'#0f1e2b'}}>Nueva cita</div>
-          <div style={{fontSize:12,color:'#aaa'}}>Consultorio Dr. Walter Benegas</div>
+          <div style={{fontSize:12,color:'#aaa'}}>{tenantLoading ? 'Cargando...' : tenant?.nombre}</div>
         </div>
       </div>
 

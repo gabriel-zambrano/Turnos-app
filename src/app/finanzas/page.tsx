@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { Sidebar } from '@/components/Sidebar'
 import { Toast, Spinner, PageHeader } from '@/components/UI'
 import { createClient } from '@/lib/supabase/client'
+import { useTenantContext } from '@/components/TenantContext'
 
 interface Tratamiento  { id: string; nombre: string; precio_base: number | null }
 interface CostoFijo    { id: string; nombre: string; monto: number; activo: boolean }
@@ -32,6 +33,7 @@ const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto'
 
 export default function FinanzasPage() {
   const supabase = createClient()
+  const { tenant, loading: tenantLoading } = useTenantContext()
   const [isMobile, setIsMobile] = useState(false)
   const [loading, setLoading] = useState(true)
   const [toast, setToast] = useState<{ msg: string; tipo: string } | null>(null)
@@ -72,6 +74,7 @@ export default function FinanzasPage() {
   function msg(m: string, tipo = 'ok') { setToast({ msg: m, tipo }); setTimeout(() => setToast(null), 3500) }
 
   const load = useCallback(async () => {
+    if (!tenant) return
     setLoading(true)
     const totalDias = diasEnMes(mesActual, anioActual)
     const inicioMes = `${anioActual}-${String(mesActual).padStart(2,'0')}-01T00:00:00`
@@ -80,11 +83,11 @@ export default function FinanzasPage() {
     const finFecha    = `${anioActual}-${String(mesActual).padStart(2,'0')}-${String(totalDias).padStart(2,'0')}`
 
     const [resTrat, resCostos, resMeta, resManuales, resCitas] = await Promise.all([
-      supabase.from('tratamientos').select('id, nombre, precio_base').eq('activo', true),
-      supabase.from('costos_fijos').select('*').order('nombre'),
-      supabase.from('meta_mensual').select('*').eq('mes', mesActual).eq('anio', anioActual).maybeSingle(),
-      supabase.from('ingresos_manuales').select('*').gte('fecha', inicioFecha).lte('fecha', finFecha).order('fecha', { ascending: false }),
-      supabase.from('citas').select('id, fecha_hora, tipo_tratamiento, precio_cobrado, pacientes(nombre)').in('estado', ['confirmado', 'asistio']).gte('fecha_hora', inicioMes).lte('fecha_hora', finMes).order('fecha_hora', { ascending: false }),
+      supabase.from('tratamientos').select('id, nombre, precio_base').eq('tenant_id', tenant.id).eq('activo', true),
+      supabase.from('costos_fijos').select('*').eq('tenant_id', tenant.id).order('nombre'),
+      supabase.from('meta_mensual').select('*').eq('tenant_id', tenant.id).eq('mes', mesActual).eq('anio', anioActual).maybeSingle(),
+      supabase.from('ingresos_manuales').select('*').eq('tenant_id', tenant.id).gte('fecha', inicioFecha).lte('fecha', finFecha).order('fecha', { ascending: false }),
+      supabase.from('citas').select('id, fecha_hora, tipo_tratamiento, precio_cobrado, pacientes(nombre)').eq('tenant_id', tenant.id).in('estado', ['confirmado', 'asistio']).gte('fecha_hora', inicioMes).lte('fecha_hora', finMes).order('fecha_hora', { ascending: false }),
     ])
     if (resTrat.data)    setTratamientos(resTrat.data)
     if (resCostos.data)  setCostos(resCostos.data)
@@ -92,9 +95,9 @@ export default function FinanzasPage() {
     if (resManuales.data) setManuales(resManuales.data)
     if (resCitas.data)   setCitasAsistidas(resCitas.data as unknown as CitaAsistida[])
     setLoading(false)
-  }, [mesActual, anioActual])
+  }, [mesActual, anioActual, tenant])
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => { if (tenant) load() }, [load, tenant])
 
   // ── Cálculos ───────────────────────────────────────────────────────────────
   const precioMap     = Object.fromEntries(tratamientos.map(t => [t.nombre, t.precio_base || 0]))
@@ -144,18 +147,20 @@ export default function FinanzasPage() {
 
   async function guardarMeta() {
     if (fMeta === '' || Number(fMeta) < 0) return msg('Ingresá una meta válida', 'error')
+    if (!tenant) return
     setSaving(true)
     if (meta) {
       await supabase.from('meta_mensual').update({ meta_ingresos: fMeta, updated_at: new Date().toISOString() }).eq('id', meta.id)
     } else {
-      await supabase.from('meta_mensual').insert({ mes: mesActual, anio: anioActual, meta_ingresos: fMeta })
+      await supabase.from('meta_mensual').insert({ mes: mesActual, anio: anioActual, meta_ingresos: fMeta, tenant_id: tenant.id })
     }
     setSaving(false); setModalMeta(false); msg('Meta actualizada ✓'); load()
   }
   async function agregarCosto() {
     if (!fCostoNombre.trim() || fCostoMonto === '' || Number(fCostoMonto) <= 0) return msg('Completá nombre y monto', 'error')
+    if (!tenant) return
     setSaving(true)
-    await supabase.from('costos_fijos').insert({ nombre: fCostoNombre.trim(), monto: fCostoMonto, activo: true })
+    await supabase.from('costos_fijos').insert({ nombre: fCostoNombre.trim(), monto: fCostoMonto, activo: true, tenant_id: tenant.id })
     setSaving(false); setModalCosto(false); setFCostoNombre(''); setFCostoMonto(''); msg('Costo agregado ✓'); load()
   }
   async function toggleCosto(id: string, activo: boolean) {
@@ -166,15 +171,16 @@ export default function FinanzasPage() {
   }
   async function agregarIngreso() {
     if (!fConcepto.trim() || fMonto === '' || Number(fMonto) <= 0) return msg('Completá concepto y monto', 'error')
+    if (!tenant) return
     setSaving(true)
-    await supabase.from('ingresos_manuales').insert({ fecha: fFecha, concepto: fConcepto.trim(), monto: fMonto })
+    await supabase.from('ingresos_manuales').insert({ fecha: fFecha, concepto: fConcepto.trim(), monto: fMonto, tenant_id: tenant.id })
     setSaving(false); setModalIngreso(false); setFConcepto(''); setFMonto(''); setFFecha(hoyAR()); msg('Ingreso registrado ✓'); load()
   }
   async function eliminarIngreso(id: string) {
     await supabase.from('ingresos_manuales').delete().eq('id', id); msg('Ingreso eliminado'); load()
   }
 
-  if (loading) return (
+  if (tenantLoading || loading) return (
     <div style={{ display:'flex', minHeight:'100vh', fontFamily:'DM Sans, sans-serif' }}>
       <Sidebar />
       <main style={{ marginLeft: isMobile ? 0 : 240, flex:1, display:'flex', alignItems:'center', justifyContent:'center' }}><Spinner /></main>

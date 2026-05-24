@@ -2,9 +2,11 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { useTenantContext } from '@/components/TenantContext'
 
 export default function Login() {
   const router = useRouter()
+  const { tenant, loading: tenantLoading } = useTenantContext()
   const [email,   setEmail]   = useState('')
   const [pass,    setPass]    = useState('')
   const [loading, setLoading] = useState(false)
@@ -53,7 +55,7 @@ export default function Login() {
             </svg>
           </div>
           <div style={{ fontSize: 26, fontWeight: 600, color: '#fff', marginBottom: 4 }}>DentalDesk</div>
-          <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)' }}>Od. Walter Benegas</div>
+          <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)' }}>{tenantLoading ? 'Cargando...' : tenant?.nombre}</div>
         </div>
         <div style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 20, padding: '2rem' }}>
           <div style={{ fontSize: 15, fontWeight: 600, color: '#fff', marginBottom: 4 }}>Iniciar sesión</div>

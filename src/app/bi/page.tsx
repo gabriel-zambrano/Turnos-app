@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Sidebar } from '@/components/Sidebar'
 import { useIsMobile } from '@/components/UI'
+import { useTenantContext } from '@/components/TenantContext'
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   LineChart, Line, PieChart, Pie, Cell, CartesianGrid, Legend
@@ -107,6 +108,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 
 export default function BiPage() {
   const supabase = createClient()
+  const { tenant, loading: loadingTenant } = useTenantContext()
   const [citas, setCitas] = useState<Cita[]>([])
   const [loading, setLoading] = useState(true)
   const [rango, setRango] = useState<'30' | '90' | '365'>('90')
@@ -122,7 +124,8 @@ export default function BiPage() {
   }, [])
 
   useEffect(() => {
-    if (tab !== 'facturacion') return
+    if (tab !== 'facturacion' || !tenant) return
+    const tenantId = tenant.id
     async function loadFact() {
       setLoadingFact(true)
       const [y, m] = mesFact.split('-').map(Number)
@@ -130,6 +133,7 @@ export default function BiPage() {
       const { data } = await supabase
         .from('citas')
         .select('fecha_hora,tipo_tratamiento,valor,medio_pago,estado')
+        .eq('tenant_id', tenantId)
         .gte('fecha_hora', `${mesFact}-01T00:00:00-03:00`)
         .lte('fecha_hora', `${mesFact}-${String(ultimoDia).padStart(2,'0')}T23:59:59-03:00`)
         .neq('estado', 'cancelado')
@@ -139,9 +143,11 @@ export default function BiPage() {
       setLoadingFact(false)
     }
     loadFact()
-  }, [tab, mesFact])
+  }, [tab, mesFact, tenant])
 
   useEffect(() => {
+    if (!tenant) return
+    const tenantId = tenant.id
     async function load() {
       setLoading(true)
       const desde = new Date()
@@ -149,13 +155,101 @@ export default function BiPage() {
       const { data } = await supabase
         .from('citas')
         .select('id,fecha_hora,tipo_tratamiento,estado,valor,sena,saldo,costo_insumos,no_show,duracion_minutos')
+        .eq('tenant_id', tenantId)
         .gte('fecha_hora', desde.toISOString())
         .order('fecha_hora', { ascending: true })
       setCitas((data as Cita[]) ?? [])
       setLoading(false)
     }
     load()
-  }, [rango])
+  }, [rango, tenant])
+
+  if (loadingTenant) {
+    return (
+      <div style={{ display: 'flex', minHeight: '100vh', background: '#f4f7fb', fontFamily: 'DM Sans, sans-serif', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+          <div style={{ width: 36, height: 36, border: '3px solid #e2e8f0', borderTopColor: '#6366f1', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
+          <span style={{ fontSize: 13, color: '#94a3b8' }}>Verificando suscripción...</span>
+        </div>
+      </div>
+    )
+  }
+
+  if (tenant && !tenant.feature_bi) {
+    return (
+      <div style={{ display: 'flex', minHeight: '100vh', background: '#f4f7fb', fontFamily: 'DM Sans, sans-serif' }}>
+        <Sidebar />
+        <main style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: isMobile ? '1rem' : '2rem', marginLeft: isMobile ? 0 : 240, minWidth: 0 }}>
+          <div style={{
+            maxWidth: 480,
+            width: '100%',
+            background: 'rgba(255, 255, 255, 0.7)',
+            backdropFilter: 'blur(20px)',
+            borderRadius: 24,
+            padding: '3rem 2rem',
+            border: '1px solid rgba(255, 255, 255, 0.8)',
+            boxShadow: '0 10px 40px rgba(15,30,43,0.06)',
+            textAlign: 'center'
+          }}>
+            <div style={{
+              width: 80,
+              height: 80,
+              borderRadius: '50%',
+              background: 'linear-gradient(135deg, #e0e7ff, #c7d2fe)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 36,
+              margin: '0 auto 1.5rem',
+              boxShadow: '0 8px 16px rgba(99,102,241,0.1)'
+            }}>
+              📊
+            </div>
+            <h2 style={{ fontSize: 22, fontWeight: 700, color: '#0f1e2b', marginBottom: '0.75rem' }}>Analítica & BI Pro</h2>
+            <p style={{ fontSize: 14, color: '#64748b', lineHeight: 1.5, marginBottom: '2rem' }}>
+              El módulo de analítica avanzada e inteligencia de negocios no está disponible en tu plan actual.
+            </p>
+            <div style={{
+              background: '#f8fafc',
+              borderRadius: 16,
+              padding: '1.25rem',
+              textAlign: 'left',
+              marginBottom: '2rem',
+              border: '1px solid #e2e8f0'
+            }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '0.75rem', letterSpacing: '0.05em' }}>¿Qué incluye este plan?</div>
+              <ul style={{ margin: 0, paddingLeft: '1.25rem', fontSize: 13, color: '#475569', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <li>Métricas de facturación detallada por mes y semana.</li>
+                <li>Rentabilidad y margen de ganancia real por tratamiento.</li>
+                <li>Tasa de asistencia, conversión y control de inasistencias.</li>
+                <li>Exportación de reportes financieros en formato CSV.</li>
+              </ul>
+            </div>
+            <button
+              onClick={() => window.open('mailto:soporte@dentaldesk.app?subject=Upgrade Plan Pro BI', '_blank')}
+              style={{
+                width: '100%',
+                background: '#0f1e2b',
+                color: '#fff',
+                border: 'none',
+                padding: '12px',
+                borderRadius: 12,
+                fontSize: 14,
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'background 0.2s',
+                boxShadow: '0 4px 12px rgba(15,30,43,0.15)'
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.background = '#1e293b'}
+              onMouseLeave={(e) => e.currentTarget.style.background = '#0f1e2b'}
+            >
+              Mejorar mi plan
+            </button>
+          </div>
+        </main>
+      </div>
+    )
+  }
 
   // ── Métricas ─────────────────────────────────────────────
   const total = citas.length

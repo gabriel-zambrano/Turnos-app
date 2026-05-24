@@ -4,6 +4,7 @@ import { Sidebar } from '@/components/Sidebar'
 import { Badge, Toast, PageHeader, BtnPrimary, BtnSm, DataTable, TR, TD, Spinner, MetricCard, inputCss, selectCss, overlayCss, modalCss, modalTitleCss, footerCss, groupCss, labelCss, grid2Css, btnDarkCss, btnLightCss, btnRedCss } from '@/components/UI'
 import { TRAT_STYLE, AVATAR_COLORS, TRATAMIENTOS, calcEdad, initials, normalizarTelefono } from '@/lib/constants'
 import { createClient } from '@/lib/supabase/client'
+import { useTenantContext } from '@/components/TenantContext'
 
 interface PacDB { id:string; nombre:string; telefono:string; email:string|null; fecha_nacimiento:string|null; ultimo_tratamiento:string|null; creado_en:string; token:string|null }
 interface Pac { id:string; nombre:string; telefono:string; email:string; nacimiento:string; tratamiento:string; alta:string; token:string|null }
@@ -13,6 +14,7 @@ function toPac(p: PacDB): Pac {
 
 export default function Pacientes() {
   const supabase = createClient()
+  const { tenant, loading: tenantLoading } = useTenantContext()
   const [rows, setRows] = useState<Pac[]>([])
   const [isMobile, setIsMobile] = useState(false)
   useEffect(()=>{ const check = () => setIsMobile(window.innerWidth < 768); check(); window.addEventListener('resize', check); return () => window.removeEventListener('resize', check) },[])
@@ -31,14 +33,15 @@ export default function Pacientes() {
   function msg(m:string, tipo='ok') { setToast({msg:m,tipo}); setTimeout(()=>setToast(null),3500) }
 
   const load = useCallback(async()=>{
+    if (!tenant) return
     setLoading(true)
-    const {data,error} = await supabase.from('pacientes').select('*').order('creado_en',{ascending:false})
+    const {data,error} = await supabase.from('pacientes').select('*').eq('tenant_id', tenant.id).order('creado_en',{ascending:false})
     if(error) msg('Error al cargar: '+error.message,'error')
     else setRows((data as PacDB[]).map(toPac))
     setLoading(false)
-  },[])
+  },[tenant])
 
-  useEffect(()=>{load()},[load])
+  useEffect(()=>{if (tenant) load()},[load, tenant])
 
   const filtrados = rows.filter(p =>
     p.nombre.toLowerCase().includes(busq.toLowerCase()) ||
@@ -52,9 +55,10 @@ export default function Pacientes() {
   async function saveNuevo() {
     if(!fNombre.trim()) return msg('El nombre es obligatorio','error')
     if(!fTelefono.startsWith('+')) return msg('El teléfono debe empezar con +','error')
+    if(!tenant) return
     setSaving(true)
     const token = crypto.randomUUID()
-    const {error} = await supabase.from('pacientes').insert({nombre:fNombre.trim(),telefono:fTelefono.trim(),email:fEmail.trim()||null,fecha_nacimiento:fNacimiento||null,ultimo_tratamiento:fTratamiento,token})
+    const {error} = await supabase.from('pacientes').insert({nombre:fNombre.trim(),telefono:fTelefono.trim(),email:fEmail.trim()||null,fecha_nacimiento:fNacimiento||null,ultimo_tratamiento:fTratamiento,token,tenant_id:tenant.id})
     setSaving(false)
     if(error) return msg('Error al guardar: '+error.message,'error')
     setModal(null); msg('Paciente agregado correctamente ✓'); load()
@@ -101,7 +105,7 @@ export default function Pacientes() {
             <MetricCard label="Total pacientes" value={loading?'…':rows.length} accent="#1D9E75"/>
             <MetricCard label="Resultado búsqueda" value={loading?'…':filtrados.length} accent="#378ADD"/>
           </div>
-          {loading?<Spinner/>:isMobile?(
+          {tenantLoading || loading?<Spinner/>:isMobile?(
             <div style={{display:'flex',flexDirection:'column',gap:10}}>
               {filtrados.map((p,i)=>{
                 const color=AVATAR_COLORS[i%AVATAR_COLORS.length]
@@ -120,8 +124,8 @@ export default function Pacientes() {
                       <BtnSm variant="edit" onClick={()=>openEditar(p)}>Editar</BtnSm>
                       <BtnSm variant="delete" onClick={()=>{setSel(p);setModal('borrar')}}>Eliminar</BtnSm>
                       {p.token
-                        ?<BtnSm variant="edit" onClick={()=>{const url=`https://turnos.walterbenegas.com.ar/paciente/${p.token}`;const txt=encodeURIComponent(`Hola ${p.nombre},\n\nTe compartimos el link para ver y gestionar tu turno con el *Dr. Walter Benegas*:\n${url}\n\n_Consultorio Dr. Walter Benegas - Av Santa Fe 3329 1 B - Palermo, CABA_`);window.open(`https://wa.me/${normalizarTelefono(p.telefono??'')}?text=${txt}`,'_blank')}}>WhatsApp</BtnSm>
-                        :<BtnSm variant="edit" onClick={async()=>{const tok=crypto.randomUUID();await supabase.from('pacientes').update({token:tok}).eq('id',p.id);msg('Link generado ✓');load()}}>Generar link</BtnSm>
+                        ?<BtnSm variant="edit" onClick={()=>{const url=`${window.location.origin}/paciente/${p.token}`;const txt=encodeURIComponent(`Hola ${p.nombre},\n\nTe compartimos el link para ver y gestionar tu turno con *${tenant?.nombre || 'DentalDesk'}*:\n${url}\n\n_${tenant?.nombre || 'DentalDesk'} - ${tenant?.direccion || ''}_`);window.open(`https://wa.me/${normalizarTelefono(p.telefono??'')}?text=${txt}`,'_blank')}}>WhatsApp</BtnSm>
+                        :<BtnSm variant="edit" onClick={async()=>{if(!tenant)return;const tok=crypto.randomUUID();await supabase.from('pacientes').update({token:tok}).eq('id',p.id);msg('Link generado ✓');load()}}>Generar link</BtnSm>
                       }
                     </div>
                   </div>
@@ -145,8 +149,8 @@ export default function Pacientes() {
                       <BtnSm variant="edit" onClick={()=>openEditar(p)}>Editar</BtnSm>
                       <BtnSm variant="delete" onClick={()=>{setSel(p);setModal('borrar')}}>Eliminar</BtnSm>
                       {p.token
-                        ?<BtnSm variant="edit" onClick={()=>{const url=`https://turnos.walterbenegas.com.ar/paciente/${p.token}`;const txt=encodeURIComponent(`Hola ${p.nombre},\n\nTe compartimos el link para ver y gestionar tu turno con el *Dr. Walter Benegas*:\n${url}\n\n_Consultorio Dr. Walter Benegas - Av Santa Fe 3329 1 B - Palermo, CABA_`);window.open(`https://wa.me/${normalizarTelefono(p.telefono??'')}?text=${txt}`,'_blank')}}>WhatsApp</BtnSm>
-                        :<BtnSm variant="edit" onClick={async()=>{const tok=crypto.randomUUID();await supabase.from('pacientes').update({token:tok}).eq('id',p.id);msg('Link generado ✓');load()}}>Generar link</BtnSm>
+                        ?<BtnSm variant="edit" onClick={()=>{const url=`${window.location.origin}/paciente/${p.token}`;const txt=encodeURIComponent(`Hola ${p.nombre},\n\nTe compartimos el link para ver y gestionar tu turno con *${tenant?.nombre || 'DentalDesk'}*:\n${url}\n\n_${tenant?.nombre || 'DentalDesk'} - ${tenant?.direccion || ''}_`);window.open(`https://wa.me/${normalizarTelefono(p.telefono??'')}?text=${txt}`,'_blank')}}>WhatsApp</BtnSm>
+                        :<BtnSm variant="edit" onClick={async()=>{if(!tenant)return;const tok=crypto.randomUUID();await supabase.from('pacientes').update({token:tok}).eq('id',p.id);msg('Link generado ✓');load()}}>Generar link</BtnSm>
                       }
                     </div></TD>
                   </TR>

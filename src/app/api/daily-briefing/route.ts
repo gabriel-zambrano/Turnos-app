@@ -34,18 +34,6 @@ export async function GET(req: NextRequest) {
     const hace7 = new Date(hoy)
     hace7.setDate(hace7.getDate() - 7)
 
-    const { data: citasHoy } = await supabase
-      .from('citas')
-      .select('estado, valor, saldo, no_show, tipo_tratamiento')
-      .gte('fecha_hora', hoy.toISOString())
-      .lt('fecha_hora', manana.toISOString())
-
-    const { data: citasSemana } = await supabase
-      .from('citas')
-      .select('estado, valor, fecha_hora')
-      .gte('fecha_hora', hace7.toISOString())
-      .lt('fecha_hora', hoy.toISOString())
-
     const { data: tenants } = await supabase
       .from('tenants')
       .select('id, nombre, feature_bi')
@@ -56,81 +44,101 @@ export async function GET(req: NextRequest) {
       .from('perfil_doctor')
       .select('tenant_id, nombre, clinica')
 
-    const { data: adminUsers } = await supabase
-      .from('tenant_users')
-      .select('tenant_id, user_id')
-
-    if (!citasHoy || !citasSemana || !tenants) {
-      return NextResponse.json({ error: 'No data' }, { status: 500 })
+    if (!tenants) {
+      return NextResponse.json({ error: 'No tenants active for BI' }, { status: 200 })
     }
-
-    const totalHoy = citasHoy.length
-    const completadasHoy = citasHoy.filter(c => c.estado === 'completado').length
-    const noShowsHoy = citasHoy.filter(c => c.no_show).length
-    const ingresosHoy = citasHoy.reduce((s, c) => s + (c.valor ?? 0), 0)
-    const saldoHoy = citasHoy.reduce((s, c) => s + (c.saldo ?? 0), 0)
-    const asistenciaHoy = pct(completadasHoy, totalHoy)
-
-    const promDiario = {
-      citas: Math.round(citasSemana.length / 7),
-      ingresos: citasSemana.reduce((s, c) => s + (c.valor ?? 0), 0) / 7,
-      asistencia: pct(
-        citasSemana.filter(c => c.estado === 'completado').length,
-        citasSemana.length
-      )
-    }
-
-    const tratMap: Record<string, number> = {}
-    citasHoy.forEach(c => {
-      tratMap[c.tipo_tratamiento] = (tratMap[c.tipo_tratamiento] ?? 0) + 1
-    })
-    const topTrat = Object.entries(tratMap).sort((a, b) => b[1] - a[1])[0]
-
-    const insights: { emoji: string; texto: string }[] = []
-    const dIngresos = diff(ingresosHoy, promDiario.ingresos)
-    const dCitas = diff(totalHoy, promDiario.citas)
-    const dAsistencia = diff(asistenciaHoy, promDiario.asistencia)
-
-    if (dIngresos.val > 0) insights.push({ emoji: dIngresos.up ? '📈' : '📉', texto: `Facturación ${dIngresos.up ? '+' : '-'}${dIngresos.val}% vs promedio semanal` })
-    if (dCitas.val > 0) insights.push({ emoji: dCitas.up ? '🗓️' : '⚠️', texto: `${dCitas.up ? 'Más' : 'Menos'} citas que el promedio (${dCitas.val}% de diferencia)` })
-    if (noShowsHoy > 0) insights.push({ emoji: '🚨', texto: `${noShowsHoy} inasistencia${noShowsHoy > 1 ? 's' : ''} hoy` })
-    if (asistenciaHoy >= 90) insights.push({ emoji: '⭐', texto: `Excelente tasa de asistencia: ${asistenciaHoy}%` })
-    if (saldoHoy > 0) insights.push({ emoji: '💳', texto: `Saldo pendiente del día: ${fmt(saldoHoy)}` })
-    if (topTrat) insights.push({ emoji: '🦷', texto: `Tratamiento más frecuente: ${topTrat[0]} (${topTrat[1]} citas)` })
 
     const fechaFormateada = new Date().toLocaleDateString('es-AR', {
       weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
     })
 
-const resultados = []
+    const resultados = []
 
-for (const tenant of tenants) {
-  const { data: emailData } = await supabase
-    .rpc('get_tenant_admin_email', { tid: tenant.id })
+    for (const tenant of tenants) {
+      // 1. Obtener email del admin para este tenant
+      const { data: emailData } = await supabase
+        .rpc('get_tenant_admin_email', { tid: tenant.id })
 
-  const email = emailData as string | null
-  if (!email) continue
+      const email = emailData as string | null
+      if (!email) continue
 
-  const doctor = doctores?.find(d => d.tenant_id === tenant.id)
+      // 2. Consultar citas filtrando estrictamente por tenant_id
+      const { data: citasHoy } = await supabase
+        .from('citas')
+        .select('estado, valor, saldo, no_show, tipo_tratamiento')
+        .eq('tenant_id', tenant.id)
+        .gte('fecha_hora', hoy.toISOString())
+        .lt('fecha_hora', manana.toISOString())
 
-  const html = generateEmail({
-    fecha: fechaFormateada,
-    totalHoy, completadasHoy, noShowsHoy,
-    ingresosHoy, saldoHoy, asistenciaHoy,
-    promDiario, insights, dIngresos, dCitas, dAsistencia,
-  })
+      const { data: citasSemana } = await supabase
+        .from('citas')
+        .select('estado, valor, fecha_hora, no_show')
+        .eq('tenant_id', tenant.id)
+        .gte('fecha_hora', hace7.toISOString())
+        .lt('fecha_hora', hoy.toISOString())
 
-  const { error } = await resend.emails.send({
-	from: 'DentalDesk <onboarding@resend.dev>',
-    to: email,
-    subject: `📊 Briefing del ${new Date().toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' })} — ${doctor?.clinica ?? tenant.nombre}`,
-    html,
-  })
+      const citasHoyArr = citasHoy || []
+      const citasSemanaArr = citasSemana || []
 
-resultados.push({ tenant: tenant.nombre, email, ok: !error, error: error?.message })
-}
+      const totalHoy = citasHoyArr.length
+      const completadasHoy = citasHoyArr.filter(c => c.estado === 'completado').length
+      const noShowsHoy = citasHoyArr.filter(c => c.no_show).length
+      const ingresosHoy = citasHoyArr.reduce((s, c) => s + (c.valor ?? 0), 0)
+      const saldoHoy = citasHoyArr.reduce((s, c) => s + (c.saldo ?? 0), 0)
+      const asistenciaHoy = pct(completadasHoy, totalHoy)
 
-return NextResponse.json({ ok: true, resultados })  } catch (e: any) {
+      const promDiario = {
+        citas: Math.round(citasSemanaArr.length / 7),
+        ingresos: citasSemanaArr.reduce((s, c) => s + (c.valor ?? 0), 0) / 7,
+        asistencia: pct(
+          citasSemanaArr.filter(c => c.estado === 'completado').length,
+          citasSemanaArr.length
+        )
+      }
+
+      const tratMap: Record<string, number> = {}
+      citasHoyArr.forEach(c => {
+        if (c.tipo_tratamiento) {
+          tratMap[c.tipo_tratamiento] = (tratMap[c.tipo_tratamiento] ?? 0) + 1
+        }
+      })
+      const topTrat = Object.entries(tratMap).sort((a, b) => b[1] - a[1])[0]
+
+      const insights: { emoji: string; texto: string }[] = []
+      const dIngresos = diff(ingresosHoy, promDiario.ingresos)
+      const dCitas = diff(totalHoy, promDiario.citas)
+      const dAsistencia = diff(asistenciaHoy, promDiario.asistencia)
+
+      if (dIngresos.val > 0) insights.push({ emoji: dIngresos.up ? '📈' : '📉', texto: `Facturación ${dIngresos.up ? '+' : '-'}${dIngresos.val}% vs promedio semanal` })
+      if (dCitas.val > 0) insights.push({ emoji: dCitas.up ? '🗓️' : '⚠️', texto: `${dCitas.up ? 'Más' : 'Menos'} citas que el promedio (${dCitas.val}% de diferencia)` })
+      if (noShowsHoy > 0) insights.push({ emoji: '🚨', texto: `${noShowsHoy} inasistencia${noShowsHoy > 1 ? 's' : ''} hoy` })
+      if (asistenciaHoy >= 90) insights.push({ emoji: '⭐', texto: `Excelente tasa de asistencia: ${asistenciaHoy}%` })
+      if (saldoHoy > 0) insights.push({ emoji: '💳', texto: `Saldo pendiente del día: ${fmt(saldoHoy)}` })
+      if (topTrat) insights.push({ emoji: '🦷', texto: `Tratamiento más frecuente: ${topTrat[0]} (${topTrat[1]} citas)` })
+
+      const doctor = doctores?.find(d => d.tenant_id === tenant.id)
+
+      const html = generateEmail({
+        fecha: fechaFormateada,
+        totalHoy, completadasHoy, noShowsHoy,
+        ingresosHoy, saldoHoy, asistenciaHoy,
+        promDiario, insights, dIngresos, dCitas, dAsistencia,
+      })
+
+      const displayFromName = doctor?.clinica || tenant.nombre || 'DentalDesk'
+      const fromEmail = `${displayFromName} <onboarding@resend.dev>`
+
+      const { error } = await resend.emails.send({
+        from: fromEmail,
+        to: email,
+        subject: `📊 Briefing del ${new Date().toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' })} — ${doctor?.clinica ?? tenant.nombre}`,
+        html,
+      })
+
+      resultados.push({ tenant: tenant.nombre, email, ok: !error, error: error?.message })
+    }
+
+    return NextResponse.json({ ok: true, resultados })  } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 })
   }
 }

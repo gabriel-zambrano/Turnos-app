@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { TENANT_REGISTRY } from '@/components/TenantContext'
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -18,12 +19,23 @@ export async function GET(
   }
   const { data: pac } = await supabaseAdmin
     .from('pacientes')
-    .select('id, nombre, telefono')
+    .select('id, nombre, telefono, tenant_id')
     .eq('token', token)
     .single()
   if (!pac) {
     return NextResponse.json({ error: 'Link inválido' }, { status: 404 })
   }
+
+  const tid = pac.tenant_id || '2845c423-affa-4ca2-9c5f-f4ec8e35701a'
+  const registry = TENANT_REGISTRY[tid] || {
+    nombre: 'Consultorio Dental',
+    direccion: 'Dirección del consultorio',
+    telefono: '',
+    primaryColor: '#0a1e3d',
+    secondaryColor: '#185FA5',
+    accentColor: '#138A6B'
+  }
+
   const ahora = new Date().toISOString()
   const { data: citas } = await supabaseAdmin
     .from('citas')
@@ -31,8 +43,13 @@ export async function GET(
     .eq('paciente_id', pac.id)
     .gte('fecha_hora', ahora)
     .order('fecha_hora', { ascending: true })
+
   return NextResponse.json({
     paciente: { id: pac.id, nombre: pac.nombre, telefono: pac.telefono },
     turnos: citas || [],
+    tenant: {
+      id: tid,
+      ...registry
+    }
   })
 }

@@ -5,6 +5,7 @@ import { Badge, Toast, PageHeader, BtnPrimary, BtnSm, Spinner, overlayCss, modal
 import { TRAT_STYLE, ESTADO_STYLE, TRATAMIENTOS, ESTADOS, DURACIONES, horasDisponibles, hoyISO, normalizarTelefono } from '@/lib/constants'
 import { createClient } from '@/lib/supabase/client'
 import type { EstadoCita, TipoTratamiento } from '@/types'
+import { useTenantContext } from '@/components/TenantContext'
 
 interface CitaDB { id:string; paciente_id:string; fecha_hora:string; tipo_tratamiento:string; estado:string; notas:string|null; duracion_minutos:number; valor:number|null; sena:number|null; medio_pago:string|null; pacientes:{nombre:string;telefono:string;token:string}|null }
 interface Cita   { id:string; paciente_id:string; nombre:string; telefono:string; token:string; hora:string; fecha:string; tratamiento:string; estado:EstadoCita; duracion:number; notas:string; minutos:number; valor:number|null; sena:number|null; medio_pago:string|null }
@@ -198,6 +199,7 @@ const SLOT_H = 48 // px por hora
 
 export default function Agenda() {
   const supabase = createClient()
+  const { tenant, loading: tenantLoading } = useTenantContext()
   const [citas,   setCitas]   = useState<Cita[]>([])
   const [pacs,    setPacs]    = useState<PacMin[]>([])
   const [tratamientosDB, setTratamientosDB] = useState<TratDB[]>([])
@@ -216,6 +218,8 @@ export default function Agenda() {
   const [fBloqFecha, setFBloqFecha] = useState("")
   const [vista,   setVista]   = useState<'semana'|'dia'>('semana')
   const [isMobile, setIsMobile] = useState(false)
+  const [draggedCitaId, setDraggedCitaId] = useState<string | null>(null)
+  const [dragOverDay, setDragOverDay] = useState<string | null>(null)
   const touchStart = useRef<{x:number; y:number} | null>(null)
   const [ahora, setAhora] = useState(() => new Date())
   useEffect(() => { const id = setInterval(() => setAhora(new Date()), 60_000); return () => clearInterval(id) }, [])
@@ -245,28 +249,31 @@ export default function Agenda() {
   const hastaISO = semana[5] + 'T23:59:59'
 
   const loadCitas = useCallback(async()=>{
+    if (!tenant) return
     setLoading(true)
     const desde = vista==='semana' ? semana[0]+'T00:00:00' : fecha+'T00:00:00'
     const hasta = vista==='semana' ? semana[5]+'T23:59:59' : fecha+'T23:59:59'
-    const {data,error} = await supabase.from('citas').select('*, pacientes(nombre,telefono,token)').gte('fecha_hora',desde).lte('fecha_hora',hasta).order('fecha_hora',{ascending:true})
+    const {data,error} = await supabase.from('citas').select('*, pacientes(nombre,telefono,token)').eq('tenant_id', tenant.id).gte('fecha_hora',desde).lte('fecha_hora',hasta).order('fecha_hora',{ascending:true})
     if(error) msg('Error: '+error.message,'error')
     else setCitas((data as CitaDB[]).map(toCita))
     setLoading(false)
-  },[fecha, vista])
+  },[fecha, vista, tenant])
 
   const loadPacs = useCallback(async()=>{
-    const {data} = await supabase.from('pacientes').select('id,nombre,telefono').order('nombre')
+    if (!tenant) return
+    const {data} = await supabase.from('pacientes').select('id,nombre,telefono').eq('tenant_id', tenant.id).order('nombre')
     if(data) setPacs(data as PacMin[])
-  },[])
+  },[tenant])
 
   const loadTratamientos = useCallback(async()=>{
-    const {data} = await supabase.from('tratamientos').select('nombre,precio_base,duracion_default').eq('activo',true).order('nombre')
+    if (!tenant) return
+    const {data} = await supabase.from('tratamientos').select('nombre,precio_base,duracion_default').eq('tenant_id', tenant.id).eq('activo',true).order('nombre')
     if(data) setTratamientosDB(data as TratDB[])
-  },[])
+  },[tenant])
 
-  useEffect(()=>{loadCitas();loadBloqueos(semana[0],semana[5])},[loadCitas])
-  useEffect(()=>{loadPacs()},[loadPacs])
-  useEffect(()=>{loadTratamientos()},[loadTratamientos])
+  useEffect(()=>{if (tenant) { loadCitas();loadBloqueos(semana[0],semana[5]) }},[loadCitas, tenant])
+  useEffect(()=>{if (tenant) loadPacs()},[loadPacs, tenant])
+  useEffect(()=>{if (tenant) loadTratamientos()},[loadTratamientos, tenant])
   useEffect(()=>{
     if(!menuPos) return
     const handler = () => setMenuPos(null)
@@ -301,7 +308,7 @@ export default function Agenda() {
 
     setSobreturnoAgenda(null)
     setSaving(true)
-    const {error} = await supabase.from('citas').insert({paciente_id:fPac,fecha_hora:`${fFecha}T${fHora}:00-03:00`,tipo_tratamiento:fTrat,estado:fEst,duracion_minutos:fDur,notas:fNotas||null,valor:fValor||null,sena:fSena||null,medio_pago:fMedioPago||null,tenant_id:'2845c423-affa-4ca2-9c5f-f4ec8e35701a'})
+    const {error} = await supabase.from('citas').insert({paciente_id:fPac,fecha_hora:`${fFecha}T${fHora}:00-03:00`,tipo_tratamiento:fTrat,estado:fEst,duracion_minutos:fDur,notas:fNotas||null,valor:fValor||null,sena:fSena||null,medio_pago:fMedioPago||null,tenant_id:tenant?.id})
     setSaving(false)
     if(error) return msg('Error: '+error.message,'error')
     setModal(null);msg('Cita agendada ✓');loadCitas()
@@ -331,16 +338,79 @@ export default function Agenda() {
     msg('Estado actualizado')
   }
 
+  async function moverCita(citaId: string, nuevaFecha: string, nuevaHora: string) {
+    const citaOrig = citas.find(c => c.id === citaId)
+    if (!citaOrig) return
+    if (citaOrig.fecha === nuevaFecha && citaOrig.hora === nuevaHora) return
+
+    const backupCitas = [...citas]
+    const [h, m] = nuevaHora.split(':').map(Number)
+    
+    // Update local state optimistically
+    setCitas(prev => prev.map(c => {
+      if (c.id === citaId) {
+        return {
+          ...c,
+          fecha: nuevaFecha,
+          hora: nuevaHora,
+          minutos: h * 60 + m
+        }
+      }
+      return c
+    }))
+
+    const nuevaFechaHora = `${nuevaFecha}T${nuevaHora}:00-03:00`
+    const { error } = await supabase
+      .from('citas')
+      .update({ fecha_hora: nuevaFechaHora })
+      .eq('id', citaId)
+
+    if (error) {
+      setCitas(backupCitas)
+      return msg('Error al mover cita: ' + error.message, 'error')
+    }
+
+    msg('Cita reprogramada ✓')
+    loadCitas()
+  }
+
+  function handleDragStart(e: React.DragEvent, c: Cita) {
+    setDraggedCitaId(c.id)
+    e.dataTransfer.setData('text/plain', c.id)
+    e.dataTransfer.effectAllowed = 'move'
+  }
+
+  async function handleDrop(e: React.DragEvent, targetFecha: string) {
+    e.preventDefault()
+    setDragOverDay(null)
+    const citaId = e.dataTransfer.getData('text/plain') || draggedCitaId
+    if (!citaId) return
+
+    const rect = e.currentTarget.getBoundingClientRect()
+    const y = e.clientY - rect.top
+    const minTot = Math.max(0, Math.floor(y / SLOT_H * 60 / 20) * 20)
+    const h = Math.floor(minTot / 60) + HORA_INICIO
+    const m = minTot % 60
+    const targetHora = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+
+    if (h >= HORA_FIN) return
+
+    setDraggedCitaId(null)
+    await moverCita(citaId, targetFecha, targetHora)
+  }
+
   const loadBloqueos = async (desde: string, hasta: string) => {
-    const {data} = await supabase.from("bloqueos").select("*").gte("fecha", desde).lte("fecha", hasta)
+    if (!tenant) return
+    const {data} = await supabase.from("bloqueos").select("*").eq('tenant_id', tenant.id).gte("fecha", desde).lte("fecha", hasta)
     if (data) setBloqueos(data)
   }
 
   async function saveBloqueo() {
+    if (!tenant) return
     if (!fBloqFecha) return msg("Seleccioná una fecha", "error")
     if (fBloqDesde >= fBloqHasta) return msg("La hora de fin debe ser mayor al inicio", "error")
     setSaving(true)
-    const {error} = await supabase.from("bloqueos").insert({fecha:fBloqFecha, hora_inicio:fBloqDesde, hora_fin:fBloqHasta, motivo:fBloqMotivo||null, tenant_id:'2845c423-affa-4ca2-9c5f-f4ec8e35701a'})
+    const {error} = await supabase.from("bloqueos").insert({fecha:fBloqFecha, hora_inicio:fBloqDesde, hora_fin:fBloqHasta, motivo:fBloqMotivo||null, tenant_id:tenant.id})
     setSaving(false)
     if (error) return msg("Error: "+error.message, "error")
     setModal(null); msg("Horario bloqueado ✓"); loadBloqueos(semana[0], semana[5])
@@ -406,7 +476,7 @@ export default function Agenda() {
         }
 
         <div style={{padding: isMobile ? 0 : '1.5rem 2rem'}}>
-          {loading ? <Spinner/> : (
+          {tenantLoading || loading ? <Spinner/> : (
             <div style={{background:'#fff',border:isMobile?'none':'1px solid #e2e8ed',borderRadius:isMobile?0:16,overflow:'hidden'}}>
 
               {/* Header días */}
@@ -442,7 +512,23 @@ export default function Agenda() {
                 {(isMobile||vista==='dia'?[fecha]:semana).map((f)=>{
                   const citasF = citasDelDia(f)
                   return(
-                    <div key={f} style={{position:'relative',height:totalH,borderRight:'1px solid #f0f0f0',cursor:'pointer'}}
+                    <div key={f} 
+                      style={{
+                        position:'relative',
+                        height:totalH,
+                        borderRight:'1px solid #f0f0f0',
+                        cursor:'pointer',
+                        background: dragOverDay === f ? 'rgba(56, 138, 221, 0.08)' : 'transparent',
+                        transition: 'background 0.2s ease',
+                      }}
+                      onDragOver={e => {
+                        e.preventDefault()
+                        if (dragOverDay !== f) setDragOverDay(f)
+                      }}
+                      onDragLeave={() => {
+                        if (dragOverDay === f) setDragOverDay(null)
+                      }}
+                      onDrop={e => handleDrop(e, f)}
                       onTouchStart={e=>{
                         touchStart.current = {x:e.touches[0].clientX, y:e.touches[0].clientY}
                       }}
@@ -512,9 +598,13 @@ export default function Agenda() {
                       {citasF.map(c=>{
                         const tc = TRAT_STYLE[c.tratamiento]||TRAT_STYLE.Consulta
                         const es = ESTADO_STYLE[c.estado]||ESTADO_STYLE.pendiente
+                        const isDragging = draggedCitaId === c.id
                         return(
                           <div key={c.id} data-cita="1"
                             onClick={e=>{e.stopPropagation();setSel(c);setModal('detalle')}}
+                            draggable
+                            onDragStart={e => handleDragStart(e, c)}
+                            onDragEnd={() => setDraggedCitaId(null)}
                             style={{
                               position:'absolute',
                               top:citaTop(c)+2,
@@ -527,7 +617,9 @@ export default function Agenda() {
                               overflow:'hidden',
                               cursor:'pointer',
                               zIndex:1,
-                              boxShadow:'0 1px 3px rgba(0,0,0,0.08)'
+                              boxShadow:'0 1px 3px rgba(0,0,0,0.08)',
+                              opacity: isDragging ? 0.4 : 1,
+                              transition: 'opacity 0.2s ease',
                             }}>
                             {isMobile ? (
                               <>
@@ -581,16 +673,16 @@ export default function Agenda() {
                 const num = normalizarTelefono(sel.telefono)
                 const d   = parseFechaLocal(sel.fecha)
                 const fechaLarga = d.toLocaleDateString('es-AR',{weekday:'long',day:'numeric',month:'long'})
-                const txt = encodeURIComponent(
-                  `Hola ${sel.nombre},\n\n` +
-                  `Te recordamos tu turno con el *Dr. Walter Benegas*:\n\n` +
-                  `${fechaLarga} a las *${sel.hora}hs*\n` +
-                  `${sel.tratamiento}\n\n` +
-                  `Confirma o cancela tu turno aca:\n` +
-                  `https://turnos.walterbenegas.com.ar/paciente/${sel.token}\n\n` +
-                  `Recorda que los turnos no cancelados con mas de 48hs de anticipacion o no asistidos deben ser abonados.\n\n` +
-                  `_Consultorio Dr. Walter Benegas - Av. Santa Fe 3329 1 B - Palermo, CABA_`
-                )
+                let msgText = tenant?.whatsappTemplate || ''
+                msgText = msgText
+                  .replace(/{nombre_paciente}/g, sel.nombre)
+                  .replace(/{nombre_clinica}/g, tenant?.nombre || 'DentalDesk')
+                  .replace(/{dia_semana}/g, d.toLocaleDateString('es-AR',{weekday:'long'}))
+                  .replace(/{fecha}/g, d.toLocaleDateString('es-AR',{day:'numeric',month:'long'}))
+                  .replace(/{hora}/g, sel.hora)
+                  .replace(/{tratamiento}/g, sel.tratamiento)
+                  .replace(/{link}/g, `${window.location.origin}/paciente/${sel.token}`)
+                const txt = encodeURIComponent(msgText)
                 window.open(`https://wa.me/${num}?text=${txt}`,'_blank')
               }}>
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.123.553 4.116 1.522 5.849L0 24l6.335-1.505A11.94 11.94 0 0 0 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.818 9.818 0 0 1-5.006-1.371l-.358-.214-3.759.893.952-3.653-.234-.374A9.818 9.818 0 0 1 2.182 12C2.182 6.57 6.57 2.182 12 2.182S21.818 6.57 21.818 12 17.43 21.818 12 21.818z"/></svg>

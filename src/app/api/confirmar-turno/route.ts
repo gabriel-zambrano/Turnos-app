@@ -3,28 +3,44 @@ import { NextRequest, NextResponse } from 'next/server'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
+const TENANT_REGISTRY: Record<string, { nombre: string; direccion: string; telefono: string }> = {
+  '2845c423-affa-4ca2-9c5f-f4ec8e35701a': {
+    nombre: 'Dr. Walter Benegas',
+    direccion: 'Av. Santa Fe 3329 1° B, Palermo, CABA',
+    telefono: '+5491123972395',
+  }
+}
+
 export async function POST(req: NextRequest) {
-  const { nombre, email, fecha, hora, tratamiento, duracion, notas } = await req.json()
+  const { nombre, email, fecha, hora, tratamiento, duracion, notas, tenantId } = await req.json()
 
   if (!email) return NextResponse.json({ error: 'Email requerido' }, { status: 400 })
 
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://turnos-app-delta.vercel.app'
+
+  // Resolver branding del tenant
+  const tid = tenantId || '2845c423-affa-4ca2-9c5f-f4ec8e35701a'
+  const registry = TENANT_REGISTRY[tid] || {
+    nombre: 'DentalDesk',
+    direccion: 'Dirección del consultorio',
+    telefono: '',
+  }
 
   // Google Calendar
   const fechaInicio = `${fecha.replace(/-/g, '')}T${hora.replace(':', '')}00-0300`
   const fechaFin = new Date(`${fecha}T${hora}:00-03:00`)
   fechaFin.setMinutes(fechaFin.getMinutes() + (duracion || 30))
   const fechaFinStr = fechaFin.toISOString().replace(/[-:]/g, '').split('.')[0] + '-0300'
-  const googleLink = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=Turno+Dr.+Benegas+-+${encodeURIComponent(tratamiento)}&dates=${fechaInicio}/${fechaFinStr}&details=${encodeURIComponent(`Turno con el Dr. Walter Benegas\nTratamiento: ${tratamiento}\n${notas ? 'Notas: ' + notas : ''}`)}&location=Av.+Santa+Fe+3329+1°+B,+Palermo,+CABA`
+  const googleLink = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=Turno+${encodeURIComponent(registry.nombre)}+-+${encodeURIComponent(tratamiento)}&dates=${fechaInicio}/${fechaFinStr}&details=${encodeURIComponent(`Turno con ${registry.nombre}\nTratamiento: ${tratamiento}\n${notas ? 'Notas: ' + notas : ''}`)}&location=${encodeURIComponent(registry.direccion)}`
 
   // Outlook
-  const outlookLink = `https://outlook.live.com/calendar/0/deeplink/compose?subject=${encodeURIComponent(`Turno Dr. Benegas - ${tratamiento}`)}&startdt=${fecha}T${hora}:00&enddt=${fechaFin.toISOString()}&body=${encodeURIComponent(`Turno con el Dr. Walter Benegas\nTratamiento: ${tratamiento}`)}&location=${encodeURIComponent('Av. Santa Fe 3329 1° B, Palermo, CABA')}`
+  const outlookLink = `https://outlook.live.com/calendar/0/deeplink/compose?subject=${encodeURIComponent(`Turno ${registry.nombre} - ${tratamiento}`)}&startdt=${fecha}T${hora}:00&enddt=${fechaFin.toISOString()}&body=${encodeURIComponent(`Turno con ${registry.nombre}\nTratamiento: ${tratamiento}`)}&location=${encodeURIComponent(registry.direccion)}`
 
   // iCal / Apple Calendar
   const icsLink = `${baseUrl}/api/ics?fecha=${fecha}&hora=${encodeURIComponent(hora)}&tratamiento=${encodeURIComponent(tratamiento)}&duracion=${duracion || 30}&notas=${encodeURIComponent(notas || '')}`
 
   const { error } = await resend.emails.send({
-    from: 'Consultorio Dr. Benegas <turnos@walterbenegas.com.ar>',
+    from: `${registry.nombre} <turnos@walterbenegas.com.ar>`,
     to: email,
     subject: `✅ Turno confirmado — ${fecha} a las ${hora}hs`,
     html: `
@@ -34,7 +50,7 @@ export async function POST(req: NextRequest) {
           <div style="text-align: center; margin-bottom: 24px;">
             <div style="width: 56px; height: 56px; background: #E1F5EE; border-radius: 50%; margin: 0 auto 12px; line-height: 56px; font-size: 28px;">🦷</div>
             <h1 style="font-size: 20px; font-weight: 700; color: #0f1e2b; margin: 0;">Tu turno está confirmado</h1>
-            <p style="font-size: 14px; color: #94a3b8; margin: 6px 0 0;">Consultorio Dr. Walter Benegas</p>
+            <p style="font-size: 14px; color: #94a3b8; margin: 6px 0 0;">${registry.nombre}</p>
           </div>
 
           <div style="background: #f4f7fb; border-radius: 12px; padding: 20px; margin-bottom: 24px;">
@@ -57,7 +73,7 @@ export async function POST(req: NextRequest) {
                 <td>
                   <span style="font-size: 18px;">📍</span>
                   <span style="font-size: 11px; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-top: 4px;">Lugar</span>
-                  <span style="font-size: 15px; font-weight: 600; color: #0f1e2b;">Av. Santa Fe 3329 1° B, Palermo, CABA</span>
+                  <span style="font-size: 15px; font-weight: 600; color: #0f1e2b;">${registry.direccion}</span>
                 </td>
               </tr>
               ${notas ? `<tr><td style="padding-top: 12px;"><span style="font-size: 18px;">📝</span><span style="font-size: 11px; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-top: 4px;">Notas</span><span style="font-size: 14px; color: #0f1e2b;">${notas}</span></td></tr>` : ''}

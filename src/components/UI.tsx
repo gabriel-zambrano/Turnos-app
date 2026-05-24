@@ -64,11 +64,23 @@ export function Spinner() {
 
 export function MetricCard({ label, value, sub, accent }: { label: string; value: string | number; sub?: string; accent: string }) {
   return (
-    <div className="glass-card" style={{ padding: '1rem 1.1rem', minWidth: 0 }}>
-      <div style={{ height: 3, borderRadius: 2, background: accent, marginBottom: 10 }}/>
-      <div style={{ fontSize: 10, color: '#8fa3bc', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600, marginBottom: 6 }}>{label}</div>
-      <div style={{ fontSize: 24, fontWeight: 700, color: DARK, lineHeight: 1 }}>{value}</div>
-      {sub && <div style={{ fontSize: 11, color: '#aab8c8', marginTop: 4 }}>{sub}</div>}
+    <div className="glass-card" style={{ 
+      padding: '1.25rem 1.4rem', 
+      minWidth: 0,
+      display: 'flex',
+      flexDirection: 'column',
+      justifyContent: 'space-between',
+      position: 'relative',
+      overflow: 'hidden',
+      '--card-accent': accent,
+      '--card-accent-alpha': `${accent}15`
+    } as React.CSSProperties}>
+      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 4, background: `linear-gradient(90deg, ${accent}, ${accent}88)` }}/>
+      <div>
+        <div style={{ fontSize: 10.5, color: '#7a8f9d', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 700, marginBottom: 8 }}>{label}</div>
+        <div style={{ fontSize: 28, fontWeight: 800, color: DARK, lineHeight: 1.1, letterSpacing: '-0.5px' }}>{value}</div>
+      </div>
+      {sub && <div style={{ fontSize: 11.5, color: '#8b9cb0', marginTop: 8, fontWeight: 500 }}>{sub}</div>}
     </div>
   )
 }

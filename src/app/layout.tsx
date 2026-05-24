@@ -1,10 +1,11 @@
 import * as Sentry from '@sentry/nextjs'
 import type { Metadata } from 'next'
+import { TenantProvider } from '@/components/TenantContext'
 import './globals.css'
 
 export function generateMetadata(): Metadata {
   return {
-    title: 'DentalDesk — Od. Walter Benegas',
+    title: 'DentalDesk',
     description: 'Sistema de gestión de turnos odontológicos',
     other: {
       ...Sentry.getTraceData()
@@ -17,9 +18,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="es">
       <body>
         <canvas id="particles-bg"/>
-        <div style={{ position: 'relative', zIndex: 1, minHeight: '100vh' }}>
-          {children}
-        </div>
+        <TenantProvider>
+          <div style={{ position: 'relative', zIndex: 1, minHeight: '100vh' }}>
+            {children}
+          </div>
+        </TenantProvider>
         <script dangerouslySetInnerHTML={{ __html: `
           (function() {
             const canvas = document.getElementById('particles-bg');
