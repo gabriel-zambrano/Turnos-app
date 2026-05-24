@@ -139,6 +139,33 @@ input:focus, select:focus, textarea:focus {
   }
 }
 
+@keyframes ortodonciaGlow {
+  0%, 100% {
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 0 5px rgba(127, 119, 221, 0.18);
+    border-color: rgba(127, 119, 221, 0.3) !important;
+  }
+  50% {
+    box-shadow: 0 4px 12px rgba(127, 119, 221, 0.22), 0 0 14px rgba(127, 119, 221, 0.42);
+    border-color: rgba(127, 119, 221, 0.75) !important;
+  }
+}
+
+.glow-card-ortodoncia {
+  animation: ortodonciaGlow 3s infinite ease-in-out;
+  border: 1px solid rgba(127, 119, 221, 0.3) !important;
+  background: linear-gradient(135deg, rgba(238, 237, 254, 0.95), rgba(238, 237, 254, 0.82)) !important;
+}
+
+.agenda-card-interactive {
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease, opacity 0.25s ease !important;
+}
+
+.agenda-card-interactive:hover {
+  transform: translateY(-2px) scale(1.02);
+  z-index: 10 !important;
+  box-shadow: 0 6px 16px rgba(10, 30, 61, 0.12), 0 0 10px var(--hover-glow, rgba(56, 138, 221, 0.15)) !important;
+}
+
 @media (max-width: 767px) {
   div[style*="inset: 0"][style*="rgba(15, 30, 43"] {
     align-items: flex-end !important;

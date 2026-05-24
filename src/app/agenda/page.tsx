@@ -599,28 +599,30 @@ export default function Agenda() {
                         const tc = TRAT_STYLE[c.tratamiento]||TRAT_STYLE.Consulta
                         const es = ESTADO_STYLE[c.estado]||ESTADO_STYLE.pendiente
                         const isDragging = draggedCitaId === c.id
+                        const isOrtodoncia = c.tratamiento === 'Ortodoncia'
                         return(
                           <div key={c.id} data-cita="1"
                             onClick={e=>{e.stopPropagation();setSel(c);setModal('detalle')}}
                             draggable
                             onDragStart={e => handleDragStart(e, c)}
                             onDragEnd={() => setDraggedCitaId(null)}
+                            className={`agenda-card-interactive ${isOrtodoncia ? 'glow-card-ortodoncia' : ''}`}
                             style={{
                               position:'absolute',
                               top:citaTop(c)+2,
                               left:3, right:3,
                               height:citaHeight(c)-4,
-                              background:tc.bg,
+                              background:isOrtodoncia ? undefined : tc.bg,
                               borderLeft:`3px solid ${tc.dot}`,
                               borderRadius:6,
                               padding:'3px 6px',
                               overflow:'hidden',
                               cursor:'pointer',
                               zIndex:1,
-                              boxShadow:'0 1px 3px rgba(0,0,0,0.08)',
+                              boxShadow: isOrtodoncia ? undefined : '0 1px 3px rgba(0,0,0,0.08)',
                               opacity: isDragging ? 0.4 : 1,
-                              transition: 'opacity 0.2s ease',
-                            }}>
+                              ['--hover-glow' as any]: `${tc.dot}35`,
+                            } as React.CSSProperties}>
                             {isMobile ? (
                               <>
                                 <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
