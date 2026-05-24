@@ -1,3 +1,4 @@
+'use client'
 import { useState, useEffect, useCallback } from 'react'
 import { Sidebar } from '@/components/Sidebar'
 import { Badge, Toast, PageHeader, FilterBar, Spinner, MetricCard } from '@/components/UI'
