@@ -132,6 +132,13 @@ input:focus, select:focus, textarea:focus {
   box-shadow: 0 0 14px var(--glow-color, rgba(29, 158, 117, 0.25));
 }
 
+@keyframes ping {
+  75%, 100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
+
 @media (max-width: 767px) {
   div[style*="inset: 0"][style*="rgba(15, 30, 43"] {
     align-items: flex-end !important;

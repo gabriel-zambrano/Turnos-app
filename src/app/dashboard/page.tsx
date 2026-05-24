@@ -35,14 +35,21 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true)
   const [enviando, setEnviando] = useState(false)
   const [filtro, setFiltro] = useState('todas')
+  const [logFiltro, setLogFiltro] = useState<'todos'|'enviado'|'fallido'>('todos')
   const [mostrarMañana, setMostrarMañana] = useState(false)
   const [enviandoEmail, setEnviandoEmail] = useState(false)
   const [toast, setToast] = useState<{msg:string;tipo:string}|null>(null)
   const [hoy, setHoy] = useState('')
+  const [ahora, setAhora] = useState(() => new Date())
 
   useEffect(()=>{
     setHoy(new Date().toLocaleDateString('es-AR',{weekday:'long',day:'numeric',month:'long'}))
   },[])
+
+  useEffect(() => {
+    const id = setInterval(() => setAhora(new Date()), 60000)
+    return () => clearInterval(id)
+  }, [])
 
   function msg(m:string,tipo='ok'){setToast({msg:m,tipo});setTimeout(()=>setToast(null),3500)}
 
@@ -90,6 +97,42 @@ export default function Dashboard() {
   const lista   = filtro==='todas'?citas:citas.filter(c=>c.estado===filtro)
   const logOk   = logs.filter(l=>l.estado==='enviado').length
   const logFail = logs.filter(l=>l.estado==='fallido').length
+
+  const getSaludo = () => {
+    const hrs = ahora.getHours()
+    if (hrs < 12) return '¡Buenos días'
+    if (hrs < 20) return '¡Buenas tardes'
+    return '¡Buenas noches'
+  }
+
+  const parseTimeToMin = (tStr: string) => {
+    const [h, m] = tStr.split(':').map(Number)
+    return h * 60 + m
+  }
+
+  // Workload counts by treatment
+  const desgloseTratamientos = citas.reduce((acc, c) => {
+    acc[c.tratamiento] = (acc[c.tratamiento] || 0) + 1
+    return acc
+  }, {} as Record<string, number>)
+
+  // Find next up patient today (must be in the future relative to ahora)
+  const ahoraMin = ahora.getHours() * 60 + ahora.getMinutes()
+  const upcomingCitas = citas
+    .filter(c => parseTimeToMin(c.hora) > ahoraMin)
+    .sort((a, b) => parseTimeToMin(a.hora) - parseTimeToMin(b.hora))
+  
+  const nextCita = upcomingCitas[0] || null
+  const minDiff = nextCita ? parseTimeToMin(nextCita.hora) - ahoraMin : 0
+  const tiempoRestante = minDiff < 60 ? `en ${minDiff} min` : `en ${Math.floor(minDiff/60)}h ${minDiff%60}m`
+
+  // Horario blocks
+  const bM = citas.filter(c => { const m = parseTimeToMin(c.hora); return m >= 8*60 && m < 12*60 }).length
+  const bMD = citas.filter(c => { const m = parseTimeToMin(c.hora); return m >= 12*60 && m < 16*60 }).length
+  const bT = citas.filter(c => { const m = parseTimeToMin(c.hora); return m >= 16*60 && m < 20*60 }).length
+  const bMax = Math.max(bM, bMD, bT, 1)
+
+  const logsFiltrados = logFiltro === 'todos' ? logs : logs.filter(l => l.estado === logFiltro)
 
   async function confirmar(id:string){
     await supabase.from('citas').update({estado:'confirmado'}).eq('id',id)
@@ -154,12 +197,169 @@ export default function Dashboard() {
           right={<span style={{fontSize:isMobile?11:12,padding:'5px 12px',borderRadius:6,fontWeight:700,background:`${accentColor}20`,color:accentColor}}>Tasa: {tasa}%</span>}
         />
         <div style={{padding:isMobile?'1rem':'1.75rem 2rem',maxWidth:1100}}>
+          
+          {/* Welcome Banner and Workload Distribution */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: isMobile ? '1fr' : '2fr 1fr',
+            gap: 16,
+            marginBottom: '1.5rem'
+          }}>
+            {/* Greeting Card */}
+            <div className="glass-container" style={{
+              padding: '1.4rem 1.6rem',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
+              position: 'relative',
+              overflow: 'hidden',
+              background: `linear-gradient(135deg, rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0.6))`
+            }}>
+              <div style={{ position: 'absolute', top: 0, left: 0, bottom: 0, width: 4, background: `linear-gradient(180deg, ${secondaryColor}, ${accentColor})` }}/>
+              <div>
+                <h2 style={{ fontSize: isMobile ? 17 : 20, fontWeight: 800, color: primaryColor, marginBottom: 6 }}>
+                  {getSaludo()}, {tenant?.nombre.split(' ')[0] || 'Doctor'}!
+                </h2>
+                <p style={{ fontSize: 13, color: '#687e96', lineHeight: 1.4 }}>
+                  {citas.length > 0 
+                    ? `Hoy tenés ${citas.length} turnos agendados en total.`
+                    : 'No tenés citas agendadas para el día de hoy.'
+                  }
+                </p>
+              </div>
+              
+              {citas.length > 0 && (
+                <div style={{ marginTop: 14, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  {Object.entries(desgloseTratamientos).map(([trat, count]) => {
+                    const tc = TRAT_STYLE[trat] || TRAT_STYLE.Consulta
+                    return (
+                      <span key={trat} style={{
+                        fontSize: 11,
+                        fontWeight: 600,
+                        padding: '4px 10px',
+                        borderRadius: 20,
+                        background: tc.bg,
+                        color: tc.color,
+                        border: `1px solid ${tc.dot}20`,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 5
+                      }}>
+                        <span style={{ width: 6, height: 6, borderRadius: '50%', background: tc.dot }}/>
+                        {trat}: {count}
+                      </span>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Peak Hours Visualizer Chart */}
+            <div className="glass-container" style={{ padding: '1.25rem 1.4rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#7a8f9d', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>
+                Distribución Horaria
+              </div>
+              
+              <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', height: 75, gap: 10, padding: '0 8px' }}>
+                {/* Block 1 */}
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+                  <div style={{
+                    width: '100%',
+                    height: `${(bM / bMax) * 50}px`,
+                    background: `linear-gradient(180deg, ${secondaryColor}, ${secondaryColor}66)`,
+                    borderRadius: '4px 4px 0 0',
+                    minHeight: bM > 0 ? 4 : 0,
+                    transition: 'height 0.3s ease'
+                  }}/>
+                  <span style={{ fontSize: 9, fontWeight: 700, color: primaryColor }}>Mañana</span>
+                </div>
+                {/* Block 2 */}
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+                  <div style={{
+                    width: '100%',
+                    height: `${(bMD / bMax) * 50}px`,
+                    background: `linear-gradient(180deg, ${accentColor}, ${accentColor}66)`,
+                    borderRadius: '4px 4px 0 0',
+                    minHeight: bMD > 0 ? 4 : 0,
+                    transition: 'height 0.3s ease'
+                  }}/>
+                  <span style={{ fontSize: 9, fontWeight: 700, color: primaryColor }}>Tarde</span>
+                </div>
+                {/* Block 3 */}
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+                  <div style={{
+                    width: '100%',
+                    height: `${(bT / bMax) * 50}px`,
+                    background: `linear-gradient(180deg, ${primaryColor}, ${primaryColor}66)`,
+                    borderRadius: '4px 4px 0 0',
+                    minHeight: bT > 0 ? 4 : 0,
+                    transition: 'height 0.3s ease'
+                  }}/>
+                  <span style={{ fontSize: 9, fontWeight: 700, color: primaryColor }}>Noche</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div style={{display:'grid',gridTemplateColumns:isMobile?'repeat(2,1fr)':'repeat(4,1fr)',gap:12,marginBottom:'1.5rem'}}>
             <MetricCard label="Citas hoy"        value={loading?'…':citas.length} sub="Total agendadas"     accent={primaryColor}/>
             <MetricCard label="Confirmadas"       value={loading?'…':conf}         sub={`${tasa}% de tasa`} accent={accentColor}/>
             <MetricCard label="Pendientes"        value={loading?'…':pend}         sub="Sin confirmar"       accent={secondaryColor}/>
             <MetricCard label="Tasa confirmación" value={loading?'…':`${tasa}%`}   sub="Objetivo: 85%"      accent={tasa>=85?accentColor:'#D85A30'}/>
           </div>
+
+          {/* Next Up Patient Alert */}
+          {nextCita && (
+            <div className="glass-container progress-glow" style={{
+              padding: '0.9rem 1.25rem',
+              marginBottom: '1.5rem',
+              background: `linear-gradient(135deg, ${accentColor}06, ${secondaryColor}06)`,
+              border: `1px solid ${secondaryColor}15`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: 12,
+              '--glow-color': `${secondaryColor}10`
+            } as React.CSSProperties}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                {/* Pulsing Dot */}
+                <span className="pulse-indicator" style={{ display: 'flex', position: 'relative', width: 8, height: 8 }}>
+                  <span style={{ animation: 'ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite', position: 'absolute', display: 'inline-flex', height: '100%', width: '100%', borderRadius: '50%', background: accentColor, opacity: 0.75 }}></span>
+                  <span style={{ position: 'relative', display: 'inline-flex', borderRadius: '50%', height: 8, width: 8, background: accentColor }}></span>
+                </span>
+                <div style={{ fontSize: 13, fontWeight: 500, color: primaryColor }}>
+                  Próxima cita en agenda: <strong style={{ fontWeight: 700 }}>{nextCita.nombre}</strong> a las <strong style={{ color: secondaryColor }}>{nextCita.hora} hs</strong> ({nextCita.tratamiento})
+                </div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: accentColor, background: `${accentColor}15`, padding: '3px 8px', borderRadius: 20 }}>
+                  {tiempoRestante}
+                </span>
+                {nextCita.telefono && (
+                  <button onClick={() => {
+                    const txt = encodeURIComponent(`Hola ${nextCita.nombre}, te recordamos tu turno hoy a las ${nextCita.hora}hs.`)
+                    window.open(`https://wa.me/${normalizarTelefono(nextCita.telefono)}?text=${txt}`, '_blank')
+                  }} className="btn-premium" style={{
+                    background: '#25D366',
+                    border: 'none',
+                    borderRadius: 8,
+                    padding: '4px 10px',
+                    color: '#fff',
+                    fontSize: 11,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 4
+                  }}>
+                    WhatsApp
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
           <div className="glass-container progress-glow" style={{padding:isMobile?'1rem':'1.1rem 1.4rem',marginBottom:'1.5rem', '--glow-color': `${tasa >= 85 ? accentColor : '#EF9F27'}25` } as React.CSSProperties}>
             <div style={{display:'flex',justifyContent:'space-between',marginBottom:8}}>
               <span style={{fontSize:13,fontWeight:600,color:primaryColor}}>Progreso del día</span>
@@ -224,12 +424,32 @@ export default function Dashboard() {
               </button>
             </div>
             <div style={{marginTop:isMobile?8:0}}>
-              <div style={{fontWeight:600,fontSize:14,marginBottom:12,color:primaryColor}}>Log de envíos</div>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
+                <span style={{fontWeight:600,fontSize:14,color:primaryColor}}>Log de envíos</span>
+                <div style={{display:'flex',gap:4}}>
+                  {(['todos', 'enviado', 'fallido'] as const).map(f => (
+                    <button key={f} onClick={() => setLogFiltro(f)} style={{
+                      fontSize: 10,
+                      padding: '3px 8px',
+                      borderRadius: 6,
+                      cursor: 'pointer',
+                      border: 'none',
+                      background: logFiltro === f ? primaryColor : '#f0f4f8',
+                      color: logFiltro === f ? '#fff' : '#8fa3bc',
+                      fontWeight: 600,
+                      textTransform: 'capitalize',
+                      fontFamily: 'DM Sans, sans-serif'
+                    }}>
+                      {f === 'todos' ? 'Todos' : f === 'enviado' ? 'Ok' : 'Err'}
+                    </button>
+                  ))}
+                </div>
+              </div>
               <div className="glass-container" style={{borderRadius:14,overflow:'hidden',background:'rgba(255,255,255,0.7)'}}>
-                {logs.length===0
+                {logsFiltrados.length===0
                   ?<div style={{padding:'2rem',textAlign:'center',color:'#ccc',fontSize:13}}>Sin envíos aún</div>
-                  :logs.slice(0,8).map((l,i)=>(
-                    <div key={l.id} style={{display:'flex',alignItems:'center',gap:10,padding:'0.75rem 1rem',borderBottom:i<Math.min(logs.length,8)-1?'0.5px solid rgba(56,138,221,0.08)':'none'}}>
+                  :logsFiltrados.slice(0,8).map((l,i)=>(
+                    <div key={l.id} style={{display:'flex',alignItems:'center',gap:10,padding:'0.75rem 1rem',borderBottom:i<Math.min(logsFiltrados.length,8)-1?'0.5px solid rgba(56,138,221,0.08)':'none'}}>
                       <div style={{width:7,height:7,borderRadius:'50%',flexShrink:0,background:l.estado==='enviado'?accentColor:'#D85A30'}}/>
                       <div style={{flex:1,minWidth:0}}>
                         <div style={{fontSize:13,fontWeight:500,color:primaryColor,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{l.paciente}</div>
