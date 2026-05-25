@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
 import { Sidebar } from '@/components/Sidebar'
 import { Badge, Toast, PageHeader, BtnPrimary, BtnSm, DataTable, TR, TD, Spinner, MetricCard, inputCss, selectCss, overlayCss, modalCss, modalTitleCss, footerCss, groupCss, labelCss, grid2Css, btnDarkCss, btnLightCss, btnRedCss } from '@/components/UI'
 import { TRAT_STYLE, AVATAR_COLORS, TRATAMIENTOS, calcEdad, initials, normalizarTelefono } from '@/lib/constants'
@@ -13,6 +14,7 @@ function toPac(p: PacDB): Pac {
 }
 
 export default function Pacientes() {
+  const router = useRouter()
   const supabase = createClient()
   const { tenant, loading: tenantLoading } = useTenantContext()
   const [rows, setRows] = useState<Pac[]>([])
@@ -112,11 +114,11 @@ export default function Pacientes() {
                 const tc=TRAT_STYLE[p.tratamiento]||TRAT_STYLE.Consulta
                 return(
                   <div key={p.id} style={{background:'#fff',borderRadius:12,padding:'1rem',boxShadow:'0 1px 4px rgba(0,0,0,0.07)',display:'flex',flexDirection:'column',gap:8}}>
-                    <div style={{display:'flex',alignItems:'center',gap:10}}>
+                    <div onClick={() => router.push(`/pacientes/${p.id}`)} style={{display:'flex',alignItems:'center',gap:10,cursor:'pointer'}}>
                       <div style={{width:40,height:40,borderRadius:'50%',background:color+'22',border:`1.5px solid ${color}44`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:13,fontWeight:700,color,flexShrink:0}}>{initials(p.nombre)}</div>
                       <div style={{flex:1,minWidth:0}}>
-                        <div style={{fontWeight:600,fontSize:15,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{p.nombre}</div>
-                        <div style={{fontSize:12,color:'#888'}}>{p.telefono}</div>
+                        <div style={{fontWeight:600,fontSize:15,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',color:'var(--text-dark)'}}>{p.nombre}</div>
+                        <div style={{fontSize:12,color:'var(--text-muted)'}}>{p.telefono}</div>
                       </div>
                       <Badge bg={tc.bg} color={tc.color}>{p.tratamiento}</Badge>
                     </div>
@@ -140,7 +142,15 @@ export default function Pacientes() {
                 const tc=TRAT_STYLE[p.tratamiento]||TRAT_STYLE.Consulta
                 return(
                   <TR key={p.id}>
-                    <TD first><div style={{display:'flex',alignItems:'center',gap:12}}><div style={{width:36,height:36,borderRadius:'50%',background:color+'22',border:`1.5px solid ${color}44`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,fontWeight:700,color,flexShrink:0}}>{initials(p.nombre)}</div><div><div style={{fontWeight:600,fontSize:14}}>{p.nombre}</div><div style={{fontSize:11,color:'#aaa'}}>Alta: {p.alta}</div></div></div></TD>
+                    <TD first>
+                      <div onClick={() => router.push(`/pacientes/${p.id}`)} style={{display:'flex',alignItems:'center',gap:12,cursor:'pointer'}}>
+                        <div style={{width:36,height:36,borderRadius:'50%',background:color+'22',border:`1.5px solid ${color}44`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,fontWeight:700,color,flexShrink:0}}>{initials(p.nombre)}</div>
+                        <div>
+                          <div style={{fontWeight:600,fontSize:14,color:'var(--text-dark)',textDecoration:'underline'}}>{p.nombre}</div>
+                          <div style={{fontSize:11,color:'var(--text-muted, #aaa)'}}>Alta: {p.alta}</div>
+                        </div>
+                      </div>
+                    </TD>
                     <TD><div style={{fontSize:13}}>{p.telefono}</div><div style={{fontSize:12,color:'#aaa'}}>{p.email||'—'}</div></TD>
                     <TD muted>{calcEdad(p.nacimiento)}</TD>
                     <TD><Badge bg={tc.bg} color={tc.color}>{p.tratamiento}</Badge></TD>

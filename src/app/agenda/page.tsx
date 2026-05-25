@@ -6,6 +6,7 @@ import { TRAT_STYLE, ESTADO_STYLE, TRATAMIENTOS, ESTADOS, DURACIONES, horasDispo
 import { createClient } from '@/lib/supabase/client'
 import type { EstadoCita, TipoTratamiento } from '@/types'
 import { useTenantContext } from '@/components/TenantContext'
+import { triggerConfetti } from '@/lib/confetti'
 
 interface CitaDB { id:string; paciente_id:string; fecha_hora:string; tipo_tratamiento:string; estado:string; notas:string|null; duracion_minutos:number; valor:number|null; sena:number|null; medio_pago:string|null; pacientes:{nombre:string;telefono:string;token:string}|null }
 interface Cita   { id:string; paciente_id:string; nombre:string; telefono:string; token:string; hora:string; fecha:string; tratamiento:string; estado:EstadoCita; duracion:number; notas:string; minutos:number; valor:number|null; sena:number|null; medio_pago:string|null }
@@ -300,6 +301,7 @@ export default function Agenda() {
   const [draggedCitaId, setDraggedCitaId] = useState<string | null>(null)
   const [dragOverDay, setDragOverDay] = useState<string | null>(null)
   const touchStart = useRef<{x:number; y:number} | null>(null)
+  const [hoverSlot, setHoverSlot] = useState<{ f: string, top: number, timeStr: string } | null>(null)
   const [ahora, setAhora] = useState(() => new Date())
   useEffect(() => { const id = setInterval(() => setAhora(new Date()), 60_000); return () => clearInterval(id) }, [])
   useEffect(()=>{
@@ -390,6 +392,7 @@ export default function Agenda() {
     const {error} = await supabase.from('citas').insert({paciente_id:fPac,fecha_hora:`${fFecha}T${fHora}:00-03:00`,tipo_tratamiento:fTrat,estado:fEst,duracion_minutos:fDur,notas:fNotas||null,valor:fValor||null,sena:fSena||null,medio_pago:fMedioPago||null,tenant_id:tenant?.id})
     setSaving(false)
     if(error) return msg('Error: '+error.message,'error')
+    if(fEst === 'asistio') triggerConfetti()
     setModal(null);msg('Cita agendada ✓');loadCitas()
   }
 
@@ -399,6 +402,7 @@ export default function Agenda() {
     const {error} = await supabase.from('citas').update({fecha_hora:`${fFecha}T${fHora}:00-03:00`,tipo_tratamiento:fTrat as TipoTratamiento,estado:fEst,duracion_minutos:fDur,notas:fNotas||null,valor:fValor||null,sena:fSena||null,medio_pago:fMedioPago||null}).eq('id',sel.id)
     setSaving(false)
     if(error) return msg('Error: '+error.message,'error')
+    if(fEst === 'asistio') triggerConfetti()
     setModal(null);msg('Cita actualizada ✓');loadCitas()
   }
 
@@ -415,6 +419,7 @@ export default function Agenda() {
     await supabase.from('citas').update({estado}).eq('id',id)
     setCitas(p=>p.map(c=>c.id===id?{...c,estado}:c))
     msg('Estado actualizado')
+    if(estado === 'asistio') triggerConfetti()
   }
 
   async function moverCita(citaId: string, nuevaFecha: string, nuevaHora: string) {
@@ -618,6 +623,20 @@ export default function Agenda() {
                         if (dragOverDay === f) setDragOverDay(null)
                       }}
                       onDrop={e => handleDrop(e, f)}
+                      onMouseMove={e => {
+                        if (isMobile) return
+                        const rect = e.currentTarget.getBoundingClientRect()
+                        const y = e.clientY - rect.top
+                        const minTot = Math.max(0, Math.floor(y / SLOT_H * 60 / 20) * 20)
+                        const top = (minTot / 60) * SLOT_H
+                        const h = Math.floor(minTot / 60) + HORA_INICIO
+                        const m = minTot % 60
+                        const timeStr = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`
+                        setHoverSlot({ f, top, timeStr })
+                      }}
+                      onMouseLeave={() => {
+                        setHoverSlot(null)
+                      }}
                       onTouchStart={e=>{
                         touchStart.current = {x:e.touches[0].clientX, y:e.touches[0].clientY}
                       }}
@@ -649,6 +668,59 @@ export default function Agenda() {
                         const hStr = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`
                         setMenuPos({x:e.clientX, y:e.clientY, f, h:hStr})
                       }}>
+                      {/* Línea de guía de hover */}
+                      {hoverSlot && hoverSlot.f === f && (
+                        <div style={{
+                          position: 'absolute',
+                          top: hoverSlot.top,
+                          left: 0,
+                          right: 0,
+                          height: 1,
+                          borderTop: '2px dashed rgba(24, 95, 165, 0.4)',
+                          zIndex: 6,
+                          pointerEvents: 'none',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setFFecha(hoverSlot.f)
+                              setFHora(hoverSlot.timeStr)
+                              setFTrat('Consulta')
+                              setFEst('pendiente')
+                              setFDur(30)
+                              setFNotas('')
+                              setFValor('')
+                              setFSena('')
+                              setFMedioPago('Efectivo')
+                              setSel(null)
+                              setModal('nueva')
+                            }}
+                            style={{
+                              pointerEvents: 'auto',
+                              cursor: 'pointer',
+                              background: '#185FA5',
+                              color: '#fff',
+                              border: 'none',
+                              borderRadius: '50%',
+                              width: 20,
+                              height: 20,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: 12,
+                              fontWeight: 'bold',
+                              boxShadow: '0 2px 6px rgba(24,95,165,0.3)',
+                              transform: 'translateY(-10px)'
+                            }}
+                            title={`Agendar a las ${hoverSlot.timeStr}`}
+                          >
+                            +
+                          </button>
+                        </div>
+                      )}
                       {/* Líneas de hora */}
                       {horas.map(h=>(
                         <div key={h} style={{position:'absolute',top:(h-HORA_INICIO)*SLOT_H,left:0,right:0,height:SLOT_H,borderTop:'1px solid #f5f5f5'}}/>

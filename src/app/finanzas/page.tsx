@@ -4,6 +4,7 @@ import { Sidebar } from '@/components/Sidebar'
 import { Toast, Spinner, PageHeader } from '@/components/UI'
 import { createClient } from '@/lib/supabase/client'
 import { useTenantContext } from '@/components/TenantContext'
+import { triggerConfetti } from '@/lib/confetti'
 
 interface Tratamiento  { id: string; nombre: string; precio_base: number | null }
 interface CostoFijo    { id: string; nombre: string; monto: number; activo: boolean }
@@ -59,6 +60,7 @@ export default function FinanzasPage() {
   const [saving, setSaving]             = useState(false)
   const [editandoPrecio, setEditandoPrecio] = useState<string | null>(null)
   const [precioEdit, setPrecioEdit]       = useState<number | ''>(``)
+  const [hasTriggeredConfetti, setHasTriggeredConfetti] = useState(false)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -70,7 +72,7 @@ export default function FinanzasPage() {
     check(); window.addEventListener('resize', check)
     return () => window.removeEventListener('resize', check)
   }, [])
-
+ 
   function msg(m: string, tipo = 'ok') { setToast({ msg: m, tipo }); setTimeout(() => setToast(null), 3500) }
 
   const load = useCallback(async () => {
@@ -125,6 +127,17 @@ export default function FinanzasPage() {
   const breakEvenDiario = totalCostos / diasEnMes(mesActual, anioActual)
   const progreso        = metaIngresos > 0 ? Math.min(100, (totalMes / metaIngresos) * 100) : 0
   const gananciaActual  = totalMes - totalCostos
+ 
+  useEffect(() => {
+    if (metaIngresos > 0 && totalMes >= metaIngresos) {
+      if (!hasTriggeredConfetti) {
+        triggerConfetti()
+        setHasTriggeredConfetti(true)
+      }
+    } else {
+      setHasTriggeredConfetti(false)
+    }
+  }, [totalMes, metaIngresos, hasTriggeredConfetti])
 
   // Historial por día
   const porDia = (() => {

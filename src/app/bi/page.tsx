@@ -6,7 +6,8 @@ import { useIsMobile } from '@/components/UI'
 import { useTenantContext } from '@/components/TenantContext'
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
-  LineChart, Line, PieChart, Pie, Cell, CartesianGrid, Legend
+  LineChart, Line, PieChart, Pie, Cell, CartesianGrid, Legend,
+  AreaChart, Area
 } from 'recharts'
 
 interface Cita {
@@ -20,6 +21,7 @@ interface Cita {
   costo_insumos: number | null
   no_show: boolean | null
   duracion_minutos: number
+  paciente_id: string | null
 }
 interface CitaFact {
   fecha_hora: string
@@ -154,7 +156,7 @@ export default function BiPage() {
       desde.setDate(desde.getDate() - parseInt(rango))
       const { data } = await supabase
         .from('citas')
-        .select('id,fecha_hora,tipo_tratamiento,estado,valor,sena,saldo,costo_insumos,no_show,duracion_minutos')
+        .select('id,fecha_hora,tipo_tratamiento,estado,valor,sena,saldo,costo_insumos,no_show,duracion_minutos,paciente_id')
         .eq('tenant_id', tenantId)
         .gte('fecha_hora', desde.toISOString())
         .order('fecha_hora', { ascending: true })
@@ -264,6 +266,23 @@ export default function BiPage() {
   const tasaNoShow = pct(noShows, total)
   const tasaCancelacion = pct(canceladas, total)
   const ticketPromedio = completadas > 0 ? ingresos / completadas : 0
+ 
+  // ── Ocupación de sillón ──
+  const diasLaborales = Math.round(parseInt(rango) * (5 / 7))
+  const minutosDisponibles = Math.max(1, diasLaborales * 8 * 60)
+  const minutosOcupados = citas.filter(c => c.estado === 'confirmado' || c.estado === 'completado' || c.estado === 'asistio').reduce((s, c) => s + c.duracion_minutos, 0)
+  const tasaOcupacion = pct(minutosOcupados, minutosDisponibles)
+ 
+  // ── Recurrencia de pacientes ──
+  const pacienteCitasCount: Record<string, number> = {}
+  citas.forEach(c => {
+    if (c.paciente_id) {
+      pacienteCitasCount[c.paciente_id] = (pacienteCitasCount[c.paciente_id] || 0) + 1
+    }
+  })
+  const totalPacientesUnicos = Object.keys(pacienteCitasCount).length
+  const recurrentes = Object.values(pacienteCitasCount).filter(v => v > 1).length
+  const tasaRecurrencia = pct(recurrentes, totalPacientesUnicos)
 
   // ── Por estado ───────────────────────────────────────────
   const porEstado = ['confirmado', 'pendiente', 'cancelado'].map(e => ({
@@ -367,8 +386,10 @@ export default function BiPage() {
                   <KPI label="Ticket promedio" value={fmt(ticketPromedio)} sub="por cita completada" />
                   <KPI label="Saldo pendiente" value={fmt(saldoPendiente)} sub="por cobrar" color={saldoPendiente > 0 ? '#dc2626' : '#059669'} />
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 14, marginBottom: '1.5rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 14, marginBottom: '1.5rem' }}>
                   <KPI label="Tasa de conversión" value={`${tasaConversion}%`} sub={`${completadas} completadas`} color={tasaConversion >= 70 ? '#059669' : '#d97706'} />
+                  <KPI label="Ocupación sillón" value={`${tasaOcupacion}%`} sub={`${Math.round(minutosOcupados/60)}hs ocupadas`} color={tasaOcupacion >= 60 ? '#059669' : '#64748b'} />
+                  <KPI label="Recurrencia pac." value={`${tasaRecurrencia}%`} sub={`${recurrentes} recurrentes`} color={tasaRecurrencia >= 30 ? '#059669' : '#64748b'} />
                   <KPI label="No-shows" value={`${tasaNoShow}%`} sub={`${noShows} inasistencias`} color={tasaNoShow > 10 ? '#dc2626' : '#64748b'} />
                   <KPI label="Cancelaciones" value={`${tasaCancelacion}%`} sub={`${canceladas} canceladas`} color={tasaCancelacion > 15 ? '#dc2626' : '#64748b'} />
                   <KPI label="Total citas" value={String(total)} sub="en el período" />
@@ -566,31 +587,82 @@ export default function BiPage() {
               )
             })()}
 
-            {tab === 'financiero' && (
-              <>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 14, marginBottom: '1.5rem' }}>
-                  <KPI label="Ingresos brutos" value={fmt(ingresos)} sub="período completo" />
-                  <KPI label="Costos insumos" value={fmt(costos)} sub="gastos operativos" color="#dc2626" />
-                  <KPI label="Ganancia neta" value={fmt(gananciaNeta)} sub="margen real" color={gananciaNeta >= 0 ? '#059669' : '#dc2626'} />
-                  <KPI label="Margen neto" value={`${ingresos > 0 ? Math.round((gananciaNeta / ingresos) * 100) : 0}%`} sub="rentabilidad" color="#6366f1" />
-                </div>
+            {tab === 'financiero' && (() => {
+              // ── Calcular Proyección de Cashflow (Próximas 4 semanas) ──
+              const hoy = new Date()
+              const proyeccionSemanas = Array.from({ length: 4 }, (_, i) => {
+                const inicioSemana = new Date(hoy.getTime() + i * 7 * 24 * 60 * 60 * 1000)
+                const finSemana = new Date(inicioSemana.getTime() + 7 * 24 * 60 * 60 * 1000)
+                
+                // Turnos futuros ya agendados en ese periodo
+                const citasEnSemana = citas.filter(c => {
+                  const d = new Date(c.fecha_hora)
+                  return d >= inicioSemana && d < finSemana
+                })
+                
+                const agendado = citasEnSemana.reduce((s, c) => s + (c.valor || 0), 0)
+                const promedioSemanalHistorico = (ingresos / Math.max(1, parseInt(rango))) * 7
+                const proyectado = Math.round(Math.max(agendado, promedioSemanalHistorico * 0.9))
+                
+                return {
+                  name: `Semana +${i + 1}`,
+                  Agendado: agendado,
+                  Proyectado: proyectado
+                }
+              })
 
-                <Card title="Ingresos vs Citas por mes" height={240}>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={porMes}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                      <XAxis dataKey="mes" tick={{ fontSize: 10, fill: '#94a3b8' }} />
-                      <YAxis yAxisId="left" tick={{ fontSize: 10, fill: '#94a3b8' }} tickFormatter={v => '$' + (v / 1000).toFixed(0) + 'k'} />
-                      <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 10, fill: '#94a3b8' }} allowDecimals={false} />
-                      <Tooltip content={<CustomTooltip />} />
-                      <Legend wrapperStyle={{ fontSize: 12 }} />
-                      <Bar yAxisId="left" dataKey="ingresos" name="Ingresos" fill="#6366f1" radius={[4, 4, 0, 0]} />
-                      <Bar yAxisId="right" dataKey="citas" name="Citas" fill="#e0e7ff" radius={[4, 4, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </Card>
-              </>
-            )}
+              return (
+                <>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 14, marginBottom: '1.5rem' }}>
+                    <KPI label="Ingresos brutos" value={fmt(ingresos)} sub="período completo" />
+                    <KPI label="Costos insumos" value={fmt(costos)} sub="gastos operativos" color="#dc2626" />
+                    <KPI label="Ganancia neta" value={fmt(gananciaNeta)} sub="margen real" color={gananciaNeta >= 0 ? '#059669' : '#dc2626'} />
+                    <KPI label="Margen neto" value={`${ingresos > 0 ? Math.round((gananciaNeta / ingresos) * 100) : 0}%`} sub="rentabilidad" color="#6366f1" />
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 14 }}>
+                    <Card title="Ingresos vs Citas por mes" height={260}>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={porMes}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                          <XAxis dataKey="mes" tick={{ fontSize: 10, fill: '#94a3b8' }} />
+                          <YAxis yAxisId="left" tick={{ fontSize: 10, fill: '#94a3b8' }} tickFormatter={v => '$' + (v / 1000).toFixed(0) + 'k'} />
+                          <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 10, fill: '#94a3b8' }} allowDecimals={false} />
+                          <Tooltip content={<CustomTooltip />} />
+                          <Legend wrapperStyle={{ fontSize: 12 }} />
+                          <Bar yAxisId="left" dataKey="ingresos" name="Ingresos" fill="#6366f1" radius={[4, 4, 0, 0]} />
+                          <Bar yAxisId="right" dataKey="citas" name="Citas" fill="#e0e7ff" radius={[4, 4, 0, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </Card>
+
+                    <Card title="Proyección de Cashflow (Próximas 4 semanas)" height={260}>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={proyeccionSemanas}>
+                          <defs>
+                            <linearGradient id="colorProyectado" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#10b981" stopOpacity={0.8}/>
+                              <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                            </linearGradient>
+                            <linearGradient id="colorAgendado" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#6366f1" stopOpacity={0.8}/>
+                              <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                          <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#94a3b8' }} />
+                          <YAxis tick={{ fontSize: 10, fill: '#94a3b8' }} tickFormatter={v => '$' + (v / 1000).toFixed(0) + 'k'} />
+                          <Tooltip content={<CustomTooltip />} />
+                          <Legend wrapperStyle={{ fontSize: 12 }} />
+                          <Area type="monotone" dataKey="Proyectado" name="Proyectado (Est. Histórico)" stroke="#10b981" fillOpacity={1} fill="url(#colorProyectado)" />
+                          <Area type="monotone" dataKey="Agendado" name="Agendado (Turnos)" stroke="#6366f1" fillOpacity={1} fill="url(#colorAgendado)" />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    </Card>
+                  </div>
+                </>
+              )
+            })()}
           </>
         )}
       </main>
