@@ -38,6 +38,113 @@ const ESTADOS_INFO: Record<string, { label: string; color: string; bg: string; i
   Ausente:    { label: 'Ausente', color: '#64748b', bg: 'rgba(100, 116, 139, 0.1)', icon: '❌' },
 }
 
+const ToothSVG = ({ num, estado }: { num: number; estado: string }) => {
+  const isUpper = num < 30
+  
+  // Determinar tipo de diente según el sistema FDI
+  const unit = num % 10
+  const isAnterior = unit <= 3
+  const isPremolar = unit === 4 || unit === 5
+  
+  let dPath = ""
+  if (isAnterior) {
+    // Incisivo / Canino
+    dPath = "M 11,2 C 11,1 13,0 16,0 C 19,0 21,1 21,2 L 20,12 C 19,16 18,19 16,30 C 14,19 13,16 12,12 Z"
+  } else if (isPremolar) {
+    // Premolar
+    dPath = "M 9,3 C 9,1 12,0 16,1 C 20,0 23,1 23,3 L 22,12 C 21,15 20,17 19,23 L 18,30 C 18,31 17,31 16.5,25 L 15.5,25 C 15,31 14,31 14,30 L 13,23 C 12,17 11,15 10,12 Z"
+  } else {
+    // Molar
+    dPath = "M 7,4 C 7,1 11,0 16,1 C 21,0 25,1 25,4 L 24,12 C 23,15 22,17 21.5,23 L 21,31 C 21,32 20,32 19,25 L 16.5,31 C 16,32 15,32 14.5,25 L 12,31 C 11,32 11,32 10.5,23 C 10,17 9,15 8,12 Z"
+  }
+
+  // Estilos del vector del diente
+  let strokeColor = "var(--text-dark, #0a1e3d)"
+  let fillColor = "none"
+  let strokeWidth = 1.5
+
+  if (estado === 'Sano') {
+    strokeColor = "#10b981"
+    fillColor = "rgba(16, 185, 129, 0.05)"
+  } else if (estado === 'Caries') {
+    strokeColor = "#ef4444"
+    fillColor = "rgba(239, 68, 68, 0.15)"
+    strokeWidth = 2
+  } else if (estado === 'Corona') {
+    strokeColor = "#f59e0b"
+    fillColor = "rgba(245, 158, 11, 0.2)"
+    strokeWidth = 2
+  } else if (estado === 'Endodoncia') {
+    strokeColor = "#3b82f6"
+    fillColor = "rgba(59, 130, 246, 0.1)"
+    strokeWidth = 2
+  } else if (estado === 'Implante') {
+    strokeColor = "#8b5cf6"
+    fillColor = "rgba(139, 92, 246, 0.1)"
+    strokeWidth = 2
+  } else if (estado === 'Ausente') {
+    strokeColor = "rgba(100, 116, 139, 0.3)"
+    fillColor = "rgba(100, 116, 139, 0.05)"
+  }
+
+  return (
+    <svg 
+      width="32" 
+      height="32" 
+      viewBox="0 0 32 32" 
+      style={{ 
+        transform: isUpper ? 'scaleY(-1)' : 'none', 
+        transformOrigin: 'center',
+        overflow: 'visible'
+      }}
+    >
+      {/* Silueta principal */}
+      <path 
+        d={dPath} 
+        fill={fillColor} 
+        stroke={strokeColor} 
+        strokeWidth={strokeWidth} 
+        strokeLinecap="round" 
+        strokeLinejoin="round" 
+      />
+
+      {/* Renders visuales de tratamiento */}
+      {estado === 'Caries' && (
+        <circle cx="16" cy="6" r="3.5" fill="#ef4444" stroke="#ffffff" strokeWidth="1" />
+      )}
+
+      {estado === 'Endodoncia' && (
+        <path d="M 16,8 L 16,24" stroke="#3b82f6" strokeWidth="2.5" strokeLinecap="round" />
+      )}
+
+      {estado === 'Implante' && (
+        <g stroke="#8b5cf6" strokeWidth="1.5" strokeLinecap="round">
+          <path d="M 12,16 L 20,16" />
+          <path d="M 13,19 L 19,19" />
+          <path d="M 13,22 L 19,22" />
+          <path d="M 14,25 L 18,25" />
+          <path d="M 15,28 L 17,28" />
+        </g>
+      )}
+
+      {estado === 'Corona' && (
+        <path 
+          d={isAnterior ? "M 11,2 C 11,1 13,0 16,0 C 19,0 21,1 21,2 L 20,8 C 18,9 14,9 12,8 Z" : "M 7,4 C 7,1 11,0 16,1 C 21,0 25,1 25,4 L 24,9 C 22,10 10,10 8,9 Z"} 
+          fill="#f59e0b" 
+          opacity="0.85"
+        />
+      )}
+
+      {estado === 'Ausente' && (
+        <g stroke="#64748b" strokeWidth="2.5" strokeLinecap="round">
+          <line x1="4" y1="4" x2="28" y2="28" />
+          <line x1="28" y1="4" x2="4" y2="28" />
+        </g>
+      )}
+    </svg>
+  )
+}
+
 export default function PacienteDetalle() {
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
@@ -174,28 +281,21 @@ export default function PacienteDetalle() {
           border: isSelected ? '2px solid #185FA5' : '1px solid var(--border-light)',
           cursor: 'pointer',
           transition: 'all 0.2s ease',
-          minWidth: 44,
+          minWidth: 50,
           boxShadow: isSelected ? '0 4px 12px rgba(24,95,165,0.15)' : 'none',
         }}
         className="interactive-item"
       >
         <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-dark)' }}>{num}</span>
         <div style={{
-          width: 32,
-          height: 32,
-          borderRadius: '50%',
-          background: info.bg,
+          width: 36,
+          height: 36,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          fontSize: 14,
-          border: `1.5px solid ${info.color}33`,
           position: 'relative'
         }}>
-          {info.icon}
-          {estado === 'Ausente' && (
-            <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ef4444', fontSize: 18, fontWeight: 'bold' }}>/</div>
-          )}
+          <ToothSVG num={num} estado={estado} />
         </div>
         <span style={{ fontSize: 9, fontWeight: 600, color: info.color, textTransform: 'uppercase' }}>{info.label}</span>
       </button>
