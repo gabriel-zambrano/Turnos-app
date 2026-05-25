@@ -213,8 +213,8 @@ function WeekStrip({ fechas, fechaActiva, fechasConCitas, onSelect, hoy }: {
 }
 
 function AgendaHeaderMobile({ fecha, vista, esHoy, onPrev, onNext, onVista, onNueva, onHoy }: {
-  fecha: string; vista: 'semana'|'dia'; esHoy: boolean
-  onPrev: ()=>void; onNext: ()=>void; onVista: (v:'semana'|'dia')=>void
+  fecha: string; vista: 'semana'|'dia'|'lista'; esHoy: boolean
+  onPrev: ()=>void; onNext: ()=>void; onVista: (v:'semana'|'dia'|'lista')=>void
   onNueva: ()=>void; onHoy: ()=>void
 }) {
   const d = parseFechaLocal(fecha)
@@ -266,8 +266,8 @@ function AgendaHeaderMobile({ fecha, vista, esHoy, onPrev, onNext, onVista, onNu
       </button>
 
       <div style={{display:'flex',background:'var(--bg-input, #f0f4f8)',borderRadius:8,overflow:'hidden',marginRight:4,height:32,border:'0.5px solid var(--border-color, #dde5ef)',flexShrink:0}}>
-        {(['semana','dia'] as const).map(v=>(
-          <button key={v} onClick={()=>onVista(v)} style={{padding:'0 12px',fontSize:11,border:'none',cursor:'pointer',background:vista===v?'var(--text-dark, #0a1e3d)':'transparent',color:vista===v?'var(--bg-app, #fff)':'var(--text-muted, #687e96)',fontWeight:700,fontFamily:'DM Sans, sans-serif'}}>{v==='semana'?'Sem':'Día'}</button>
+        {(['semana','dia','lista'] as const).map(v=>(
+          <button key={v} onClick={()=>onVista(v)} style={{padding:'0 10px',fontSize:11,border:'none',cursor:'pointer',background:vista===v?'var(--text-dark, #0a1e3d)':'transparent',color:vista===v?'var(--bg-app, #fff)':'var(--text-muted, #687e96)',fontWeight:700,fontFamily:'DM Sans, sans-serif'}}>{v==='semana'?'Sem':v==='dia'?'Día':'Lista'}</button>
         ))}
       </div>
 
@@ -305,7 +305,7 @@ export default function Agenda() {
   const [fBloqHasta, setFBloqHasta] = useState("12:00")
   const [fBloqMotivo, setFBloqMotivo] = useState("")
   const [fBloqFecha, setFBloqFecha] = useState("")
-  const [vista,   setVista]   = useState<'semana'|'dia'>('semana')
+  const [vista,   setVista]   = useState<'semana'|'dia'|'lista'>('semana')
   const [isMobile, setIsMobile] = useState(false)
   const [draggedCitaId, setDraggedCitaId] = useState<string | null>(null)
   const [dragOverDay, setDragOverDay] = useState<string | null>(null)
@@ -651,14 +651,126 @@ export default function Agenda() {
               width: '100%',
               boxShadow: isMobile ? 'none' : '0 4px 20px rgba(10,30,61,0.02)'
             }}>
-              <div style={{
-                minWidth: isMobile && vista === 'semana' ? '960px' : 'auto'
-              }}>
+              {vista === 'lista' ? (
+                /* Vista de Lista responsiva */
+                <div style={{
+                  padding: isMobile ? '1.5rem 1rem' : '2rem',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 12,
+                  maxWidth: 680,
+                  margin: '0 auto',
+                  width: '100%'
+                }}>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-dark)', marginBottom: 4 }}>
+                    Citas del {parseFechaLocal(fecha).toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' })}
+                  </div>
+                  {citasDelDia(fecha).length === 0 ? (
+                    <div style={{ 
+                      textAlign: 'center', 
+                      padding: '4rem 1rem', 
+                      color: 'var(--text-muted)', 
+                      fontSize: 14,
+                      background: 'var(--bg-card, rgba(255,255,255,0.4))',
+                      borderRadius: 16,
+                      border: '1px dashed var(--border-light)'
+                    }}>
+                      🚫 No hay citas agendadas para este día.
+                    </div>
+                  ) : (
+                    citasDelDia(fecha).map(c => {
+                      const tc = TRAT_STYLE[c.tratamiento]||TRAT_STYLE.Consulta
+                      const es = ESTADO_STYLE[c.estado]||ESTADO_STYLE.pendiente
+                      const isSobreturno = c.totalCols && c.totalCols > 1
+                      return (
+                        <div key={c.id} onClick={() => { setSel(c); setModal('detalle') }}
+                          style={{
+                            background: 'var(--bg-card, rgba(255,255,255,0.7))',
+                            backdropFilter: 'blur(10px)',
+                            borderRadius: 14,
+                            border: '1px solid var(--border-light)',
+                            borderLeft: `5px solid ${isSobreturno ? '#EF9F27' : `var(--trat-${c.tratamiento}-border, ${tc.dot})`}`,
+                            padding: '16px 18px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: 10,
+                            boxShadow: '0 2px 10px rgba(10,30,61,0.02)',
+                            cursor: 'pointer',
+                            position: 'relative'
+                          }}
+                          className={`agenda-card-interactive ${isSobreturno ? 'sobreturno-card' : ''}`}
+                        >
+                          {isSobreturno && (
+                            <span style={{
+                              position: 'absolute',
+                              top: 12,
+                              right: 16,
+                              background: 'linear-gradient(135deg, #F59E0B, #D97706)',
+                              color: '#fff',
+                              fontSize: '8px',
+                              fontWeight: 800,
+                              padding: '2px 6px',
+                              borderRadius: 4,
+                              textTransform: 'uppercase',
+                              boxShadow: '0 1px 3px rgba(245, 158, 11, 0.3)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 2,
+                            }}>
+                              <svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>
+                              SOBRETURNO
+                            </span>
+                          )}
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ fontSize: 14, fontWeight: 800, color: isSobreturno ? '#78350F' : `var(--trat-${c.tratamiento}-color, ${tc.color})` }}>
+                              ⏱️ {c.hora} hs
+                            </span>
+                            {!isSobreturno && (
+                              <Badge bg={`var(--est-${c.estado}-bg, ${es.bg})`} color={`var(--est-${c.estado}-color, ${es.color})`}>
+                                {es.label}
+                              </Badge>
+                            )}
+                          </div>
+                          <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-dark)' }}>{c.nombre}</div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-muted)', flexWrap: 'wrap' }}>
+                            <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}>🦷 {c.tratamiento}</span>
+                            <span>•</span>
+                            <span>⏱️ {c.duracion} min</span>
+                            {c.valor && (
+                              <>
+                                <span>•</span>
+                                <span style={{ fontWeight: 600, color: 'var(--text-dark)' }}>💰 ${c.valor}</span>
+                              </>
+                            )}
+                          </div>
+                          {c.notas && (
+                            <div style={{ 
+                              fontSize: 12, 
+                              color: 'var(--text-muted)', 
+                              fontStyle: 'italic', 
+                              background: 'var(--bg-input, rgba(0,0,0,0.02))', 
+                              padding: '8px 12px', 
+                              borderRadius: 10, 
+                              border: '1px solid var(--border-lighter)',
+                              marginTop: 4 
+                            }}>
+                              📝 {c.notas}
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })
+                  )}
+                </div>
+              ) : (
+                <div style={{
+                  minWidth: isMobile && vista === 'semana' ? '960px' : 'auto'
+                }}>
 
-                {/* Header días */}
-                <div style={{display:'grid',gridTemplateColumns:`64px repeat(${vista==='semana'?6:1}, 1fr)`,borderBottom:'1px solid var(--border-color, #e2e8ed)',background:'var(--bg-header, rgba(255,255,255,0.4))',backdropFilter:'blur(8px)'}}>
-                  <div style={{padding:'12px 0',borderRight:'1px solid var(--border-color, #e2e8ed)'}}/>
-                  {(vista==='semana'?semana:[fecha]).map((f,i)=>{
+                  {/* Header días */}
+                  <div style={{display:'grid',gridTemplateColumns:`64px repeat(${vista==='semana'?6:1}, 1fr)`,borderBottom:'1px solid var(--border-color, #e2e8ed)',background:'var(--bg-header, rgba(255,255,255,0.4))',backdropFilter:'blur(8px)'}}>
+                    <div style={{padding:'12px 0',borderRight:'1px solid var(--border-color, #e2e8ed)'}}/>
+                    {(vista==='semana'?semana:[fecha]).map((f,i)=>{
                     const esHoy = f===hoy
                     const d = new Date(f+'T12:00:00')
                     const numDia = d.getDate()
@@ -776,7 +888,11 @@ export default function Agenda() {
                         const h = Math.floor(minTot/60) + HORA_INICIO
                         const m = minTot % 60
                         const hStr = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`
-                        setMenuPos({x:e.changedTouches[0].clientX, y:e.changedTouches[0].clientY, f, h:hStr})
+                        if (isMobile) {
+                          openNueva(f, hStr)
+                        } else {
+                          setMenuPos({x:e.changedTouches[0].clientX, y:e.changedTouches[0].clientY, f, h:hStr})
+                        }
                       }}
                       onClick={e=>{
                         if((e.target as HTMLElement).closest('[data-cita]')) return
@@ -787,7 +903,11 @@ export default function Agenda() {
                         const h = Math.floor(minTot/60) + HORA_INICIO
                         const m = minTot % 60
                         const hStr = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`
-                        setMenuPos({x:e.clientX, y:e.clientY, f, h:hStr})
+                        if (isMobile) {
+                          openNueva(f, hStr)
+                        } else {
+                          setMenuPos({x:e.clientX, y:e.clientY, f, h:hStr})
+                        }
                       }}>
                       {/* Línea de guía de hover */}
                       {hoverSlot && hoverSlot.f === f && (
@@ -1061,8 +1181,10 @@ export default function Agenda() {
                 })}
               </div>
             </div>
-          </div>
-        )}
+              )
+            }
+            </div>
+          )}
         </div>
       </main>
 

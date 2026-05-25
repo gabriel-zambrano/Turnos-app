@@ -24,7 +24,7 @@ export const inputCss: React.CSSProperties = {
 export const selectCss: React.CSSProperties = { ...inputCss }
 export const textareaCss: React.CSSProperties = { ...inputCss, resize: 'vertical', minHeight: 80 }
 export const overlayCss = (isMobile = false): React.CSSProperties => ({
-  position: 'fixed', inset: 0, background: 'var(--bg-overlay, rgba(10,30,61,0.45))', zIndex: 200,
+  position: 'fixed', inset: 0, background: 'var(--bg-overlay, rgba(10,30,61,0.45))', zIndex: 1100,
   display: 'flex', alignItems: isMobile ? 'flex-end' : 'center', justifyContent: 'center',
   padding: isMobile ? 0 : '1rem', backdropFilter: 'blur(4px)',
 })
@@ -48,7 +48,7 @@ export function Badge({ bg, color, children }: { bg: string; color: string; chil
 }
 
 export function Toast({ msg, tipo, isMobile }: { msg: string; tipo: string; isMobile?: boolean }) {
-  return <div style={{ position: 'fixed', bottom: isMobile ? 80 : 24, left: '50%', transform: 'translateX(-50%)', padding: '10px 22px', borderRadius: 10, fontSize: 13, fontWeight: 500, zIndex: 999, background: tipo === 'ok' ? 'linear-gradient(135deg,#0a1e3d,#185FA5)' : '#D85A30', color: '#fff', whiteSpace: 'nowrap', boxShadow: '0 4px 24px rgba(24,95,165,0.25)' }}>{msg}</div>
+  return <div style={{ position: 'fixed', bottom: isMobile ? 80 : 24, left: '50%', transform: 'translateX(-50%)', padding: '10px 22px', borderRadius: 10, fontSize: 13, fontWeight: 500, zIndex: 2000, background: tipo === 'ok' ? 'linear-gradient(135deg,#0a1e3d,#185FA5)' : '#D85A30', color: '#fff', whiteSpace: 'nowrap', boxShadow: '0 4px 24px rgba(24,95,165,0.25)' }}>{msg}</div>
 }
 
 export function Spinner() {

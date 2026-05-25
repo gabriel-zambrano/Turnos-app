@@ -290,13 +290,14 @@ input:focus, select:focus, textarea:focus {
 }
 
 .agenda-card-interactive {
-  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease, opacity 0.25s ease !important;
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease, opacity 0.25s ease, min-width 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
 
 .agenda-card-interactive:hover {
-  transform: translateY(-2px) scale(1.02);
-  z-index: 10 !important;
-  box-shadow: 0 6px 16px rgba(10, 30, 61, 0.12), 0 0 12px var(--hover-glow, rgba(56, 138, 221, 0.25)) !important;
+  transform: translateY(-2px) scale(1.01);
+  z-index: 50 !important;
+  min-width: 95% !important;
+  box-shadow: 0 8px 24px rgba(10, 30, 61, 0.15), 0 0 15px var(--hover-glow, rgba(56, 138, 221, 0.3)) !important;
 }
 
 @media (max-width: 767px) {
