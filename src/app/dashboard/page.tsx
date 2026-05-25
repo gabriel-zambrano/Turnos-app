@@ -1,8 +1,9 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
 import { Sidebar } from '@/components/Sidebar'
-import { Badge, Toast, PageHeader, FilterBar, Spinner, MetricCard } from '@/components/UI'
-import { TRAT_STYLE, ESTADO_STYLE, hoyISO, normalizarTelefono } from '@/lib/constants'
+import Link from 'next/link'
+import { Badge, Toast, PageHeader, FilterBar, Spinner, MetricCard, inputCss, selectCss, overlayCss, modalCss, modalTitleCss, footerCss, groupCss, labelCss, grid2Css, btnDarkCss, btnLightCss } from '@/components/UI'
+import { TRAT_STYLE, ESTADO_STYLE, hoyISO, normalizarTelefono, TRATAMIENTOS } from '@/lib/constants'
 import { createClient } from '@/lib/supabase/client'
 import { useTenantContext } from '@/components/TenantContext'
 import type { EstadoCita } from '@/types'
@@ -41,6 +42,79 @@ export default function Dashboard() {
   const [toast, setToast] = useState<{msg:string;tipo:string}|null>(null)
   const [hoy, setHoy] = useState('')
   const [ahora, setAhora] = useState(() => new Date())
+
+  // States for Quick Actions
+  const [modalPaciente, setModalPaciente] = useState(false)
+  const [modalCobro, setModalCobro] = useState(false)
+
+  // Nuevo Paciente States
+  const [pacNombre, setPacNombre] = useState('')
+  const [pacTelefono, setPacTelefono] = useState('+54911')
+  const [pacEmail, setPacEmail] = useState('')
+  const [pacNacimiento, setPacNacimiento] = useState('')
+  const [pacTratamiento, setPacTratamiento] = useState('Consulta')
+
+  // Registrar Cobro States
+  const [cobConcepto, setCobConcepto] = useState('')
+  const [cobMonto, setCobMonto] = useState<number | ''>('')
+  const [cobFecha, setCobFecha] = useState(() => new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }))
+
+  const [guardandoAccion, setGuardandoAccion] = useState(false)
+
+  async function guardarNuevoPaciente() {
+    if (!pacNombre.trim()) return msg('El nombre es obligatorio', 'error')
+    if (!pacTelefono.startsWith('+')) return msg('El teléfono debe empezar con +', 'error')
+    if (!tenant) return
+    setGuardandoAccion(true)
+    const token = crypto.randomUUID()
+    const { error } = await supabase.from('pacientes').insert({
+      nombre: pacNombre.trim(),
+      telefono: pacTelefono.trim(),
+      email: pacEmail.trim() || null,
+      fecha_nacimiento: pacNacimiento || null,
+      ultimo_tratamiento: pacTratamiento,
+      token,
+      tenant_id: tenant.id
+    })
+    setGuardandoAccion(false)
+    if (error) {
+      msg('Error al guardar: ' + error.message, 'error')
+    } else {
+      setModalPaciente(false)
+      setPacNombre('')
+      setPacTelefono('+54911')
+      setPacEmail('')
+      setPacNacimiento('')
+      setPacTratamiento('Consulta')
+      msg('Paciente agregado correctamente ✓')
+      load()
+    }
+  }
+
+  async function guardarRegistrarCobro() {
+    if (!cobConcepto.trim() || cobMonto === '' || Number(cobMonto) <= 0) {
+      return msg('Completá concepto y monto', 'error')
+    }
+    if (!tenant) return
+    setGuardandoAccion(true)
+    const { error } = await supabase.from('ingresos_manuales').insert({
+      fecha: cobFecha || new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }),
+      concepto: cobConcepto.trim(),
+      monto: Number(cobMonto),
+      tenant_id: tenant.id
+    })
+    setGuardandoAccion(false)
+    if (error) {
+      msg('Error al registrar cobro: ' + error.message, 'error')
+    } else {
+      setModalCobro(false)
+      setCobConcepto('')
+      setCobMonto('')
+      setCobFecha(new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }))
+      msg('Cobro registrado correctamente ✓')
+      load()
+    }
+  }
 
   useEffect(()=>{
     setHoy(new Date().toLocaleDateString('es-AR',{weekday:'long',day:'numeric',month:'long'}))
@@ -198,10 +272,10 @@ export default function Dashboard() {
         />
         <div style={{padding:isMobile?'1rem':'1.75rem 2rem',maxWidth:1100}}>
           
-          {/* Welcome Banner and Workload Distribution */}
+          {/* Welcome Banner, Workload Distribution and Quick Actions */}
           <div style={{
             display: 'grid',
-            gridTemplateColumns: isMobile ? '1fr' : '2fr 1fr',
+            gridTemplateColumns: isMobile ? '1fr' : '1.7fr 1fr 1.3fr',
             gap: 16,
             marginBottom: '1.5rem'
           }}>
@@ -297,6 +371,137 @@ export default function Dashboard() {
                   }}/>
                   <span style={{ fontSize: 9, fontWeight: 700, color: primaryColor }}>Noche</span>
                 </div>
+              </div>
+            </div>
+
+            {/* Quick Actions Card */}
+            <div className="glass-container" style={{ padding: '1.25rem 1.4rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#7a8f9d', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>
+                Acciones Rápidas
+              </div>
+              
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, flex: 1 }}>
+                
+                {/* Agendar Turno */}
+                <Link href="/nueva-cita" style={{ textDecoration: 'none' }}>
+                  <div className="quick-action-btn" style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '8px 4px',
+                    borderRadius: 12,
+                    background: `${secondaryColor}10`,
+                    border: `1px solid ${secondaryColor}25`,
+                    color: secondaryColor,
+                    cursor: 'pointer',
+                    height: '100%',
+                    boxSizing: 'border-box',
+                    textAlign: 'center',
+                    gap: 6
+                  }}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                      <line x1="16" y1="2" x2="16" y2="6" />
+                      <line x1="8" y1="2" x2="8" y2="6" />
+                      <line x1="3" y1="10" x2="21" y2="10" />
+                      <line x1="12" y1="14" x2="12" y2="20" />
+                      <line x1="9" y1="17" x2="15" y2="17" />
+                    </svg>
+                    <span style={{ fontSize: 10.5, fontWeight: 700 }}>Agendar Turno</span>
+                  </div>
+                </Link>
+
+                {/* Nuevo Paciente */}
+                <div onClick={() => {
+                  setPacNombre('')
+                  setPacTelefono('+54911')
+                  setPacEmail('')
+                  setPacNacimiento('')
+                  setPacTratamiento('Consulta')
+                  setModalPaciente(true)
+                }} className="quick-action-btn" style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '8px 4px',
+                  borderRadius: 12,
+                  background: `${primaryColor}10`,
+                  border: `1px solid ${primaryColor}25`,
+                  color: primaryColor,
+                  cursor: 'pointer',
+                  height: '100%',
+                  boxSizing: 'border-box',
+                  textAlign: 'center',
+                  gap: 6
+                }}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                    <circle cx="9" cy="7" r="4" />
+                    <line x1="19" y1="8" x2="19" y2="14" />
+                    <line x1="16" y1="11" x2="22" y2="11" />
+                  </svg>
+                  <span style={{ fontSize: 10.5, fontWeight: 700 }}>Nuevo Paciente</span>
+                </div>
+
+                {/* Registrar Cobro */}
+                <div onClick={() => {
+                  setCobConcepto('')
+                  setCobMonto('')
+                  setCobFecha(new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }))
+                  setModalCobro(true)
+                }} className="quick-action-btn" style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '8px 4px',
+                  borderRadius: 12,
+                  background: `${accentColor}10`,
+                  border: `1px solid ${accentColor}25`,
+                  color: accentColor,
+                  cursor: 'pointer',
+                  height: '100%',
+                  boxSizing: 'border-box',
+                  textAlign: 'center',
+                  gap: 6
+                }}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="12" y1="1" x2="12" y2="23" />
+                    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+                  </svg>
+                  <span style={{ fontSize: 10.5, fontWeight: 700 }}>Registrar Cobro</span>
+                </div>
+
+                {/* Ver Agenda */}
+                <Link href="/agenda" style={{ textDecoration: 'none' }}>
+                  <div className="quick-action-btn" style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '8px 4px',
+                    borderRadius: 12,
+                    background: '#f0f4f8',
+                    border: '1px solid #dde5ef',
+                    color: '#687e96',
+                    cursor: 'pointer',
+                    height: '100%',
+                    boxSizing: 'border-box',
+                    textAlign: 'center',
+                    gap: 6
+                  }}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                      <line x1="16" y1="2" x2="16" y2="6" />
+                      <line x1="8" y1="2" x2="8" y2="6" />
+                      <line x1="3" y1="10" x2="21" y2="10" />
+                    </svg>
+                    <span style={{ fontSize: 10.5, fontWeight: 700 }}>Ver Agenda</span>
+                  </div>
+                </Link>
+
               </div>
             </div>
           </div>
@@ -528,7 +733,86 @@ export default function Dashboard() {
           </div>
         </div>
       </main>
-      {toast&&<Toast msg={toast.msg} tipo={toast.tipo}/>}
+
+      {/* Modal - Nuevo Paciente */}
+      {modalPaciente && (
+        <div style={overlayCss(isMobile)} onClick={() => setModalPaciente(false)}>
+          <div style={modalCss(isMobile)} onClick={e => e.stopPropagation()}>
+            <div style={modalTitleCss}>Nuevo paciente</div>
+            
+            <div style={groupCss}>
+              <label style={labelCss}>Nombre completo *</label>
+              <input style={inputCss} value={pacNombre} onChange={e => setPacNombre(e.target.value)} placeholder="Ej: María González" autoFocus />
+            </div>
+            
+            <div style={grid2Css}>
+              <div style={groupCss}>
+                <label style={labelCss}>Teléfono *</label>
+                <input style={inputCss} value={pacTelefono} onChange={e => setPacTelefono(e.target.value)} placeholder="+5491123456789" />
+                <span style={{ fontSize: 11, color: '#aaa', marginTop: 3, display: 'block' }}>Debe empezar con +</span>
+              </div>
+              <div style={groupCss}>
+                <label style={labelCss}>Email</label>
+                <input type="email" style={inputCss} value={pacEmail} onChange={e => setPacEmail(e.target.value)} placeholder="paciente@email.com" />
+              </div>
+            </div>
+            
+            <div style={grid2Css}>
+              <div style={groupCss}>
+                <label style={labelCss}>Fecha de nacimiento</label>
+                <input type="date" style={inputCss} value={pacNacimiento} onChange={e => setPacNacimiento(e.target.value)} />
+              </div>
+              <div style={groupCss}>
+                <label style={labelCss}>Tratamiento</label>
+                <select style={selectCss} value={pacTratamiento} onChange={e => setPacTratamiento(e.target.value)}>
+                  {TRATAMIENTOS.map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
+              </div>
+            </div>
+            
+            <div style={footerCss}>
+              <button style={btnLightCss} onClick={() => setModalPaciente(false)} disabled={guardandoAccion}>Cancelar</button>
+              <button style={{ ...btnDarkCss, opacity: guardandoAccion ? 0.6 : 1 }} onClick={guardarNuevoPaciente} disabled={guardandoAccion}>
+                {guardandoAccion ? 'Guardando...' : 'Agregar paciente'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal - Registrar Cobro */}
+      {modalCobro && (
+        <div style={overlayCss(isMobile)} onClick={() => setModalCobro(false)}>
+          <div style={modalCss(isMobile)} onClick={e => e.stopPropagation()}>
+            <div style={modalTitleCss}>Registrar cobro</div>
+            
+            <div style={groupCss}>
+              <label style={labelCss}>Concepto *</label>
+              <input style={inputCss} value={cobConcepto} onChange={e => setCobConcepto(e.target.value)} placeholder="Ej: Pago consulta — Juan P." autoFocus />
+            </div>
+            
+            <div style={grid2Css}>
+              <div style={groupCss}>
+                <label style={labelCss}>Monto ($) *</label>
+                <input type="number" style={inputCss} value={cobMonto} onChange={e => setCobMonto(e.target.value === '' ? '' : Number(e.target.value))} placeholder="0" />
+              </div>
+              <div style={groupCss}>
+                <label style={labelCss}>Fecha</label>
+                <input type="date" style={inputCss} value={cobFecha} onChange={e => setCobFecha(e.target.value)} />
+              </div>
+            </div>
+            
+            <div style={footerCss}>
+              <button style={btnLightCss} onClick={() => setModalCobro(false)} disabled={guardandoAccion}>Cancelar</button>
+              <button style={{ ...btnDarkCss, opacity: guardandoAccion ? 0.6 : 1 }} onClick={guardarRegistrarCobro} disabled={guardandoAccion}>
+                {guardandoAccion ? 'Registrando...' : 'Registrar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {toast && <Toast msg={toast.msg} tipo={toast.tipo} />}
     </div>
   )
 }
