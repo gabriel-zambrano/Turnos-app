@@ -212,10 +212,10 @@ function WeekStrip({ fechas, fechaActiva, fechasConCitas, onSelect, hoy }: {
   )
 }
 
-function AgendaHeaderMobile({ fecha, vista, esHoy, onPrev, onNext, onVista, onNueva, onHoy }: {
+function AgendaHeaderMobile({ fecha, vista, esHoy, onPrev, onNext, onVista, onNueva, onBloqueo, onHoy }: {
   fecha: string; vista: 'semana'|'dia'|'lista'; esHoy: boolean
   onPrev: ()=>void; onNext: ()=>void; onVista: (v:'semana'|'dia'|'lista')=>void
-  onNueva: ()=>void; onHoy: ()=>void
+  onNueva: ()=>void; onBloqueo: ()=>void; onHoy: ()=>void
 }) {
   const d = parseFechaLocal(fecha)
   const diaNum    = d.getDate()
@@ -267,9 +267,19 @@ function AgendaHeaderMobile({ fecha, vista, esHoy, onPrev, onNext, onVista, onNu
 
       <div style={{display:'flex',background:'var(--bg-input, #f0f4f8)',borderRadius:8,overflow:'hidden',marginRight:4,height:32,border:'0.5px solid var(--border-color, #dde5ef)',flexShrink:0}}>
         {(['semana','dia','lista'] as const).map(v=>(
-          <button key={v} onClick={()=>onVista(v)} style={{padding:'0 10px',fontSize:11,border:'none',cursor:'pointer',background:vista===v?'var(--text-dark, #0a1e3d)':'transparent',color:vista===v?'var(--bg-app, #fff)':'var(--text-muted, #687e96)',fontWeight:700,fontFamily:'DM Sans, sans-serif'}}>{v==='semana'?'Sem':v==='dia'?'Día':'Lista'}</button>
+          <button key={v} onClick={()=>onVista(v)} style={{padding:'0 8px',fontSize:11,border:'none',cursor:'pointer',background:vista===v?'var(--text-dark, #0a1e3d)':'transparent',color:vista===v?'var(--bg-app, #fff)':'var(--text-muted, #687e96)',fontWeight:700,fontFamily:'DM Sans, sans-serif'}}>{v==='semana'?'Sem':v==='dia'?'Día':'Lista'}</button>
         ))}
       </div>
+
+      <button onClick={onBloqueo} style={{
+        width: 38, height: 38, display: 'flex', alignItems: 'center', justifyContent: 'center',
+        border: '1px solid var(--border-color, rgba(239,68,68,0.15))',
+        background: 'var(--bg-card, #fff)',
+        color: '#ef4444',
+        borderRadius: 10, fontSize: 16, cursor: 'pointer', flexShrink: 0,
+        fontFamily: 'DM Sans, sans-serif',
+        boxShadow: '0 2px 6px rgba(239,68,68,0.05)',
+      }} aria-label="Bloquear Horario" title="Bloquear Horario">🚫</button>
 
       <button onClick={onNueva} style={{
         width: 38, height: 38, display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -540,6 +550,7 @@ export default function Agenda() {
                 onNext={()=>{ const d=parseFechaLocal(fecha); d.setDate(d.getDate()+7); setFecha(dateToISO(d)) }}
                 onVista={setVista}
                 onNueva={()=>{const s=proximoSlot();openNueva(s.fecha,s.hora)}}
+                onBloqueo={()=>{setFBloqFecha(fecha);setFBloqDesde('08:00');setFBloqHasta('12:00');setFBloqMotivo('');setModal('bloqueo')}}
                 onHoy={()=>setFecha(hoyISO())}
               />
               <WeekStrip fechas={semana7} fechaActiva={fecha} fechasConCitas={fechasConCitas} onSelect={setFecha} hoy={hoy} />
@@ -631,6 +642,34 @@ export default function Agenda() {
                         </button>
                       ))}
                     </div>
+                    <button
+                      onClick={() => {
+                        setFBloqFecha(fecha);
+                        setFBloqDesde("08:00");
+                        setFBloqHasta("12:00");
+                        setFBloqMotivo("");
+                        setModal('bloqueo');
+                      }}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        height: 36,
+                        padding: '0 12px',
+                        fontSize: 12,
+                        fontWeight: 600,
+                        borderRadius: 8,
+                        border: '1px solid var(--border-color, #e2e8ed)',
+                        background: 'var(--bg-card, #fff)',
+                        color: 'var(--text-dark, #333)',
+                        cursor: 'pointer',
+                        fontFamily: 'DM Sans, sans-serif',
+                        transition: 'all 0.2s ease',
+                      }}
+                      className="quick-action-btn"
+                    >
+                      <span style={{color: '#ef4444'}}>🚫</span> Bloquear
+                    </button>
                     <BtnPrimary onClick={()=>openNueva()}>
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                       Nueva cita
@@ -1036,7 +1075,7 @@ export default function Agenda() {
                               borderRight: isSobreturno ? undefined : '1px solid var(--border-light, rgba(0,0,0,0.03))',
                               borderBottom: isSobreturno ? undefined : '1px solid var(--border-light, rgba(0,0,0,0.03))',
                               borderRadius:12,
-                              padding:isMobile ? '4px 6px' : '5px 8px',
+                              padding:isMobile ? (isSobreturno ? '2px 4px' : '4px 6px') : '5px 8px',
                               overflow:'hidden',
                               cursor:'pointer',
                               zIndex: isSobreturno ? 2 : 1,
@@ -1045,7 +1084,7 @@ export default function Agenda() {
                               ['--hover-glow' as any]: isSobreturno ? 'rgba(239, 159, 39, 0.25)' : `var(--trat-${c.tratamiento}-border, ${tc.dot})35`,
                             } as React.CSSProperties}>
                             
-                            {isSobreturno && (
+                            {!isMobile && isSobreturno && (
                               <span style={{
                                 position: 'absolute',
                                 top: 2,
@@ -1072,18 +1111,28 @@ export default function Agenda() {
                               <>
                                 <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
                                   <span style={{fontSize:10,fontWeight:800,color:isSobreturno ? '#B45309' : colorVar,lineHeight:1}}>{c.hora}</span>
-                                  {!isSobreturno && (
-                                    <span style={{
-                                      width:6,
-                                      height:6,
-                                      borderRadius:'50%',
-                                      background:`var(--est-${c.estado}-color, ${es.color})`,
-                                      boxShadow: `0 0 4px var(--est-${c.estado}-color, ${es.color})`,
-                                      flexShrink:0
-                                    }}/>
-                                  )}
+                                  <span style={{
+                                    width:6,
+                                    height:6,
+                                    borderRadius:'50%',
+                                    background:`var(--est-${c.estado}-color, ${es.color})`,
+                                    boxShadow: `0 0 4px var(--est-${c.estado}-color, ${es.color})`,
+                                    flexShrink:0
+                                  }}/>
                                 </div>
-                                <div style={{fontSize:12,fontWeight:700,color:isSobreturno ? '#78350F' : colorVar,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',marginTop:2}}>{c.nombre}</div>
+                                <div style={{
+                                  fontSize: isMobile ? (isSobreturno ? 10.5 : 12) : 12,
+                                  fontWeight: 700,
+                                  color: isSobreturno ? '#78350F' : colorVar,
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                  display: '-webkit-box',
+                                  WebkitLineClamp: isMobile && isSobreturno && hCard < 50 ? 1 : 2,
+                                  WebkitBoxOrient: 'vertical',
+                                  whiteSpace: isMobile && isSobreturno && hCard < 50 ? 'nowrap' : 'normal',
+                                  lineHeight: 1.1,
+                                  marginTop: 2
+                                }}>{c.nombre}</div>
                                 {hCard>60&&<div style={{fontSize:9.5,color:colorVar,opacity:0.8,marginTop:2,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',fontWeight:500}}>🦷 {c.tratamiento}</div>}
                               </>
                             ) : (
