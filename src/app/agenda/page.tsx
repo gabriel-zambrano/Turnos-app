@@ -13,6 +13,11 @@ const MEDIOS_PAGO = ['Efectivo','Transferencia','TDC 1 pago','TDC 3 cuotas s/i',
 interface PacMin  { id:string; nombre:string; telefono:string }
 interface TratDB  { nombre:string; precio_base:number|null; duracion_default:number|null }
 
+interface CitaPos extends Cita {
+  colIndex?: number
+  totalCols?: number
+}
+
 function toCita(c: CitaDB): Cita {
   const dt = new Date(c.fecha_hora)
   const ar = new Date(dt.toLocaleString('en-US', { timeZone: 'America/Argentina/Buenos_Aires' }))
@@ -26,6 +31,74 @@ function toCita(c: CitaDB): Cita {
     duracion:c.duracion_minutos, notas:c.notas??'',
     minutos: h * 60 + m, valor:c.valor??null, sena:c.sena??null, medio_pago:c.medio_pago??null
   }
+}
+
+function calcularPosicionCitas(citasDia: Cita[]): CitaPos[] {
+  const citasSorted = [...citasDia].sort((a, b) => a.minutos - b.minutos)
+  const result: CitaPos[] = citasSorted.map(c => ({ ...c }))
+
+  // Find connected components (clusters of overlapping events)
+  const clusters: CitaPos[][] = []
+  result.forEach(c => {
+    const matchingClusters: number[] = []
+    clusters.forEach((cluster, idx) => {
+      const overlaps = cluster.some(item => 
+        c.minutos < item.minutos + item.duracion && 
+        item.minutos < c.minutos + c.duracion
+      )
+      if (overlaps) {
+        matchingClusters.push(idx)
+      }
+    })
+    
+    if (matchingClusters.length === 0) {
+      clusters.push([c])
+    } else if (matchingClusters.length === 1) {
+      clusters[matchingClusters[0]].push(c)
+    } else {
+      // Merge all matching clusters
+      const newCluster = [c]
+      for (let i = matchingClusters.length - 1; i >= 0; i--) {
+        const idx = matchingClusters[i]
+        newCluster.push(...clusters[idx])
+        clusters.splice(idx, 1)
+      }
+      clusters.push(newCluster)
+    }
+  })
+
+  // Assign columns for each cluster
+  clusters.forEach(cluster => {
+    // Sort cluster by minutes then by duration descending to lay out longest first
+    cluster.sort((a, b) => a.minutos - b.minutos || b.duracion - a.duracion)
+    
+    const cols: CitaPos[][] = []
+    cluster.forEach(c => {
+      let colIdx = 0
+      while (true) {
+        if (!cols[colIdx]) {
+          cols[colIdx] = [c]
+          break
+        }
+        const overlaps = cols[colIdx].some(item => 
+          c.minutos < item.minutos + item.duracion && 
+          item.minutos < c.minutos + c.duracion
+        )
+        if (!overlaps) {
+          cols[colIdx].push(c)
+          break
+        }
+        colIdx++
+      }
+      c.colIndex = colIdx
+    })
+    const totalCols = cols.length
+    cluster.forEach(c => {
+      c.totalCols = totalCols
+    })
+  })
+
+  return result
 }
 
 function parseFechaLocal(base: string): Date {
@@ -182,6 +255,12 @@ function AgendaHeaderMobile({ fecha, vista, esHoy, onPrev, onNext, onVista, onNu
       </button>
 
       <button onClick={onNext} style={btnFlecha}>›</button>
+
+      <div style={{display:'flex',background:'#f0f4f8',borderRadius:8,overflow:'hidden',marginRight:4,height:32,border:'0.5px solid #dde5ef',flexShrink:0}}>
+        {(['semana','dia'] as const).map(v=>(
+          <button key={v} onClick={()=>onVista(v)} style={{padding:'0 10px',fontSize:11,border:'none',cursor:'pointer',background:vista===v?'#0a1e3d':'transparent',color:vista===v?'#fff':'#687e96',fontWeight:700,fontFamily:'DM Sans, sans-serif'}}>{v==='semana'?'Sem':'Día'}</button>
+        ))}
+      </div>
 
       <button onClick={onNueva} style={{
         width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -425,7 +504,7 @@ export default function Agenda() {
   const horas = Array.from({length: HORA_FIN - HORA_INICIO}, (_,i) => HORA_INICIO + i)
   const totalH = (HORA_FIN - HORA_INICIO) * SLOT_H
 
-  function citasDelDia(f: string){ return citas.filter(c => c.fecha === f) }
+  function citasDelDia(f: string){ return calcularPosicionCitas(citas.filter(c => c.fecha === f)) }
 
   function citaTop(c: Cita){ return (c.minutos - HORA_INICIO * 60) / 60 * SLOT_H }
   function citaHeight(c: Cita){ return Math.max(c.duracion / 60 * SLOT_H, isMobile ? 44 : 22) }
@@ -477,39 +556,49 @@ export default function Agenda() {
 
         <div style={{padding: isMobile ? 0 : '1.5rem 2rem'}}>
           {tenantLoading || loading ? <Spinner/> : (
-            <div style={{background:'#fff',border:isMobile?'none':'1px solid #e2e8ed',borderRadius:isMobile?0:16,overflow:'hidden'}}>
+            <div style={{
+              background:'#fff',
+              border:isMobile?'none':'1px solid #e2e8ed',
+              borderRadius:isMobile?0:16,
+              overflowX: isMobile && vista === 'semana' ? 'auto' : 'hidden',
+              WebkitOverflowScrolling: 'touch',
+              width: '100%'
+            }}>
+              <div style={{
+                minWidth: isMobile && vista === 'semana' ? '960px' : 'auto'
+              }}>
 
-              {/* Header días */}
-              <div style={{display:'grid',gridTemplateColumns:`64px repeat(${isMobile?1:vista==='semana'?6:1}, 1fr)`,borderBottom:'1px solid #e2e8ed'}}>
-                <div style={{padding:'12px 0',borderRight:'1px solid #e2e8ed'}}/>
-                {(isMobile||vista==='dia'?[fecha]:semana).map((f,i)=>{
-                  const esHoy = f===hoy
-                  const d = new Date(f+'T12:00:00')
-                  const numDia = d.getDate()
-                  const label = vista==='semana' ? DIAS_LABEL[i] : ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'][d.getDay()]
-                  return(
-                    <div key={f} style={{padding:'10px 0',textAlign:'center',borderRight:'1px solid #f0f0f0'}}>
-                      <div style={{fontSize:11,color:'#999',textTransform:'uppercase',letterSpacing:1}}>{label}</div>
-                      <div style={{width:32,height:32,borderRadius:'50%',background:esHoy?'#0f1e2b':'transparent',color:esHoy?'#fff':'#1a1a1a',fontWeight:700,fontSize:15,display:'flex',alignItems:'center',justifyContent:'center',margin:'4px auto 0'}}>{numDia}</div>
-                    </div>
-                  )
-                })}
-              </div>
-
-              {/* Grid horario */}
-              <div style={{display:'grid',gridTemplateColumns:`64px repeat(${isMobile?1:vista==='semana'?6:1}, 1fr)`,overflowY:'auto',overflowX:'hidden',maxHeight:isMobile?'calc(100vh - 184px)':'calc(100vh - 220px)'}}>
-
-                {/* Columna horas */}
-                <div style={{borderRight:'1px solid #e2e8ed',position:'relative',height:totalH}}>
-                  {horas.map(h=>(
-                    <div key={h} style={{position:'absolute',top:(h-HORA_INICIO)*SLOT_H,left:0,right:0,height:SLOT_H,borderTop:'1px solid #f0f0f0',paddingTop:4}}>
-                      <span style={{fontSize:10,color:'#bbb',paddingLeft:8}}>{String(h).padStart(2,'0')}:00</span>
-                    </div>
-                  ))}
+                {/* Header días */}
+                <div style={{display:'grid',gridTemplateColumns:`64px repeat(${vista==='semana'?6:1}, 1fr)`,borderBottom:'1px solid #e2e8ed'}}>
+                  <div style={{padding:'12px 0',borderRight:'1px solid #e2e8ed'}}/>
+                  {(vista==='semana'?semana:[fecha]).map((f,i)=>{
+                    const esHoy = f===hoy
+                    const d = new Date(f+'T12:00:00')
+                    const numDia = d.getDate()
+                    const label = vista==='semana' ? DIAS_LABEL[i] : ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'][d.getDay()]
+                    return(
+                      <div key={f} style={{padding:'10px 0',textAlign:'center',borderRight:'1px solid #f0f0f0'}}>
+                        <div style={{fontSize:11,color:'#999',textTransform:'uppercase',letterSpacing:1}}>{label}</div>
+                        <div style={{width:32,height:32,borderRadius:'50%',background:esHoy?'#0f1e2b':'transparent',color:esHoy?'#fff':'#1a1a1a',fontWeight:700,fontSize:15,display:'flex',alignItems:'center',justifyContent:'center',margin:'4px auto 0'}}>{numDia}</div>
+                      </div>
+                    )
+                  })}
                 </div>
 
-                {/* Columnas días */}
-                {(isMobile||vista==='dia'?[fecha]:semana).map((f)=>{
+                {/* Grid horario */}
+                <div style={{display:'grid',gridTemplateColumns:`64px repeat(${vista==='semana'?6:1}, 1fr)`,overflowY:'auto',overflowX:'hidden',maxHeight:isMobile?'calc(100vh - 184px)':'calc(100vh - 220px)'}}>
+
+                  {/* Columna horas */}
+                  <div style={{borderRight:'1px solid #e2e8ed',position:'relative',height:totalH}}>
+                    {horas.map(h=>(
+                      <div key={h} style={{position:'absolute',top:(h-HORA_INICIO)*SLOT_H,left:0,right:0,height:SLOT_H,borderTop:'1px solid #f0f0f0',paddingTop:4}}>
+                        <span style={{fontSize:10,color:'#bbb',paddingLeft:8}}>{String(h).padStart(2,'0')}:00</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Columnas días */}
+                  {(vista==='semana'?semana:[fecha]).map((f)=>{
                   const citasF = citasDelDia(f)
                   return(
                     <div key={f} 
@@ -600,6 +689,13 @@ export default function Agenda() {
                         const es = ESTADO_STYLE[c.estado]||ESTADO_STYLE.pendiente
                         const isDragging = draggedCitaId === c.id
                         const isOrtodoncia = c.tratamiento === 'Ortodoncia'
+                        const isSobreturno = c.totalCols && c.totalCols > 1
+
+                        const colWidth = 100 / (c.totalCols || 1)
+                        const leftOffset = (c.colIndex || 0) * colWidth
+                        const cardLeft = `calc(${leftOffset}% + 2px)`
+                        const cardWidth = `calc(${colWidth}% - 4px)`
+
                         return(
                           <div key={c.id} data-cita="1"
                             onClick={e=>{e.stopPropagation();setSel(c);setModal('detalle')}}
@@ -610,33 +706,59 @@ export default function Agenda() {
                             style={{
                               position:'absolute',
                               top:citaTop(c)+2,
-                              left:3, right:3,
+                              left: cardLeft,
+                              width: cardWidth,
                               height:citaHeight(c)-4,
                               background:isOrtodoncia ? undefined : tc.bg,
-                              borderLeft:`3px solid ${tc.dot}`,
-                              borderRadius:6,
-                              padding:'3px 6px',
+                              borderLeft: isSobreturno ? `4px solid #EF9F27` : `4px solid ${tc.dot}`,
+                              borderTop: isSobreturno ? '1px dashed #EF9F27' : '1px solid rgba(0,0,0,0.03)',
+                              borderRight: isSobreturno ? '1px dashed #EF9F27' : '1px solid rgba(0,0,0,0.03)',
+                              borderBottom: isSobreturno ? '1px dashed #EF9F27' : '1px solid rgba(0,0,0,0.03)',
+                              borderRadius:8,
+                              padding:'4px 8px',
                               overflow:'hidden',
                               cursor:'pointer',
-                              zIndex:1,
-                              boxShadow: isOrtodoncia ? undefined : '0 1px 3px rgba(0,0,0,0.08)',
+                              zIndex: isSobreturno ? 2 : 1,
+                              boxShadow: isOrtodoncia ? undefined : '0 2px 6px rgba(10,30,61,0.05)',
                               opacity: isDragging ? 0.4 : 1,
                               ['--hover-glow' as any]: `${tc.dot}35`,
                             } as React.CSSProperties}>
+                            
+                            {isSobreturno && (
+                              <span style={{
+                                position: 'absolute',
+                                top: 2,
+                                right: 2,
+                                background: '#EF9F27',
+                                color: '#fff',
+                                fontSize: '8px',
+                                fontWeight: 800,
+                                padding: '1px 3px',
+                                borderRadius: 4,
+                                textTransform: 'uppercase',
+                                boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                                zIndex: 10
+                              }}>
+                                ST
+                              </span>
+                            )}
+
                             {isMobile ? (
                               <>
                                 <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-                                  <span style={{fontSize:11,fontWeight:700,color:tc.color,lineHeight:1}}>{c.hora}</span>
-                                  <span style={{width:6,height:6,borderRadius:'50%',background:es.color,flexShrink:0}}/>
+                                  <span style={{fontSize:10,fontWeight:800,color:isSobreturno ? '#B45309' : tc.color,lineHeight:1}}>{c.hora}</span>
+                                  {!isSobreturno && <span style={{width:6,height:6,borderRadius:'50%',background:es.color,flexShrink:0}}/>}
                                 </div>
-                                <div style={{fontSize:13,fontWeight:600,color:tc.color,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',marginTop:2}}>{c.nombre}</div>
-                                {citaHeight(c)>64&&<div style={{fontSize:10,color:tc.color,opacity:0.7,marginTop:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{c.tratamiento}</div>}
+                                <div style={{fontSize:12,fontWeight:700,color:isSobreturno ? '#78350F' : tc.color,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',marginTop:2}}>{c.nombre}</div>
+                                {citaHeight(c)>64&&<div style={{fontSize:9,color:tc.color,opacity:0.8,marginTop:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{c.tratamiento}</div>}
                               </>
                             ) : (
                               <>
-                                <div style={{fontSize:11,fontWeight:700,color:tc.color,lineHeight:1.2}}>{c.hora} · {c.nombre}</div>
-                                {citaHeight(c)>30&&<div style={{fontSize:10,color:tc.color,opacity:0.8,marginTop:1}}>{c.tratamiento} · {c.duracion}min{c.valor?` · $${c.valor}`:''}</div>}
-                                {citaHeight(c)>44&&<div style={{fontSize:10,marginTop:2}}><span style={{background:es.bg,color:es.color,padding:'1px 5px',borderRadius:4}}>{es.label}</span></div>}
+                                <div style={{fontSize:11.5,fontWeight:700,color:isSobreturno ? '#78350F' : tc.color,lineHeight:1.2,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+                                  {c.hora} · {c.nombre}
+                                </div>
+                                {citaHeight(c)>30&&<div style={{fontSize:9.5,color:tc.color,opacity:0.85,marginTop:1,fontWeight:500}}>{c.tratamiento} · {c.duracion} min{c.valor?` · $${c.valor}`:''}</div>}
+                                {citaHeight(c)>48&&<div style={{marginTop:4}}><Badge bg={es.bg} color={es.color}>{es.label}</Badge></div>}
                               </>
                             )}
                           </div>
@@ -647,7 +769,8 @@ export default function Agenda() {
                 })}
               </div>
             </div>
-          )}
+          </div>
+        )}
         </div>
       </main>
 
