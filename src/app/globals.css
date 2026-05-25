@@ -17,6 +17,49 @@
   --border-lighter: rgba(56, 138, 221, 0.06);
   --table-header-bg: linear-gradient(135deg, rgba(232, 240, 252, 0.8), rgba(219, 238, 255, 0.6));
   --scrollbar-thumb: #c5d4e8;
+
+  /* Treatments Light Mode */
+  --trat-Limpieza-bg: rgba(225, 245, 238, 0.85);
+  --trat-Limpieza-color: #085041;
+  --trat-Limpieza-border: #1D9E75;
+
+  --trat-Ortodoncia-bg: rgba(238, 237, 254, 0.85);
+  --trat-Ortodoncia-color: #3C3489;
+  --trat-Ortodoncia-border: #7F77DD;
+
+  --trat-Cirugia-bg: rgba(250, 236, 231, 0.85);
+  --trat-Cirugia-color: #712B13;
+  --trat-Cirugia-border: #D85A30;
+
+  --trat-Implante-bg: rgba(230, 241, 251, 0.85);
+  --trat-Implante-color: #0C447C;
+  --trat-Implante-border: #378ADD;
+
+  --trat-Endodoncia-bg: rgba(250, 238, 218, 0.85);
+  --trat-Endodoncia-color: #633806;
+  --trat-Endodoncia-border: #EF9F27;
+
+  --trat-Blanqueamiento-bg: rgba(234, 243, 222, 0.85);
+  --trat-Blanqueamiento-color: #27500A;
+  --trat-Blanqueamiento-border: #639922;
+
+  --trat-Consulta-bg: rgba(241, 239, 232, 0.85);
+  --trat-Consulta-color: #444441;
+  --trat-Consulta-border: #888780;
+
+  --trat-Otro-bg: rgba(241, 239, 232, 0.85);
+  --trat-Otro-color: #444441;
+  --trat-Otro-border: #888780;
+
+  /* Statuses Light Mode */
+  --est-confirmado-bg: #E1F5EE;
+  --est-confirmado-color: #085041;
+  --est-pendiente-bg: #FAEEDA;
+  --est-pendiente-color: #633806;
+  --est-asistio-bg: #E6F1FB;
+  --est-asistio-color: #0C447C;
+  --est-cancelado-bg: #FAECE7;
+  --est-cancelado-color: #712B13;
 }
 
 [data-theme="dark"] {
@@ -36,6 +79,49 @@
   --border-lighter: rgba(56, 138, 221, 0.15);
   --table-header-bg: linear-gradient(135deg, rgba(20, 35, 55, 0.9), rgba(15, 25, 45, 0.8));
   --scrollbar-thumb: #1e2d42;
+
+  /* Treatments Dark Mode */
+  --trat-Limpieza-bg: rgba(29, 158, 117, 0.12);
+  --trat-Limpieza-color: #5eead4;
+  --trat-Limpieza-border: #1D9E75;
+
+  --trat-Ortodoncia-bg: rgba(127, 119, 221, 0.12);
+  --trat-Ortodoncia-color: #c7d2fe;
+  --trat-Ortodoncia-border: #7F77DD;
+
+  --trat-Cirugia-bg: rgba(216, 90, 48, 0.12);
+  --trat-Cirugia-color: #ffedd5;
+  --trat-Cirugia-border: #D85A30;
+
+  --trat-Implante-bg: rgba(55, 138, 221, 0.12);
+  --trat-Implante-color: #bae6fd;
+  --trat-Implante-border: #378ADD;
+
+  --trat-Endodoncia-bg: rgba(239, 159, 39, 0.12);
+  --trat-Endodoncia-color: #fde68a;
+  --trat-Endodoncia-border: #EF9F27;
+
+  --trat-Blanqueamiento-bg: rgba(99, 153, 34, 0.12);
+  --trat-Blanqueamiento-color: #d9f99d;
+  --trat-Blanqueamiento-border: #639922;
+
+  --trat-Consulta-bg: rgba(136, 135, 128, 0.12);
+  --trat-Consulta-color: #e2e8f0;
+  --trat-Consulta-border: #888780;
+
+  --trat-Otro-bg: rgba(136, 135, 128, 0.12);
+  --trat-Otro-color: #e2e8f0;
+  --trat-Otro-border: #888780;
+
+  /* Statuses Dark Mode */
+  --est-confirmado-bg: rgba(29, 158, 117, 0.15);
+  --est-confirmado-color: #5eead4;
+  --est-pendiente-bg: rgba(239, 159, 39, 0.15);
+  --est-pendiente-color: #fde68a;
+  --est-asistio-bg: rgba(55, 138, 221, 0.15);
+  --est-asistio-color: #bae6fd;
+  --est-cancelado-bg: rgba(216, 90, 48, 0.15);
+  --est-cancelado-color: #fca5a5;
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -127,11 +213,13 @@ input, select, textarea {
 input:focus, select:focus, textarea:focus {
   border-color: #185FA5 !important;
   box-shadow: 0 0 0 3px rgba(24, 95, 165, 0.15) !important;
-  background: #ffffff !important;
+  background: var(--bg-input, #ffffff) !important;
+  color: var(--text-dark) !important;
 }
 
-::-webkit-scrollbar { width: 4px; }
-::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 2px; }
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
 
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(6px); }
@@ -159,6 +247,12 @@ input:focus, select:focus, textarea:focus {
   justify-content: space-around;
   z-index: 1000;
   padding: 0 8px;
+}
+
+[data-theme="dark"] .mobile-nav-floating {
+  background: rgba(12, 24, 40, 0.72) !important;
+  border: 1px solid rgba(56, 138, 221, 0.15) !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5) !important;
 }
 
 /* Progress Glow Effect */
@@ -190,6 +284,11 @@ input:focus, select:focus, textarea:focus {
   background: linear-gradient(135deg, rgba(238, 237, 254, 0.95), rgba(238, 237, 254, 0.82)) !important;
 }
 
+[data-theme="dark"] .glow-card-ortodoncia {
+  border-color: rgba(127, 119, 221, 0.6) !important;
+  background: linear-gradient(135deg, rgba(40, 30, 80, 0.45), rgba(25, 15, 60, 0.35)) !important;
+}
+
 .agenda-card-interactive {
   transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease, opacity 0.25s ease !important;
 }
@@ -197,7 +296,7 @@ input:focus, select:focus, textarea:focus {
 .agenda-card-interactive:hover {
   transform: translateY(-2px) scale(1.02);
   z-index: 10 !important;
-  box-shadow: 0 6px 16px rgba(10, 30, 61, 0.12), 0 0 10px var(--hover-glow, rgba(56, 138, 221, 0.15)) !important;
+  box-shadow: 0 6px 16px rgba(10, 30, 61, 0.12), 0 0 12px var(--hover-glow, rgba(56, 138, 221, 0.25)) !important;
 }
 
 @media (max-width: 767px) {
@@ -224,4 +323,29 @@ input:focus, select:focus, textarea:focus {
 .quick-action-btn:hover {
   transform: translateY(-2px) scale(1.02);
   box-shadow: 0 6px 14px rgba(10, 30, 61, 0.08);
+}
+
+/* Sobreturno (Overbooking) Diagonal Stripe Pattern */
+.sobreturno-card {
+  background-image: repeating-linear-gradient(
+    45deg,
+    rgba(254, 243, 199, 0.75),
+    rgba(254, 243, 199, 0.75) 10px,
+    rgba(255, 251, 235, 0.85) 10px,
+    rgba(255, 251, 235, 0.85) 20px
+  ) !important;
+  border: 1px dashed #EF9F27 !important;
+  color: #78350F !important;
+}
+
+[data-theme="dark"] .sobreturno-card {
+  background-image: repeating-linear-gradient(
+    45deg,
+    rgba(245, 158, 11, 0.08),
+    rgba(245, 158, 11, 0.08) 10px,
+    rgba(12, 24, 40, 0.9) 10px,
+    rgba(12, 24, 40, 0.9) 20px
+  ) !important;
+  border: 1px dashed #F59E0B !important;
+  color: #fde68a !important;
 }

@@ -162,9 +162,9 @@ function WeekStrip({ fechas, fechaActiva, fechasConCitas, onSelect, hoy }: {
   return (
     <div style={{
       height: 64, display: 'flex', alignItems: 'center',
-      background: 'rgba(255,255,255,0.95)',
+      background: 'var(--bg-header, rgba(255,255,255,0.95))',
       backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)',
-      borderBottom: '1px solid rgba(56,138,221,0.10)',
+      borderBottom: '1px solid var(--border-light, rgba(56,138,221,0.10))',
       position: 'sticky', top: 56, zIndex: 49,
     }}>
       {fechas.map((f, i) => {
@@ -180,23 +180,24 @@ function WeekStrip({ fechas, fechaActiva, fechasConCitas, onSelect, hoy }: {
             alignItems: 'center', justifyContent: 'center',
             border: 'none', background: 'transparent', cursor: 'pointer', padding: 0,
           }}>
-            <span style={{ fontSize: 10, fontWeight: 500, color: activo ? '#0a1e3d' : '#aab8c8', lineHeight: 1, marginBottom: 3 }}>
+            <span style={{ fontSize: 10, fontWeight: 500, color: activo ? 'var(--text-dark, #0a1e3d)' : 'var(--text-muted, #aab8c8)', lineHeight: 1, marginBottom: 3 }}>
               {DIAS_STRIP[i]}
             </span>
             <div style={{
               width: 28, height: 28, borderRadius: '50%',
-              background: activo ? '#0a1e3d' : 'transparent',
+              background: activo ? 'var(--text-dark, #0a1e3d)' : 'transparent',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
+              boxShadow: activo ? '0 2px 6px rgba(10,30,61,0.15)' : 'none',
             }}>
               <span style={{
                 fontSize: 14,
                 fontWeight: activo || esHoy ? 700 : 400,
-                color: activo ? '#fff' : esHoy ? '#0a1e3d' : '#333',
+                color: activo ? 'var(--bg-app, #fff)' : esHoy ? '#10B981' : 'var(--text-dark, #333)',
                 lineHeight: 1,
               }}>{numDia}</span>
             </div>
             <span style={{
-              fontSize: 9, color: '#aab8c8', lineHeight: 1, marginTop: 2,
+              fontSize: 9, color: 'var(--text-muted, #aab8c8)', lineHeight: 1, marginTop: 2,
               visibility: esSemanaCurrent ? 'hidden' : 'visible',
             }}>{mes}</span>
             <div style={{
@@ -221,21 +222,26 @@ function AgendaHeaderMobile({ fecha, vista, esHoy, onPrev, onNext, onVista, onNu
   const diaNombre = d.toLocaleDateString('es-AR', { weekday: 'short' })
 
   const btnFlecha: React.CSSProperties = {
-    width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center',
-    border: 'none', background: 'transparent', fontSize: 22, color: '#0a1e3d',
-    cursor: 'pointer', borderRadius: 12, flexShrink: 0, fontFamily: 'DM Sans, sans-serif',
+    width: 38, height: 38, display: 'flex', alignItems: 'center', justifyContent: 'center',
+    border: '1px solid var(--border-light, rgba(56,138,221,0.10))',
+    background: 'var(--bg-card, rgba(255,255,255,0.6))',
+    color: 'var(--text-dark, #0a1e3d)',
+    cursor: 'pointer', borderRadius: 10, flexShrink: 0,
+    fontFamily: 'DM Sans, sans-serif',
   }
 
   return (
     <header style={{
-      height: 56, display: 'flex', alignItems: 'center', padding: '0 8px', gap: 4,
-      background: 'rgba(255,255,255,0.92)', backdropFilter: 'blur(16px)',
-      WebkitBackdropFilter: 'blur(16px)',
-      borderBottom: '1px solid rgba(56,138,221,0.10)',
+      height: 56, display: 'flex', alignItems: 'center', padding: '0 8px', gap: 6,
+      background: 'var(--bg-header, rgba(255,255,255,0.92))',
+      backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)',
+      borderBottom: '1px solid var(--border-light, rgba(56,138,221,0.10))',
       position: 'sticky', top: 0, zIndex: 50,
     }}>
 
-      <button onClick={onPrev} style={btnFlecha}>‹</button>
+      <button onClick={onPrev} style={btnFlecha} aria-label="Semana Anterior">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
 
       <button onClick={onHoy} style={{
         flex: 1, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -244,30 +250,33 @@ function AgendaHeaderMobile({ fecha, vista, esHoy, onPrev, onNext, onVista, onNu
       }}>
         {esHoy ? (
           <>
-            <span style={{ fontSize: 13, fontWeight: 600, color: '#138A6B' }}>Hoy</span>
-            <span style={{ fontSize: 20, fontWeight: 700, color: '#0a1e3d', lineHeight: 1 }}>{diaNum}</span>
+            <span style={{ fontSize: 13, fontWeight: 600, color: '#10B981' }}>Hoy</span>
+            <span style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-dark, #0a1e3d)', lineHeight: 1 }}>{diaNum}</span>
           </>
         ) : (
           <>
-            <span style={{ fontSize: 13, fontWeight: 400, color: '#8fa3bc', textTransform: 'capitalize' }}>{diaNombre}</span>
-            <span style={{ fontSize: 20, fontWeight: 700, color: '#0a1e3d', lineHeight: 1 }}>{diaNum}</span>
+            <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-muted, #8fa3bc)', textTransform: 'capitalize' }}>{diaNombre}</span>
+            <span style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-dark, #0a1e3d)', lineHeight: 1 }}>{diaNum}</span>
           </>
         )}
       </button>
 
-      <button onClick={onNext} style={btnFlecha}>›</button>
+      <button onClick={onNext} style={btnFlecha} aria-label="Semana Siguiente">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
 
-      <div style={{display:'flex',background:'#f0f4f8',borderRadius:8,overflow:'hidden',marginRight:4,height:32,border:'0.5px solid #dde5ef',flexShrink:0}}>
+      <div style={{display:'flex',background:'var(--bg-input, #f0f4f8)',borderRadius:8,overflow:'hidden',marginRight:4,height:32,border:'0.5px solid var(--border-color, #dde5ef)',flexShrink:0}}>
         {(['semana','dia'] as const).map(v=>(
-          <button key={v} onClick={()=>onVista(v)} style={{padding:'0 10px',fontSize:11,border:'none',cursor:'pointer',background:vista===v?'#0a1e3d':'transparent',color:vista===v?'#fff':'#687e96',fontWeight:700,fontFamily:'DM Sans, sans-serif'}}>{v==='semana'?'Sem':'Día'}</button>
+          <button key={v} onClick={()=>onVista(v)} style={{padding:'0 12px',fontSize:11,border:'none',cursor:'pointer',background:vista===v?'var(--text-dark, #0a1e3d)':'transparent',color:vista===v?'var(--bg-app, #fff)':'var(--text-muted, #687e96)',fontWeight:700,fontFamily:'DM Sans, sans-serif'}}>{v==='semana'?'Sem':'Día'}</button>
         ))}
       </div>
 
       <button onClick={onNueva} style={{
-        width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center',
-        border: 'none', background: '#0a1e3d', color: '#fff',
-        borderRadius: 12, fontSize: 22, cursor: 'pointer', flexShrink: 0,
+        width: 38, height: 38, display: 'flex', alignItems: 'center', justifyContent: 'center',
+        border: 'none', background: 'var(--text-dark, #0a1e3d)', color: 'var(--bg-app, #fff)',
+        borderRadius: 10, fontSize: 20, cursor: 'pointer', flexShrink: 0,
         fontFamily: 'DM Sans, sans-serif',
+        boxShadow: '0 2px 6px rgba(10,30,61,0.15)',
       }}>+</button>
 
     </header>
@@ -537,17 +546,89 @@ export default function Agenda() {
             </>
           : <PageHeader title="Agenda"
               right={
-                <div style={{display:'flex',gap:10,alignItems:'center'}}>
+                <div style={{display:'flex',gap:12,alignItems:'center'}}>
                   <div style={{display:'flex',gap:6,alignItems:'center'}}>
-                    <button onClick={()=>{const d=new Date(fecha);d.setDate(d.getDate()-(vista==='semana'?7:1));setFecha(d.toISOString().split('T')[0])}} style={{background:'#fff',border:'1px solid #e2e8ed',borderRadius:8,padding:'6px 10px',cursor:'pointer',fontSize:16}}>‹</button>
-                    <input type="date" value={fecha} onChange={e=>setFecha(e.target.value)} style={{...inputCss,width:150,padding:'0.5rem 0.75rem',fontSize:13}}/>
-                    <button onClick={()=>{const d=new Date(fecha);d.setDate(d.getDate()+(vista==='semana'?7:1));setFecha(d.toISOString().split('T')[0])}} style={{background:'#fff',border:'1px solid #e2e8ed',borderRadius:8,padding:'6px 10px',cursor:'pointer',fontSize:16}}>›</button>
-                    <button onClick={()=>setFecha(hoyISO())} style={{background:'#fff',border:'1px solid #e2e8ed',borderRadius:8,padding:'6px 10px',cursor:'pointer',fontSize:12,color:'#555'}}>Hoy</button>
+                    <button onClick={()=>{const d=new Date(fecha);d.setDate(d.getDate()-(vista==='semana'?7:1));setFecha(d.toISOString().split('T')[0])}} 
+                      style={{
+                        background:'var(--bg-card, #fff)',
+                        border:'1px solid var(--border-color, #e2e8ed)',
+                        borderRadius:8,
+                        width: 36,
+                        height: 36,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor:'pointer',
+                        color: 'var(--text-dark)'
+                      }}
+                      className="quick-action-btn"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+                    </button>
+                    <input type="date" value={fecha} onChange={e=>setFecha(e.target.value)} 
+                      style={{
+                        ...inputCss,
+                        width:150,
+                        height: 36,
+                        padding:'0 0.75rem',
+                        fontSize:13,
+                        background: 'var(--bg-card, #fff)',
+                        borderColor: 'var(--border-color, #e2e8ed)',
+                        color: 'var(--text-dark)'
+                      }}
+                    />
+                    <button onClick={()=>{const d=new Date(fecha);d.setDate(d.getDate()+(vista==='semana'?7:1));setFecha(d.toISOString().split('T')[0])}} 
+                      style={{
+                        background:'var(--bg-card, #fff)',
+                        border:'1px solid var(--border-color, #e2e8ed)',
+                        borderRadius:8,
+                        width: 36,
+                        height: 36,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor:'pointer',
+                        color: 'var(--text-dark)'
+                      }}
+                      className="quick-action-btn"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+                    </button>
+                    <button onClick={()=>setFecha(hoyISO())} 
+                      style={{
+                        background:'var(--bg-card, #fff)',
+                        border:'1px solid var(--border-color, #e2e8ed)',
+                        borderRadius:8,
+                        height: 36,
+                        padding:'0 14px',
+                        cursor:'pointer',
+                        fontSize:12,
+                        fontWeight: 600,
+                        color:'var(--text-dark, #555)'
+                      }}
+                      className="quick-action-btn"
+                    >
+                      Hoy
+                    </button>
                   </div>
-                  <div style={{display:'flex',gap:6,alignItems:'center'}}>
-                    <div style={{display:'flex',background:'#fff',border:'1px solid #e2e8ed',borderRadius:8,overflow:'hidden'}}>
+                  <div style={{display:'flex',gap:8,alignItems:'center'}}>
+                    <div style={{display:'flex',background:'var(--bg-input, rgba(0,0,0,0.05))',border:'1px solid var(--border-color, #e2e8ed)',borderRadius:8,overflow:'hidden',padding: 2, height: 36}}>
                       {(['semana','dia'] as const).map(v=>(
-                        <button key={v} onClick={()=>setVista(v)} style={{padding:'6px 14px',fontSize:12,border:'none',cursor:'pointer',background:vista===v?'#0f1e2b':'transparent',color:vista===v?'#fff':'#555',fontFamily:'DM Sans, sans-serif'}}>{v==='semana'?'Semana':'Día'}</button>
+                        <button key={v} onClick={()=>setVista(v)} 
+                          style={{
+                            padding:'0 14px',
+                            fontSize:12,
+                            border:'none',
+                            borderRadius: 6,
+                            cursor:'pointer',
+                            background:vista===v?'var(--text-dark, #0f1e2b)':'transparent',
+                            color:vista===v?'var(--bg-app, #fff)':'var(--text-muted, #555)',
+                            fontWeight:600,
+                            fontFamily:'DM Sans, sans-serif'
+                          }}
+                        >
+                          {v==='semana'?'Semana':'Día'}
+                        </button>
                       ))}
                     </div>
                     <BtnPrimary onClick={()=>openNueva()}>
@@ -562,29 +643,69 @@ export default function Agenda() {
         <div style={{padding: isMobile ? 0 : '1.5rem 2rem'}}>
           {tenantLoading || loading ? <Spinner/> : (
             <div style={{
-              background:'#fff',
-              border:isMobile?'none':'1px solid #e2e8ed',
+              background:'var(--bg-container, #fff)',
+              border:isMobile?'none':'1px solid var(--border-color, #e2e8ed)',
               borderRadius:isMobile?0:16,
               overflowX: isMobile && vista === 'semana' ? 'auto' : 'hidden',
               WebkitOverflowScrolling: 'touch',
-              width: '100%'
+              width: '100%',
+              boxShadow: isMobile ? 'none' : '0 4px 20px rgba(10,30,61,0.02)'
             }}>
               <div style={{
                 minWidth: isMobile && vista === 'semana' ? '960px' : 'auto'
               }}>
 
                 {/* Header días */}
-                <div style={{display:'grid',gridTemplateColumns:`64px repeat(${vista==='semana'?6:1}, 1fr)`,borderBottom:'1px solid #e2e8ed'}}>
-                  <div style={{padding:'12px 0',borderRight:'1px solid #e2e8ed'}}/>
+                <div style={{display:'grid',gridTemplateColumns:`64px repeat(${vista==='semana'?6:1}, 1fr)`,borderBottom:'1px solid var(--border-color, #e2e8ed)',background:'var(--bg-header, rgba(255,255,255,0.4))',backdropFilter:'blur(8px)'}}>
+                  <div style={{padding:'12px 0',borderRight:'1px solid var(--border-color, #e2e8ed)'}}/>
                   {(vista==='semana'?semana:[fecha]).map((f,i)=>{
                     const esHoy = f===hoy
                     const d = new Date(f+'T12:00:00')
                     const numDia = d.getDate()
                     const label = vista==='semana' ? DIAS_LABEL[i] : ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'][d.getDay()]
                     return(
-                      <div key={f} style={{padding:'10px 0',textAlign:'center',borderRight:'1px solid #f0f0f0'}}>
-                        <div style={{fontSize:11,color:'#999',textTransform:'uppercase',letterSpacing:1}}>{label}</div>
-                        <div style={{width:32,height:32,borderRadius:'50%',background:esHoy?'#0f1e2b':'transparent',color:esHoy?'#fff':'#1a1a1a',fontWeight:700,fontSize:15,display:'flex',alignItems:'center',justifyContent:'center',margin:'4px auto 0'}}>{numDia}</div>
+                      <div key={f} 
+                        style={{
+                          padding:'12px 0',
+                          textAlign:'center',
+                          borderRight:'1px solid var(--border-lighter, #f0f0f0)',
+                          display:'flex',
+                          flexDirection:'column',
+                          alignItems:'center',
+                          justifyContent:'center',
+                          background: esHoy ? 'rgba(56, 138, 221, 0.04)' : 'transparent',
+                          transition: 'background 0.2s ease',
+                        }}
+                      >
+                        <div style={{fontSize:10,fontWeight:600,color:'var(--text-muted, #999)',textTransform:'uppercase',letterSpacing:1.5}}>{label}</div>
+                        <div style={{
+                          width:34,
+                          height:34,
+                          borderRadius:'50%',
+                          background:esHoy?'linear-gradient(135deg, var(--text-dark, #0f1e2b), #185FA5)':'transparent',
+                          color:esHoy?'#fff':'var(--text-dark, #1a1a1a)',
+                          fontWeight:700,
+                          fontSize:15,
+                          display:'flex',
+                          alignItems:'center',
+                          justifyContent:'center',
+                          margin:'6px auto 0',
+                          boxShadow: esHoy ? '0 4px 10px rgba(24, 95, 165, 0.25)' : 'none',
+                          position: 'relative'
+                        }}>
+                          {numDia}
+                          {esHoy && (
+                            <span style={{
+                              position:'absolute',
+                              bottom:-8,
+                              width:5,
+                              height:5,
+                              borderRadius:'50%',
+                              background:'#10B981',
+                              boxShadow: '0 0 8px #10B981',
+                            }}/>
+                          )}
+                        </div>
                       </div>
                     )
                   })}
@@ -594,10 +715,10 @@ export default function Agenda() {
                 <div style={{display:'grid',gridTemplateColumns:`64px repeat(${vista==='semana'?6:1}, 1fr)`,overflowY:'auto',overflowX:'hidden',maxHeight:isMobile?'calc(100vh - 184px)':'calc(100vh - 220px)'}}>
 
                   {/* Columna horas */}
-                  <div style={{borderRight:'1px solid #e2e8ed',position:'relative',height:totalH}}>
+                  <div style={{borderRight:'1px solid var(--border-color, #e2e8ed)',position:'relative',height:totalH}}>
                     {horas.map(h=>(
-                      <div key={h} style={{position:'absolute',top:(h-HORA_INICIO)*SLOT_H,left:0,right:0,height:SLOT_H,borderTop:'1px solid #f0f0f0',paddingTop:4}}>
-                        <span style={{fontSize:10,color:'#bbb',paddingLeft:8}}>{String(h).padStart(2,'0')}:00</span>
+                      <div key={h} style={{position:'absolute',top:(h-HORA_INICIO)*SLOT_H,left:0,right:0,height:SLOT_H,borderTop:'1px solid var(--border-lighter, #f0f0f0)',paddingTop:4}}>
+                        <span style={{fontSize:10,fontWeight:500,color:'var(--text-muted, #bbb)',paddingLeft:8}}>{String(h).padStart(2,'0')}:00</span>
                       </div>
                     ))}
                   </div>
@@ -610,7 +731,7 @@ export default function Agenda() {
                       style={{
                         position:'relative',
                         height:totalH,
-                        borderRight:'1px solid #f0f0f0',
+                        borderRight:'1px solid var(--border-lighter, #f0f0f0)',
                         cursor:'pointer',
                         background: dragOverDay === f ? 'rgba(56, 138, 221, 0.08)' : 'transparent',
                         transition: 'background 0.2s ease',
@@ -676,7 +797,8 @@ export default function Agenda() {
                           left: 0,
                           right: 0,
                           height: 1,
-                          borderTop: '2px dashed rgba(24, 95, 165, 0.4)',
+                          borderTop: '1.5px dashed var(--text-muted, #185FA5)',
+                          background: 'rgba(24, 95, 165, 0.02)',
                           zIndex: 6,
                           pointerEvents: 'none',
                           display: 'flex',
@@ -701,20 +823,22 @@ export default function Agenda() {
                             style={{
                               pointerEvents: 'auto',
                               cursor: 'pointer',
-                              background: '#185FA5',
-                              color: '#fff',
+                              background: 'var(--text-dark, #0a1e3d)',
+                              color: 'var(--bg-app, #fff)',
                               border: 'none',
                               borderRadius: '50%',
-                              width: 20,
-                              height: 20,
+                              width: 22,
+                              height: 22,
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'center',
-                              fontSize: 12,
+                              fontSize: 14,
                               fontWeight: 'bold',
-                              boxShadow: '0 2px 6px rgba(24,95,165,0.3)',
-                              transform: 'translateY(-10px)'
+                              boxShadow: '0 3px 8px rgba(10,30,61,0.25)',
+                              transform: 'translateY(-11px)',
+                              transition: 'all 0.2s ease',
                             }}
+                            className="quick-action-btn"
                             title={`Agendar a las ${hoverSlot.timeStr}`}
                           >
                             +
@@ -723,7 +847,7 @@ export default function Agenda() {
                       )}
                       {/* Líneas de hora */}
                       {horas.map(h=>(
-                        <div key={h} style={{position:'absolute',top:(h-HORA_INICIO)*SLOT_H,left:0,right:0,height:SLOT_H,borderTop:'1px solid #f5f5f5'}}/>
+                        <div key={h} style={{position:'absolute',top:(h-HORA_INICIO)*SLOT_H,left:0,right:0,height:SLOT_H,borderTop:'1px dashed var(--border-lighter, #f5f5f5)'}}/>
                       ))}
                       {/* Slots ocupados */}
                       {(()=>{
@@ -732,7 +856,7 @@ export default function Agenda() {
                         return Array.from({length:(HORA_FIN-HORA_INICIO)*2},(_,i)=>{
                           const minTot = HORA_INICIO*60+i*30
                           return mins.has(minTot)
-                            ? <div key={i} style={{position:'absolute',top:i*(SLOT_H/2),left:0,right:0,height:SLOT_H/2,background:'rgba(0,0,0,0.04)',pointerEvents:'none'}}/>
+                            ? <div key={i} style={{position:'absolute',top:i*(SLOT_H/2),left:0,right:0,height:SLOT_H/2,background:'rgba(56, 138, 221, 0.03)',pointerEvents:'none'}}/>
                             : null
                         })
                       })()}
@@ -750,8 +874,8 @@ export default function Agenda() {
                         const height = ((eh + em/60) - (bh + bm/60)) * SLOT_H
                         return (
                           <div key={b.id} onClick={e=>{e.stopPropagation();if(confirm('¿Eliminar este bloqueo?'))deletBloqueo(b.id)}}
-                            style={{position:'absolute',top,left:2,right:2,height:Math.max(height-2,18),background:'repeating-linear-gradient(45deg,#e0e0e0,#e0e0e0 4px,#f0f0f0 4px,#f0f0f0 8px)',borderRadius:6,cursor:'pointer',display:'flex',alignItems:'center',padding:'0 8px',zIndex:1}}>
-                            <span style={{fontSize:10,fontWeight:600,color:'#888'}}>🚫 {b.motivo||'Bloqueado'} {b.hora_inicio.slice(0,5)}–{b.hora_fin.slice(0,5)}</span>
+                            style={{position:'absolute',top,left:2,right:2,height:Math.max(height-2,18),background:'repeating-linear-gradient(45deg, var(--border-light, #e0e0e0), var(--border-light, #e0e0e0) 4px, var(--bg-card, #f0f0f0) 4px, var(--bg-card, #f0f0f0) 8px)',borderRadius:6,cursor:'pointer',display:'flex',alignItems:'center',padding:'0 8px',zIndex:1}}>
+                            <span style={{fontSize:10,fontWeight:600,color:'var(--text-muted, #888)'}}>🚫 {b.motivo||'Bloqueado'} {b.hora_inicio.slice(0,5)}–{b.hora_fin.slice(0,5)}</span>
                           </div>
                         )
                       })}
@@ -767,6 +891,11 @@ export default function Agenda() {
                         const leftOffset = (c.colIndex || 0) * colWidth
                         const cardLeft = `calc(${leftOffset}% + 2px)`
                         const cardWidth = `calc(${colWidth}% - 4px)`
+                        const hCard = citaHeight(c) - 4
+
+                        const bgVar = isOrtodoncia ? undefined : `var(--trat-${c.tratamiento}-bg, ${tc.bg})`
+                        const colorVar = isSobreturno ? 'var(--text-dark)' : `var(--trat-${c.tratamiento}-color, ${tc.color})`
+                        const borderLeftColor = isSobreturno ? '#EF9F27' : `var(--trat-${c.tratamiento}-border, ${tc.dot})`
 
                         return(
                           <div key={c.id} data-cita="1"
@@ -774,26 +903,26 @@ export default function Agenda() {
                             draggable
                             onDragStart={e => handleDragStart(e, c)}
                             onDragEnd={() => setDraggedCitaId(null)}
-                            className={`agenda-card-interactive ${isOrtodoncia ? 'glow-card-ortodoncia' : ''}`}
+                            className={`agenda-card-interactive ${isOrtodoncia ? 'glow-card-ortodoncia' : ''} ${isSobreturno ? 'sobreturno-card' : ''}`}
                             style={{
                               position:'absolute',
                               top:citaTop(c)+2,
                               left: cardLeft,
                               width: cardWidth,
-                              height:citaHeight(c)-4,
-                              background:isOrtodoncia ? undefined : tc.bg,
-                              borderLeft: isSobreturno ? `4px solid #EF9F27` : `4px solid ${tc.dot}`,
-                              borderTop: isSobreturno ? '1px dashed #EF9F27' : '1px solid rgba(0,0,0,0.03)',
-                              borderRight: isSobreturno ? '1px dashed #EF9F27' : '1px solid rgba(0,0,0,0.03)',
-                              borderBottom: isSobreturno ? '1px dashed #EF9F27' : '1px solid rgba(0,0,0,0.03)',
-                              borderRadius:8,
-                              padding:'4px 8px',
+                              height:hCard,
+                              background: isOrtodoncia ? undefined : bgVar,
+                              borderLeft: `4px solid ${borderLeftColor}`,
+                              borderTop: isSobreturno ? undefined : '1px solid var(--border-light, rgba(0,0,0,0.03))',
+                              borderRight: isSobreturno ? undefined : '1px solid var(--border-light, rgba(0,0,0,0.03))',
+                              borderBottom: isSobreturno ? undefined : '1px solid var(--border-light, rgba(0,0,0,0.03))',
+                              borderRadius:12,
+                              padding:isMobile ? '4px 6px' : '5px 8px',
                               overflow:'hidden',
                               cursor:'pointer',
                               zIndex: isSobreturno ? 2 : 1,
-                              boxShadow: isOrtodoncia ? undefined : '0 2px 6px rgba(10,30,61,0.05)',
+                              boxShadow: isOrtodoncia ? undefined : '0 2px 6px rgba(10,30,61,0.04)',
                               opacity: isDragging ? 0.4 : 1,
-                              ['--hover-glow' as any]: `${tc.dot}35`,
+                              ['--hover-glow' as any]: isSobreturno ? 'rgba(239, 159, 39, 0.25)' : `var(--trat-${c.tratamiento}-border, ${tc.dot})35`,
                             } as React.CSSProperties}>
                             
                             {isSobreturno && (
@@ -801,36 +930,127 @@ export default function Agenda() {
                                 position: 'absolute',
                                 top: 2,
                                 right: 2,
-                                background: '#EF9F27',
+                                background: 'linear-gradient(135deg, #F59E0B, #D97706)',
                                 color: '#fff',
-                                fontSize: '8px',
+                                fontSize: '7.5px',
                                 fontWeight: 800,
-                                padding: '1px 3px',
+                                padding: '1px 4px',
                                 borderRadius: 4,
                                 textTransform: 'uppercase',
-                                boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-                                zIndex: 10
+                                boxShadow: '0 1px 3px rgba(245, 158, 11, 0.3)',
+                                zIndex: 10,
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 2,
                               }}>
-                                ST
+                                <svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>
+                                SOBRETURNO
                               </span>
                             )}
 
                             {isMobile ? (
                               <>
                                 <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-                                  <span style={{fontSize:10,fontWeight:800,color:isSobreturno ? '#B45309' : tc.color,lineHeight:1}}>{c.hora}</span>
-                                  {!isSobreturno && <span style={{width:6,height:6,borderRadius:'50%',background:es.color,flexShrink:0}}/>}
+                                  <span style={{fontSize:10,fontWeight:800,color:isSobreturno ? '#B45309' : colorVar,lineHeight:1}}>{c.hora}</span>
+                                  {!isSobreturno && (
+                                    <span style={{
+                                      width:6,
+                                      height:6,
+                                      borderRadius:'50%',
+                                      background:`var(--est-${c.estado}-color, ${es.color})`,
+                                      boxShadow: `0 0 4px var(--est-${c.estado}-color, ${es.color})`,
+                                      flexShrink:0
+                                    }}/>
+                                  )}
                                 </div>
-                                <div style={{fontSize:12,fontWeight:700,color:isSobreturno ? '#78350F' : tc.color,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',marginTop:2}}>{c.nombre}</div>
-                                {citaHeight(c)>64&&<div style={{fontSize:9,color:tc.color,opacity:0.8,marginTop:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{c.tratamiento}</div>}
+                                <div style={{fontSize:12,fontWeight:700,color:isSobreturno ? '#78350F' : colorVar,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',marginTop:2}}>{c.nombre}</div>
+                                {hCard>60&&<div style={{fontSize:9.5,color:colorVar,opacity:0.8,marginTop:2,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',fontWeight:500}}>🦷 {c.tratamiento}</div>}
                               </>
                             ) : (
                               <>
-                                <div style={{fontSize:11.5,fontWeight:700,color:isSobreturno ? '#78350F' : tc.color,lineHeight:1.2,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
-                                  {c.hora} · {c.nombre}
-                                </div>
-                                {citaHeight(c)>30&&<div style={{fontSize:9.5,color:tc.color,opacity:0.85,marginTop:1,fontWeight:500}}>{c.tratamiento} · {c.duracion} min{c.valor?` · $${c.valor}`:''}</div>}
-                                {citaHeight(c)>48&&<div style={{marginTop:4}}><Badge bg={es.bg} color={es.color}>{es.label}</Badge></div>}
+                                {hCard <= 30 ? (
+                                  <div style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 4,
+                                    fontSize: 10.5,
+                                    fontWeight: 700,
+                                    color: isSobreturno ? '#78350F' : colorVar,
+                                    height: '100%',
+                                    whiteSpace: 'nowrap',
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis'
+                                  }}>
+                                    <span style={{fontWeight: 800, opacity: 0.85}}>{c.hora}</span>
+                                    <span style={{opacity: 0.5}}>•</span>
+                                    <span style={{textOverflow: 'ellipsis', overflow: 'hidden'}}>{c.nombre}</span>
+                                    <span style={{opacity: 0.5}}>•</span>
+                                    <span style={{fontSize: 9, fontWeight: 500, opacity: 0.8}}>{c.tratamiento}</span>
+                                  </div>
+                                ) : hCard <= 48 ? (
+                                  <>
+                                    <div style={{fontSize: 11, fontWeight: 700, color: isSobreturno ? '#78350F' : colorVar, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', lineHeight: 1.2}}>
+                                      <span style={{fontWeight: 800, marginRight: 4}}>{c.hora}</span>
+                                      {c.nombre}
+                                    </div>
+                                    <div style={{fontSize: 9, color: isSobreturno ? '#B45309' : colorVar, opacity: 0.8, marginTop: 1, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'}}>
+                                      <span>{c.tratamiento}</span>
+                                      <span>•</span>
+                                      <span>{c.duracion}m</span>
+                                      {c.valor && (
+                                        <>
+                                          <span>•</span>
+                                          <span style={{fontWeight: 600}}>${c.valor}</span>
+                                        </>
+                                      )}
+                                    </div>
+                                  </>
+                                ) : (
+                                  <>
+                                    <div style={{fontSize: 11.5, fontWeight: 700, color: isSobreturno ? '#78350F' : colorVar, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'}}>
+                                      <div style={{overflow: 'hidden', textOverflow: 'ellipsis'}}>
+                                        <span style={{fontWeight: 800, marginRight: 4}}>{c.hora}</span>
+                                        {c.nombre}
+                                      </div>
+                                      <span style={{
+                                        width: 6,
+                                        height: 6,
+                                        borderRadius: '50%',
+                                        background: `var(--est-${c.estado}-color, ${es.color})`,
+                                        boxShadow: `0 0 6px var(--est-${c.estado}-color, ${es.color})`,
+                                        flexShrink: 0
+                                      }}/>
+                                    </div>
+                                    <div style={{fontSize: 9.5, color: isSobreturno ? '#B45309' : colorVar, opacity: 0.85, marginTop: 2, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap'}}>
+                                      <span style={{display: 'flex', alignItems: 'center', gap: 2}}>
+                                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M15 3v18M3 9h18M3 15h18"/></svg>
+                                        {c.tratamiento}
+                                      </span>
+                                      <span>•</span>
+                                      <span>{c.duracion} min</span>
+                                      {c.valor && (
+                                        <>
+                                          <span>•</span>
+                                          <span style={{fontWeight: 600, display: 'flex', alignItems: 'center', gap: 1}}>
+                                            💰 ${c.valor}
+                                          </span>
+                                        </>
+                                      )}
+                                    </div>
+                                    {hCard > 68 && (
+                                      <div style={{marginTop: 6, display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'space-between'}}>
+                                        <Badge bg={`var(--est-${c.estado}-bg, ${es.bg})`} color={`var(--est-${c.estado}-color, ${es.color})`}>
+                                          {es.label}
+                                        </Badge>
+                                        {c.notas && (
+                                          <span style={{fontSize: 8.5, color: isSobreturno ? '#B45309' : colorVar, opacity: 0.6, fontStyle: 'italic', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '60%'}} title={c.notas}>
+                                            📝 {c.notas}
+                                          </span>
+                                        )}
+                                      </div>
+                                    )}
+                                  </>
+                                )}
                               </>
                             )}
                           </div>
