@@ -251,7 +251,9 @@ export default function PacientePage() {
           {tenant?.logoUrl ? (
             <img src={tenant.logoUrl} alt={tenant.nombre} style={{ height: 60, margin: '0 auto 16px', display: 'block', objectFit: 'contain' }} />
           ) : (
-            <div style={{ fontSize:44, marginBottom:8, filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.06))' }}>🦷</div>
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#00F5A0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ margin: '0 auto 16px', display: 'block', filter: 'drop-shadow(0 0 10px rgba(0, 245, 160, 0.3))' }}>
+              <path d="M12 2C9.5 2 7.5 4 7.5 6.5C7.5 8.5 9 10 9 11C9 12.5 8 13.5 7 14C5.5 14.8 4 16.5 4 19C4 20.5 5 22 7.5 22C9.5 22 10.5 20.5 12 20.5C13.5 20.5 14.5 22 16.5 22C19 22 20 20.5 20 19C20 16.5 18.5 14.8 17 14C16 13.5 15 12.5 15 11C15 10 16.5 8.5 16.5 6.5C16.5 4 14.5 2 12 2Z" />
+            </svg>
           )}
           <h1 style={{ fontSize:22, fontWeight:800, color: 'var(--portal-text-primary)', letterSpacing: '-0.5px', margin:0 }}>Hola, {paciente?.nombre}</h1>
           <p style={{ color:'var(--portal-text-muted)', fontSize:14, marginTop:6, fontWeight:500 }}>Gestiona tus próximos turnos programados</p>
@@ -283,7 +285,7 @@ export default function PacientePage() {
               <div style={{ fontSize: 14, fontWeight: 800, marginTop: 3 }}>¿Cómo te sientes tras tu turno de {feedbackPendiente.tipo_tratamiento}?</div>
               <div style={{ fontSize: 12, opacity: 0.9, marginTop: 4 }}>Ayúdanos a cuidarte respondiendo 3 breves preguntas.</div>
             </div>
-            <span style={{ fontSize: 24 }}>💬</span>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#00F5A0" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ filter: 'drop-shadow(0 0 6px rgba(0,245,160,0.4))' }}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
           </div>
         )}
 
@@ -292,24 +294,27 @@ export default function PacientePage() {
           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', borderBottom:'1px solid var(--portal-card-border)', paddingBottom:12, marginBottom:12 }}>
             <div>
               <span style={{ fontSize:10, fontWeight:700, color:'var(--portal-text-muted)', textTransform:'uppercase', letterSpacing:'0.06em' }}>Tratamiento Activo</span>
-              <div style={{ fontSize:15, fontWeight:800, color:'var(--portal-text-primary)', marginTop:2 }}>
+              <div style={{ fontSize:15, fontWeight:800, color:'#fff', marginTop:2 }}>
                 {paciente?.progreso_plan_porcentaje && paciente.progreso_plan_porcentaje > 0 
                   ? `${turnos[0]?.tipo_tratamiento || pastTurnos[0]?.tipo_tratamiento || 'Ortodoncia'} activa · ${getMesesTranscurridos()} meses`
                   : 'Consulta / Control'}
               </div>
             </div>
-            <span style={{ fontSize:11, fontWeight:700, color:accentColor, background:'rgba(19,138,107,0.08)', padding:'4px 10px', borderRadius:20 }}>
+            <span style={{ fontSize:11, fontWeight:700, color:'#00F5A0', background:'rgba(0,245,160,0.08)', padding:'4px 10px', borderRadius:20 }}>
               {paciente?.progreso_plan_porcentaje && paciente.progreso_plan_porcentaje > 0 ? 'Activo' : 'Básico'}
             </span>
           </div>
           
           <div style={{ display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:8 }}>
-            <div style={{ textAlign:'center', borderRight:'1px solid var(--portal-card-border)' }}>
-              <span style={{ fontSize:20, fontWeight:800, color:secondaryColor }}>{pastTurnos.filter(pt => pt.estado === 'asistio' || pt.estado === 'completado').length}</span>
-              <div style={{ fontSize:9.5, fontWeight:600, color:'var(--portal-text-muted)', marginTop:2, textTransform:'uppercase', letterSpacing:'0.02em' }}>Visitas</div>
+            <div style={{ textAlign:'center', borderRight:'1px solid var(--portal-card-border)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ fontSize:20, fontWeight:800, color: '#fff' }}>{pastTurnos.filter(pt => pt.estado === 'asistio' || pt.estado === 'completado').length}</span>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#00F5A0" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              </div>
+              <div style={{ fontSize:9.5, fontWeight:600, color:'var(--portal-text-muted)', marginTop:4, textTransform:'uppercase', letterSpacing:'0.02em' }}>Visitas</div>
             </div>
             
-            <div style={{ textAlign:'center', borderRight:'1px solid var(--portal-card-border)' }}>
+            <div style={{ textAlign:'center', borderRight:'1px solid var(--portal-card-border)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
               {(() => {
                 const pastNonCanceled = pastTurnos.filter(pt => pt.estado !== 'cancelado')
                 const attendedCount = pastNonCanceled.filter(pt => pt.estado === 'asistio' || pt.estado === 'completado').length
@@ -317,17 +322,23 @@ export default function PacientePage() {
                   ? Math.round((attendedCount / pastNonCanceled.length) * 100) 
                   : 100
                 return (
-                  <span style={{ fontSize:20, fontWeight:800, color:adherence >= 80 ? '#10B981' : '#F59E0B' }}>
-                    {adherence}%
-                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ fontSize:20, fontWeight:800, color: '#fff' }}>
+                      {adherence}%
+                    </span>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#00F5A0" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+                  </div>
                 )
               })()}
-              <div style={{ fontSize:9.5, fontWeight:600, color:'var(--portal-text-muted)', marginTop:2, textTransform:'uppercase', letterSpacing:'0.02em' }}>Adherencia</div>
+              <div style={{ fontSize:9.5, fontWeight:600, color:'var(--portal-text-muted)', marginTop:4, textTransform:'uppercase', letterSpacing:'0.02em' }}>Adherencia</div>
             </div>
             
-            <div style={{ textAlign:'center' }}>
-              <span style={{ fontSize:20, fontWeight:800, color:accentColor }}>{fotos.length}</span>
-              <div style={{ fontSize:9.5, fontWeight:600, color:'var(--portal-text-muted)', marginTop:2, textTransform:'uppercase', letterSpacing:'0.02em' }}>Fotos</div>
+            <div style={{ textAlign:'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ fontSize:20, fontWeight:800, color: '#fff' }}>{fotos.length}</span>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#00F5A0" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+              </div>
+              <div style={{ fontSize:9.5, fontWeight:600, color:'var(--portal-text-muted)', marginTop:4, textTransform:'uppercase', letterSpacing:'0.02em' }}>Fotos</div>
             </div>
           </div>
           
@@ -342,7 +353,7 @@ export default function PacientePage() {
             else if (adherence < 90) message = '¡Excelente constancia en tus visitas! ✨'
             
             return (
-              <div style={{ marginTop: 12, padding: '8px 12px', background: 'rgba(24,95,165,0.04)', borderRadius: 10, fontSize: 11, fontWeight: 600, color: secondaryColor, textAlign: 'center' }}>
+              <div style={{ marginTop: 12, padding: '8px 12px', background: 'rgba(0, 245, 160, 0.08)', borderRadius: 10, fontSize: 11, fontWeight: 600, color: '#00F5A0', textAlign: 'center' }}>
                 {message}
               </div>
             )
@@ -350,12 +361,36 @@ export default function PacientePage() {
         </div>
 
         {/* Tabs switcher */}
-        <div style={{ display: 'flex', gap: 6, padding: 4, background: 'var(--portal-card-bg)', borderRadius: 14, marginBottom: 20, border: '1px solid var(--portal-card-border)', boxShadow: '0 2px 8px var(--portal-shadow)', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          borderBottom: '1px solid var(--portal-card-border)',
+          marginBottom: 20,
+          overflowX: 'auto',
+          WebkitOverflowScrolling: 'touch',
+          position: 'relative'
+        }}>
           {[
-            { id: 'turnos', label: '📅 Turnos' },
-            { id: 'historial', label: '🦷 Historial' },
-            { id: 'plan', label: '📊 Mi Plan' },
-            { id: 'fotos', label: '📸 Fotos' }
+            {
+              id: 'turnos',
+              label: 'Turnos',
+              icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            },
+            {
+              id: 'historial',
+              label: 'Historial',
+              icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2C9.5 2 7.5 4 7.5 6.5C7.5 8.5 9 10 9 11C9 12.5 8 13.5 7 14C5.5 14.8 4 16.5 4 19C4 20.5 5 22 7.5 22C9.5 22 10.5 20.5 12 20.5C13.5 20.5 14.5 22 16.5 22C19 22 20 20.5 20 19C20 16.5 18.5 14.8 17 14C16 13.5 15 12.5 15 11C15 10 16.5 8.5 16.5 6.5C16.5 4 14.5 2 12 2Z" /></svg>
+            },
+            {
+              id: 'plan',
+              label: 'Mi Plan',
+              icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+            },
+            {
+              id: 'fotos',
+              label: 'Fotos',
+              icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+            }
           ].map(tab => {
             const active = activeTab === tab.id
             return (
@@ -363,15 +398,28 @@ export default function PacientePage() {
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as any)}
                 style={{
-                  flex: 1, flexShrink: 0, padding: '10px 8px', borderRadius: 10, border: 'none',
-                  background: active ? secondaryColor : 'transparent',
-                  color: active ? '#fff' : 'var(--portal-text-secondary)',
-                  fontWeight: 700, fontSize: 13, cursor: 'pointer',
-                  fontFamily: 'DM Sans, system-ui', transition: 'all 0.2s',
-                  whiteSpace: 'nowrap'
+                  flex: 1,
+                  flexShrink: 0,
+                  padding: '12px 8px',
+                  background: 'transparent',
+                  border: 'none',
+                  color: active ? '#00F5A0' : 'var(--portal-text-secondary)',
+                  fontWeight: 700,
+                  fontSize: 13.5,
+                  cursor: 'pointer',
+                  fontFamily: 'DM Sans, system-ui',
+                  transition: 'all 0.2s',
+                  whiteSpace: 'nowrap',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 6,
+                  borderBottom: active ? '2.5px solid #00F5A0' : '2.5px solid transparent',
+                  marginBottom: -1
                 }}
               >
-                {tab.label}
+                {tab.icon}
+                <span>{tab.label}</span>
               </button>
             )
           })}
@@ -397,13 +445,16 @@ export default function PacientePage() {
                           <div style={{ fontSize:18, fontWeight:800, color: 'var(--portal-text-primary)', marginTop:3 }}>{fecha}</div>
                           <div style={{ fontSize:20, fontWeight:800, color: secondaryColor, marginTop:2 }}>{hora} hs</div>
                           
-                          <div style={{ display:'inline-flex', alignItems:'center', gap:6, marginTop:12, background:'rgba(24,95,165,0.06)', padding:'6px 12px', borderRadius:10 }}>
-                            <span style={{ fontSize:13, fontWeight:600, color: secondaryColor }}>🦷 {t.tipo_tratamiento}</span>
-                            <span style={{ fontSize:11, color:'var(--portal-text-muted)', fontWeight:500 }}>· {t.duracion_minutos} min</span>
+                          <div style={{ display:'inline-flex', alignItems:'center', gap:6, marginTop:12, background:'rgba(0, 245, 160, 0.08)', padding:'6px 12px', borderRadius:10 }}>
+                            <span style={{ fontSize:13, fontWeight:600, color: '#00F5A0', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2C9.5 2 7.5 4 7.5 6.5C7.5 8.5 9 10 9 11C9 12.5 8 13.5 7 14C5.5 14.8 4 16.5 4 19C4 20.5 5 22 7.5 22C9.5 22 10.5 20.5 12 20.5C13.5 20.5 14.5 22 16.5 22C19 22 20 20.5 20 19C20 16.5 18.5 14.8 17 14C16 13.5 15 12.5 15 11C15 10 16.5 8.5 16.5 6.5C16.5 4 14.5 2 12 2Z" /></svg>
+                              {t.tipo_tratamiento}
+                            </span>
+                            <span style={{ fontSize:11, color:'var(--portal-text-secondary)', fontWeight:500 }}>· {t.duracion_minutos} min</span>
                           </div>
                           
                           {t.notes && (
-                            <div style={{ fontSize:13, color:'var(--portal-text-secondary)', marginTop:12, paddingLeft:10, borderLeft:`2.5px solid ${secondaryColor}`, fontStyle:'italic' }}>
+                            <div style={{ fontSize:13, color:'var(--portal-text-secondary)', marginTop:12, paddingLeft:10, borderLeft:`2.5px solid #00F5A0`, fontStyle:'italic' }}>
                               {t.notes}
                             </div>
                           )}
@@ -423,11 +474,12 @@ export default function PacientePage() {
                         </button>
                         <button
                           onClick={() => generateICS(t, tenant)}
-                          style={{ flex:1, display:'inline-flex', alignItems:'center', justifyContent:'center', gap:6, fontSize:13, padding:'10px 14px', borderRadius:12, border:`1px solid ${secondaryColor}25`, background:`rgba(232,240,252,0.8)`, color: secondaryColor, cursor:'pointer', fontWeight:600, fontFamily:'DM Sans, system-ui', transition:'transform 0.2s' }}
+                          style={{ flex:1, display:'inline-flex', alignItems:'center', justifyContent:'center', gap:6, fontSize:13, padding:'10px 14px', borderRadius:12, border:`1px solid rgba(255,255,255,0.08)`, background:`rgba(255,255,255,0.03)`, color: '#fff', cursor:'pointer', fontWeight:600, fontFamily:'DM Sans, system-ui', transition:'transform 0.2s' }}
                           onMouseEnter={e=>e.currentTarget.style.transform='scale(1.02)'}
                           onMouseLeave={e=>e.currentTarget.style.transform='scale(1)'}
                         >
-                          📅 Agendar
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                          Agendar
                         </button>
                       </div>
 
@@ -480,7 +532,10 @@ export default function PacientePage() {
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <div>
                               <div style={{ fontSize:11, color:'var(--portal-text-muted)', fontWeight:700 }}>{formatFecha(pt.fecha_hora).full}</div>
-                              <div style={{ fontSize:14, fontWeight:800, color: 'var(--portal-text-primary)', marginTop:3 }}>🦷 {pt.tipo_tratamiento}</div>
+                              <div style={{ fontSize:14, fontWeight:800, color: 'var(--portal-text-primary)', marginTop:3, display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#00F5A0" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2C9.5 2 7.5 4 7.5 6.5C7.5 8.5 9 10 9 11C9 12.5 8 13.5 7 14C5.5 14.8 4 16.5 4 19C4 20.5 5 22 7.5 22C9.5 22 10.5 20.5 12 20.5C13.5 20.5 14.5 22 16.5 22C19 22 20 20.5 20 19C20 16.5 18.5 14.8 17 14C16 13.5 15 12.5 15 11C15 10 16.5 8.5 16.5 6.5C16.5 4 14.5 2 12 2Z" /></svg>
+                                {pt.tipo_tratamiento}
+                              </div>
                             </div>
                             <span style={{ fontSize:10, fontWeight:700, color:'#0A3622', background:'#D1E7DD', padding:'2px 8px', borderRadius:20, textTransform:'uppercase' }}>Atendido</span>
                           </div>
@@ -496,7 +551,7 @@ export default function PacientePage() {
                     <h3 style={{ fontSize:14, fontWeight:800, color:'var(--portal-text-primary)', marginBottom:10 }}>Evolución Dental</h3>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                       {historial.map(h => (
-                        <div key={h.id} className="patient-card" style={{ borderRadius:18, padding:'1.25rem', borderLeft:`4px solid ${secondaryColor}` }}>
+                        <div key={h.id} className="patient-card" style={{ borderRadius:18, padding:'1.25rem', borderLeft:`4px solid #00F5A0` }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <span style={{ fontWeight:800, fontSize:13.5, color: 'var(--portal-text-primary)' }}>Pieza {h.diente}</span>
                             <span style={{ fontSize:11, fontWeight:700, color: secondaryColor, background:'rgba(24,95,165,0.06)', padding:'2px 8px', borderRadius:8 }}>{h.estado}</span>
@@ -517,20 +572,58 @@ export default function PacientePage() {
         {activeTab === 'plan' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             {/* Progress indicator */}
-            <div className="patient-card" style={{ borderRadius:20, padding:'1.5rem', display:'flex', flexDirection:'column', gap:12 }}>
-              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                <span style={{ fontSize:13.5, fontWeight:800, color: 'var(--portal-text-primary)' }}>Avance del Plan Activo</span>
-                <span style={{ fontSize:16, fontWeight:800, color: secondaryColor }}>{paciente?.progreso_plan_porcentaje || 0}%</span>
+            <div className="patient-card" style={{ borderRadius:20, padding:'1.5rem', display:'flex', flexDirection:'column', gap:16 }}>
+              <div style={{ fontSize:16, fontWeight:800, color: '#fff' }}>Mi Plan</div>
+              
+              <div style={{
+                height: 26,
+                background: 'rgba(255,255,255,0.03)',
+                border: '1px solid rgba(255,255,255,0.08)',
+                borderRadius: 13,
+                overflow: 'hidden',
+                position: 'relative',
+                display: 'flex',
+                alignItems: 'center'
+              }}>
+                <div style={{
+                  height: '100%',
+                  width: `${paciente?.progreso_plan_porcentaje || 0}%`,
+                  background: 'linear-gradient(90deg, #10B981, #00F5A0)',
+                  borderRadius: 13,
+                  transition: 'width 0.6s cubic-bezier(0.4, 0, 0.2, 1)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: '0 0 15px rgba(0, 245, 160, 0.4)'
+                }}>
+                  <span style={{ fontSize: 12, fontWeight: 800, color: '#070e17' }}>
+                    {paciente?.progreso_plan_porcentaje || 0}%
+                  </span>
+                </div>
               </div>
-              <div style={{ height:10, background:'rgba(24,95,165,0.06)', borderRadius:5, overflow:'hidden', position: 'relative' }}>
-                <div style={{ height:'100%', width:`${paciente?.progreso_plan_porcentaje || 0}%`, background:`linear-gradient(90deg, ${secondaryColor}, ${accentColor})`, borderRadius:5, transition:'width 0.5s ease-out' }} />
-              </div>
+
               {paciente?.progreso_plan_porcentaje && paciente.progreso_plan_porcentaje > 0 && paciente.progreso_plan_porcentaje < 100 && (
-                <div style={{ fontSize:13, fontWeight:700, color: accentColor, textAlign:'center', marginTop:4 }}>
-                  ⏳ {getEstimadoMesesRestantes()}
+                <div style={{
+                  padding: '10px',
+                  background: 'rgba(255,255,255,0.03)',
+                  border: '1px solid rgba(255,255,255,0.06)',
+                  borderRadius: 12,
+                  fontSize: 13,
+                  fontWeight: 700,
+                  color: '#fff',
+                  textAlign: 'center',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8
+                }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00F5A0" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                  <span>{getEstimadoMesesRestantes()?.replace('~', '')}</span>
                 </div>
               )}
-              <div style={{ fontSize:12, color:'var(--portal-text-muted)', textAlign:'center', marginTop:2, fontWeight:500 }}>Estimación basada en las fases completadas de tu plan clínico y tiempo transcurrido.</div>
+              <div style={{ fontSize:11, color:'var(--portal-text-muted)', textAlign:'center', fontWeight:500, lineHeight:1.4 }}>
+                Estimación basada en las fases completadas de tu plan clínico y tiempo transcurrido.
+              </div>
             </div>
 
             {/* Recommendations / Allergies */}
@@ -540,7 +633,10 @@ export default function PacientePage() {
               <div>
                 <span style={{ fontSize:11, color:'var(--portal-text-muted)', fontWeight:700, textTransform:'uppercase', letterSpacing:'0.05em' }}>Alergias / Restricciones</span>
                 {paciente?.alergias ? (
-                  <div style={{ fontSize:13.5, color:'#DC2626', fontWeight:700, marginTop:4, background:'#FEE2E2', padding:'8px 12px', borderRadius:10 }}>⚠️ {paciente.alergias}</div>
+                  <div style={{ fontSize:13.5, color:'#EF4444', fontWeight:700, marginTop:4, background:'rgba(239,68,68,0.08)', border:'1px solid rgba(239,68,68,0.2)', padding:'8px 12px', borderRadius:10, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                    {paciente.alergias}
+                  </div>
                 ) : (
                   <div style={{ fontSize:13, color:'var(--portal-text-secondary)', marginTop:4 }}>Ninguna alergia registrada.</div>
                 )}
@@ -558,16 +654,18 @@ export default function PacientePage() {
         {activeTab === 'fotos' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             {fotos.length === 0 ? (
-              <div className="patient-card" style={{ textAlign:'center', padding:'3rem 2rem', borderRadius:20, color:'var(--portal-text-muted)', fontSize:14 }}>
-                📸 Tu odontólogo irá subiendo fotos de tu progreso en cada etapa para que puedas ver tu evolución aquí.
+              <div className="patient-card" style={{ textAlign:'center', padding:'3rem 2rem', borderRadius:20, color:'var(--portal-text-muted)', fontSize:14, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--portal-text-muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                Tu odontólogo irá subiendo fotos de tu progreso en cada etapa para que puedas ver tu evolución aquí.
               </div>
             ) : (
               <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 16 }}>
                 {/* Visual before/after showcase card if there are multiple photos */}
                 {fotos.length >= 2 && (
                   <div className="patient-card" style={{ borderRadius:20, padding:'1.25rem', border:'1px solid var(--portal-card-border)' }}>
-                    <div style={{ fontSize:14, fontWeight:800, color:'var(--portal-text-primary)', display:'flex', alignItems:'center', gap:6, marginBottom:12 }}>
-                      ✨ Comparativa de Evolución (Antes y Después)
+                    <div style={{ fontSize:14, fontWeight:800, color:'#fff', display:'flex', alignItems:'center', gap:6, marginBottom:12 }}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00F5A0" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                      Comparativa de Evolución (Antes y Después)
                     </div>
                     <div style={{ display:'flex', gap:10 }}>
                       <div style={{ flex:1, textAlign:'center' }}>
@@ -634,9 +732,21 @@ export default function PacientePage() {
               </label>
               <div style={{ display: 'flex', justifyContent: 'space-between', maxWidth: 280, margin: '0 auto', gap: 10 }}>
                 {[
-                  { value: 1, emoji: '😊', label: 'Sin dolor' },
-                  { value: 3, emoji: '😐', label: 'Molestia' },
-                  { value: 5, emoji: '😩', label: 'Dolor' }
+                  {
+                    value: 1,
+                    icon: <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>,
+                    label: 'Sin dolor'
+                  },
+                  {
+                    value: 3,
+                    icon: <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="8" y1="15" x2="16" y2="15"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>,
+                    label: 'Molestia'
+                  },
+                  {
+                    value: 5,
+                    icon: <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M16 16s-1.5-2-4-2-4 2-4 2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>,
+                    label: 'Dolor'
+                  }
                 ].map(item => {
                   const selected = dolor === item.value
                   return (
@@ -644,13 +754,15 @@ export default function PacientePage() {
                       key={item.value}
                       onClick={() => setDolor(item.value)}
                       style={{
-                        flex: 1, padding: '12px 8px', borderRadius: 14, border: '2px solid ' + (selected ? secondaryColor : 'var(--portal-card-border)'),
-                        background: selected ? 'rgba(24,95,165,0.06)' : 'transparent',
-                        cursor: 'pointer', transition: 'all 0.2s', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4
+                        flex: 1, padding: '12px 8px', borderRadius: 14,
+                        border: '2px solid ' + (selected ? '#00F5A0' : 'var(--portal-card-border)'),
+                        background: selected ? 'rgba(0, 245, 160, 0.08)' : 'transparent',
+                        color: selected ? '#00F5A0' : 'var(--portal-text-muted)',
+                        cursor: 'pointer', transition: 'all 0.2s', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6
                       }}
                     >
-                      <span style={{ fontSize: 28 }}>{item.emoji}</span>
-                      <span style={{ fontSize: 10, fontWeight: 700, color: selected ? secondaryColor : 'var(--portal-text-muted)' }}>{item.label}</span>
+                      {item.icon}
+                      <span style={{ fontSize: 10, fontWeight: 700 }}>{item.label}</span>
                     </button>
                   )
                 })}
@@ -662,7 +774,7 @@ export default function PacientePage() {
               <label style={{ fontSize: 13, fontWeight: 700, color: 'var(--portal-text-primary)', display: 'block', marginBottom: 8, textAlign:'center' }}>
                 ¿Cómo calificarías tu satisfacción con la atención?
               </label>
-              <div style={{ display: 'flex', justifyContent: 'center', gap: 8 }}>
+              <div style={{ display: 'flex', justifyContent: 'center', gap: 12 }}>
                 {[1, 2, 3, 4, 5].map(val => {
                   const active = val <= satisfaccion
                   return (
@@ -670,13 +782,13 @@ export default function PacientePage() {
                       key={val}
                       onClick={() => setSatisfaccion(val)}
                       style={{
-                        background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 26, padding: 2,
-                        color: active ? '#F59E0B' : '#E2E8F0', transition: 'transform 0.1s'
+                        background: 'transparent', border: 'none', cursor: 'pointer', padding: 2,
+                        transition: 'transform 0.1s'
                       }}
                       onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.2)'}
                       onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
                     >
-                      ★
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill={active ? "#F59E0B" : "none"} stroke={active ? "#F59E0B" : "#4a6080"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
                     </button>
                   )
                 })}
@@ -803,24 +915,13 @@ export default function PacientePage() {
 
       <style>{`
         :root {
-          --portal-bg: #f8fafc;
-          --portal-card-bg: rgba(255, 255, 255, 0.75);
-          --portal-card-border: rgba(255, 255, 255, 0.9);
-          --portal-text-primary: ${primaryColor};
-          --portal-text-secondary: #4a6080;
+          --portal-bg: #070e17;
+          --portal-card-bg: rgba(15, 30, 48, 0.65);
+          --portal-card-border: rgba(255, 255, 255, 0.08);
+          --portal-text-primary: #ffffff;
+          --portal-text-secondary: #aab8c8;
           --portal-text-muted: #8fa3bc;
-          --portal-shadow: rgba(24, 95, 165, 0.04);
-        }
-        @media (prefers-color-scheme: dark) {
-          :root {
-            --portal-bg: #070e17;
-            --portal-card-bg: rgba(15, 30, 48, 0.75);
-            --portal-card-border: rgba(255, 255, 255, 0.08);
-            --portal-text-primary: #f0f4f9;
-            --portal-text-secondary: #aab8c8;
-            --portal-text-muted: #7fa2c4;
-            --portal-shadow: rgba(0, 0, 0, 0.4);
-          }
+          --portal-shadow: rgba(0, 0, 0, 0.4);
         }
         body {
           background-color: var(--portal-bg) !important;
