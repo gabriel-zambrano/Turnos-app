@@ -31,16 +31,18 @@ const GRUPOS = {
   ortodoncia_vencida: { label: 'Ajuste ortodoncia vencido', color: '#7F77DD', bg: '#EEEDFE', desc: 'Más de 30 días sin ajuste', emoji: '🦷' },
   limpieza_vencida:   { label: 'Limpieza pendiente',        color: '#085041', bg: '#E1F5EE', desc: 'Más de 6 meses sin limpieza', emoji: '✨' },
   sin_turno:          { label: 'Sin turno agendado',        color: '#633806', bg: '#FAEEDA', desc: 'No tienen turno futuro',      emoji: '📅' },
+  feedback:           { label: 'Feedback post-visita',      color: '#0D9488', bg: '#F0FDFA', desc: 'Respuestas de pacientes',     emoji: '💬' }
 }
 
 export default function SeguimientoPage() {
   const supabase = createClient()
   const isMobile = useIsMobile()
   const [alertas, setAlertas] = useState<PacienteAlerta[]>([])
+  const [feedbacks, setFeedbacks] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [enviando, setEnviando] = useState<string | null>(null)
   const [toast, setToast] = useState<string | null>(null)
-  const [filtro, setFiltro] = useState<'todos' | 'ortodoncia_vencida' | 'limpieza_vencida' | 'sin_turno'>('todos')
+  const [filtro, setFiltro] = useState<'todos' | 'ortodoncia_vencida' | 'limpieza_vencida' | 'sin_turno' | 'feedback'>('todos')
 
   function msg(t: string) { setToast(t); setTimeout(() => setToast(null), 3000) }
 
@@ -118,6 +120,21 @@ export default function SeguimientoPage() {
     // Ordenar por días desde el último turno (más urgente primero)
     nuevasAlertas.sort((a, b) => b.diasDesde - a.diasDesde)
     setAlertas(nuevasAlertas)
+
+    // Fetch feedbacks safely
+    let loadedFeedbacks: any[] = []
+    try {
+      const { data: feedbacksRes, error: fErr } = await supabase
+        .from('feedback_post_visita')
+        .select('*, pacientes(nombre, telefono)')
+        .order('creado_en', { ascending: false })
+      if (!fErr && feedbacksRes) {
+        loadedFeedbacks = feedbacksRes
+      }
+    } catch (e) {
+      console.error("Error loading feedbacks:", e)
+    }
+    setFeedbacks(loadedFeedbacks)
     setLoading(false)
   }
 
@@ -138,11 +155,12 @@ export default function SeguimientoPage() {
     msg(`WhatsApp abierto para ${p.nombre}`)
   }
 
-  const filtrados = filtro === 'todos' ? alertas : alertas.filter(a => a.motivo === filtro)
+  const filtrados = filtro === 'todos' ? alertas : alertas.filter(a => a.motivo === filtro as any)
   const conteos = {
     ortodoncia_vencida: alertas.filter(a => a.motivo === 'ortodoncia_vencida').length,
     limpieza_vencida:   alertas.filter(a => a.motivo === 'limpieza_vencida').length,
     sin_turno:          alertas.filter(a => a.motivo === 'sin_turno').length,
+    feedback:           feedbacks.length
   }
 
   return (
@@ -153,9 +171,9 @@ export default function SeguimientoPage() {
         <div style={{ padding: isMobile?'1rem':'1.5rem 2rem' }}>
 
           {/* Tarjetas resumen */}
-          <div style={{ display:'grid', gridTemplateColumns:isMobile?'1fr':'repeat(3,1fr)', gap:12, marginBottom:24 }}>
+          <div style={{ display:'grid', gridTemplateColumns:isMobile?'1fr':'repeat(4,1fr)', gap:12, marginBottom:24 }}>
             {(Object.entries(GRUPOS) as any[]).map(([key, g]: any) => (
-              <div key={key} onClick={() => setFiltro(filtro===key?'todos':key)}
+              <div key={key} onClick={() => setFiltro(filtro===key?'todos':key as any)}
                 style={{ background:'#fff', borderRadius:12, padding:'1rem 1.25rem', border:`2px solid ${filtro===key?g.color:'#e2e8ed'}`, cursor:'pointer', transition:'border 0.15s' }}>
                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
                   <div>
@@ -172,9 +190,13 @@ export default function SeguimientoPage() {
           <div style={{ background:'#fff', borderRadius:16, border:'1px solid #e2e8ed', overflow:'hidden' }}>
             <div style={{ padding:'1rem 1.25rem', borderBottom:'1px solid #e2e8ed', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
               <div style={{ fontWeight:600, fontSize:14, color:'#1a1a1a' }}>
-                {filtro==='todos' ? `Todos los pacientes (${alertas.length})` : `${GRUPOS[filtro].label} (${filtrados.length})`}
+                {filtro==='todos' 
+                  ? `Todos los pacientes (${alertas.length})` 
+                  : filtro==='feedback'
+                  ? `Feedbacks Recibidos (${feedbacks.length})`
+                  : `${GRUPOS[filtro].label} (${filtrados.length})`}
               </div>
-              {filtro!=='todos' && filtrados.length > 0 && (
+              {filtro!=='todos' && filtro!=='feedback' && filtrados.length > 0 && (
                 <button onClick={() => { filtrados.forEach(p => enviarWA(p)) }}
                   style={{ fontSize:12, padding:'6px 14px', borderRadius:8, border:'none', background:'#25D366', color:'#fff', cursor:'pointer', fontWeight:600 }}>
                   WhatsApp a todos ({filtrados.length})
@@ -184,6 +206,105 @@ export default function SeguimientoPage() {
 
             {loading ? (
               <div style={{ padding:'3rem', textAlign:'center', color:'#aaa' }}>Cargando...</div>
+            ) : filtro === 'feedback' ? (
+              feedbacks.length === 0 ? (
+                <div style={{ padding:'3rem', textAlign:'center', color:'#aaa' }}>🎉 No se han recibido feedbacks todavía</div>
+              ) : (
+                <div>
+                  {feedbacks.map(f => (
+                    <div key={f.id} style={{ 
+                      display:'flex', 
+                      flexDirection: 'column', 
+                      gap: 8, 
+                      padding:'1.25rem', 
+                      borderBottom:'1px solid #f4f6f8',
+                      background: f.dolor >= 4 ? '#FEF2F2' : 'transparent' 
+                    }}>
+                      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:12 }}>
+                        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                          <div style={{ width:36, height:36, borderRadius:'50%', background: f.dolor >= 4 ? '#FEE2E2' : '#E6FFFA', display:'flex', alignItems:'center', justifyContent:'center', fontSize:12, fontWeight:700, color: f.dolor >= 4 ? '#EF4444' : '#0D9488' }}>
+                            {initials(f.pacientes?.nombre || 'P')}
+                          </div>
+                          <div>
+                            <div style={{ fontWeight:600, fontSize:14, color:'#1a1a1a', display:'flex', alignItems:'center', gap:6 }}>
+                              {f.pacientes?.nombre}
+                              {f.dolor >= 4 && (
+                                <span style={{ fontSize:11, color:'#DC2626', background:'#FEE2E2', padding:'2px 8px', borderRadius:20, fontWeight:700 }}>
+                                  ⚠️ Dolor Alto
+                                </span>
+                              )}
+                            </div>
+                            <div style={{ fontSize:12, color:'#888', marginTop:1 }}>
+                              Recibido el {new Date(f.creado_en).toLocaleDateString('es-AR')}
+                            </div>
+                          </div>
+                        </div>
+                        
+                        {/* Metrics: Dolor & Satisfacción */}
+                        <div style={{ display:'flex', gap:12, alignItems:'center' }}>
+                          <div style={{ textAlign:'right' }}>
+                            <span style={{ fontSize:11, color:'#888', display:'block' }}>Dolor</span>
+                            <span style={{ fontSize:14, fontWeight:700, color: f.dolor >= 4 ? '#EF4444' : f.dolor >= 3 ? '#F59E0B' : '#10B981' }}>
+                              {f.dolor === 5 ? '😩 Alto (5/5)' : f.dolor === 3 ? '😐 Medio (3/5)' : '😊 Leve (1/5)'}
+                            </span>
+                          </div>
+                          <div style={{ textAlign:'right', borderLeft:'1px solid #e2e8ed', paddingLeft:12 }}>
+                            <span style={{ fontSize:11, color:'#888', display:'block' }}>Satisfacción</span>
+                            <span style={{ fontSize:14, fontWeight:700, color:'#F59E0B' }}>
+                              {'★'.repeat(f.satisfaccion)}{'☆'.repeat(5 - f.satisfaccion)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Comentario */}
+                      {f.comentario && (
+                        <div style={{ 
+                          fontSize:13, 
+                          color:'#4a5568', 
+                          background: f.dolor >= 4 ? 'rgba(239, 68, 68, 0.04)' : '#f7fafc', 
+                          padding:'8px 12px', 
+                          borderRadius:10, 
+                          border: '1px solid ' + (f.dolor >= 4 ? '#FCA5A5' : '#e2e8ed'),
+                          fontStyle:'italic',
+                          marginLeft: 46
+                        }}>
+                          "{f.comentario}"
+                        </div>
+                      )}
+
+                      {/* WhatsApp trigger button */}
+                      <div style={{ display:'flex', justifyContent:'flex-end', marginTop: 4 }}>
+                        <button 
+                          onClick={() => {
+                            const num = normalizarTelefono(f.pacientes?.telefono || '')
+                            const text = f.dolor >= 4 
+                              ? `Hola ${f.pacientes?.nombre}, nos ponemos en contacto desde el consultorio del Dr. Walter Benegas porque vimos que estás con algunas molestias importantes tras tu última visita. ¿Cómo te encuentras?`
+                              : `Hola ${f.pacientes?.nombre}, te escribimos del consultorio del Dr. Walter Benegas para agradecerte por tu feedback sobre la atención y saludarte. ¿Cómo te encuentras?`
+                            window.open(`https://wa.me/${num}?text=${encodeURIComponent(text)}`, '_blank')
+                          }}
+                          style={{ 
+                            fontSize:12, 
+                            padding:'5px 12px', 
+                            borderRadius:6, 
+                            border:'none', 
+                            background:'#25D366', 
+                            color:'#fff', 
+                            cursor:'pointer', 
+                            fontWeight:700,
+                            display:'flex',
+                            alignItems:'center',
+                            gap:4
+                          }}
+                        >
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.514 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.724-1.455L0 24zm6.59-4.846c1.66.986 3.288 1.488 4.905 1.489 5.5.003 9.975-4.47 9.979-9.967.002-2.662-1.033-5.166-2.915-7.05C16.734 1.744 14.236.703 11.58.701c-5.503 0-9.98 4.47-9.985 9.969-.001 1.776.48 3.5 1.391 5.01L1.93 21.72l6.147-1.611-.43-.255z"/></svg>
+                          Contactar paciente
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )
             ) : filtrados.length === 0 ? (
               <div style={{ padding:'3rem', textAlign:'center', color:'#aaa' }}>🎉 No hay pacientes en esta categoría</div>
             ) : (

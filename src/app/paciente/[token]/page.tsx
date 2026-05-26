@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
+import { triggerConfetti } from '@/lib/confetti'
 
 interface Turno {
   id: string
@@ -126,9 +127,16 @@ export default function PacientePage() {
   const [reproConfirm, setReproConfirm] = useState<Turno | null>(null)
   
   // Tabs and History states
-  const [activeTab, setActiveTab] = useState<'turnos' | 'historial' | 'plan'>('turnos')
+  const [activeTab, setActiveTab] = useState<'turnos' | 'historial' | 'plan' | 'fotos'>('turnos')
   const [historial, setHistorial] = useState<any[]>([])
   const [pastTurnos, setPastTurnos] = useState<any[]>([])
+  const [fotos, setFotos] = useState<any[]>([])
+  const [feedbackPendiente, setFeedbackPendiente] = useState<any>(null)
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false)
+  const [dolor, setDolor] = useState<number>(3)
+  const [satisfaccion, setSatisfaccion] = useState<number>(5)
+  const [comentario, setComentario] = useState<string>('')
+  const [sendingFeedback, setSendingFeedback] = useState(false)
 
   async function cambiarEstado(citaId: string, nuevoEstado: 'confirmado' | 'cancelado') {
     setAccion({ id: citaId, tipo: nuevoEstado })
@@ -150,11 +158,45 @@ export default function PacientePage() {
       setTurnos(data.turnos)
       setHistorial(data.historial || [])
       setPastTurnos(data.pastTurnos || [])
+      setFotos(data.fotos || [])
+      setFeedbackPendiente(data.feedbackPendiente || null)
+      if (data.feedbackPendiente) {
+        setShowFeedbackModal(true)
+      }
       setTenant(data.tenant)
       setLoading(false)
     }
     load()
   }, [token])
+
+  async function enviarFeedback() {
+    if (!feedbackPendiente) return
+    setSendingFeedback(true)
+    try {
+      const res = await fetch(`/api/paciente/${token}/feedback`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          dolor,
+          satisfaccion,
+          comentario,
+          citaId: feedbackPendiente.cita_id
+        })
+      })
+      if (res.ok) {
+        setFeedbackPendiente(null)
+        setShowFeedbackModal(false)
+        triggerConfetti()
+      } else {
+        const d = await res.json()
+        alert('Error: ' + d.error)
+      }
+    } catch (e) {
+      console.error(e)
+      alert('Error de conexión')
+    }
+    setSendingFeedback(false)
+  }
 
   if (loading) return (
     <div style={{ minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'DM Sans, system-ui' }}>
@@ -197,12 +239,88 @@ export default function PacientePage() {
           <p style={{ color:'var(--portal-text-muted)', fontSize:14, marginTop:6, fontWeight:500 }}>Gestiona tus próximos turnos programados</p>
         </div>
 
+        {/* Banner de Feedback Pendiente */}
+        {feedbackPendiente && !showFeedbackModal && (
+          <div 
+            onClick={() => setShowFeedbackModal(true)}
+            style={{ 
+              background: `linear-gradient(135deg, ${secondaryColor}, ${primaryColor})`, 
+              color: '#fff', 
+              borderRadius: 20, 
+              padding: '1.25rem', 
+              marginBottom: 20, 
+              cursor: 'pointer',
+              boxShadow: '0 8px 24px rgba(24, 95, 165, 0.15)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 12,
+              transition: 'transform 0.2s'
+            }}
+            onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.02)'}
+            onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+          >
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', opacity: 0.8 }}>Control Post-Visita</div>
+              <div style={{ fontSize: 14, fontWeight: 800, marginTop: 3 }}>¿Cómo te sientes tras tu turno de {feedbackPendiente.tipo_tratamiento}?</div>
+              <div style={{ fontSize: 12, opacity: 0.9, marginTop: 4 }}>Ayúdanos a cuidarte respondiendo 3 breves preguntas.</div>
+            </div>
+            <span style={{ fontSize: 24 }}>💬</span>
+          </div>
+        )}
+
+        {/* Ficha Clínica Viva Stats Panel */}
+        <div className="patient-card" style={{ borderRadius:20, padding:'1.25rem', marginBottom:20, border:'1px solid var(--portal-card-border)', background:'var(--portal-card-bg)' }}>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', borderBottom:'1px solid var(--portal-card-border)', paddingBottom:12, marginBottom:12 }}>
+            <div>
+              <span style={{ fontSize:10, fontWeight:700, color:'var(--portal-text-muted)', textTransform:'uppercase', letterSpacing:'0.06em' }}>Tratamiento Activo</span>
+              <div style={{ fontSize:15, fontWeight:800, color:'var(--portal-text-primary)', marginTop:2 }}>
+                {paciente?.progreso_plan_porcentaje && paciente.progreso_plan_porcentaje > 0 
+                  ? (turnos[0]?.tipo_tratamiento || pastTurnos[0]?.tipo_tratamiento || 'Ortodoncia')
+                  : 'Consulta / Control'}
+              </div>
+            </div>
+            <span style={{ fontSize:11, fontWeight:700, color:accentColor, background:'rgba(19,138,107,0.08)', padding:'4px 10px', borderRadius:20 }}>
+              {paciente?.progreso_plan_porcentaje && paciente.progreso_plan_porcentaje > 0 ? 'Activo' : 'Básico'}
+            </span>
+          </div>
+          
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:8 }}>
+            <div style={{ textAlign:'center', borderRight:'1px solid var(--portal-card-border)' }}>
+              <span style={{ fontSize:20, fontWeight:800, color:secondaryColor }}>{pastTurnos.filter(pt => pt.estado === 'asistio' || pt.estado === 'completado').length}</span>
+              <div style={{ fontSize:9.5, fontWeight:600, color:'var(--portal-text-muted)', marginTop:2, textTransform:'uppercase', letterSpacing:'0.02em' }}>Visitas</div>
+            </div>
+            
+            <div style={{ textAlign:'center', borderRight:'1px solid var(--portal-card-border)' }}>
+              {(() => {
+                const pastNonCanceled = pastTurnos.filter(pt => pt.estado !== 'cancelado')
+                const attendedCount = pastNonCanceled.filter(pt => pt.estado === 'asistio' || pt.estado === 'completado').length
+                const adherence = pastNonCanceled.length > 0 
+                  ? Math.round((attendedCount / pastNonCanceled.length) * 100) 
+                  : 100
+                return (
+                  <span style={{ fontSize:20, fontWeight:800, color:adherence >= 80 ? '#10B981' : '#F59E0B' }}>
+                    {adherence}%
+                  </span>
+                )
+              })()}
+              <div style={{ fontSize:9.5, fontWeight:600, color:'var(--portal-text-muted)', marginTop:2, textTransform:'uppercase', letterSpacing:'0.02em' }}>Adherencia</div>
+            </div>
+            
+            <div style={{ textAlign:'center' }}>
+              <span style={{ fontSize:20, fontWeight:800, color:accentColor }}>{fotos.length}</span>
+              <div style={{ fontSize:9.5, fontWeight:600, color:'var(--portal-text-muted)', marginTop:2, textTransform:'uppercase', letterSpacing:'0.02em' }}>Fotos</div>
+            </div>
+          </div>
+        </div>
+
         {/* Tabs switcher */}
-        <div style={{ display: 'flex', gap: 6, padding: 4, background: 'var(--portal-card-bg)', borderRadius: 14, marginBottom: 20, border: '1px solid var(--portal-card-border)', boxShadow: '0 2px 8px var(--portal-shadow)' }}>
+        <div style={{ display: 'flex', gap: 6, padding: 4, background: 'var(--portal-card-bg)', borderRadius: 14, marginBottom: 20, border: '1px solid var(--portal-card-border)', boxShadow: '0 2px 8px var(--portal-shadow)', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
           {[
             { id: 'turnos', label: '📅 Turnos' },
             { id: 'historial', label: '🦷 Historial' },
-            { id: 'plan', label: '📊 Mi Plan' }
+            { id: 'plan', label: '📊 Mi Plan' },
+            { id: 'fotos', label: '📸 Fotos' }
           ].map(tab => {
             const active = activeTab === tab.id
             return (
@@ -214,7 +332,8 @@ export default function PacientePage() {
                   background: active ? secondaryColor : 'transparent',
                   color: active ? '#fff' : 'var(--portal-text-secondary)',
                   fontWeight: 700, fontSize: 13, cursor: 'pointer',
-                  fontFamily: 'DM Sans, system-ui', transition: 'all 0.2s'
+                  fontFamily: 'DM Sans, system-ui', transition: 'all 0.2s',
+                  whiteSpace: 'nowrap'
                 }}
               >
                 {tab.label}
@@ -395,10 +514,181 @@ export default function PacientePage() {
           </div>
         )}
 
+        {/* Tab Panel: Fotos de Progreso */}
+        {activeTab === 'fotos' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            {fotos.length === 0 ? (
+              <div className="patient-card" style={{ textAlign:'center', padding:'3rem 2rem', borderRadius:20, color:'var(--portal-text-muted)', fontSize:14 }}>
+                📸 Tu odontólogo irá subiendo fotos de tu progreso en cada etapa para que puedas ver tu evolución aquí.
+              </div>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 16 }}>
+                {/* Visual before/after showcase card if there are multiple photos */}
+                {fotos.length >= 2 && (
+                  <div className="patient-card" style={{ borderRadius:20, padding:'1.25rem', border:'1px solid var(--portal-card-border)' }}>
+                    <div style={{ fontSize:14, fontWeight:800, color:'var(--portal-text-primary)', display:'flex', alignItems:'center', gap:6, marginBottom:12 }}>
+                      ✨ Comparativa de Evolución (Antes y Después)
+                    </div>
+                    <div style={{ display:'flex', gap:10 }}>
+                      <div style={{ flex:1, textAlign:'center' }}>
+                        <div style={{ fontSize:11, color:'var(--portal-text-muted)', fontWeight:700, marginBottom:4 }}>INICIO ({new Date(fotos[0].creado_en).toLocaleDateString('es-AR')})</div>
+                        <img src={fotos[0].url} alt="Antes" style={{ width:'100%', aspectRatio:'4/3', objectFit:'cover', borderRadius:12, border:'1px solid var(--portal-card-border)' }} />
+                      </div>
+                      <div style={{ flex:1, textAlign:'center' }}>
+                        <div style={{ fontSize:11, color:'var(--portal-text-muted)', fontWeight:700, marginBottom:4 }}>ACTUAL ({new Date(fotos[fotos.length-1].creado_en).toLocaleDateString('es-AR')})</div>
+                        <img src={fotos[fotos.length-1].url} alt="Después" style={{ width:'100%', aspectRatio:'4/3', objectFit:'cover', borderRadius:12, border:'1px solid var(--portal-card-border)' }} />
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                {/* List of all stages */}
+                <h3 style={{ fontSize:14, fontWeight:800, color:'var(--portal-text-primary)', margin:'6px 0 0' }}>Línea de Tiempo de Fotos</h3>
+                {fotos.map((f, idx) => (
+                  <div key={f.id} className="patient-card" style={{ borderRadius:20, overflow:'hidden', border:'1px solid var(--portal-card-border)' }}>
+                    <img src={f.url} alt={f.etapa || 'Progreso'} style={{ width:'100%', maxHeight:320, objectFit:'cover' }} />
+                    <div style={{ padding:'1.25rem' }}>
+                      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6 }}>
+                        <span style={{ fontSize:13, fontWeight:800, color: secondaryColor, background:'rgba(24,95,165,0.06)', padding:'2px 8px', borderRadius:8 }}>
+                          {f.etapa || `Etapa ${idx + 1}`}
+                        </span>
+                        <span style={{ fontSize:11, color:'var(--portal-text-muted)', fontWeight:500 }}>
+                          {new Date(f.creado_en).toLocaleDateString('es-AR')}
+                        </span>
+                      </div>
+                      {f.descripcion && (
+                        <p style={{ fontSize:13.5, color:'var(--portal-text-secondary)', margin:0, lineHeight:1.4 }}>
+                          {f.descripcion}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         <div style={{ textAlign:'center', marginTop:'2.5rem', fontSize:12, color:'var(--portal-text-muted)', fontWeight:500 }}>
           {tenant?.nombre || 'Dr. Walter Benegas'} {tenant?.direccion ? `— ${tenant.direccion}` : ''}
         </div>
       </div>
+
+      {/* Modal / Bottom Sheet Cuestionario Post-Visita */}
+      {showFeedbackModal && feedbackPendiente && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(10,30,61,0.55)', backdropFilter:'blur(6px)', zIndex:9999, display:'flex', alignItems:'flex-end', justifyContent:'center', padding:'0 0 env(safe-area-inset-bottom,0)' }} onClick={() => setShowFeedbackModal(false)}>
+          <div style={{ background:'var(--portal-card-bg,#fff)', borderRadius:'24px 24px 0 0', padding:'1.75rem 1.5rem 2rem', width:'100%', maxWidth:480, boxShadow:'0 -12px 40px rgba(10,30,61,0.18)', borderTop:'1px solid var(--portal-card-border)' }} onClick={e=>e.stopPropagation()}>
+            <div style={{ width:40, height:4, borderRadius:4, background:'#e2e8f0', margin:'0 auto 1.25rem' }}/>
+            
+            <div style={{ textAlign:'center', marginBottom:20 }}>
+              <div style={{ fontSize:18, fontWeight:800, color:'var(--portal-text-primary,#0a1e3d)', marginBottom:4 }}>Cuestionario de Control</div>
+              <div style={{ fontSize:13, color:'var(--portal-text-secondary,#4a6080)' }}>
+                Queremos saber cómo estás tras tu cita de <strong>{feedbackPendiente.tipo_tratamiento}</strong>.
+              </div>
+            </div>
+
+            {/* Dolor Selector */}
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ fontSize: 13, fontWeight: 700, color: 'var(--portal-text-primary)', display: 'block', marginBottom: 10, textAlign:'center' }}>
+                ¿Sentís alguna molestia o dolor?
+              </label>
+              <div style={{ display: 'flex', justifyContent: 'space-between', maxWidth: 280, margin: '0 auto', gap: 10 }}>
+                {[
+                  { value: 1, emoji: '😊', label: 'Sin dolor' },
+                  { value: 3, emoji: '😐', label: 'Molestia' },
+                  { value: 5, emoji: '😩', label: 'Dolor' }
+                ].map(item => {
+                  const selected = dolor === item.value
+                  return (
+                    <button
+                      key={item.value}
+                      onClick={() => setDolor(item.value)}
+                      style={{
+                        flex: 1, padding: '12px 8px', borderRadius: 14, border: '2px solid ' + (selected ? secondaryColor : 'var(--portal-card-border)'),
+                        background: selected ? 'rgba(24,95,165,0.06)' : 'transparent',
+                        cursor: 'pointer', transition: 'all 0.2s', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4
+                      }}
+                    >
+                      <span style={{ fontSize: 28 }}>{item.emoji}</span>
+                      <span style={{ fontSize: 10, fontWeight: 700, color: selected ? secondaryColor : 'var(--portal-text-muted)' }}>{item.label}</span>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* Satisfacción Selector */}
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ fontSize: 13, fontWeight: 700, color: 'var(--portal-text-primary)', display: 'block', marginBottom: 8, textAlign:'center' }}>
+                ¿Cómo calificarías tu satisfacción con la atención?
+              </label>
+              <div style={{ display: 'flex', justifyContent: 'center', gap: 8 }}>
+                {[1, 2, 3, 4, 5].map(val => {
+                  const active = val <= satisfaccion
+                  return (
+                    <button
+                      key={val}
+                      onClick={() => setSatisfaccion(val)}
+                      style={{
+                        background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 26, padding: 2,
+                        color: active ? '#F59E0B' : '#E2E8F0', transition: 'transform 0.1s'
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.2)'}
+                      onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+                    >
+                      ★
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* Comentarios */}
+            <div style={{ marginBottom: 22 }}>
+              <label style={{ fontSize: 13, fontWeight: 700, color: 'var(--portal-text-primary)', display: 'block', marginBottom: 6 }}>
+                Comentario o duda adicional
+              </label>
+              <textarea
+                value={comentario}
+                onChange={e => setComentario(e.target.value)}
+                placeholder="Escribe aquí si tienes inflamación, dudas sobre la medicación o cualquier comentario..."
+                style={{
+                  width: '100%', height: 74, padding: '10px 12px', borderRadius: 12, border: '1px solid var(--portal-card-border)',
+                  background: 'var(--portal-card-bg)', color: 'var(--portal-text-primary)', fontFamily: 'inherit', fontSize: 13,
+                  resize: 'none', outline: 'none'
+                }}
+              />
+            </div>
+
+            {/* Footer Buttons */}
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                onClick={() => setShowFeedbackModal(false)}
+                disabled={sendingFeedback}
+                style={{
+                  flex: 1, padding: '13px', borderRadius: 14, border: '1px solid #e2e8f0',
+                  background: 'var(--portal-card-bg,#fff)', color: 'var(--portal-text-secondary,#4a6080)',
+                  fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'DM Sans, system-ui'
+                }}
+              >
+                Omitir por ahora
+              </button>
+              <button
+                onClick={enviarFeedback}
+                disabled={sendingFeedback}
+                style={{
+                  flex: 1.5, padding: '13px', borderRadius: 14, border: 'none',
+                  background: secondaryColor, color: '#fff',
+                  fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'DM Sans, system-ui',
+                  boxShadow: '0 4px 14px rgba(24,95,165,0.25)', opacity: sendingFeedback ? 0.6 : 1
+                }}
+              >
+                {sendingFeedback ? 'Enviando...' : 'Enviar Respuestas'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Reschedule confirmation modal sheet */}
       {reproConfirm && (
