@@ -147,6 +147,16 @@ function getFechaSemana7(base: string): string[] {
   })
 }
 
+function formatFechaPropuesta(fechaStr: string) {
+  const dt = new Date(fechaStr + 'T12:00:00')
+  const dias = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado']
+  const meses = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
+  const diaS = dias[dt.getDay()]
+  const diaN = dt.getDate()
+  const mesS = meses[dt.getMonth()]
+  return `${diaS} ${diaN} de ${mesS}`
+}
+
 function WeekStrip({ fechas, fechaActiva, fechasConCitas, onSelect, hoy }: {
   fechas: string[]
   fechaActiva: string
@@ -361,6 +371,10 @@ export default function Agenda() {
   const [cobFecha, setCobFecha] = useState('')
   const [guardandoCobro, setGuardandoCobro] = useState(false)
 
+  // Pre-agendamiento States
+  const [propuestaProximaCita, setPropuestaProximaCita] = useState<Cita | null>(null)
+  const [guardandoPropuesta, setGuardandoPropuesta] = useState(false)
+
   function openCobroExpress(c: Cita) {
     setSel(c)
     setCobConcepto(`Pago ${c.tratamiento} — ${c.nombre}`)
@@ -399,6 +413,7 @@ export default function Agenda() {
       msg('Cobro registrado correctamente ✓')
       triggerConfetti()
       loadCitas()
+      setPropuestaProximaCita(sel)
     }
   }
 
@@ -496,10 +511,22 @@ export default function Agenda() {
   async function saveEditar(){
     if(!sel) return
     setSaving(true)
-    const {error} = await supabase.from('citas').update({fecha_hora:`${fFecha}T${fHora}:00-03:00`,tipo_tratamiento:fTrat as TipoTratamiento,estado:fEst,duracion_minutos:fDur,notas:fNotas||null,valor:fValor||null,sena:fSena||null,medio_pago:fMedioPago||null}).eq('id',sel.id)
+    const {error} = await supabase.from('citas').update({fecha_hora:`${fFecha}T${fHora}:00-03:00`,tipo_tratamiento:fTrat as TipoTratamiento,estado:fEst,duracion_minutos:fDur,notes:fNotas||null,valor:fValor||null,sena:fSena||null,medio_pago:fMedioPago||null}).eq('id',sel.id)
     setSaving(false)
     if(error) return msg('Error: '+error.message,'error')
-    if(fEst === 'asistio') triggerConfetti()
+    if(fEst === 'asistio') {
+      triggerConfetti()
+      const updatedCita: Cita = {
+        ...sel,
+        fecha: fFecha,
+        hora: fHora,
+        tratamiento: fTrat,
+        estado: 'asistio',
+        duracion: fDur,
+        notas: fNotas
+      }
+      setPropuestaProximaCita(updatedCita)
+    }
     setModal(null);msg('Cita actualizada ✓');loadCitas()
   }
 
@@ -516,7 +543,38 @@ export default function Agenda() {
     await supabase.from('citas').update({estado}).eq('id',id)
     setCitas(p=>p.map(c=>c.id===id?{...c,estado}:c))
     msg('Estado actualizado')
-    if(estado === 'asistio') triggerConfetti()
+    if(estado === 'asistio') {
+      triggerConfetti()
+      const cita = citas.find(c => c.id === id)
+      if (cita) {
+        setPropuestaProximaCita(cita)
+      }
+    }
+  }
+
+  async function agendarPropuesta(fechaDest: string) {
+    if (!tenant || !propuestaProximaCita) return
+    setGuardandoPropuesta(true)
+    const { error } = await supabase.from('citas').insert({
+      paciente_id: propuestaProximaCita.paciente_id,
+      fecha_hora: `${fechaDest}T${propuestaProximaCita.hora}:00-03:00`,
+      tipo_tratamiento: propuestaProximaCita.tratamiento,
+      estado: 'pendiente',
+      duracion_minutos: propuestaProximaCita.duracion,
+      notas: null,
+      valor: propuestaProximaCita.valor ?? null,
+      sena: null,
+      medio_pago: null,
+      tenant_id: tenant.id
+    })
+    setGuardandoPropuesta(false)
+    if (error) {
+      msg('Error al agendar propuesta: ' + error.message, 'error')
+    } else {
+      msg('Próxima cita pre-agendada con éxito ✓')
+      setPropuestaProximaCita(null)
+      loadCitas()
+    }
   }
 
   async function moverCita(citaId: string, nuevaFecha: string, nuevaHora: string) {
@@ -1531,6 +1589,101 @@ export default function Agenda() {
               <button style={btnLightCss} onClick={()=>setModal(null)} disabled={guardandoCobro}>Cancelar</button>
               <button style={{...btnDarkCss,opacity:guardandoCobro?0.6:1}} onClick={guardarCobroExpress} disabled={guardandoCobro}>
                 {guardandoCobro?'Registrando...':'Confirmar cobro'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Modal de Pre-agendamiento */}
+      {propuestaProximaCita && (
+        <div style={overlayCss(isMobile)} onClick={() => setPropuestaProximaCita(null)}>
+          <div style={{...modalCss(isMobile), maxWidth: 440, padding: '24px 20px'}} onClick={e => e.stopPropagation()}>
+            <div style={{...modalTitleCss, textAlign: 'center', marginBottom: 12}}>
+              🔄 Pre-agendar Próxima Visita
+            </div>
+            
+            <p style={{fontSize: 14, color: 'var(--text-dark, #0a1e3d)', textAlign: 'center', marginBottom: 20, lineHeight: 1.5}}>
+              ¿Querés pre-agendar el próximo control para <strong>{propuestaProximaCita.nombre}</strong>?
+              <br />
+              <span style={{fontSize: 12, color: 'var(--text-muted, #8fa3bc)'}}>
+                Tratamiento: {propuestaProximaCita.tratamiento} ({propuestaProximaCita.duracion} min)
+              </span>
+            </p>
+
+            {/* Opciones de un click */}
+            <div style={{display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20}}>
+              {(() => {
+                const date3Weeks = new Date(propuestaProximaCita.fecha + 'T12:00:00')
+                date3Weeks.setDate(date3Weeks.getDate() + 21)
+                const fFecha3 = date3Weeks.toISOString().split('T')[0]
+
+                const date4Weeks = new Date(propuestaProximaCita.fecha + 'T12:00:00')
+                date4Weeks.setDate(date4Weeks.getDate() + 28)
+                const fFecha4 = date4Weeks.toISOString().split('T')[0]
+
+                return (
+                  <>
+                    <button
+                      onClick={() => agendarPropuesta(fFecha3)}
+                      disabled={guardandoPropuesta}
+                      style={{
+                        padding: '14px 16px',
+                        borderRadius: 12,
+                        border: `1px solid ${tenant?.secondaryColor || '#185FA5'}40`,
+                        background: `linear-gradient(135deg, ${(tenant?.secondaryColor || '#185FA5')}08, ${(tenant?.secondaryColor || '#185FA5')}18)`,
+                        color: tenant?.secondaryColor || '#185FA5',
+                        fontWeight: 700,
+                        fontSize: 13.5,
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        transition: 'transform 0.15s'
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.01)'}
+                      onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+                    >
+                      <span>📅 En 3 semanas</span>
+                      <span style={{fontSize: 12, opacity: 0.9}}>{formatFechaPropuesta(fFecha3)} · {propuestaProximaCita.hora}hs</span>
+                    </button>
+
+                    <button
+                      onClick={() => agendarPropuesta(fFecha4)}
+                      disabled={guardandoPropuesta}
+                      style={{
+                        padding: '14px 16px',
+                        borderRadius: 12,
+                        border: `1px solid ${tenant?.secondaryColor || '#185FA5'}40`,
+                        background: `linear-gradient(135deg, ${(tenant?.secondaryColor || '#185FA5')}08, ${(tenant?.secondaryColor || '#185FA5')}18)`,
+                        color: tenant?.secondaryColor || '#185FA5',
+                        fontWeight: 700,
+                        fontSize: 13.5,
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        transition: 'transform 0.15s'
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.01)'}
+                      onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+                    >
+                      <span>📅 En 4 semanas</span>
+                      <span style={{fontSize: 12, opacity: 0.9}}>{formatFechaPropuesta(fFecha4)} · {propuestaProximaCita.hora}hs</span>
+                    </button>
+                  </>
+                )
+              })()}
+            </div>
+
+            <div style={{...footerCss, justifyContent: 'center'}}>
+              <button
+                style={{...btnLightCss, width: '100%', padding: '12px'}}
+                onClick={() => setPropuestaProximaCita(null)}
+                disabled={guardandoPropuesta}
+              >
+                No pre-agendar próximo control
               </button>
             </div>
           </div>

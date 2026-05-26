@@ -224,6 +224,24 @@ export default function PacientePage() {
   const secondaryColor = tenant?.secondaryColor || '#185FA5'
   const accentColor = tenant?.accentColor || '#138A6B'
 
+  const getMesesTranscurridos = () => {
+    if (pastTurnos.length === 0) return 1
+    const firstCita = new Date(pastTurnos[pastTurnos.length - 1].fecha_hora)
+    const now = new Date()
+    const diffYears = now.getFullYear() - firstCita.getFullYear()
+    const diffMonths = now.getMonth() - firstCita.getMonth()
+    return Math.max(1, diffYears * 12 + diffMonths)
+  }
+
+  const getEstimadoMesesRestantes = () => {
+    const pct = paciente?.progreso_plan_porcentaje || 0
+    if (pct <= 0) return null
+    if (pct >= 100) return '¡Tratamiento completado! 🎉'
+    const elapsed = getMesesTranscurridos()
+    const remaining = Math.max(1, Math.round(elapsed * (100 - pct) / pct))
+    return `~${remaining} meses estimados restantes`
+  }
+
   return (
     <div style={{ minHeight:'100vh', fontFamily:'DM Sans, system-ui', padding:'2.5rem 1.25rem', background: 'var(--portal-bg)', transition: 'background-color 0.3s ease' }}>
       <div style={{ maxWidth:480, margin:'0 auto' }}>
@@ -276,7 +294,7 @@ export default function PacientePage() {
               <span style={{ fontSize:10, fontWeight:700, color:'var(--portal-text-muted)', textTransform:'uppercase', letterSpacing:'0.06em' }}>Tratamiento Activo</span>
               <div style={{ fontSize:15, fontWeight:800, color:'var(--portal-text-primary)', marginTop:2 }}>
                 {paciente?.progreso_plan_porcentaje && paciente.progreso_plan_porcentaje > 0 
-                  ? (turnos[0]?.tipo_tratamiento || pastTurnos[0]?.tipo_tratamiento || 'Ortodoncia')
+                  ? `${turnos[0]?.tipo_tratamiento || pastTurnos[0]?.tipo_tratamiento || 'Ortodoncia'} activa · ${getMesesTranscurridos()} meses`
                   : 'Consulta / Control'}
               </div>
             </div>
@@ -312,6 +330,23 @@ export default function PacientePage() {
               <div style={{ fontSize:9.5, fontWeight:600, color:'var(--portal-text-muted)', marginTop:2, textTransform:'uppercase', letterSpacing:'0.02em' }}>Fotos</div>
             </div>
           </div>
+          
+          {/* Adherence and milestone encouraging micro-copy banner */}
+          {(() => {
+            const pastNonCanceled = pastTurnos.filter(pt => pt.estado !== 'cancelado')
+            const attendedCount = pastNonCanceled.filter(pt => pt.estado === 'asistio' || pt.estado === 'completado').length
+            const adherence = pastNonCanceled.length > 0 ? Math.round((attendedCount / pastNonCanceled.length) * 100) : 100
+            
+            let message = '¡Sos de los pacientes más constantes! 🏆'
+            if (adherence < 80) message = '¡A seguir mejorando la regularidad! 💪'
+            else if (adherence < 90) message = '¡Excelente constancia en tus visitas! ✨'
+            
+            return (
+              <div style={{ marginTop: 12, padding: '8px 12px', background: 'rgba(24,95,165,0.04)', borderRadius: 10, fontSize: 11, fontWeight: 600, color: secondaryColor, textAlign: 'center' }}>
+                {message}
+              </div>
+            )
+          })()}
         </div>
 
         {/* Tabs switcher */}
@@ -328,7 +363,7 @@ export default function PacientePage() {
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as any)}
                 style={{
-                  flex: 1, padding: '10px 8px', borderRadius: 10, border: 'none',
+                  flex: 1, flexShrink: 0, padding: '10px 8px', borderRadius: 10, border: 'none',
                   background: active ? secondaryColor : 'transparent',
                   color: active ? '#fff' : 'var(--portal-text-secondary)',
                   fontWeight: 700, fontSize: 13, cursor: 'pointer',
@@ -490,7 +525,12 @@ export default function PacientePage() {
               <div style={{ height:10, background:'rgba(24,95,165,0.06)', borderRadius:5, overflow:'hidden', position: 'relative' }}>
                 <div style={{ height:'100%', width:`${paciente?.progreso_plan_porcentaje || 0}%`, background:`linear-gradient(90deg, ${secondaryColor}, ${accentColor})`, borderRadius:5, transition:'width 0.5s ease-out' }} />
               </div>
-              <div style={{ fontSize:12, color:'var(--portal-text-muted)', textAlign:'center', marginTop:2, fontWeight:500 }}>Estimación basada en las fases completadas de tu plan clínico.</div>
+              {paciente?.progreso_plan_porcentaje && paciente.progreso_plan_porcentaje > 0 && paciente.progreso_plan_porcentaje < 100 && (
+                <div style={{ fontSize:13, fontWeight:700, color: accentColor, textAlign:'center', marginTop:4 }}>
+                  ⏳ {getEstimadoMesesRestantes()}
+                </div>
+              )}
+              <div style={{ fontSize:12, color:'var(--portal-text-muted)', textAlign:'center', marginTop:2, fontWeight:500 }}>Estimación basada en las fases completadas de tu plan clínico y tiempo transcurrido.</div>
             </div>
 
             {/* Recommendations / Allergies */}
