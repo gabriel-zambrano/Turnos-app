@@ -7,10 +7,10 @@ import { TRAT_STYLE, AVATAR_COLORS, TRATAMIENTOS, calcEdad, initials, normalizar
 import { createClient } from '@/lib/supabase/client'
 import { useTenantContext } from '@/components/TenantContext'
 
-interface PacDB { id:string; nombre:string; telefono:string; email:string|null; fecha_nacimiento:string|null; ultimo_tratamiento:string|null; creado_en:string; token:string|null }
-interface Pac { id:string; nombre:string; telefono:string; email:string; nacimiento:string; tratamiento:string; alta:string; token:string|null }
+interface PacDB { id:string; nombre:string; telefono:string; email:string|null; fecha_nacimiento:string|null; ultimo_tratamiento:string|null; creado_en:string; token:string|null; alergias:string|null; antecedentes:string|null; progreso_plan_porcentaje:number|null }
+interface Pac { id:string; nombre:string; telefono:string; email:string; nacimiento:string; tratamiento:string; alta:string; token:string|null; alergias:string; antecedentes:string; progresoPlan:number }
 function toPac(p: PacDB): Pac {
-  return { id:p.id, nombre:p.nombre, telefono:p.telefono, email:p.email??'', nacimiento:p.fecha_nacimiento??'', tratamiento:p.ultimo_tratamiento??'Consulta', alta:p.creado_en?.split('T')[0]??'', token:p.token??null }
+  return { id:p.id, nombre:p.nombre, telefono:p.telefono, email:p.email??'', nacimiento:p.fecha_nacimiento??'', tratamiento:p.ultimo_tratamiento??'Consulta', alta:p.creado_en?.split('T')[0]??'', token:p.token??null, alergias:p.alergias??'', antecedentes:p.antecedentes??'', progresoPlan:p.progreso_plan_porcentaje??0 }
 }
 
 export default function Pacientes() {
@@ -32,6 +32,11 @@ export default function Pacientes() {
   const [fNacimiento, setFNacimiento] = useState('')
   const [fTratamiento, setFTratamiento] = useState('Consulta')
 
+  // Clinical fields states
+  const [fAlergias, setFAlergias] = useState('')
+  const [fAntecedentes, setFAntecedentes] = useState('')
+  const [fProgresoPlan, setFProgresoPlan] = useState<number>(0)
+
   function msg(m:string, tipo='ok') { setToast({msg:m,tipo}); setTimeout(()=>setToast(null),3500) }
 
   const load = useCallback(async()=>{
@@ -51,8 +56,8 @@ export default function Pacientes() {
     p.email.toLowerCase().includes(busq.toLowerCase())
   )
 
-  function openNuevo() { setFNombre(''); setFTelefono('+54911'); setFEmail(''); setFNacimiento(''); setFTratamiento('Consulta'); setSel(null); setModal('nuevo') }
-  function openEditar(p:Pac) { setFNombre(p.nombre); setFTelefono(p.telefono); setFEmail(p.email); setFNacimiento(p.nacimiento); setFTratamiento(p.tratamiento); setSel(p); setModal('editar') }
+  function openNuevo() { setFNombre(''); setFTelefono('+54911'); setFEmail(''); setFNacimiento(''); setFTratamiento('Consulta'); setFAlergias(''); setFAntecedentes(''); setFProgresoPlan(0); setSel(null); setModal('nuevo') }
+  function openEditar(p:Pac) { setFNombre(p.nombre); setFTelefono(p.telefono); setFEmail(p.email); setFNacimiento(p.nacimiento); setFTratamiento(p.tratamiento); setFAlergias(p.alergias); setFAntecedentes(p.antecedentes); setFProgresoPlan(p.progresoPlan); setSel(p); setModal('editar') }
 
   async function saveNuevo() {
     if(!fNombre.trim()) return msg('El nombre es obligatorio','error')
@@ -60,7 +65,18 @@ export default function Pacientes() {
     if(!tenant) return
     setSaving(true)
     const token = crypto.randomUUID()
-    const {error} = await supabase.from('pacientes').insert({nombre:fNombre.trim(),telefono:fTelefono.trim(),email:fEmail.trim()||null,fecha_nacimiento:fNacimiento||null,ultimo_tratamiento:fTratamiento,token,tenant_id:tenant.id})
+    const {error} = await supabase.from('pacientes').insert({
+      nombre:fNombre.trim(),
+      telefono:fTelefono.trim(),
+      email:fEmail.trim()||null,
+      fecha_nacimiento:fNacimiento||null,
+      ultimo_tratamiento:fTratamiento,
+      token,
+      tenant_id:tenant.id,
+      alergias:fAlergias.trim()||null,
+      antecedentes:fAntecedentes.trim()||null,
+      progreso_plan_porcentaje:fProgresoPlan
+    })
     setSaving(false)
     if(error) return msg('Error al guardar: '+error.message,'error')
     setModal(null); msg('Paciente agregado correctamente ✓'); load()
@@ -69,7 +85,16 @@ export default function Pacientes() {
   async function saveEditar() {
     if(!sel||!fNombre.trim()) return msg('El nombre es obligatorio','error')
     setSaving(true)
-    const {error} = await supabase.from('pacientes').update({nombre:fNombre.trim(),telefono:fTelefono.trim(),email:fEmail.trim()||null,fecha_nacimiento:fNacimiento||null,ultimo_tratamiento:fTratamiento}).eq('id',sel.id)
+    const {error} = await supabase.from('pacientes').update({
+      nombre:fNombre.trim(),
+      telefono:fTelefono.trim(),
+      email:fEmail.trim()||null,
+      fecha_nacimiento:fNacimiento||null,
+      ultimo_tratamiento:fTratamiento,
+      alergias:fAlergias.trim()||null,
+      antecedentes:fAntecedentes.trim()||null,
+      progreso_plan_porcentaje:fProgresoPlan
+    }).eq('id',sel.id)
     setSaving(false)
     if(error) return msg('Error al actualizar: '+error.message,'error')
     setModal(null); msg('Paciente actualizado ✓'); load()
@@ -87,7 +112,7 @@ export default function Pacientes() {
   return (
     <div style={{display:'flex',minHeight:'100vh',fontFamily:'DM Sans, sans-serif'}}>
       <Sidebar/>
-      <main style={{marginLeft:isMobile?0:240,flex:1,background:'transparent',paddingBottom:isMobile?80:0,minWidth:0,overflowX:'hidden'}}>
+      <main style={{marginLeft: isMobile ? 0 : 'var(--sidebar-width, 240px)',flex:1,background:'transparent',paddingBottom:isMobile?80:0,minWidth:0,overflowX:'hidden'}}>
         <PageHeader title="Pacientes"
           right={!isMobile ? (
             <div style={{display:'flex',gap:12,alignItems:'center'}}>
@@ -170,8 +195,8 @@ export default function Pacientes() {
           )}
         </div>
       </main>
-      {modal==='nuevo'&&<div style={overlayCss(isMobile)} onClick={()=>setModal(null)}><div style={modalCss(isMobile)} onClick={e=>e.stopPropagation()}><div style={modalTitleCss}>Nuevo paciente</div><div style={groupCss}><label style={labelCss}>Nombre completo *</label><input style={inputCss} value={fNombre} onChange={e=>setFNombre(e.target.value)} placeholder="Ej: María González" autoFocus/></div><div style={grid2Css}><div style={groupCss}><label style={labelCss}>Teléfono *</label><input style={inputCss} value={fTelefono} onChange={e=>setFTelefono(e.target.value)} placeholder="+5491123456789"/><span style={{fontSize:11,color:'#aaa',marginTop:3,display:'block'}}>Debe empezar con +</span></div><div style={groupCss}><label style={labelCss}>Email</label><input type="email" style={inputCss} value={fEmail} onChange={e=>setFEmail(e.target.value)} placeholder="paciente@email.com"/></div></div><div style={grid2Css}><div style={groupCss}><label style={labelCss}>Fecha de nacimiento</label><input type="date" style={inputCss} value={fNacimiento} onChange={e=>setFNacimiento(e.target.value)}/></div><div style={groupCss}><label style={labelCss}>Tratamiento</label><select style={selectCss} value={fTratamiento} onChange={e=>setFTratamiento(e.target.value)}>{TRATAMIENTOS.map(t=><option key={t} value={t}>{t}</option>)}</select></div></div><div style={footerCss}><button style={btnLightCss} onClick={()=>setModal(null)} disabled={saving}>Cancelar</button><button style={{...btnDarkCss,opacity:saving?0.6:1}} onClick={saveNuevo} disabled={saving}>{saving?'Guardando...':'Agregar paciente'}</button></div></div></div>}
-      {modal==='editar'&&<div style={overlayCss(isMobile)} onClick={()=>setModal(null)}><div style={modalCss(isMobile)} onClick={e=>e.stopPropagation()}><div style={modalTitleCss}>Editar paciente</div><div style={groupCss}><label style={labelCss}>Nombre completo *</label><input style={inputCss} value={fNombre} onChange={e=>setFNombre(e.target.value)} autoFocus/></div><div style={grid2Css}><div style={groupCss}><label style={labelCss}>Teléfono *</label><input style={inputCss} value={fTelefono} onChange={e=>setFTelefono(e.target.value)}/></div><div style={groupCss}><label style={labelCss}>Email</label><input type="email" style={inputCss} value={fEmail} onChange={e=>setFEmail(e.target.value)}/></div></div><div style={grid2Css}><div style={groupCss}><label style={labelCss}>Fecha de nacimiento</label><input type="date" style={inputCss} value={fNacimiento} onChange={e=>setFNacimiento(e.target.value)}/></div><div style={groupCss}><label style={labelCss}>Tratamiento</label><select style={selectCss} value={fTratamiento} onChange={e=>setFTratamiento(e.target.value)}>{TRATAMIENTOS.map(t=><option key={t} value={t}>{t}</option>)}</select></div></div><div style={footerCss}><button style={btnLightCss} onClick={()=>setModal(null)} disabled={saving}>Cancelar</button><button style={{...btnDarkCss,opacity:saving?0.6:1}} onClick={saveEditar} disabled={saving}>{saving?'Guardando...':'Guardar cambios'}</button></div></div></div>}
+      {modal==='nuevo'&&<div style={overlayCss(isMobile)} onClick={()=>setModal(null)}><div style={modalCss(isMobile)} onClick={e=>e.stopPropagation()}><div style={modalTitleCss}>Nuevo paciente</div><div style={groupCss}><label style={labelCss}>Nombre completo *</label><input style={inputCss} value={fNombre} onChange={e=>setFNombre(e.target.value)} placeholder="Ej: María González" autoFocus/></div><div style={grid2Css}><div style={groupCss}><label style={labelCss}>Teléfono *</label><input style={inputCss} value={fTelefono} onChange={e=>setFTelefono(e.target.value)} placeholder="+5491123456789"/><span style={{fontSize:11,color:'#aaa',marginTop:3,display:'block'}}>Debe empezar con +</span></div><div style={groupCss}><label style={labelCss}>Email</label><input type="email" style={inputCss} value={fEmail} onChange={e=>setFEmail(e.target.value)} placeholder="paciente@email.com"/></div></div><div style={grid2Css}><div style={groupCss}><label style={labelCss}>Fecha de nacimiento</label><input type="date" style={inputCss} value={fNacimiento} onChange={e=>setFNacimiento(e.target.value)}/></div><div style={groupCss}><label style={labelCss}>Tratamiento</label><select style={selectCss} value={fTratamiento} onChange={e=>setFTratamiento(e.target.value)}>{TRATAMIENTOS.map(t=><option key={t} value={t}>{t}</option>)}</select></div></div><div style={grid2Css}><div style={groupCss}><label style={labelCss}>Alergias</label><input style={inputCss} value={fAlergias} onChange={e=>setFAlergias(e.target.value)} placeholder="Ej: Penicilina, látex..."/></div><div style={groupCss}><label style={labelCss}>Progreso del Plan (%)</label><input type="number" min="0" max="100" style={inputCss} value={fProgresoPlan} onChange={e=>setFProgresoPlan(Number(e.target.value))}/></div></div><div style={groupCss}><label style={labelCss}>Antecedentes Médicos</label><textarea style={{...inputCss,height:50,resize:'vertical'}} value={fAntecedentes} onChange={e=>setFAntecedentes(e.target.value)} placeholder="Hipertensión, diabetes, etc..."/></div><div style={footerCss}><button style={btnLightCss} onClick={()=>setModal(null)} disabled={saving}>Cancelar</button><button style={{...btnDarkCss,opacity:saving?0.6:1}} onClick={saveNuevo} disabled={saving}>{saving?'Guardando...':'Agregar paciente'}</button></div></div></div>}
+      {modal==='editar'&&<div style={overlayCss(isMobile)} onClick={()=>setModal(null)}><div style={modalCss(isMobile)} onClick={e=>e.stopPropagation()}><div style={modalTitleCss}>Editar paciente</div><div style={groupCss}><label style={labelCss}>Nombre completo *</label><input style={inputCss} value={fNombre} onChange={e=>setFNombre(e.target.value)} autoFocus/></div><div style={grid2Css}><div style={groupCss}><label style={labelCss}>Teléfono *</label><input style={inputCss} value={fTelefono} onChange={e=>setFTelefono(e.target.value)}/></div><div style={groupCss}><label style={labelCss}>Email</label><input type="email" style={inputCss} value={fEmail} onChange={e=>setFEmail(e.target.value)}/></div></div><div style={grid2Css}><div style={groupCss}><label style={labelCss}>Fecha de nacimiento</label><input type="date" style={inputCss} value={fNacimiento} onChange={e=>setFNacimiento(e.target.value)}/></div><div style={groupCss}><label style={labelCss}>Tratamiento</label><select style={selectCss} value={fTratamiento} onChange={e=>setFTratamiento(e.target.value)}>{TRATAMIENTOS.map(t=><option key={t} value={t}>{t}</option>)}</select></div></div><div style={grid2Css}><div style={groupCss}><label style={labelCss}>Alergias</label><input style={inputCss} value={fAlergias} onChange={e=>setFAlergias(e.target.value)} placeholder="Ej: Penicilina, látex..."/></div><div style={groupCss}><label style={labelCss}>Progreso del Plan (%)</label><input type="number" min="0" max="100" style={inputCss} value={fProgresoPlan} onChange={e=>setFProgresoPlan(Number(e.target.value))}/></div></div><div style={groupCss}><label style={labelCss}>Antecedentes Médicos</label><textarea style={{...inputCss,height:50,resize:'vertical'}} value={fAntecedentes} onChange={e=>setFAntecedentes(e.target.value)} placeholder="Hipertensión, diabetes, etc..."/></div><div style={footerCss}><button style={btnLightCss} onClick={()=>setModal(null)} disabled={saving}>Cancelar</button><button style={{...btnDarkCss,opacity:saving?0.6:1}} onClick={saveEditar} disabled={saving}>{saving?'Guardando...':'Guardar cambios'}</button></div></div></div>}
       {modal==='borrar'&&<div style={overlayCss(isMobile)} onClick={()=>setModal(null)}><div style={{...modalCss(isMobile),maxWidth:380}} onClick={e=>e.stopPropagation()}><div style={modalTitleCss}>Eliminar paciente</div><p style={{fontSize:14,color:'#666',marginBottom:'1.5rem'}}>Vas a eliminar a <strong>{sel?.nombre}</strong>. Esta acción no se puede deshacer.</p><div style={footerCss}><button style={btnLightCss} onClick={()=>setModal(null)} disabled={saving}>Cancelar</button><button style={{...btnRedCss,opacity:saving?0.6:1}} onClick={saveBorrar} disabled={saving}>{saving?'Eliminando...':'Sí, eliminar'}</button></div></div></div>}
       {toast&&<Toast msg={toast.msg} tipo={toast.tipo}/>}
     </div>

@@ -15,6 +15,9 @@ interface Paciente {
   fecha_nacimiento: string | null
   ultimo_tratamiento: string | null
   creado_en: string
+  alergias: string | null
+  antecedentes: string | null
+  progreso_plan_porcentaje: number | null
 }
 
 interface HistorialLog {
@@ -156,6 +159,40 @@ export default function PacienteDetalle() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [toast, setToast] = useState<{ msg: string; tipo: string } | null>(null)
+
+  // Edit Ficha states
+  const [modalFicha, setModalFicha] = useState(false)
+  const [editAlergias, setEditAlergias] = useState('')
+  const [editAntecedentes, setEditAntecedentes] = useState('')
+  const [editProgreso, setEditProgreso] = useState<number>(0)
+  const [guardandoFicha, setGuardandoFicha] = useState(false)
+
+  async function guardarFichaMedica() {
+    if (!tenant || !paciente) return
+    setGuardandoFicha(true)
+    const { error } = await supabase
+      .from('pacientes')
+      .update({
+        alergias: editAlergias.trim() || null,
+        antecedentes: editAntecedentes.trim() || null,
+        progreso_plan_porcentaje: editProgreso
+      })
+      .eq('id', paciente.id)
+
+    setGuardandoFicha(false)
+    if (error) {
+      showMsg('Error al guardar ficha: ' + error.message, 'error')
+    } else {
+      setModalFicha(false)
+      setPaciente(prev => prev ? { 
+        ...prev, 
+        alergias: editAlergias.trim() || null, 
+        antecedentes: editAntecedentes.trim() || null, 
+        progreso_plan_porcentaje: editProgreso 
+      } : null)
+      showMsg('Ficha médica actualizada ✓')
+    }
+  }
 
   // Pieza dental seleccionada actualmente para visualización o edición
   const [dienteSel, setDienteSel] = useState<number | null>(null)
@@ -319,7 +356,7 @@ export default function PacienteDetalle() {
     return (
       <div style={{ display: 'flex', minHeight: '100vh', fontFamily: 'DM Sans, sans-serif' }}>
         <Sidebar />
-        <main style={{ marginLeft: isMobile ? 0 : 240, flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <main style={{ marginLeft: isMobile ? 0 : 'var(--sidebar-width, 240px)', flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <Spinner />
         </main>
       </div>
@@ -330,7 +367,7 @@ export default function PacienteDetalle() {
     return (
       <div style={{ display: 'flex', minHeight: '100vh', fontFamily: 'DM Sans, sans-serif' }}>
         <Sidebar />
-        <main style={{ marginLeft: isMobile ? 0 : 240, flex: 1, padding: '2rem', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+        <main style={{ marginLeft: isMobile ? 0 : 'var(--sidebar-width, 240px)', flex: 1, padding: '2rem', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
           <div style={{ fontSize: 40, marginBottom: 12 }}>🔍</div>
           <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-dark)' }}>Paciente no encontrado</div>
           <button style={{ ...btnDarkCss, marginTop: 16 }} onClick={() => router.push('/pacientes')}>Volver a Pacientes</button>
@@ -342,7 +379,7 @@ export default function PacienteDetalle() {
   return (
     <div style={{ display: 'flex', minHeight: '100vh', fontFamily: 'DM Sans, sans-serif' }}>
       <Sidebar />
-      <main style={{ marginLeft: isMobile ? 0 : 240, flex: 1, paddingBottom: isMobile ? 80 : 24, minWidth: 0, overflowX: 'hidden' }}>
+      <main style={{ marginLeft: isMobile ? 0 : 'var(--sidebar-width, 240px)', flex: 1, paddingBottom: isMobile ? 80 : 24, minWidth: 0, overflowX: 'hidden' }}>
         <PageHeader
           title={`Ficha Clínica: ${paciente.nombre}`}
           sub="Historial clínico y Odontograma interactivo"
@@ -493,6 +530,58 @@ export default function PacienteDetalle() {
 
             {/* Panel Lateral: Detalle Pieza & Registro de Tratamiento */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              
+              {/* Ficha Médica General (Alergias, Antecedentes, Progreso) */}
+              {paciente && (
+                <div className="glass-card" style={{ padding: '1.25rem 1.5rem', display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <h3 style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-dark)', margin: 0 }}>Antecedentes & Plan</h3>
+                    <button 
+                      onClick={() => {
+                        setEditAlergias(paciente.alergias || '')
+                        setEditAntecedentes(paciente.antecedentes || '')
+                        setEditProgreso(paciente.progreso_plan_porcentaje || 0)
+                        setModalFicha(true)
+                      }}
+                      style={{ background: 'none', border: 'none', color: '#185FA5', fontSize: 12, fontWeight: 700, cursor: 'pointer', padding: 0 }}
+                    >
+                      ✏️ Editar
+                    </button>
+                  </div>
+
+                  {paciente.alergias ? (
+                    <div style={{ background: '#FEE2E2', border: '1px solid #FECACA', borderRadius: 10, padding: '10px 12px', color: '#991B1B', display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                      <span style={{ fontSize: 16 }}>⚠️</span>
+                      <div>
+                        <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Alergias Importantes</div>
+                        <div style={{ fontSize: 13, fontWeight: 600, marginTop: 2 }}>{paciente.alergias}</div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{ background: '#F0FDF4', border: '1px solid #DCFCE7', borderRadius: 10, padding: '10px 12px', color: '#166534', fontSize: 12, fontWeight: 600 }}>
+                      ✅ Sin alergias conocidas.
+                    </div>
+                  )}
+
+                  <div>
+                    <span style={{ fontSize: 10.5, color: 'var(--text-muted)', display: 'block', fontWeight: 600, textTransform: 'uppercase' }}>Antecedentes Médicos</span>
+                    <span style={{ fontSize: 13, color: 'var(--text-dark)', marginTop: 2, display: 'block', whiteSpace: 'pre-wrap', lineHeight: 1.4 }}>
+                      {paciente.antecedentes || 'Sin antecedentes registrados.'}
+                    </span>
+                  </div>
+
+                  <div style={{ borderTop: '1px solid var(--border-light, #dde5ef)', paddingTop: 12 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                      <span style={{ fontSize: 10.5, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Progreso del Plan</span>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: '#185FA5' }}>{paciente.progreso_plan_porcentaje || 0}%</span>
+                    </div>
+                    <div style={{ height: 8, background: 'var(--border-lighter, #f1f5f9)', borderRadius: 4, overflow: 'hidden' }}>
+                      <div style={{ height: '100%', width: `${paciente.progreso_plan_porcentaje || 0}%`, background: 'linear-gradient(90deg, #185FA5, #138A6B)', borderRadius: 4, transition: 'width 0.4s ease' }} />
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div className="glass-card" style={{ padding: '1.5rem', height: 'fit-content' }}>
                 <h3 style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-dark)', marginBottom: 14 }}>
                   {dienteSel ? `Detalle Pieza Dental ${dienteSel}` : 'Selecciona una Pieza'}
@@ -588,6 +677,55 @@ export default function PacienteDetalle() {
               <button style={btnLightCss} onClick={() => setModalRegistro(false)} disabled={saving}>Cancelar</button>
               <button style={btnDarkCss} onClick={registrarTratamiento} disabled={saving}>
                 {saving ? 'Guardando...' : 'Guardar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal para Editar Ficha Médica */}
+      {modalFicha && paciente && (
+        <div style={overlayCss(isMobile)} onClick={() => setModalFicha(false)}>
+          <div style={modalCss(isMobile)} onClick={e => e.stopPropagation()}>
+            <div style={modalTitleCss}>Editar Antecedentes & Plan</div>
+            
+            <div style={groupCss}>
+              <label style={labelCss}>Alergias</label>
+              <input 
+                style={inputCss} 
+                value={editAlergias} 
+                onChange={e => setEditAlergias(e.target.value)} 
+                placeholder="Ej: Penicilina, Látex, Metales..." 
+                autoFocus 
+              />
+            </div>
+
+            <div style={groupCss}>
+              <label style={labelCss}>Progreso del Plan (%)</label>
+              <input 
+                type="number" 
+                min="0" 
+                max="100" 
+                style={inputCss} 
+                value={editProgreso} 
+                onChange={e => setEditProgreso(Number(e.target.value))} 
+              />
+            </div>
+
+            <div style={groupCss}>
+              <label style={labelCss}>Antecedentes Médicos</label>
+              <textarea 
+                style={{ ...textareaCss, height: 80, resize: 'vertical' }} 
+                value={editAntecedentes} 
+                onChange={e => setEditAntecedentes(e.target.value)} 
+                placeholder="Ej: Hipertensión, Diabetes, Cirugías..." 
+              />
+            </div>
+
+            <div style={footerCss}>
+              <button style={btnLightCss} onClick={() => setModalFicha(false)} disabled={guardandoFicha}>Cancelar</button>
+              <button style={btnDarkCss} onClick={guardarFichaMedica} disabled={guardandoFicha}>
+                {guardandoFicha ? 'Guardando...' : 'Guardar'}
               </button>
             </div>
           </div>

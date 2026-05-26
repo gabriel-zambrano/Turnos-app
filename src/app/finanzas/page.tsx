@@ -196,14 +196,14 @@ export default function FinanzasPage() {
   if (tenantLoading || loading) return (
     <div style={{ display:'flex', minHeight:'100vh', fontFamily:'DM Sans, sans-serif' }}>
       <Sidebar />
-      <main style={{ marginLeft: isMobile ? 0 : 240, flex:1, display:'flex', alignItems:'center', justifyContent:'center' }}><Spinner /></main>
+      <main style={{ marginLeft: isMobile ? 0 : 'var(--sidebar-width, 240px)', flex:1, display:'flex', alignItems:'center', justifyContent:'center' }}><Spinner /></main>
     </div>
   )
 
   return (
     <div style={{ display:'flex', minHeight:'100vh', fontFamily:'DM Sans, sans-serif' }}>
       <Sidebar />
-      <main style={{ marginLeft: isMobile ? 0 : 240, flex:1, background:'transparent', paddingBottom: isMobile ? 80 : 0, minWidth:0, overflowX:'hidden' }}>
+      <main style={{ marginLeft: isMobile ? 0 : 'var(--sidebar-width, 240px)', flex:1, background:'transparent', paddingBottom: isMobile ? 80 : 0, minWidth:0, overflowX:'hidden' }}>
         <PageHeader
           title="Finanzas"
           sub={`${MESES[mesActual - 1]} ${anioActual}`}

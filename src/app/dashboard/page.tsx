@@ -8,11 +8,12 @@ import { createClient } from '@/lib/supabase/client'
 import { useTenantContext } from '@/components/TenantContext'
 import type { EstadoCita } from '@/types'
 import { NuevaCitaModal } from '@/components/NuevaCitaModal'
+import { triggerConfetti } from '@/lib/confetti'
 
-interface Cita { id:string; nombre:string; hora:string; tratamiento:string; estado:EstadoCita; telefono:string }
+interface Cita { id:string; nombre:string; hora:string; tratamiento:string; estado:EstadoCita; telefono:string; precio_cobrado?:number|null; valor?:number|null; paciente_id?:string }
 interface CitaMañana extends Cita { token:string|null; fecha_hora:string }
 interface LogItem { id:string; paciente:string; canal:string; estado:string; hora:string }
-const FILTROS = [{k:'todas',l:'Todas'},{k:'pendiente',l:'Pendientes'},{k:'confirmado',l:'Confirmadas'}]
+const FILTROS = [{k:'todas',l:'Todas'},{k:'pendiente',l:'Pendientes'},{k:'confirmado',l:'Confirmadas'},{k:'asistio',l:'Asistieron'}]
 
 export default function Dashboard() {
   const [authChecked, setAuthChecked] = useState(false)
@@ -61,8 +62,16 @@ export default function Dashboard() {
   const [cobConcepto, setCobConcepto] = useState('')
   const [cobMonto, setCobMonto] = useState<number | ''>('')
   const [cobFecha, setCobFecha] = useState(() => new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }))
+  const [cobCitaId, setCobCitaId] = useState<string | null>(null)
 
   const [guardandoAccion, setGuardandoAccion] = useState(false)
+
+  // Heatmap & KPI metrics states
+  const [selectedDate, setSelectedDate] = useState(() => hoyISO())
+  const [weeklyRevenue, setWeeklyRevenue] = useState(0)
+  const [weeklyCancellations, setWeeklyCancellations] = useState(0)
+  const [confirmationRateChange, setConfirmationRateChange] = useState(0)
+  const [heatmapData, setHeatmapData] = useState<{ dateStr: string; dayName: string; dayNum: string; count: number }[]>([])
 
   async function guardarNuevoPaciente() {
     if (!pacNombre.trim()) return msg('El nombre es obligatorio', 'error')
@@ -100,21 +109,39 @@ export default function Dashboard() {
     }
     if (!tenant) return
     setGuardandoAccion(true)
-    const { error } = await supabase.from('ingresos_manuales').insert({
+    
+    // 1. Insert manual income record
+    const { error: errorIngreso } = await supabase.from('ingresos_manuales').insert({
       fecha: cobFecha || new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }),
       concepto: cobConcepto.trim(),
       monto: Number(cobMonto),
       tenant_id: tenant.id
     })
+
+    // 2. If linked to appointment, update precio_cobrado
+    let errorCita = null
+    if (cobCitaId) {
+      const { error: errCita } = await supabase
+        .from('citas')
+        .update({
+          precio_cobrado: Number(cobMonto),
+          estado: 'asistio'
+        })
+        .eq('id', cobCitaId)
+      errorCita = errCita
+    }
+
     setGuardandoAccion(false)
-    if (error) {
-      msg('Error al registrar cobro: ' + error.message, 'error')
+    if (errorIngreso || errorCita) {
+      msg('Error al registrar cobro: ' + (errorIngreso?.message || errorCita?.message), 'error')
     } else {
       setModalCobro(false)
       setCobConcepto('')
       setCobMonto('')
+      setCobCitaId(null)
       setCobFecha(new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }))
       msg('Cobro registrado correctamente ✓')
+      triggerConfetti()
       load()
     }
   }
@@ -138,33 +165,159 @@ export default function Dashboard() {
 
   function msg(m:string,tipo='ok'){setToast({msg:m,tipo});setTimeout(()=>setToast(null),3500)}
 
+  const getMonday = (d: Date) => {
+    const date = new Date(d)
+    const day = date.getDay()
+    const diff = date.getDate() - day + (day === 0 ? -6 : 1)
+    return new Date(date.setDate(diff))
+  }
+
   const load = useCallback(async()=>{
     if (!tenant) return
     setLoading(true)
-    const man = new Date(new Date().toLocaleString('en-US',{timeZone:'America/Argentina/Buenos_Aires'}))
-    man.setDate(man.getDate()+1)
-    const manISO = man.getFullYear()+'-'+String(man.getMonth()+1).padStart(2,'0')+'-'+String(man.getDate()).padStart(2,'0')
-    const [resHoy, resMan] = await Promise.all([
-      supabase.from('citas').select('id,tipo_tratamiento,estado,fecha_hora,pacientes(nombre,telefono)').eq('tenant_id', tenant.id).gte('fecha_hora',`${hoyISO()}T00:00:00`).lte('fecha_hora',`${hoyISO()}T23:59:59`).order('fecha_hora',{ascending:true}),
-      supabase.from('citas').select('id,tipo_tratamiento,estado,fecha_hora,pacientes(nombre,telefono,token)').eq('tenant_id', tenant.id).gte('fecha_hora',`${manISO}T00:00:00-03:00`).lte('fecha_hora',`${manISO}T23:59:59-03:00`).order('fecha_hora',{ascending:true}),
-    ])
-    if(resHoy.data){
-      setCitas((resHoy.data as any[]).map(c=>({
-        id:c.id, nombre:c.pacientes?.nombre??'—', telefono:c.pacientes?.telefono??'—',
-        hora:new Date(c.fecha_hora).toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}),
-        tratamiento:c.tipo_tratamiento, estado:c.estado,
-      })))
+    
+    // Dates for 28-day window (Monday of last week to Sunday of next week)
+    const nowLocal = new Date()
+    const currentMon = getMonday(nowLocal)
+    const prevMon = new Date(currentMon)
+    prevMon.setDate(currentMon.getDate() - 7)
+    const nextSun = new Date(currentMon)
+    nextSun.setDate(currentMon.getDate() + 13)
+
+    const prevMonISO = prevMon.toISOString().split('T')[0]
+    const nextSunISO = nextSun.toISOString().split('T')[0]
+
+    // Fetch treatments for price fallbacks
+    const { data: tratsData } = await supabase.from('tratamientos').select('nombre, precio_base').eq('tenant_id', tenant.id)
+    const priceMap: Record<string, number> = {
+      'Consulta': 50000,
+      'Limpieza': 70000,
+      'Ortodoncia': 120000,
+      'Blanqueamiento': 150000,
+      'Extracción': 80000,
+      'Caries': 60000,
+      'Implante': 450000,
+      'Cirugia': 300000,
+      'Endodoncia': 140000,
+      'Otro': 50000
     }
-    if(resMan.data){
-      setCitasMañana((resMan.data as any[]).map(c=>({
-        id:c.id, nombre:c.pacientes?.nombre??'—', telefono:c.pacientes?.telefono??'—',
-        hora:new Date(c.fecha_hora).toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit',timeZone:'America/Argentina/Buenos_Aires'}),
-        tratamiento:c.tipo_tratamiento, estado:c.estado,
-        token:c.pacientes?.token??null, fecha_hora:c.fecha_hora,
-      })))
+    if (tratsData) {
+      tratsData.forEach(t => {
+        if (t.precio_base) priceMap[t.nombre] = t.precio_base
+      })
     }
+
+    // Fetch appointments in range
+    const { data: rawCitas, error } = await supabase
+      .from('citas')
+      .select('id, tipo_tratamiento, estado, fecha_hora, valor, precio_cobrado, paciente_id, pacientes(nombre, telefono, token)')
+      .eq('tenant_id', tenant.id)
+      .gte('fecha_hora', `${prevMonISO}T00:00:00-03:00`)
+      .lte('fecha_hora', `${nextSunISO}T23:59:59-03:00`)
+      .order('fecha_hora', { ascending: true })
+
+    if (error) {
+      msg('Error: ' + error.message, 'error')
+      setLoading(false)
+      return
+    }
+
+    const allCitas = rawCitas || []
+    const toLocalDateStr = (isoStr: string) => {
+      return new Date(isoStr).toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' })
+    }
+
+    // Active list for selectedDate
+    const filteredCitas = allCitas.filter(c => toLocalDateStr(c.fecha_hora) === selectedDate)
+    setCitas(filteredCitas.map(c => {
+      const pac = Array.isArray(c.pacientes) ? c.pacientes[0] : c.pacientes
+      return {
+        id: c.id,
+        nombre: pac?.nombre ?? '—',
+        telefono: pac?.telefono ?? '—',
+        hora: new Date(c.fecha_hora).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Argentina/Buenos_Aires' }),
+        tratamiento: c.tipo_tratamiento,
+        estado: c.estado as EstadoCita,
+        precio_cobrado: c.precio_cobrado,
+        valor: c.valor,
+        paciente_id: c.paciente_id
+      }
+    }))
+
+    // Tomorrow list
+    const tomorrow = new Date()
+    tomorrow.setDate(tomorrow.getDate() + 1)
+    const tomorrowISO = tomorrow.toISOString().split('T')[0]
+    const tomorrowCitas = allCitas.filter(c => toLocalDateStr(c.fecha_hora) === tomorrowISO)
+    setCitasMañana(tomorrowCitas.map(c => {
+      const pac = Array.isArray(c.pacientes) ? c.pacientes[0] : c.pacientes
+      return {
+        id: c.id,
+        nombre: pac?.nombre ?? '—',
+        telefono: pac?.telefono ?? '—',
+        hora: new Date(c.fecha_hora).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Argentina/Buenos_Aires' }),
+        tratamiento: c.tipo_tratamiento,
+        estado: c.estado as EstadoCita,
+        token: pac?.token ?? null,
+        fecha_hora: c.fecha_hora
+      }
+    }))
+
+    // Current week calculations
+    const currentMonTime = new Date(currentMon.setHours(0,0,0,0)).getTime()
+    const currentSunTime = new Date(currentMon.getTime() + 7 * 86400000 - 1000).getTime()
+    const citasCurrentWeek = allCitas.filter(c => {
+      const t = new Date(c.fecha_hora).getTime()
+      return t >= currentMonTime && t <= currentSunTime
+    })
+
+    let rev = 0
+    citasCurrentWeek.forEach(c => {
+      if (c.estado !== 'cancelado') {
+        rev += c.precio_cobrado ?? c.valor ?? priceMap[c.tipo_tratamiento] ?? 50000
+      }
+    })
+    setWeeklyRevenue(rev)
+
+    const cancels = citasCurrentWeek.filter(c => c.estado === 'cancelado').length
+    setWeeklyCancellations(cancels)
+
+    const currentWeekTotal = citasCurrentWeek.length
+    const currentWeekConf = citasCurrentWeek.filter(c => c.estado === 'confirmado' || c.estado === 'asistio').length
+    const currentWeekRate = currentWeekTotal > 0 ? (currentWeekConf / currentWeekTotal) * 100 : 0
+
+    // Previous week confirmation rate
+    const prevMonTime = new Date(prevMon.setHours(0,0,0,0)).getTime()
+    const prevSunTime = new Date(prevMonTime + 7 * 86400000 - 1000).getTime()
+    const citasPrevWeek = allCitas.filter(c => {
+      const t = new Date(c.fecha_hora).getTime()
+      return t >= prevMonTime && t <= prevSunTime
+    })
+    const prevWeekTotal = citasPrevWeek.length
+    const prevWeekConf = citasPrevWeek.filter(c => c.estado === 'confirmado' || c.estado === 'asistio').length
+    const prevWeekRate = prevWeekTotal > 0 ? (prevWeekConf / prevWeekTotal) * 100 : 0
+
+    setConfirmationRateChange(Math.round(currentWeekRate - prevWeekRate))
+
+    // Heatmap data
+    const hData = []
+    const weekDaysShort = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
+    for (let i = 0; i < 7; i++) {
+      const d = new Date()
+      d.setDate(d.getDate() + i)
+      const dISO = d.toISOString().split('T')[0]
+      const count = allCitas.filter(c => toLocalDateStr(c.fecha_hora) === dISO && c.estado !== 'cancelado').length
+      hData.push({
+        dateStr: dISO,
+        dayName: weekDaysShort[d.getDay()],
+        dayNum: String(d.getDate()),
+        count
+      })
+    }
+    setHeatmapData(hData)
+
     setLoading(false)
-  },[tenant])
+  },[tenant, selectedDate])
 
   useEffect(()=>{if (tenant) load()},[load, tenant])
 
@@ -287,7 +440,7 @@ export default function Dashboard() {
   return (
     <div style={{display:'flex',minHeight:'100vh',fontFamily:'DM Sans, sans-serif'}}>
       <Sidebar pendientes={pend}/>
-      <main style={{marginLeft:isMobile?0:240,flex:1,background:'transparent',paddingBottom:isMobile?90:0,minWidth:0,overflowX:'hidden'}}>
+      <main style={{marginLeft: isMobile ? 0 : 'var(--sidebar-width, 240px)',flex:1,background:'transparent',paddingBottom:isMobile?90:0,minWidth:0,overflowX:'hidden'}}>
         <PageHeader title="Dashboard" sub={hoy}
           right={<span style={{fontSize:isMobile?11:12,padding:'5px 12px',borderRadius:6,fontWeight:700,background:`${accentColor}20`,color:accentColor}}>Tasa: {tasa}%</span>}
         />
@@ -527,11 +680,90 @@ export default function Dashboard() {
             </div>
           </div>
 
+          {/* 7-Day Heatmap (Workload Density Calendar Selector) */}
+          <div className="glass-container" style={{ padding: '1rem 1.25rem', marginBottom: '1.5rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: primaryColor }}>Carga de Turnos (Próximos 7 días)</span>
+              <span style={{ fontSize: 11, color: '#8fa3bc' }}>Haz clic para ver la agenda de ese día</span>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 8 }}>
+              {heatmapData.map(d => {
+                const isSelected = selectedDate === d.dateStr
+                const isToday = hoyISO() === d.dateStr
+                
+                // Color density scale
+                let bg = 'transparent'
+                let border = '1px solid var(--border-light, #dde5ef)'
+                let text = 'var(--text-dark, #0a1e3d)'
+                
+                if (d.count > 0) {
+                  if (d.count <= 2) {
+                    bg = `${secondaryColor}15`
+                    border = `1px solid ${secondaryColor}30`
+                    text = secondaryColor
+                  } else if (d.count <= 5) {
+                    bg = `${secondaryColor}35`
+                    border = `1px solid ${secondaryColor}60`
+                    text = primaryColor
+                  } else {
+                    bg = secondaryColor
+                    border = `1px solid ${secondaryColor}`
+                    text = '#fff'
+                  }
+                }
+                
+                if (isSelected) {
+                  border = `2.5px solid ${accentColor}`
+                }
+
+                return (
+                  <button
+                    key={d.dateStr}
+                    onClick={() => setSelectedDate(d.dateStr)}
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      gap: 4,
+                      padding: '8px 4px',
+                      borderRadius: 12,
+                      background: bg,
+                      border: border,
+                      color: text,
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                      position: 'relative'
+                    }}
+                  >
+                    <span style={{ fontSize: 9.5, fontWeight: 700, textTransform: 'uppercase', opacity: d.count > 5 ? 0.9 : 0.6 }}>{d.dayName}</span>
+                    <span style={{ fontSize: 16, fontWeight: 800 }}>{d.dayNum}</span>
+                    {d.count > 0 && (
+                      <span style={{ 
+                        fontSize: 9, 
+                        fontWeight: 700, 
+                        background: d.count > 5 ? '#fff' : secondaryColor, 
+                        color: d.count > 5 ? secondaryColor : '#fff',
+                        padding: '1px 5px', 
+                        borderRadius: 8,
+                        marginTop: 2
+                      }}>
+                        {d.count}
+                      </span>
+                    )}
+                    {isToday && !isSelected && (
+                      <span style={{ position: 'absolute', bottom: 3, width: 4, height: 4, borderRadius: '50%', background: accentColor }} />
+                    )}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
           <div style={{display:'grid',gridTemplateColumns:isMobile?'repeat(2,1fr)':'repeat(4,1fr)',gap:12,marginBottom:'1.5rem'}}>
-            <MetricCard label="Citas hoy"        value={loading?'…':citas.length} sub="Total agendadas"     accent={primaryColor}/>
-            <MetricCard label="Confirmadas"       value={loading?'…':conf}         sub={`${tasa}% de tasa`} accent={accentColor}/>
-            <MetricCard label="Pendientes"        value={loading?'…':pend}         sub="Sin confirmar"       accent={secondaryColor}/>
-            <MetricCard label="Tasa confirmación" value={loading?'…':`${tasa}%`}   sub="Objetivo: 85%"      accent={tasa>=85?accentColor:'#D85A30'}/>
+            <MetricCard label="Citas del día" value={loading?'…':citas.length} sub={`Confirmadas: ${conf}`} accent={primaryColor}/>
+            <MetricCard label="Revenue estimado sem" value={loading?'…':`$${weeklyRevenue.toLocaleString('es-AR')}`} sub="Esta semana (Lun-Dom)" accent={accentColor}/>
+            <MetricCard label="Cancelaciones sem" value={loading?'…':weeklyCancellations} sub="Esta semana" accent={secondaryColor}/>
+            <MetricCard label="Variación tasa sem" value={loading?'…':(confirmationRateChange >= 0 ? `+${confirmationRateChange}%` : `${confirmationRateChange}%`)} sub="vs semana anterior" accent={confirmationRateChange>=0?accentColor:'#D85A30'}/>
           </div>
 
           {/* Next Up Patient Alert */}
@@ -599,7 +831,9 @@ export default function Dashboard() {
           <div style={{display:'grid',gridTemplateColumns:isMobile?'1fr':'1fr 300px',gap:16,alignItems:'start'}}>
             <div>
               <div style={{display:'flex',justifyContent:'space-between',alignItems:isMobile?'flex-start':'center',flexDirection:isMobile?'column':'row',gap:isMobile?8:0,marginBottom:12}}>
-                <span style={{fontWeight:700,fontSize:14,color:primaryColor}}>Citas de hoy</span>
+                <span style={{fontWeight:700,fontSize:14,color:primaryColor}}>
+                  {selectedDate === hoyISO() ? 'Citas de hoy' : `Citas del ${new Date(selectedDate + 'T00:00:00').toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' })}`}
+                </span>
                 <FilterBar options={FILTROS} active={filtro} onChange={setFiltro}/>
               </div>
               {loading?<Spinner/>:(
@@ -612,12 +846,13 @@ export default function Dashboard() {
                         <div style={{fontSize:13,fontWeight:700,color:primaryColor,minWidth:40,textAlign:'center'}}>{c.hora}</div>
                         <div style={{width:8,height:8,borderRadius:'50%',background:tc.dot,flexShrink:0,marginTop:isMobile?4:0}}/>
                         <div style={{flex:1,minWidth:0}}>
-                          <div style={{fontWeight:600,fontSize:14,color:primaryColor,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{c.nombre}</div>
+                           <div style={{fontWeight:600,fontSize:14,color:primaryColor,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{c.nombre}</div>
                           <div style={{marginTop:3}}><Badge bg={tc.bg} color={tc.color}>{c.tratamiento}</Badge></div>
                         </div>
                         <div style={{display:'flex',alignItems:'center',gap:8,width:isMobile?'100%':'auto',justifyContent:isMobile?'flex-end':'flex-start'}}>
                           <Badge bg={es.bg} color={es.color}>{es.label}</Badge>
-                          {c.estado==='pendiente'&&(
+                          
+                          {c.estado === 'pendiente' && (
                             <>
                               <button onClick={()=>confirmar(c.id)} className="btn-premium" style={{fontSize:11,padding:'4px 10px',borderRadius:7,border:`1.5px solid ${accentColor}`,background:`${accentColor}18`,color:accentColor,cursor:'pointer',fontWeight:600,fontFamily:'DM Sans, sans-serif',whiteSpace:'nowrap'}}>
                                 Confirmar
@@ -631,6 +866,37 @@ export default function Dashboard() {
                                 </button>
                               )}
                             </>
+                          )}
+
+                          {c.estado === 'confirmado' && (
+                            <button 
+                              onClick={async () => {
+                                await supabase.from('citas').update({ estado: 'asistio' }).eq('id', c.id)
+                                setCitas(p => p.map(x => x.id === c.id ? { ...x, estado: 'asistio' as EstadoCita } : x))
+                                msg('Cita marcada como Asistió ✓')
+                                triggerConfetti()
+                              }}
+                              className="btn-premium" 
+                              style={{fontSize:11,padding:'4px 10px',borderRadius:7,border:`1.5px solid ${accentColor}`,background:`${accentColor}18`,color:accentColor,cursor:'pointer',fontWeight:600,fontFamily:'DM Sans, sans-serif',whiteSpace:'nowrap'}}
+                            >
+                              ✓ Asistió
+                            </button>
+                          )}
+
+                          {c.estado === 'asistio' && !c.precio_cobrado && (
+                            <button 
+                              onClick={() => {
+                                setCobConcepto(`Pago ${c.tratamiento} — ${c.nombre}`)
+                                setCobMonto(c.valor || '')
+                                setCobCitaId(c.id)
+                                setCobFecha(new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }))
+                                setModalCobro(true)
+                              }}
+                              className="btn-premium" 
+                              style={{fontSize:11,padding:'4px 10px',borderRadius:7,border:`1.5px solid ${accentColor}`,background:`${accentColor}18`,color:accentColor,cursor:'pointer',fontWeight:600,fontFamily:'DM Sans, sans-serif',whiteSpace:'nowrap'}}
+                            >
+                              💰 Cobrar
+                            </button>
                           )}
                         </div>
                       </div>

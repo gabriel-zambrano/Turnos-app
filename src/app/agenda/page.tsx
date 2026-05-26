@@ -9,8 +9,8 @@ import { useTenantContext } from '@/components/TenantContext'
 import { triggerConfetti } from '@/lib/confetti'
 import { NuevaCitaModal } from '@/components/NuevaCitaModal'
 
-interface CitaDB { id:string; paciente_id:string; fecha_hora:string; tipo_tratamiento:string; estado:string; notas:string|null; duracion_minutos:number; valor:number|null; sena:number|null; medio_pago:string|null; pacientes:{nombre:string;telefono:string;token:string}|null }
-interface Cita   { id:string; paciente_id:string; nombre:string; telefono:string; token:string; hora:string; fecha:string; tratamiento:string; estado:EstadoCita; duracion:number; notas:string; minutos:number; valor:number|null; sena:number|null; medio_pago:string|null }
+interface CitaDB { id:string; paciente_id:string; fecha_hora:string; tipo_tratamiento:string; estado:string; notas:string|null; duracion_minutos:number; valor:number|null; sena:number|null; medio_pago:string|null; precio_cobrado:number|null; pacientes:{nombre:string;telefono:string;token:string}|null }
+interface Cita   { id:string; paciente_id:string; nombre:string; telefono:string; token:string; hora:string; fecha:string; tratamiento:string; estado:EstadoCita; duracion:number; notas:string; minutos:number; valor:number|null; sena:number|null; medio_pago:string|null; precio_cobrado:number|null }
 const MEDIOS_PAGO = ['Efectivo','Transferencia','TDC 1 pago','TDC 3 cuotas s/i','Obra social','Sin cobrar']
 interface PacMin  { id:string; nombre:string; telefono:string }
 interface TratDB  { nombre:string; precio_base:number|null; duracion_default:number|null }
@@ -31,7 +31,7 @@ function toCita(c: CitaDB): Cita {
     fecha:dt.toISOString().split('T')[0],
     tratamiento:c.tipo_tratamiento, estado:c.estado as EstadoCita,
     duracion:c.duracion_minutos, notas:c.notas??'',
-    minutos: h * 60 + m, valor:c.valor??null, sena:c.sena??null, medio_pago:c.medio_pago??null
+    minutos: h * 60 + m, valor:c.valor??null, sena:c.sena??null, medio_pago:c.medio_pago??null, precio_cobrado:c.precio_cobrado??null
   }
 }
 
@@ -301,7 +301,7 @@ export default function Agenda() {
   const [loading, setLoading] = useState(true)
   const [saving,  setSaving]  = useState(false)
   const [sobreturnoAgenda, setSobreturnoAgenda] = useState<string|null>(null)
-  const [modal,   setModal]   = useState<'nueva'|'editar'|'borrar'|'detalle'|'bloqueo'|'menu'|null>(null)
+  const [modal,   setModal]   = useState<'nueva'|'editar'|'borrar'|'detalle'|'bloqueo'|'menu'|'cobrar'|null>(null)
   const [sel,     setSel]     = useState<Cita|null>(null)
   const [fecha,   setFecha]   = useState(hoyISO())
   const [toast,   setToast]   = useState<{msg:string;tipo:string}|null>(null)
@@ -319,6 +319,89 @@ export default function Agenda() {
   const [hoverSlot, setHoverSlot] = useState<{ f: string, top: number, timeStr: string } | null>(null)
   const [ahora, setAhora] = useState(() => new Date())
   useEffect(() => { const id = setInterval(() => setAhora(new Date()), 60_000); return () => clearInterval(id) }, [])
+  
+  // Swipe Gestures States & Handlers
+  const touchStartX = useRef<number | null>(null)
+  const touchEndX = useRef<number | null>(null)
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (vista === 'semana') return
+    touchStartX.current = e.targetTouches[0].clientX
+    touchEndX.current = null
+  }
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (vista === 'semana') return
+    touchEndX.current = e.targetTouches[0].clientX
+  }
+
+  const handleTouchEnd = () => {
+    if (vista === 'semana' || touchStartX.current === null || touchEndX.current === null) return
+    const diffX = touchStartX.current - touchEndX.current
+    const minSwipeDistance = 50
+
+    if (Math.abs(diffX) > minSwipeDistance) {
+      const d = parseFechaLocal(fecha)
+      if (diffX > 0) {
+        // Swipe left -> Next day
+        d.setDate(d.getDate() + 1)
+      } else {
+        // Swipe right -> Previous day
+        d.setDate(d.getDate() - 1)
+      }
+      setFecha(dateToISO(d))
+    }
+    touchStartX.current = null
+    touchEndX.current = null
+  }
+
+  // Express Billing States
+  const [cobConcepto, setCobConcepto] = useState('')
+  const [cobMonto, setCobMonto] = useState<number | ''>('')
+  const [cobFecha, setCobFecha] = useState('')
+  const [guardandoCobro, setGuardandoCobro] = useState(false)
+
+  function openCobroExpress(c: Cita) {
+    setSel(c)
+    setCobConcepto(`Pago ${c.tratamiento} — ${c.nombre}`)
+    setCobMonto(c.valor ?? '')
+    setCobFecha(c.fecha)
+    setModal('cobrar')
+  }
+
+  async function guardarCobroExpress() {
+    if (!cobConcepto.trim() || cobMonto === '' || Number(cobMonto) <= 0) {
+      return msg('Completá concepto y monto', 'error')
+    }
+    if (!tenant || !sel) return
+    setGuardandoCobro(true)
+    
+    // 1. Insert manual income record
+    const { error: insError } = await supabase.from('ingresos_manuales').insert({
+      fecha: cobFecha || new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }),
+      concepto: cobConcepto.trim(),
+      monto: Number(cobMonto),
+      tenant_id: tenant.id
+    })
+
+    // 2. Update price_cobrado on appointment
+    const { error: updError } = await supabase.from('citas').update({
+      precio_cobrado: Number(cobMonto),
+      estado: 'asistio'
+    }).eq('id', sel.id)
+
+    setGuardandoCobro(false)
+
+    if (insError || updError) {
+      msg('Error al registrar cobro: ' + (insError?.message || updError?.message), 'error')
+    } else {
+      setModal(null)
+      msg('Cobro registrado correctamente ✓')
+      triggerConfetti()
+      loadCitas()
+    }
+  }
+
   useEffect(()=>{
     const check = () => setIsMobile(window.innerWidth < 768)
     check()
@@ -535,7 +618,7 @@ export default function Agenda() {
   return (
     <div style={{display:'flex',minHeight:'100vh',fontFamily:'DM Sans, sans-serif'}}>
       <Sidebar pendientes={citas.filter(c=>c.estado==='pendiente').length}/>
-      <main style={{marginLeft:isMobile?0:240,flex:1,background:'transparent',minWidth:0,paddingBottom:isMobile?64:0}}>
+      <main style={{marginLeft: isMobile ? 0 : 'var(--sidebar-width, 240px)',flex:1,background:'transparent',minWidth:0,paddingBottom:isMobile?64:0}}>
         {isMobile
           ? <>
               <AgendaHeaderMobile
@@ -675,15 +758,20 @@ export default function Agenda() {
 
         <div style={{padding: isMobile ? 0 : '1.5rem 2rem'}}>
           {tenantLoading || loading ? <Spinner/> : (
-            <div style={{
-              background:'var(--bg-container, #fff)',
-              border:isMobile?'none':'1px solid var(--border-color, #e2e8ed)',
-              borderRadius:isMobile?0:16,
-              overflowX: isMobile && vista === 'semana' ? 'auto' : 'hidden',
-              WebkitOverflowScrolling: 'touch',
-              width: '100%',
-              boxShadow: isMobile ? 'none' : '0 4px 20px rgba(10,30,61,0.02)'
-            }}>
+            <div 
+              onTouchStart={handleTouchStart}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={handleTouchEnd}
+              style={{
+                background:'var(--bg-container, #fff)',
+                border:isMobile?'none':'1px solid var(--border-color, #e2e8ed)',
+                borderRadius:isMobile?0:16,
+                overflowX: isMobile && vista === 'semana' ? 'auto' : 'hidden',
+                WebkitOverflowScrolling: 'touch',
+                width: '100%',
+                boxShadow: isMobile ? 'none' : '0 4px 20px rgba(10,30,61,0.02)'
+              }}
+            >
               {vista === 'lista' ? (
                 <div style={{
                   padding: isMobile ? '1.5rem 1rem' : '2rem',
@@ -1244,16 +1332,29 @@ export default function Agenda() {
                                           </button>
                                         </div>
                                       ) : (
-                                        <>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', width: '100%', position: 'relative', zIndex: 10 }}>
                                           <Badge bg={`var(--est-${c.estado}-bg, ${es.bg})`} color={`var(--est-${c.estado}-color, ${es.color})`}>
                                             {es.label}
                                           </Badge>
+                                          {c.estado === 'asistio' && !c.precio_cobrado && (
+                                            <button
+                                              onClick={(e) => {
+                                                e.stopPropagation()
+                                                openCobroExpress(c)
+                                              }}
+                                              style={{ border: 'none', background: '#138A6B', color: '#fff', borderRadius: 6, padding: '2px 6px', fontSize: 9.5, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 2, transition: 'transform 0.1s' }}
+                                              onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.03)'}
+                                              onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+                                            >
+                                              💰 Cobrar
+                                            </button>
+                                          )}
                                           {hCard > 68 && c.notas && (
                                             <span style={{fontSize: 8.5, color: isSobreturno ? '#B45309' : colorVar, opacity: 0.6, fontStyle: 'italic', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '60%'}} title={c.notas}>
                                               📝 {c.notas}
                                             </span>
                                           )}
-                                        </>
+                                        </div>
                                       )}
                                     </div>
                                   </>
@@ -1316,6 +1417,9 @@ export default function Agenda() {
             )}
             <div style={footerCss}>
               <button style={btnLightCss} onClick={()=>{setModal(null);setTimeout(()=>{setSel(sel);setModal('borrar')},50)}}>Eliminar</button>
+              {sel.estado==='asistio'&&!sel.precio_cobrado&&(
+                <button style={{...btnDarkCss,background:'#138A6B',borderColor:'#138A6B',color:'#fff'}} onClick={()=>openCobroExpress(sel)}>💰 Cobrar</button>
+              )}
               <button style={btnDarkCss} onClick={()=>{setModal(null);setTimeout(()=>openEditar(sel),50)}}>Editar</button>
             </div>
           </div>
@@ -1400,6 +1504,34 @@ export default function Agenda() {
             <div style={footerCss}>
               <button style={btnLightCss} onClick={()=>setModal(null)} disabled={saving}>Cancelar</button>
               <button style={{...btnDarkCss,opacity:saving?0.6:1}} onClick={saveBloqueo} disabled={saving}>{saving?'Guardando...':'Bloquear'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Modal cobrar */}
+      {modal==='cobrar'&&sel&&(
+        <div style={overlayCss(isMobile)} onClick={()=>setModal(null)}>
+          <div style={{...modalCss(isMobile),maxWidth:400}} onClick={e=>e.stopPropagation()}>
+            <div style={modalTitleCss}>Registrar cobro</div>
+            <div style={groupCss}>
+              <label style={labelCss}>Concepto</label>
+              <input type="text" style={{...selectCss}} value={cobConcepto} onChange={e=>setCobConcepto(e.target.value)}/>
+            </div>
+            <div style={grid2Css}>
+              <div style={groupCss}>
+                <label style={labelCss}>Monto ($)</label>
+                <input type="number" style={{...selectCss}} value={cobMonto} onChange={e=>setCobMonto(e.target.value===''?'':Number(e.target.value))} placeholder="0"/>
+              </div>
+              <div style={groupCss}>
+                <label style={labelCss}>Fecha</label>
+                <input type="date" style={{...selectCss}} value={cobFecha} onChange={e=>setCobFecha(e.target.value)}/>
+              </div>
+            </div>
+            <div style={footerCss}>
+              <button style={btnLightCss} onClick={()=>setModal(null)} disabled={guardandoCobro}>Cancelar</button>
+              <button style={{...btnDarkCss,opacity:guardandoCobro?0.6:1}} onClick={guardarCobroExpress} disabled={guardandoCobro}>
+                {guardandoCobro?'Registrando...':'Confirmar cobro'}
+              </button>
             </div>
           </div>
         </div>

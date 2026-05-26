@@ -1,7 +1,8 @@
 'use client'
 import { usePathname, useRouter } from 'next/navigation'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useTenantContext } from '@/components/TenantContext'
+import { CommandPalette } from '@/components/CommandPalette'
 
 const NAV = [
   { href: '/dashboard',              label: 'Dashboard',    icon: 'grid'  },
@@ -26,6 +27,9 @@ const ICONS: Record<string, React.ReactNode> = {
   money: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>,
   sun:   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>,
   moon:  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>,
+  more:  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.0" strokeLinecap="round"><circle cx="12" cy="12" r="1.5"/><circle cx="6" cy="12" r="1.5"/><circle cx="18" cy="12" r="1.5"/></svg>,
+  chevronLeft: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="15 18 9 12 15 6"/></svg>,
+  chevronRight: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg>
 }
 
 export function Sidebar({ pendientes }: { pendientes?: number }) {
@@ -34,6 +38,13 @@ export function Sidebar({ pendientes }: { pendientes?: number }) {
   const { tenant, loading: tenantLoading } = useTenantContext()
   const [isMobile, setIsMobile] = useState(false)
   const [theme, setTheme] = useState<'light'|'dark'>('light')
+  
+  // Desktop collapse state
+  const [collapsed, setCollapsed] = useState(false)
+  const [hovered, setHovered] = useState(false)
+  
+  // Mobile bottom sheet state
+  const [showMoreMenu, setShowMoreMenu] = useState(false)
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768)
@@ -44,11 +55,15 @@ export function Sidebar({ pendientes }: { pendientes?: number }) {
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('theme') as 'light'|'dark' || 'light'
-      setTheme(saved)
-      document.documentElement.setAttribute('data-theme', saved)
+      const savedTheme = localStorage.getItem('theme') as 'light'|'dark' || 'light'
+      setTheme(savedTheme)
+      document.documentElement.setAttribute('data-theme', savedTheme)
+
+      const savedCollapse = localStorage.getItem('sidebar_collapsed') === 'true'
+      setCollapsed(savedCollapse)
+      document.documentElement.style.setProperty('--sidebar-width', isMobile ? '0px' : savedCollapse ? '52px' : '240px')
     }
-  }, [])
+  }, [isMobile])
 
   const toggleTheme = () => {
     const next = theme === 'light' ? 'dark' : 'light'
@@ -57,30 +72,78 @@ export function Sidebar({ pendientes }: { pendientes?: number }) {
     localStorage.setItem('theme', next)
   }
 
+  const toggleCollapse = () => {
+    const next = !collapsed
+    setCollapsed(next)
+    localStorage.setItem('sidebar_collapsed', String(next))
+    document.documentElement.style.setProperty('--sidebar-width', isMobile ? '0px' : next ? '52px' : '240px')
+  }
+
+  // Mobile Bottom Sheet Navigation
   if (isMobile) {
     const activeColor = tenant?.secondaryColor || '#185FA5'
+    
+    // Split navigation: 4 main actions + "Más"
+    const mobileCoreItems = NAV.filter(item => !item.adminOnly).slice(0, 4)
+    const mobileMoreItems = NAV.filter((item, idx) => item.adminOnly || idx >= 4)
+
     return (
-      <nav className="mobile-nav-floating">
-        {NAV.filter(item => !item.adminOnly).map(item => {
-          const active = path === item.href || (item.href !== '/dashboard' && path?.startsWith(item.href))
-          return (
-            <button key={item.href} onClick={() => router.push(item.href)} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, padding: '6px 4px', borderRadius: 14, border: 'none', background: active ? `linear-gradient(135deg, ${activeColor}15, ${activeColor}25)` : 'transparent', color: active ? activeColor : '#8fa3bc', cursor: 'pointer', fontFamily: 'DM Sans, sans-serif', position: 'relative', minWidth: 0 }}>
-              {item.icon === 'bell' && pendientes && pendientes > 0
-                ? <span style={{ position: 'relative', display: 'inline-flex' }}>
-                    {ICONS[item.icon]}
-                    <span style={{ position: 'absolute', top: -4, right: -6, background: activeColor, color: '#fff', borderRadius: '50%', width: 14, height: 14, fontSize: 9, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>{pendientes}</span>
-                  </span>
-                : ICONS[item.icon]
-              }
-              <span style={{ fontSize: 10, fontWeight: active ? 600 : 400 }}>{item.label}</span>
-            </button>
-          )
-        })}
-        <button onClick={toggleTheme} style={{ flex: 0.8, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, padding: '6px 4px', borderRadius: 14, border: 'none', background: 'transparent', color: '#8fa3bc', cursor: 'pointer', fontFamily: 'DM Sans, sans-serif' }}>
-          {theme === 'light' ? ICONS.moon : ICONS.sun}
-          <span style={{ fontSize: 10, fontWeight: 500 }}>Tema</span>
-        </button>
-      </nav>
+      <>
+        <nav className="mobile-nav-floating">
+          {mobileCoreItems.map(item => {
+            const active = path === item.href || (item.href !== '/dashboard' && path?.startsWith(item.href))
+            return (
+              <button key={item.href} onClick={() => router.push(item.href)} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, padding: '6px 4px', borderRadius: 14, border: 'none', background: active ? `linear-gradient(135deg, ${activeColor}15, ${activeColor}25)` : 'transparent', color: active ? activeColor : '#8fa3bc', cursor: 'pointer', fontFamily: 'DM Sans, sans-serif', position: 'relative', minWidth: 0 }}>
+                {ICONS[item.icon]}
+                <span style={{ fontSize: 10, fontWeight: active ? 700 : 500 }}>{item.label}</span>
+              </button>
+            )}
+          )}
+          <button onClick={() => setShowMoreMenu(true)} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, padding: '6px 4px', borderRadius: 14, border: 'none', background: showMoreMenu ? `linear-gradient(135deg, ${activeColor}15, ${activeColor}25)` : 'transparent', color: showMoreMenu ? activeColor : '#8fa3bc', cursor: 'pointer', fontFamily: 'DM Sans, sans-serif', position: 'relative', minWidth: 0 }}>
+            {ICONS.more}
+            <span style={{ fontSize: 10, fontWeight: showMoreMenu ? 700 : 500 }}>Más</span>
+            {pendientes && pendientes > 0 ? (
+              <span style={{ position: 'absolute', top: 4, right: '25%', background: activeColor, color: '#fff', borderRadius: '50%', width: 14, height: 14, fontSize: 9, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>{pendientes}</span>
+            ) : null}
+          </button>
+        </nav>
+
+        {/* Mobile "Más" Bottom Sheet Modal */}
+        {showMoreMenu && (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(10,30,61,0.55)', backdropFilter: 'blur(6px)', zIndex: 9999, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', padding: '0 0 env(safe-area-inset-bottom,0)' }} onClick={() => setShowMoreMenu(false)}>
+            <div style={{ background: 'var(--bg-modal, #fff)', borderRadius: '24px 24px 0 0', padding: '1.5rem', width: '100%', maxWidth: 480, boxShadow: '0 -12px 40px rgba(10,30,61,0.18)' }} onClick={e => e.stopPropagation()}>
+              <div style={{ width: 40, height: 4, borderRadius: 4, background: 'var(--border-color, #e2e8f0)', margin: '0 auto 1.25rem' }}/>
+              <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--text-dark, #0a1e3d)', marginBottom: '1rem', textAlign: 'center' }}>Menú de Opciones</div>
+              
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10, marginBottom: '1rem' }}>
+                {mobileMoreItems.map(item => {
+                  const active = path === item.href || (item.href !== '/dashboard' && path?.startsWith(item.href))
+                  return (
+                    <button key={item.href} onClick={() => { router.push(item.href); setShowMoreMenu(false) }} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', borderRadius: 12, border: active ? `1px solid ${activeColor}25` : '1px solid var(--border-color)', background: active ? `linear-gradient(135deg, ${activeColor}12, ${activeColor}22)` : 'var(--bg-card, #fff)', color: active ? activeColor : 'var(--text-dark, #0a1e3d)', cursor: 'pointer', fontFamily: 'DM Sans, sans-serif', fontSize: 13, fontWeight: active ? 700 : 500, justifyContent: 'flex-start', textAlign: 'left' }}>
+                      {ICONS[item.icon]}
+                      <span>{item.label}</span>
+                      {item.icon === 'bell' && pendientes && pendientes > 0 ? (
+                        <span style={{ marginLeft: 'auto', background: activeColor, color: '#fff', borderRadius: '50%', width: 16, height: 16, fontSize: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>{pendientes}</span>
+                      ) : null}
+                    </button>
+                  )
+                })}
+              </div>
+
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button onClick={toggleTheme} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '12px', borderRadius: 12, border: '1px solid var(--border-color)', background: 'var(--bg-input)', color: 'var(--text-dark)', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'DM Sans, sans-serif' }}>
+                  {theme === 'light' ? ICONS.moon : ICONS.sun}
+                  <span>{theme === 'light' ? 'Modo Oscuro' : 'Modo Claro'}</span>
+                </button>
+                <button onClick={() => setShowMoreMenu(false)} style={{ flex: 1, padding: '12px', borderRadius: 12, border: 'none', background: 'var(--text-dark)', color: 'var(--bg-modal, #fff)', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'DM Sans, sans-serif' }}>
+                  Cerrar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        <CommandPalette />
+      </>
     )
   }
 
@@ -88,36 +151,151 @@ export function Sidebar({ pendientes }: { pendientes?: number }) {
   const primaryColor = tenant?.primaryColor || '#0a1e3d'
   const accentColor = tenant?.accentColor || '#138A6B'
 
+  const showExpanded = !collapsed || hovered
+  const currentWidth = showExpanded ? 240 : 52
+
   return (
-    <aside style={{ width: 240, minHeight: '100vh', position: 'fixed', top: 0, left: 0, background: 'var(--bg-container, rgba(255,255,255,0.72))', backdropFilter: 'blur(20px)', borderRight: '1px solid var(--border-light, rgba(56,138,221,0.12))', display: 'flex', flexDirection: 'column', zIndex: 100 }}>
-      <div style={{ padding: '1.5rem 1.25rem 1rem', borderBottom: '1px solid var(--border-light, rgba(56,138,221,0.08))' }}>
-        <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-dark, #0a1e3d)', letterSpacing: '-0.3px' }}>DentalDesk</div>
-        <div style={{ fontSize: 11, color: 'var(--text-muted, #8fa3bc)', marginTop: 2 }}>{tenantLoading ? 'Cargando...' : tenant?.nombre}</div>
+    <aside 
+      onMouseEnter={() => collapsed && setHovered(true)}
+      onMouseLeave={() => collapsed && setHovered(false)}
+      style={{ 
+        width: currentWidth, 
+        minHeight: '100vh', 
+        position: 'fixed', 
+        top: 0, 
+        left: 0, 
+        background: 'var(--bg-container, rgba(255,255,255,0.72))', 
+        backdropFilter: 'blur(20px)', 
+        borderRight: '1px solid var(--border-light, rgba(56,138,221,0.12))', 
+        display: 'flex', 
+        flexDirection: 'column', 
+        zIndex: 100,
+        transition: 'width 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
+      }}
+    >
+      {/* Header */}
+      <div style={{ padding: '1.25rem 1rem', borderBottom: '1px solid var(--border-light, rgba(56,138,221,0.08))', display: 'flex', alignItems: 'center', justifyContent: showExpanded ? 'space-between' : 'center', gap: 6, minHeight: 63, overflow: 'hidden' }}>
+        {showExpanded ? (
+          <div style={{ overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
+            <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-dark, #0a1e3d)', letterSpacing: '-0.3px' }}>DentalDesk</div>
+            <div style={{ fontSize: 10, color: 'var(--text-muted, #8fa3bc)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis' }}>{tenantLoading ? 'Cargando...' : tenant?.nombre}</div>
+          </div>
+        ) : (
+          <div style={{ fontSize: 20, cursor: 'pointer', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.05))' }} onClick={toggleCollapse}>🦷</div>
+        )}
+
+        {showExpanded && (
+          <button onClick={toggleCollapse} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted, #8fa3bc)', padding: 4, display: 'flex', borderRadius: '50%', transition: 'background-color 0.2s' }} onMouseEnter={e => e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.04)'} onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}>
+            {collapsed ? ICONS.chevronRight : ICONS.chevronLeft}
+          </button>
+        )}
       </div>
 
-      <nav style={{ flex: 1, padding: '0.75rem 0.75rem' }}>
+      {/* Navigation */}
+      <nav style={{ flex: 1, padding: '0.75rem 0.5rem', overflowX: 'hidden' }}>
         {NAV.map(item => {
           const active = path === item.href || (item.href !== '/dashboard' && path?.startsWith(item.href))
           return (
-            <button key={item.href} onClick={() => router.push(item.href)} className="btn-premium" style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 10, border: active ? `1px solid ${secondaryColor}25` : '1px solid transparent', background: active ? `linear-gradient(135deg, ${secondaryColor}12, ${secondaryColor}22)` : 'transparent', color: active ? secondaryColor : 'var(--text-muted, #8fa3bc)', cursor: 'pointer', fontFamily: 'DM Sans, sans-serif', fontSize: 13, fontWeight: active ? 600 : 400, marginBottom: 2, textAlign: 'left', position: 'relative' }}>
-              {ICONS[item.icon]}
-              {item.label}
-              {item.icon === 'grid' && pendientes && pendientes > 0
-                ? <span style={{ marginLeft: 'auto', background: `linear-gradient(135deg, ${secondaryColor}, ${accentColor})`, color: '#fff', borderRadius: 10, padding: '1px 7px', fontSize: 10, fontWeight: 700 }}>{pendientes}</span>
-                : null
-              }
+            <button 
+              key={item.href} 
+              onClick={() => router.push(item.href)} 
+              className="btn-premium" 
+              title={collapsed && !hovered ? item.label : undefined}
+              style={{ 
+                width: '100%', 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: showExpanded ? 'flex-start' : 'center', 
+                gap: showExpanded ? 10 : 0, 
+                padding: '10px 12px', 
+                borderRadius: 10, 
+                border: active ? `1px solid ${secondaryColor}25` : '1px solid transparent', 
+                background: active ? `linear-gradient(135deg, ${secondaryColor}12, ${secondaryColor}22)` : 'transparent', 
+                color: active ? secondaryColor : 'var(--text-muted, #8fa3bc)', 
+                cursor: 'pointer', 
+                fontFamily: 'DM Sans, sans-serif', 
+                fontSize: 13, 
+                fontWeight: active ? 700 : 500, 
+                marginBottom: 4, 
+                textAlign: 'left', 
+                position: 'relative',
+                overflow: 'hidden'
+              }}
+            >
+              <div style={{ display: 'flex', flexShrink: 0 }}>
+                {ICONS[item.icon]}
+              </div>
+              {showExpanded && <span style={{ whiteSpace: 'nowrap' }}>{item.label}</span>}
+              
+              {/* Badges */}
+              {item.icon === 'bell' && pendientes && pendientes > 0 ? (
+                showExpanded ? (
+                  <span style={{ marginLeft: 'auto', background: `linear-gradient(135deg, ${secondaryColor}, ${accentColor})`, color: '#fff', borderRadius: 10, padding: '1px 7px', fontSize: 10, fontWeight: 700 }}>{pendientes}</span>
+                ) : (
+                  <span style={{ position: 'absolute', top: 6, right: 6, width: 8, height: 8, borderRadius: '50%', background: `linear-gradient(135deg, ${secondaryColor}, ${accentColor})` }} />
+                )
+              ) : null}
             </button>
           )
         })}
       </nav>
 
-      <div style={{ padding: '0.75rem', display: 'flex', flexDirection: 'column', gap: 8, borderTop: '1px solid var(--border-light, rgba(56,138,221,0.08))' }}>
-        <button onClick={toggleTheme} className="quick-action-btn" style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 10, border: '1px solid var(--border-color)', background: 'var(--bg-input)', color: 'var(--text-dark)', cursor: 'pointer', fontFamily: 'DM Sans, sans-serif', fontSize: 13, fontWeight: 500 }}>
-          {theme === 'light' ? ICONS.moon : ICONS.sun}
-          {theme === 'light' ? 'Modo Oscuro' : 'Modo Claro'}
+      {/* Footer Actions */}
+      <div style={{ padding: '0.75rem 0.5rem', display: 'flex', flexDirection: 'column', gap: 6, borderTop: '1px solid var(--border-light, rgba(56,138,221,0.08))', overflow: 'hidden' }}>
+        <button 
+          onClick={toggleTheme} 
+          className="quick-action-btn" 
+          title={collapsed && !hovered ? (theme === 'light' ? 'Modo Oscuro' : 'Modo Claro') : undefined}
+          style={{ 
+            width: '100%', 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: showExpanded ? 'flex-start' : 'center', 
+            gap: showExpanded ? 10 : 0, 
+            padding: '10px 12px', 
+            borderRadius: 10, 
+            border: '1px solid var(--border-color)', 
+            background: 'var(--bg-input)', 
+            color: 'var(--text-dark)', 
+            cursor: 'pointer', 
+            fontFamily: 'DM Sans, sans-serif', 
+            fontSize: 13, 
+            fontWeight: 700 
+          }}
+        >
+          <div style={{ display: 'flex', flexShrink: 0 }}>
+            {theme === 'light' ? ICONS.moon : ICONS.sun}
+          </div>
+          {showExpanded && <span style={{ whiteSpace: 'nowrap' }}>{theme === 'light' ? 'Modo Oscuro' : 'Modo Claro'}</span>}
         </button>
-        <div style={{ fontSize: 10, color: 'var(--text-muted, #c5d4e8)', textAlign: 'center', letterSpacing: '0.05em', marginTop: 4 }}>DentalDesk v1.0</div>
+
+        {collapsed && !hovered ? (
+          <button 
+            onClick={toggleCollapse} 
+            className="quick-action-btn"
+            title="Expandir menú"
+            style={{ 
+              width: '100%', 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center', 
+              padding: '10px 12px', 
+              borderRadius: 10, 
+              border: 'none', 
+              background: 'transparent', 
+              color: 'var(--text-muted, #8fa3bc)', 
+              cursor: 'pointer' 
+            }}
+          >
+            {ICONS.chevronRight}
+          </button>
+        ) : null}
+
+        {showExpanded && (
+          <div style={{ fontSize: 9, color: 'var(--text-muted, #c5d4e8)', textAlign: 'center', letterSpacing: '0.05em', marginTop: 4, whiteSpace: 'nowrap' }}>DentalDesk v1.0</div>
+        )}
       </div>
+      <CommandPalette />
     </aside>
   )
 }

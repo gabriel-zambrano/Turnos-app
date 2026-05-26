@@ -17,13 +17,30 @@ export async function GET(
   if (!token || !UUID_REGEX.test(token)) {
     return NextResponse.json({ error: 'Link inválido' }, { status: 400 })
   }
-  const { data: pac } = await supabaseAdmin
+  let pac: any = null
+  const pacRes = await supabaseAdmin
     .from('pacientes')
-    .select('id, nombre, telefono, tenant_id')
+    .select('id, nombre, telefono, tenant_id, alergias, antecedentes, progreso_plan_porcentaje')
     .eq('token', token)
     .single()
-  if (!pac) {
-    return NextResponse.json({ error: 'Link inválido' }, { status: 404 })
+  
+  if (pacRes.error) {
+    const fallback = await supabaseAdmin
+      .from('pacientes')
+      .select('id, nombre, telefono, tenant_id')
+      .eq('token', token)
+      .single()
+    if (fallback.error || !fallback.data) {
+      return NextResponse.json({ error: 'Link inválido' }, { status: 404 })
+    }
+    pac = {
+      ...fallback.data,
+      alergias: null,
+      antecedentes: null,
+      progreso_plan_porcentaje: 0
+    }
+  } else {
+    pac = pacRes.data
   }
 
   const tid = pac.tenant_id || '2845c423-affa-4ca2-9c5f-f4ec8e35701a'
@@ -44,9 +61,31 @@ export async function GET(
     .gte('fecha_hora', ahora)
     .order('fecha_hora', { ascending: true })
 
+  const { data: historial } = await supabaseAdmin
+    .from('historial_dental')
+    .select('id, diente, estado, notas, creado_en')
+    .eq('paciente_id', pac.id)
+    .order('creado_en', { ascending: false })
+
+  const { data: pastCitas } = await supabaseAdmin
+    .from('citas')
+    .select('id, fecha_hora, tipo_tratamiento, estado, duracion_minutos, notas')
+    .eq('paciente_id', pac.id)
+    .lt('fecha_hora', ahora)
+    .order('fecha_hora', { ascending: false })
+
   return NextResponse.json({
-    paciente: { id: pac.id, nombre: pac.nombre, telefono: pac.telefono },
+    paciente: { 
+      id: pac.id, 
+      nombre: pac.nombre, 
+      telefono: pac.telefono,
+      alergias: pac.alergias || null,
+      antecedentes: pac.antecedentes || null,
+      progreso_plan_porcentaje: pac.progreso_plan_porcentaje || 0
+    },
     turnos: citas || [],
+    historial: historial || [],
+    pastTurnos: pastCitas || [],
     tenant: {
       id: tid,
       ...registry

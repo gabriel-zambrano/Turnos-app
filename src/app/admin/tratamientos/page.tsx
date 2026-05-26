@@ -94,7 +94,7 @@ export default function TratamientosPage() {
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: '#f4f7fb', fontFamily: 'DM Sans, sans-serif' }}>
       <Sidebar />
-      <main style={{ flex: 1, marginLeft: isMobile ? 0 : 240, padding: isMobile ? '1rem' : '2rem', paddingBottom: 80, minWidth: 0 }}>
+      <main style={{ flex: 1, marginLeft: isMobile ? 0 : 'var(--sidebar-width, 240px)', padding: isMobile ? '1rem' : '2rem', paddingBottom: 80, minWidth: 0 }}>
 
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.75rem', flexWrap: 'wrap', gap: 12 }}>

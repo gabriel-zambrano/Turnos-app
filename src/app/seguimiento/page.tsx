@@ -148,7 +148,7 @@ export default function SeguimientoPage() {
   return (
     <div style={{ display:'flex', minHeight:'100vh', fontFamily:'DM Sans, sans-serif' }}>
       <Sidebar/>
-      <main style={{ marginLeft:isMobile?0:240, flex:1, background:'transparent', minWidth:0, paddingBottom:isMobile?80:0 }}>
+      <main style={{ marginLeft: isMobile ? 0 : 'var(--sidebar-width, 240px)', flex:1, background:'transparent', minWidth:0, paddingBottom:isMobile?80:0 }}>
         <PageHeader title="Seguimiento"/>
         <div style={{ padding: isMobile?'1rem':'1.5rem 2rem' }}>
 

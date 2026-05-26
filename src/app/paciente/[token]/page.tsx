@@ -15,6 +15,9 @@ interface Paciente {
   id: string
   nombre: string
   telefono: string
+  alergias?: string | null
+  antecedentes?: string | null
+  progreso_plan_porcentaje?: number
 }
 
 interface TenantBranding {
@@ -121,6 +124,11 @@ export default function PacientePage() {
   const [error, setError] = useState(false)
   const [accion, setAccion] = useState<{id:string, tipo:'confirmado'|'cancelado'} | null>(null)
   const [reproConfirm, setReproConfirm] = useState<Turno | null>(null)
+  
+  // Tabs and History states
+  const [activeTab, setActiveTab] = useState<'turnos' | 'historial' | 'plan'>('turnos')
+  const [historial, setHistorial] = useState<any[]>([])
+  const [pastTurnos, setPastTurnos] = useState<any[]>([])
 
   async function cambiarEstado(citaId: string, nuevoEstado: 'confirmado' | 'cancelado') {
     setAccion({ id: citaId, tipo: nuevoEstado })
@@ -140,6 +148,8 @@ export default function PacientePage() {
       const data = await res.json()
       setPaciente(data.paciente)
       setTurnos(data.turnos)
+      setHistorial(data.historial || [])
+      setPastTurnos(data.pastTurnos || [])
       setTenant(data.tenant)
       setLoading(false)
     }
@@ -187,83 +197,201 @@ export default function PacientePage() {
           <p style={{ color:'var(--portal-text-muted)', fontSize:14, marginTop:6, fontWeight:500 }}>Gestiona tus próximos turnos programados</p>
         </div>
 
-        {/* Listado de Turnos */}
-        {turnos.length === 0 ? (
-          <div className="patient-card" style={{ textAlign:'center', padding:'3rem 2rem', borderRadius:20, color:'var(--portal-text-muted)', fontSize:14 }}>
-            No tienes turnos próximos programados en este momento.
-          </div>
-        ) : (
-          <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
-            {turnos.map(t => {
-              const { dia, fecha, hora } = formatFecha(t.fecha_hora)
-              const est = ESTADO_STYLE[t.estado] || ESTADO_STYLE.pendiente
-              return (
-                <div key={t.id} className="patient-card" style={{ borderRadius:20, padding:'1.5rem', border:'1px solid var(--portal-card-border)' }}>
-                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:16 }}>
-                    <div>
-                      <div style={{ fontSize:11, color:'var(--portal-text-muted)', fontWeight:700, textTransform:'uppercase', letterSpacing:'0.06em' }}>{dia}</div>
-                      <div style={{ fontSize:18, fontWeight:800, color: 'var(--portal-text-primary)', marginTop:3 }}>{fecha}</div>
-                      <div style={{ fontSize:20, fontWeight:800, color: secondaryColor, marginTop:2 }}>{hora} hs</div>
-                      
-                      <div style={{ display:'inline-flex', alignItems:'center', gap:6, marginTop:12, background:'rgba(24,95,165,0.06)', padding:'6px 12px', borderRadius:10 }}>
-                        <span style={{ fontSize:13, fontWeight:600, color: secondaryColor }}>🦷 {t.tipo_tratamiento}</span>
-                        <span style={{ fontSize:11, color:'var(--portal-text-muted)', fontWeight:500 }}>· {t.duracion_minutos} min</span>
+        {/* Tabs switcher */}
+        <div style={{ display: 'flex', gap: 6, padding: 4, background: 'var(--portal-card-bg)', borderRadius: 14, marginBottom: 20, border: '1px solid var(--portal-card-border)', boxShadow: '0 2px 8px var(--portal-shadow)' }}>
+          {[
+            { id: 'turnos', label: '📅 Turnos' },
+            { id: 'historial', label: '🦷 Historial' },
+            { id: 'plan', label: '📊 Mi Plan' }
+          ].map(tab => {
+            const active = activeTab === tab.id
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as any)}
+                style={{
+                  flex: 1, padding: '10px 8px', borderRadius: 10, border: 'none',
+                  background: active ? secondaryColor : 'transparent',
+                  color: active ? '#fff' : 'var(--portal-text-secondary)',
+                  fontWeight: 700, fontSize: 13, cursor: 'pointer',
+                  fontFamily: 'DM Sans, system-ui', transition: 'all 0.2s'
+                }}
+              >
+                {tab.label}
+              </button>
+            )
+          })}
+        </div>
+
+        {/* Tab Panel: Turnos */}
+        {activeTab === 'turnos' && (
+          <>
+            {turnos.length === 0 ? (
+              <div className="patient-card" style={{ textAlign:'center', padding:'3rem 2rem', borderRadius:20, color:'var(--portal-text-muted)', fontSize:14 }}>
+                No tienes turnos próximos programados en este momento.
+              </div>
+            ) : (
+              <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+                {turnos.map(t => {
+                  const { dia, fecha, hora } = formatFecha(t.fecha_hora)
+                  const est = ESTADO_STYLE[t.estado] || ESTADO_STYLE.pendiente
+                  return (
+                    <div key={t.id} className="patient-card" style={{ borderRadius:20, padding:'1.5rem', border:'1px solid var(--portal-card-border)' }}>
+                      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:16 }}>
+                        <div>
+                          <div style={{ fontSize:11, color:'var(--portal-text-muted)', fontWeight:700, textTransform:'uppercase', letterSpacing:'0.06em' }}>{dia}</div>
+                          <div style={{ fontSize:18, fontWeight:800, color: 'var(--portal-text-primary)', marginTop:3 }}>{fecha}</div>
+                          <div style={{ fontSize:20, fontWeight:800, color: secondaryColor, marginTop:2 }}>{hora} hs</div>
+                          
+                          <div style={{ display:'inline-flex', alignItems:'center', gap:6, marginTop:12, background:'rgba(24,95,165,0.06)', padding:'6px 12px', borderRadius:10 }}>
+                            <span style={{ fontSize:13, fontWeight:600, color: secondaryColor }}>🦷 {t.tipo_tratamiento}</span>
+                            <span style={{ fontSize:11, color:'var(--portal-text-muted)', fontWeight:500 }}>· {t.duracion_minutos} min</span>
+                          </div>
+                          
+                          {t.notes && (
+                            <div style={{ fontSize:13, color:'var(--portal-text-secondary)', marginTop:12, paddingLeft:10, borderLeft:`2.5px solid ${secondaryColor}`, fontStyle:'italic' }}>
+                              {t.notes}
+                            </div>
+                          )}
+                        </div>
+                        <span style={{ background:est.bg, color:est.color, fontSize:11, fontWeight:700, padding:'4px 10px', borderRadius:20, textTransform:'uppercase', letterSpacing:'0.04em' }}>{est.label}</span>
                       </div>
-                      
-                      {t.notes && (
-                        <div style={{ fontSize:13, color:'var(--portal-text-secondary)', marginTop:12, paddingLeft:10, borderLeft:`2.5px solid ${secondaryColor}`, fontStyle:'italic' }}>
-                          {t.notes}
+
+                      <div style={{ display:'flex', gap:10, marginTop:16 }}>
+                        <button
+                          onClick={() => compartirWhatsApp(t, paciente!, token, tenant)}
+                          style={{ flex:1.8, display:'inline-flex', alignItems:'center', justifyContent:'center', gap:6, fontSize:13, padding:'10px 14px', borderRadius:12, border:'none', background:'linear-gradient(135deg,#25D366,#128C7E)', color:'#fff', cursor:'pointer', fontWeight:600, fontFamily:'DM Sans, system-ui', boxShadow: '0 4px 12px rgba(37,211,102,0.15)', transition:'transform 0.2s' }}
+                          onMouseEnter={e=>e.currentTarget.style.transform='scale(1.02)'}
+                          onMouseLeave={e=>e.currentTarget.style.transform='scale(1)'}
+                        >
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.514 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.724-1.455L0 24zm6.59-4.846c1.66.986 3.288 1.488 4.905 1.489 5.5.003 9.975-4.47 9.979-9.967.002-2.662-1.033-5.166-2.915-7.05C16.734 1.744 14.236.703 11.58.701c-5.503 0-9.98 4.47-9.985 9.969-.001 1.776.48 3.5 1.391 5.01L1.93 21.72l6.147-1.611-.43-.255z"/></svg>
+                          Enviar WhatsApp
+                        </button>
+                        <button
+                          onClick={() => generateICS(t, tenant)}
+                          style={{ flex:1, display:'inline-flex', alignItems:'center', justifyContent:'center', gap:6, fontSize:13, padding:'10px 14px', borderRadius:12, border:`1px solid ${secondaryColor}25`, background:`rgba(232,240,252,0.8)`, color: secondaryColor, cursor:'pointer', fontWeight:600, fontFamily:'DM Sans, system-ui', transition:'transform 0.2s' }}
+                          onMouseEnter={e=>e.currentTarget.style.transform='scale(1.02)'}
+                          onMouseLeave={e=>e.currentTarget.style.transform='scale(1)'}
+                        >
+                          📅 Agendar
+                        </button>
+                      </div>
+
+                      {t.estado === 'pendiente' && (
+                        <div style={{ display:'flex', gap:10, marginTop:10 }}>
+                          <button
+                            onClick={() => cambiarEstado(t.id, 'confirmado')}
+                            disabled={accion?.id===t.id}
+                            style={{ flex:1, fontSize:13, padding:'11px', borderRadius:12, border:'none', background: '#D1E7DD', color: '#0A3622', cursor:'pointer', fontWeight:700, fontFamily:'DM Sans, system-ui', boxShadow: '0 3px 10px rgba(10,54,34,0.06)', transition:'transform 0.2s' }}
+                            onMouseEnter={e=>e.currentTarget.style.transform='scale(1.02)'}
+                            onMouseLeave={e=>e.currentTarget.style.transform='scale(1)'}
+                          >
+                            {accion?.id===t.id&&accion.tipo==='confirmado'?'...':'Confirmar asistencia'}
+                          </button>
+                          <button
+                            onClick={() => setReproConfirm(t)}
+                            disabled={accion?.id===t.id}
+                            style={{ flex:1, fontSize:13, padding:'11px', borderRadius:12, border:'none', background: 'rgba(24,95,165,0.06)', color: secondaryColor, cursor:'pointer', fontWeight:600, fontFamily:'DM Sans, system-ui', transition:'transform 0.2s' }}
+                            onMouseEnter={e=>e.currentTarget.style.transform='scale(1.02)'}
+                            onMouseLeave={e=>e.currentTarget.style.transform='scale(1)'}
+                          >
+                            {accion?.id===t.id&&accion.tipo==='cancelado'?'...':'Reprogramar'}
+                          </button>
                         </div>
                       )}
                     </div>
-                    <span style={{ background:est.bg, color:est.color, fontSize:11, fontWeight:700, padding:'4px 10px', borderRadius:20, textTransform:'uppercase', letterSpacing:'0.04em' }}>{est.label}</span>
-                  </div>
+                  )
+                })}
+              </div>
+            )}
+          </>
+        )}
 
-                  <div style={{ display:'flex', gap:10, marginTop:16 }}>
-                    <button
-                      onClick={() => compartirWhatsApp(t, paciente!, token, tenant)}
-                      style={{ flex:1.8, display:'inline-flex', alignItems:'center', justifyContent:'center', gap:6, fontSize:13, padding:'10px 14px', borderRadius:12, border:'none', background:'linear-gradient(135deg,#25D366,#128C7E)', color:'#fff', cursor:'pointer', fontWeight:600, fontFamily:'DM Sans, system-ui', boxShadow: '0 4px 12px rgba(37,211,102,0.15)', transition:'transform 0.2s' }}
-                      onMouseEnter={e=>e.currentTarget.style.transform='scale(1.02)'}
-                      onMouseLeave={e=>e.currentTarget.style.transform='scale(1)'}
-                    >
-                      <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.514 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.724-1.455L0 24zm6.59-4.846c1.66.986 3.288 1.488 4.905 1.489 5.5.003 9.975-4.47 9.979-9.967.002-2.662-1.033-5.166-2.915-7.05C16.734 1.744 14.236.703 11.58.701c-5.503 0-9.98 4.47-9.985 9.969-.001 1.776.48 3.5 1.391 5.01L1.93 21.72l6.147-1.611-.43-.255z"/></svg>
-                      Enviar WhatsApp
-                    </button>
-                    <button
-                      onClick={() => generateICS(t, tenant)}
-                      style={{ flex:1, display:'inline-flex', alignItems:'center', justifyContent:'center', gap:6, fontSize:13, padding:'10px 14px', borderRadius:12, border:`1px solid ${secondaryColor}25`, background:`rgba(232,240,252,0.8)`, color: secondaryColor, cursor:'pointer', fontWeight:600, fontFamily:'DM Sans, system-ui', transition:'transform 0.2s' }}
-                      onMouseEnter={e=>e.currentTarget.style.transform='scale(1.02)'}
-                      onMouseLeave={e=>e.currentTarget.style.transform='scale(1)'}
-                    >
-                      📅 Agendar
-                    </button>
-                  </div>
-
-                  {t.estado === 'pendiente' && (
-                    <div style={{ display:'flex', gap:10, marginTop:10 }}>
-                      <button
-                        onClick={() => cambiarEstado(t.id, 'confirmado')}
-                        disabled={accion?.id===t.id}
-                        style={{ flex:1, fontSize:13, padding:'11px', borderRadius:12, border:'none', background: '#D1E7DD', color: '#0A3622', cursor:'pointer', fontWeight:700, fontFamily:'DM Sans, system-ui', boxShadow: '0 3px 10px rgba(10,54,34,0.06)', transition:'transform 0.2s' }}
-                        onMouseEnter={e=>e.currentTarget.style.transform='scale(1.02)'}
-                        onMouseLeave={e=>e.currentTarget.style.transform='scale(1)'}
-                      >
-                        {accion?.id===t.id&&accion.tipo==='confirmado'?'...':'Confirmar asistencia'}
-                      </button>
-                      <button
-                        onClick={() => setReproConfirm(t)}
-                        disabled={accion?.id===t.id}
-                        style={{ flex:1, fontSize:13, padding:'11px', borderRadius:12, border:'none', background: 'rgba(24,95,165,0.06)', color: secondaryColor, cursor:'pointer', fontWeight:600, fontFamily:'DM Sans, system-ui', transition:'transform 0.2s' }}
-                        onMouseEnter={e=>e.currentTarget.style.transform='scale(1.02)'}
-                        onMouseLeave={e=>e.currentTarget.style.transform='scale(1)'}
-                      >
-                        {accion?.id===t.id&&accion.tipo==='cancelado'?'...':'Reprogramar'}
-                      </button>
+        {/* Tab Panel: Historial */}
+        {activeTab === 'historial' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {pastTurnos.length === 0 && historial.length === 0 ? (
+              <div className="patient-card" style={{ textAlign:'center', padding:'3rem 2rem', borderRadius:20, color:'var(--portal-text-muted)', fontSize:14 }}>
+                No hay tratamientos o visitas anteriores registradas.
+              </div>
+            ) : (
+              <>
+                {/* Past appointments */}
+                {pastTurnos.length > 0 && (
+                  <div>
+                    <h3 style={{ fontSize:14, fontWeight:800, color:'var(--portal-text-primary)', marginBottom:10 }}>Visitas Anteriores</h3>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      {pastTurnos.map(pt => (
+                        <div key={pt.id} className="patient-card" style={{ borderRadius:18, padding:'1.25rem', border:'1px solid var(--portal-card-border)' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div>
+                              <div style={{ fontSize:11, color:'var(--portal-text-muted)', fontWeight:700 }}>{formatFecha(pt.fecha_hora).full}</div>
+                              <div style={{ fontSize:14, fontWeight:800, color: 'var(--portal-text-primary)', marginTop:3 }}>🦷 {pt.tipo_tratamiento}</div>
+                            </div>
+                            <span style={{ fontSize:10, fontWeight:700, color:'#0A3622', background:'#D1E7DD', padding:'2px 8px', borderRadius:20, textTransform:'uppercase' }}>Atendido</span>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  )}
-                </div>
-              )
-            })}
+                  </div>
+                )}
+
+                {/* Historial dental logs */}
+                {historial.length > 0 && (
+                  <div style={{ marginTop: 6 }}>
+                    <h3 style={{ fontSize:14, fontWeight:800, color:'var(--portal-text-primary)', marginBottom:10 }}>Evolución Dental</h3>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      {historial.map(h => (
+                        <div key={h.id} className="patient-card" style={{ borderRadius:18, padding:'1.25rem', borderLeft:`4px solid ${secondaryColor}` }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ fontWeight:800, fontSize:13.5, color: 'var(--portal-text-primary)' }}>Pieza {h.diente}</span>
+                            <span style={{ fontSize:11, fontWeight:700, color: secondaryColor, background:'rgba(24,95,165,0.06)', padding:'2px 8px', borderRadius:8 }}>{h.estado}</span>
+                          </div>
+                          {h.notas && <div style={{ fontSize:12.5, color:'var(--portal-text-secondary)', marginTop:6, fontStyle:'italic' }}>"{h.notas}"</div>}
+                          <div style={{ fontSize:10.5, color:'var(--portal-text-muted)', marginTop:6, fontWeight:500 }}>Registrado el {new Date(h.creado_en).toLocaleDateString('es-AR')}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Tab Panel: Plan de Tratamiento */}
+        {activeTab === 'plan' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            {/* Progress indicator */}
+            <div className="patient-card" style={{ borderRadius:20, padding:'1.5rem', display:'flex', flexDirection:'column', gap:12 }}>
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                <span style={{ fontSize:13.5, fontWeight:800, color: 'var(--portal-text-primary)' }}>Avance del Plan Activo</span>
+                <span style={{ fontSize:16, fontWeight:800, color: secondaryColor }}>{paciente?.progreso_plan_porcentaje || 0}%</span>
+              </div>
+              <div style={{ height:10, background:'rgba(24,95,165,0.06)', borderRadius:5, overflow:'hidden', position: 'relative' }}>
+                <div style={{ height:'100%', width:`${paciente?.progreso_plan_porcentaje || 0}%`, background:`linear-gradient(90deg, ${secondaryColor}, ${accentColor})`, borderRadius:5, transition:'width 0.5s ease-out' }} />
+              </div>
+              <div style={{ fontSize:12, color:'var(--portal-text-muted)', textAlign:'center', marginTop:2, fontWeight:500 }}>Estimación basada en las fases completadas de tu plan clínico.</div>
+            </div>
+
+            {/* Recommendations / Allergies */}
+            <div className="patient-card" style={{ borderRadius:20, padding:'1.5rem', display:'flex', flexDirection:'column', gap:14 }}>
+              <h3 style={{ fontSize:14, fontWeight:800, color:'var(--portal-text-primary)', margin:0 }}>Indicaciones Clínicas</h3>
+              
+              <div>
+                <span style={{ fontSize:11, color:'var(--portal-text-muted)', fontWeight:700, textTransform:'uppercase', letterSpacing:'0.05em' }}>Alergias / Restricciones</span>
+                {paciente?.alergias ? (
+                  <div style={{ fontSize:13.5, color:'#DC2626', fontWeight:700, marginTop:4, background:'#FEE2E2', padding:'8px 12px', borderRadius:10 }}>⚠️ {paciente.alergias}</div>
+                ) : (
+                  <div style={{ fontSize:13, color:'var(--portal-text-secondary)', marginTop:4 }}>Ninguna alergia registrada.</div>
+                )}
+              </div>
+
+              <div style={{ borderTop:'1px solid var(--portal-card-border)', paddingTop:12 }}>
+                <span style={{ fontSize:11, color:'var(--portal-text-muted)', fontWeight:700, textTransform:'uppercase', letterSpacing:'0.05em' }}>Antecedentes Relevantes</span>
+                <div style={{ fontSize:13, color:'var(--portal-text-primary)', marginTop:4, lineHeight:1.4 }}>{paciente?.antecedentes || 'Sin antecedentes médicos registrados.'}</div>
+              </div>
+            </div>
           </div>
         )}
 
