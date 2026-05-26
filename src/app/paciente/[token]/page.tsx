@@ -120,6 +120,7 @@ export default function PacientePage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
   const [accion, setAccion] = useState<{id:string, tipo:'confirmado'|'cancelado'} | null>(null)
+  const [reproConfirm, setReproConfirm] = useState<Turno | null>(null)
 
   async function cambiarEstado(citaId: string, nuevoEstado: 'confirmado' | 'cancelado') {
     setAccion({ id: citaId, tipo: nuevoEstado })
@@ -250,13 +251,13 @@ export default function PacientePage() {
                         {accion?.id===t.id&&accion.tipo==='confirmado'?'...':'Confirmar asistencia'}
                       </button>
                       <button
-                        onClick={() => cambiarEstado(t.id, 'cancelado')}
+                        onClick={() => setReproConfirm(t)}
                         disabled={accion?.id===t.id}
-                        style={{ flex:1, fontSize:13, padding:'11px', borderRadius:12, border:'none', background: '#F8D7DA', color: '#58151C', cursor:'pointer', fontWeight:600, fontFamily:'DM Sans, system-ui', transition:'transform 0.2s' }}
+                        style={{ flex:1, fontSize:13, padding:'11px', borderRadius:12, border:'none', background: 'rgba(24,95,165,0.06)', color: secondaryColor, cursor:'pointer', fontWeight:600, fontFamily:'DM Sans, system-ui', transition:'transform 0.2s' }}
                         onMouseEnter={e=>e.currentTarget.style.transform='scale(1.02)'}
                         onMouseLeave={e=>e.currentTarget.style.transform='scale(1)'}
                       >
-                        {accion?.id===t.id&&accion.tipo==='cancelado'?'...':'Cancelar'}
+                        {accion?.id===t.id&&accion.tipo==='cancelado'?'...':'Reprogramar'}
                       </button>
                     </div>
                   )}
@@ -270,6 +271,77 @@ export default function PacientePage() {
           {tenant?.nombre || 'Dr. Walter Benegas'} {tenant?.direccion ? `— ${tenant.direccion}` : ''}
         </div>
       </div>
+
+      {/* Reschedule confirmation modal sheet */}
+      {reproConfirm && (
+        <div style={{position:'fixed',inset:0,background:'rgba(10,30,61,0.55)',backdropFilter:'blur(6px)',zIndex:9999,display:'flex',alignItems:'flex-end',justifyContent:'center',padding:'0 0 env(safe-area-inset-bottom,0)'}}>
+          <div style={{background:'var(--portal-card-bg,#fff)',borderRadius:'24px 24px 0 0',padding:'1.75rem 1.5rem 2rem',width:'100%',maxWidth:480,boxShadow:'0 -12px 40px rgba(10,30,61,0.18)'}}>
+            <div style={{width:40,height:4,borderRadius:4,background:'#e2e8f0',margin:'0 auto 1.5rem'}}/>
+            <div style={{textAlign:'center',marginBottom:20}}>
+              <div style={{width:52,height:52,borderRadius:'50%',background:`${secondaryColor}15`,display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 12px'}}>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={secondaryColor} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01M16 18h.01"/></svg>
+              </div>
+              <div style={{fontSize:18,fontWeight:800,color:'var(--portal-text-primary,#0a1e3d)',marginBottom:6}}>Reprogramar o Cancelar</div>
+              <div style={{fontSize:14,color:'var(--portal-text-secondary,#4a6080)',lineHeight:1.5,padding:'0 12px'}}>
+                Para reprogramar o cancelar tu turno, comunícate con nosotros vía WhatsApp o llamada para coordinar un nuevo horario.
+              </div>
+            </div>
+            
+            <div style={{display:'flex',flexDirection:'column',gap:10}}>
+              {/* WhatsApp template link to clinic's phone */}
+              {tenant?.telefono && (
+                <a
+                  href={`https://wa.me/${tenant.telefono.replace(/\D/g, '')}?text=${encodeURIComponent(
+                    `Hola! Me contacto para reprogramar o cancelar mi turno del día ${formatFecha(reproConfirm.fecha_hora).fecha} a las ${formatFecha(reproConfirm.fecha_hora).hora} hs (Tratamiento: ${reproConfirm.tipo_tratamiento}). Mi nombre es ${paciente?.nombre}.`
+                  )}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    textDecoration: 'none', display:'flex', alignItems:'center', justifyContent:'center', gap:8, 
+                    fontSize:14, padding:'14px', borderRadius:14, border:'none', 
+                    background:'linear-gradient(135deg,#25D366,#128C7E)', color:'#fff', 
+                    cursor:'pointer', fontWeight:700, fontFamily:'DM Sans, system-ui', 
+                    boxShadow: '0 4px 14px rgba(37,211,102,0.25)', transition:'transform 0.2s'
+                  }}
+                  onMouseEnter={e=>e.currentTarget.style.transform='scale(1.02)'}
+                  onMouseLeave={e=>e.currentTarget.style.transform='scale(1)'}
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.514 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.724-1.455L0 24zm6.59-4.846c1.66.986 3.288 1.488 4.905 1.489 5.5.003 9.975-4.47 9.979-9.967.002-2.662-1.033-5.166-2.915-7.05C16.734 1.744 14.236.703 11.58.701c-5.503 0-9.98 4.47-9.985 9.969-.001 1.776.48 3.5 1.391 5.01L1.93 21.72l6.147-1.611-.43-.255z"/></svg>
+                  Enviar WhatsApp al Consultorio
+                </a>
+              )}
+              
+              {/* Direct call to clinic */}
+              {tenant?.telefono && (
+                <a
+                  href={`tel:${tenant.telefono.replace(/\s/g, '')}`}
+                  style={{
+                    textDecoration: 'none', display:'flex', alignItems:'center', justifyContent:'center', gap:8, 
+                    fontSize:14, padding:'14px', borderRadius:14, border:`1px solid ${secondaryColor}25`, 
+                    background:`rgba(232,240,252,0.8)`, color: secondaryColor, 
+                    cursor:'pointer', fontWeight:700, fontFamily:'DM Sans, system-ui', transition:'transform 0.2s'
+                  }}
+                  onMouseEnter={e=>e.currentTarget.style.transform='scale(1.02)'}
+                  onMouseLeave={e=>e.currentTarget.style.transform='scale(1)'}
+                >
+                  📞 Llamar al Consultorio
+                </a>
+              )}
+
+              <button
+                onClick={() => setReproConfirm(null)}
+                style={{
+                  marginTop: 6, padding:'13px', borderRadius:14, border:'1px solid #e2e8f0', 
+                  background:'var(--portal-card-bg,#fff)', color:'var(--portal-text-secondary,#4a6080)', 
+                  fontSize:13, fontWeight:600, cursor:'pointer', fontFamily:'DM Sans, system-ui'
+                }}
+              >
+                Volver
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <style>{`
         :root {

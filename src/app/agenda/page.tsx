@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client'
 import type { EstadoCita, TipoTratamiento } from '@/types'
 import { useTenantContext } from '@/components/TenantContext'
 import { triggerConfetti } from '@/lib/confetti'
+import { NuevaCitaModal } from '@/components/NuevaCitaModal'
 
 interface CitaDB { id:string; paciente_id:string; fecha_hora:string; tipo_tratamiento:string; estado:string; notas:string|null; duracion_minutos:number; valor:number|null; sena:number|null; medio_pago:string|null; pacientes:{nombre:string;telefono:string;token:string}|null }
 interface Cita   { id:string; paciente_id:string; nombre:string; telefono:string; token:string; hora:string; fecha:string; tratamiento:string; estado:EstadoCita; duracion:number; notas:string; minutos:number; valor:number|null; sena:number|null; medio_pago:string|null }
@@ -38,7 +39,6 @@ function calcularPosicionCitas(citasDia: Cita[]): CitaPos[] {
   const citasSorted = [...citasDia].sort((a, b) => a.minutos - b.minutos)
   const result: CitaPos[] = citasSorted.map(c => ({ ...c }))
 
-  // Find connected components (clusters of overlapping events)
   const clusters: CitaPos[][] = []
   result.forEach(c => {
     const matchingClusters: number[] = []
@@ -57,7 +57,6 @@ function calcularPosicionCitas(citasDia: Cita[]): CitaPos[] {
     } else if (matchingClusters.length === 1) {
       clusters[matchingClusters[0]].push(c)
     } else {
-      // Merge all matching clusters
       const newCluster = [c]
       for (let i = matchingClusters.length - 1; i >= 0; i--) {
         const idx = matchingClusters[i]
@@ -68,9 +67,7 @@ function calcularPosicionCitas(citasDia: Cita[]): CitaPos[] {
     }
   })
 
-  // Assign columns for each cluster
   clusters.forEach(cluster => {
-    // Sort cluster by minutes then by duration descending to lay out longest first
     cluster.sort((a, b) => a.minutos - b.minutos || b.duracion - a.duracion)
     
     const cols: CitaPos[][] = []
@@ -105,7 +102,6 @@ function calcularPosicionCitas(citasDia: Cita[]): CitaPos[] {
 function parseFechaLocal(base: string): Date {
   const [y, m, d] = base.split('-').map(Number)
   return new Date(y, m - 1, d)
-
 }
 function dateToISO(d: Date): string {
   return d.getFullYear() + '-' +
@@ -398,7 +394,6 @@ export default function Agenda() {
  async function saveNueva(forzar = false){
     if(!fPac) return msg('Seleccioná un paciente','error')
 
-    // Colisión de horario
     const resHoras = await fetch(`/api/horas-ocupadas?fecha=${fFecha}`)
     const { ocupadas } = await resHoras.json()
     if(ocupadas.includes(fHora) && !forzar){
@@ -449,7 +444,6 @@ export default function Agenda() {
     const backupCitas = [...citas]
     const [h, m] = nuevaHora.split(':').map(Number)
     
-    // Update local state optimistically
     setCitas(prev => prev.map(c => {
       if (c.id === citaId) {
         return {
@@ -691,7 +685,6 @@ export default function Agenda() {
               boxShadow: isMobile ? 'none' : '0 4px 20px rgba(10,30,61,0.02)'
             }}>
               {vista === 'lista' ? (
-                /* Vista de Lista responsiva */
                 <div style={{
                   padding: isMobile ? '1.5rem 1rem' : '2rem',
                   display: 'flex',
@@ -1015,7 +1008,7 @@ export default function Agenda() {
                         return Array.from({length:(HORA_FIN-HORA_INICIO)*2},(_,i)=>{
                           const minTot = HORA_INICIO*60+i*30
                           return mins.has(minTot)
-                            ? <div key={i} style={{position:'absolute',top:i*(SLOT_H/2),left:0,right:0,height:SLOT_H/2,background:'rgba(56, 138, 221, 0.03)',pointerEvents:'none'}}/>
+                            ? <div key={i} style={{position:'absolute',top:(minTot-HORA_INICIO*60)/60*SLOT_H,left:0,right:0,height:SLOT_H/2,background:'rgba(240, 244, 248, 0.25)'}}/>
                             : null
                         })
                       })()}
@@ -1173,6 +1166,28 @@ export default function Agenda() {
                                         </>
                                       )}
                                     </div>
+                                    
+                                    {/* Action Buttons for 60-min cards (which are height 44px on desktop/mobile) */}
+                                    {hCard >= 44 && (c.estado === 'pendiente' || c.estado === 'confirmado') && (
+                                      <div style={{marginTop: 5, display: 'flex', gap: 4, width: '100%', position: 'relative', zIndex: 10}} onClick={e => e.stopPropagation()}>
+                                        <button 
+                                          onClick={(e) => { e.stopPropagation(); cambiarEstado(c.id, 'asistio') }}
+                                          style={{ flex: 1, border: 'none', background: '#E1F5EE', color: '#085041', borderRadius: 6, padding: '2px 4px', fontSize: 9.5, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'transform 0.1s' }}
+                                          onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.03)'}
+                                          onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+                                        >
+                                          ✓ Asistió
+                                        </button>
+                                        <button 
+                                          onClick={(e) => { e.stopPropagation(); cambiarEstado(c.id, 'cancelado') }}
+                                          style={{ flex: 1, border: 'none', background: '#FAECE7', color: '#712B13', borderRadius: 6, padding: '2px 4px', fontSize: 9.5, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'transform 0.1s' }}
+                                          onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.03)'}
+                                          onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+                                        >
+                                          ✗ Faltó
+                                        </button>
+                                      </div>
+                                    )}
                                   </>
                                 ) : (
                                   <>
@@ -1206,18 +1221,41 @@ export default function Agenda() {
                                         </>
                                       )}
                                     </div>
-                                    {hCard > 68 && (
-                                      <div style={{marginTop: 6, display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'space-between'}}>
-                                        <Badge bg={`var(--est-${c.estado}-bg, ${es.bg})`} color={`var(--est-${c.estado}-color, ${es.color})`}>
-                                          {es.label}
-                                        </Badge>
-                                        {c.notas && (
-                                          <span style={{fontSize: 8.5, color: isSobreturno ? '#B45309' : colorVar, opacity: 0.6, fontStyle: 'italic', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '60%'}} title={c.notas}>
-                                            📝 {c.notas}
-                                          </span>
-                                        )}
-                                      </div>
-                                    )}
+                                    
+                                    {/* Action Buttons or Badge for large cards */}
+                                    <div style={{marginTop: 6, display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'space-between', width: '100%'}}>
+                                      {(c.estado === 'pendiente' || c.estado === 'confirmado') ? (
+                                        <div style={{display: 'flex', gap: 4, width: '100%', position: 'relative', zIndex: 10}} onClick={e => e.stopPropagation()}>
+                                          <button 
+                                            onClick={(e) => { e.stopPropagation(); cambiarEstado(c.id, 'asistio') }}
+                                            style={{ flex: 1, border: 'none', background: '#E1F5EE', color: '#085041', borderRadius: 6, padding: '3px 6px', fontSize: 10, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2, transition: 'transform 0.1s' }}
+                                            onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.03)'}
+                                            onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+                                          >
+                                            ✓ Asistió
+                                          </button>
+                                          <button 
+                                            onClick={(e) => { e.stopPropagation(); cambiarEstado(c.id, 'cancelado') }}
+                                            style={{ flex: 1, border: 'none', background: '#FAECE7', color: '#712B13', borderRadius: 6, padding: '3px 6px', fontSize: 10, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2, transition: 'transform 0.1s' }}
+                                            onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.03)'}
+                                            onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+                                          >
+                                            ✗ Faltó
+                                          </button>
+                                        </div>
+                                      ) : (
+                                        <>
+                                          <Badge bg={`var(--est-${c.estado}-bg, ${es.bg})`} color={`var(--est-${c.estado}-color, ${es.color})`}>
+                                            {es.label}
+                                          </Badge>
+                                          {hCard > 68 && c.notas && (
+                                            <span style={{fontSize: 8.5, color: isSobreturno ? '#B45309' : colorVar, opacity: 0.6, fontStyle: 'italic', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '60%'}} title={c.notas}>
+                                              📝 {c.notas}
+                                            </span>
+                                          )}
+                                        </>
+                                      )}
+                                    </div>
                                   </>
                                 )}
                               </>
@@ -1245,7 +1283,7 @@ export default function Agenda() {
             <div style={{fontSize:14,color:'#555',lineHeight:2}}>
               <div>📅 <strong>{sel.fecha}</strong> a las <strong>{sel.hora}</strong></div>
               <div>🦷 {sel.tratamiento} · {sel.duracion} min</div>
-{sel.valor!=null&&<div>💰 Valor: <strong>${sel.valor}</strong>{sel.sena?<> · Seña: <strong>${sel.sena}</strong> · Saldo: <strong>${sel.valor-sel.sena}</strong></>:null}</div>}
+              {sel.valor!=null&&<div>💰 Valor: <strong>${sel.valor}</strong>{sel.sena?<> · Seña: <strong>${sel.sena}</strong> · Saldo: <strong>${sel.valor-sel.sena}</strong></>:null}</div>}
               {sel.medio_pago&&<div>💳 Medio de pago: <strong>{sel.medio_pago}</strong></div>}
               <div>📞 <a href={`tel:${sel.telefono}`} style={{color:'#185FA5',textDecoration:'none'}}>{sel.telefono}</a></div>
               {sel.notas&&<div>📝 {sel.notas}</div>}
@@ -1260,7 +1298,6 @@ export default function Agenda() {
               <button style={{...btnLightCss,width:'100%',marginTop:8,gap:6,color:'#128C7E',borderColor:'rgba(18,140,126,0.3)'}} onClick={()=>{
                 const num = normalizarTelefono(sel.telefono)
                 const d   = parseFechaLocal(sel.fecha)
-                const fechaLarga = d.toLocaleDateString('es-AR',{weekday:'long',day:'numeric',month:'long'})
                 let msgText = tenant?.whatsappTemplate || ''
                 msgText = msgText
                   .replace(/{nombre_paciente}/g, sel.nombre)
@@ -1285,50 +1322,14 @@ export default function Agenda() {
         </div>
       )}
 
-      {/* Modal nueva */}
+      {/* Modal nueva (Unified slide-in drawer component) */}
       {modal==='nueva'&&(
-        <div style={overlayCss(isMobile)} onClick={()=>setModal(null)}>
-          <div style={modalCss(isMobile)} onClick={e=>e.stopPropagation()}>
-            <div style={modalTitleCss}>Nueva cita</div>
-            <div style={groupCss}>
-              <label style={labelCss}>Paciente *</label>
-              <select style={selectCss} value={fPac} onChange={e=>setFPac(e.target.value)}>
-                <option value="">— Seleccionar paciente —</option>
-                {pacs.map(p=><option key={p.id} value={p.id}>{p.nombre}</option>)}
-              </select>
-            </div>
-            <div style={grid2Css}>
-              <div style={groupCss}><label style={labelCss}>Fecha</label><input type="date" style={{...selectCss}} value={fFecha} onChange={e=>setFFecha(e.target.value)}/></div>
-              <div style={groupCss}><label style={labelCss}>Horario</label><select style={selectCss} value={fHora} onChange={e=>setFHora(e.target.value)}>{horasDisponibles().map(h=><option key={h} value={h}>{h}</option>)}</select></div>
-            </div>
-            <div style={grid2Css}>
-              <div style={groupCss}><label style={labelCss}>Tratamiento</label><select style={selectCss} value={fTrat} onChange={e=>onChangeTrat(e.target.value)}>{(tratamientosDB.length?tratamientosDB.map(t=>t.nombre):TRATAMIENTOS).map(t=><option key={t} value={t}>{t}</option>)}</select></div>
-              <div style={groupCss}><label style={labelCss}>Duración</label><select style={selectCss} value={fDur} onChange={e=>setFDur(Number(e.target.value))}>{DURACIONES.map(d=><option key={d} value={d}>{d} min</option>)}</select></div>
-            </div>
-            <div style={groupCss}><label style={labelCss}>Estado</label><select style={selectCss} value={fEst} onChange={e=>setFEst(e.target.value as EstadoCita)}>{ESTADOS.map(est=><option key={est} value={est}>{est.charAt(0).toUpperCase()+est.slice(1)}</option>)}</select></div>
-            <div style={groupCss}><label style={labelCss}>Notas</label><textarea style={textareaCss} value={fNotas} onChange={e=>setFNotas(e.target.value)} placeholder="Observaciones..."/></div>
-            <div style={grid2Css}>
-              <div style={groupCss}><label style={labelCss}>Valor ($)</label><input type="number" style={{...selectCss}} value={fValor} onChange={e=>setFValor(e.target.value===''?'':Number(e.target.value))} placeholder="0"/></div>
-              <div style={groupCss}><label style={labelCss}>Seña ($)</label><input type="number" style={{...selectCss}} value={fSena} onChange={e=>setFSena(e.target.value===''?'':Number(e.target.value))} placeholder="0"/></div>
-            </div>
-            {(fValor!==''||fSena!=='')&&<div style={{fontSize:13,color:'#888',padding:'0.25rem 0'}}>Saldo: <strong style={{color:'#222'}}>${(Number(fValor)||0)-(Number(fSena)||0)}</strong></div>}
-            <div style={groupCss}><label style={labelCss}>Medio de pago</label><select style={selectCss} value={fMedioPago} onChange={e=>setFMedioPago(e.target.value)}><option value="">— Sin especificar —</option>{MEDIOS_PAGO.map(m=><option key={m} value={m}>{m}</option>)}</select></div>
-            <div style={footerCss}>
-              <button style={btnLightCss} onClick={()=>setModal(null)} disabled={saving}>Cancelar</button>
-              {sobreturnoAgenda && (
-              <div style={{background:'#FFF3E0',borderRadius:10,padding:'0.75rem',border:'0.5px solid #FFB74D',marginBottom:8}}>
-                <div style={{fontSize:13,fontWeight:600,color:'#92400E',marginBottom:6}}>Las {sobreturnoAgenda}hs ya está ocupado — ¿Sobreturno?</div>
-                <div style={{display:'flex',gap:8}}>
-                  <button style={btnLightCss} onClick={()=>setSobreturnoAgenda(null)}>Cancelar</button>
-                  <button style={{...btnDarkCss,background:'#F97316'}} onClick={()=>{setSobreturnoAgenda(null);saveNueva(true)}}>Confirmar sobreturno</button>
-                </div>
-              </div>
-            )}
-
-              <button style={{...btnDarkCss,opacity:saving?.6:1}} onClick={()=>saveNueva()} disabled={saving}>{saving?'Guardando...':'Agendar cita'}</button>
-            </div>
-          </div>
-        </div>
+        <NuevaCitaModal
+          onClose={()=>setModal(null)}
+          onSuccess={()=>{loadCitas()}}
+          defaultFecha={fFecha}
+          defaultHora={fHora}
+        />
       )}
 
       {/* Modal editar */}
@@ -1373,8 +1374,8 @@ export default function Agenda() {
           </div>
         </div>
       )}
-{/* Menu flotante slot */}
-     {menuPos&&(()=>{
+      {/* Menu flotante slot */}
+      {menuPos&&(()=> {
         const MENU_W = 188, MENU_H = 96
         const safeX = Math.max(8, Math.min(menuPos.x, window.innerWidth  - MENU_W - 8))
         const safeY = Math.max(64, Math.min(menuPos.y, window.innerHeight - MENU_H - (isMobile ? 72 : 8)))

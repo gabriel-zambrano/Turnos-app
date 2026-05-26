@@ -7,6 +7,7 @@ import { TRAT_STYLE, ESTADO_STYLE, hoyISO, normalizarTelefono, TRATAMIENTOS } fr
 import { createClient } from '@/lib/supabase/client'
 import { useTenantContext } from '@/components/TenantContext'
 import type { EstadoCita } from '@/types'
+import { NuevaCitaModal } from '@/components/NuevaCitaModal'
 
 interface Cita { id:string; nombre:string; hora:string; tratamiento:string; estado:EstadoCita; telefono:string }
 interface CitaMañana extends Cita { token:string|null; fecha_hora:string }
@@ -46,6 +47,8 @@ export default function Dashboard() {
   // States for Quick Actions
   const [modalPaciente, setModalPaciente] = useState(false)
   const [modalCobro, setModalCobro] = useState(false)
+
+  const [modalNuevaCita, setModalNuevaCita] = useState(false)
 
   // Nuevo Paciente States
   const [pacNombre, setPacNombre] = useState('')
@@ -118,6 +121,14 @@ export default function Dashboard() {
 
   useEffect(()=>{
     setHoy(new Date().toLocaleDateString('es-AR',{weekday:'long',day:'numeric',month:'long'}))
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search)
+      if (params.get('nueva') === 'true') {
+        setModalNuevaCita(true)
+        const newUrl = window.location.pathname
+        window.history.replaceState({}, '', newUrl)
+      }
+    }
   },[])
 
   useEffect(() => {
@@ -257,7 +268,17 @@ export default function Dashboard() {
     }
   }
 
-  if (!authChecked || tenantLoading) return null
+  if (!authChecked || tenantLoading) return (
+    <div style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',background:'var(--bg-page,#f0f4f8)',fontFamily:'DM Sans, sans-serif'}}>
+      <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:12}}>
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#185FA5" strokeWidth="2.5" strokeLinecap="round" style={{animation:'spin 1s linear infinite'}}>
+          <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+        </svg>
+        <span style={{fontSize:13,color:'#8fa3bc',fontWeight:500}}>Cargando...</span>
+      </div>
+      <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
+    </div>
+  )
 
   const primaryColor = tenant?.primaryColor || '#0a1e3d'
   const secondaryColor = tenant?.secondaryColor || '#185FA5'
@@ -383,7 +404,7 @@ export default function Dashboard() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, flex: 1 }}>
                 
                 {/* Agendar Turno */}
-                <Link href="/nueva-cita" style={{ textDecoration: 'none' }}>
+                <button onClick={() => setModalNuevaCita(true)} style={{ textDecoration: 'none', background: 'none', border: 'none', padding: 0, width: '100%', cursor: 'pointer' }}>
                   <div className="quick-action-btn" style={{
                     display: 'flex',
                     flexDirection: 'column',
@@ -410,7 +431,7 @@ export default function Dashboard() {
                     </svg>
                     <span style={{ fontSize: 10.5, fontWeight: 700 }}>Agendar Turno</span>
                   </div>
-                </Link>
+                </button>
 
                 {/* Nuevo Paciente */}
                 <div onClick={() => {
@@ -597,9 +618,19 @@ export default function Dashboard() {
                         <div style={{display:'flex',alignItems:'center',gap:8,width:isMobile?'100%':'auto',justifyContent:isMobile?'flex-end':'flex-start'}}>
                           <Badge bg={es.bg} color={es.color}>{es.label}</Badge>
                           {c.estado==='pendiente'&&(
-                            <button onClick={()=>confirmar(c.id)} className="btn-premium" style={{fontSize:11,padding:'4px 10px',borderRadius:7,border:`1.5px solid ${accentColor}`,background:`${accentColor}18`,color:accentColor,cursor:'pointer',fontWeight:600,fontFamily:'DM Sans, sans-serif',whiteSpace:'nowrap'}}>
-                              Confirmar
-                            </button>
+                            <>
+                              <button onClick={()=>confirmar(c.id)} className="btn-premium" style={{fontSize:11,padding:'4px 10px',borderRadius:7,border:`1.5px solid ${accentColor}`,background:`${accentColor}18`,color:accentColor,cursor:'pointer',fontWeight:600,fontFamily:'DM Sans, sans-serif',whiteSpace:'nowrap'}}>
+                                Confirmar
+                              </button>
+                              {c.telefono && (
+                                <button onClick={()=>{
+                                  const txt=encodeURIComponent(`Hola ${c.nombre}, te recordamos tu turno hoy a las ${c.hora}hs. ¡Te esperamos!`)
+                                  window.open(`https://wa.me/${normalizarTelefono(c.telefono)}?text=${txt}`,'_blank')
+                                }} className="btn-premium" title="Enviar recordatorio WhatsApp" style={{fontSize:11,padding:'4px 8px',borderRadius:7,border:'none',background:'#25D36618',color:'#128C7E',cursor:'pointer',fontFamily:'DM Sans, sans-serif',display:'flex',alignItems:'center',gap:3}}>
+                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.514 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.724-1.455L0 24zm6.59-4.846c1.66.986 3.288 1.488 4.905 1.489 5.5.003 9.975-4.47 9.979-9.967.002-2.662-1.033-5.166-2.915-7.05C16.734 1.744 14.236.703 11.58.701c-5.503 0-9.98 4.47-9.985 9.969-.001 1.776.48 3.5 1.391 5.01L1.93 21.72l6.147-1.611-.43-.255z"/></svg>
+                                </button>
+                              )}
+                            </>
                           )}
                         </div>
                       </div>
@@ -733,6 +764,13 @@ export default function Dashboard() {
           </div>
         </div>
       </main>
+
+      {modalNuevaCita && (
+        <NuevaCitaModal
+          onClose={() => setModalNuevaCita(false)}
+          onSuccess={() => { setModalNuevaCita(false); load() }}
+        />
+      )}
 
       {/* Modal - Nuevo Paciente */}
       {modalPaciente && (
