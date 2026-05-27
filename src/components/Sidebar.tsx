@@ -12,6 +12,7 @@ const NAV = [
   { href: '/recordatorios',          label: 'Recordatorios',       icon: 'bell'  },
   { href: '/bi',                     label: 'Analitica',    icon: 'chart' },
   { href: '/finanzas',               label: 'Finanzas',     icon: 'money' },
+  { href: '/crm',                    label: 'Fidelización', icon: 'radar' },
   { href: '/admin/tratamientos',     label: 'Precios',      icon: 'trat', adminOnly: true },
   { href: '/equipo',                 label: 'Equipo',       icon: 'users', adminOnly: true },
   { href: '/configuracion',          label: 'Configuración',icon: 'settings' },
