@@ -1,7 +1,7 @@
 import { Resend } from 'resend'
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
-import { TENANT_REGISTRY } from '@/components/TenantContext'
+
 
 export const dynamic = 'force-dynamic'
 
@@ -29,7 +29,7 @@ export async function POST(req: Request) {
     // Si viene en el body, procesamos solo ese tenant
     const { data: tenantData } = await supabase
       .from('tenants')
-      .select('id, nombre')
+      .select('id, nombre, direccion, telefono, logoUrl, primaryColor, secondaryColor, accentColor, whatsappTemplate')
       .eq('id', bodyTenantId)
       .single()
 
@@ -41,9 +41,9 @@ export async function POST(req: Request) {
     }
   } else {
     // Si es una invocación global (cron), buscamos todos los tenants activos
-    const { data: activeTenants } = await supabase
-      .from('tenants')
-      .select('id, nombre')
+      const { data: activeTenants } = await supabase
+        .from('tenants')
+        .select('id, nombre, direccion, telefono, logoUrl, primaryColor, secondaryColor, accentColor, whatsappTemplate')
       .eq('activo', true)
 
     if (activeTenants && activeTenants.length > 0) {
@@ -67,19 +67,15 @@ export async function POST(req: Request) {
   // 3. Procesar citas aisladas para cada tenant
   for (const tenant of tenantsToProcess) {
     // Obtener branding estático o crear un fallback
-    const brandingRegistry = TENANT_REGISTRY[tenant.id] || {
-      nombre: tenant.nombre || 'Consultorio Dental',
-      direccion: 'Dirección del consultorio',
-      telefono: '',
-      logoUrl: undefined,
-      primaryColor: '#0a1e3d',
-      secondaryColor: '#185FA5',
-      accentColor: '#138A6B'
-    }
-
     const branding = {
       id: tenant.id,
-      ...brandingRegistry
+      nombre: tenant.nombre || 'Consultorio Dental',
+      direccion: (tenant as any).direccion || 'Dirección del consultorio',
+      telefono: (tenant as any).telefono || '',
+      logoUrl: (tenant as any).logoUrl || undefined,
+      primaryColor: (tenant as any).primaryColor || '#0a1e3d',
+      secondaryColor: (tenant as any).secondaryColor || '#185FA5',
+      accentColor: (tenant as any).accentColor || '#138A6B'
     }
 
     // Consultar citas de mañana exclusivas de este tenant

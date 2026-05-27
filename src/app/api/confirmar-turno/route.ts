@@ -1,15 +1,13 @@
 import { Resend } from 'resend'
 import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@supabase/supabase-js'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
-const TENANT_REGISTRY: Record<string, { nombre: string; direccion: string; telefono: string }> = {
-  '2845c423-affa-4ca2-9c5f-f4ec8e35701a': {
-    nombre: 'Dr. Walter Benegas',
-    direccion: 'Av. Santa Fe 3329 1° B, Palermo, CABA',
-    telefono: '+5491123972395',
-  }
-}
+const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+)
 
 export async function POST(req: NextRequest) {
   const { nombre, email, fecha, hora, tratamiento, duracion, notas, tenantId } = await req.json()
@@ -19,11 +17,17 @@ export async function POST(req: NextRequest) {
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://turnos-app-delta.vercel.app'
 
   // Resolver branding del tenant
-  const tid = tenantId || '2845c423-affa-4ca2-9c5f-f4ec8e35701a'
-  const registry = TENANT_REGISTRY[tid] || {
+  const tid = tenantId || process.env.NEXT_PUBLIC_DEFAULT_TENANT_ID || ''
+  let registry = {
     nombre: 'DentalDesk',
     direccion: 'Dirección del consultorio',
     telefono: '',
+  }
+  if (tid) {
+    const { data: dbTenant } = await supabaseAdmin.from('tenants').select('nombre, direccion, telefono').eq('id', tid).single()
+    if (dbTenant) {
+      registry = { ...registry, ...dbTenant }
+    }
   }
 
   // Google Calendar

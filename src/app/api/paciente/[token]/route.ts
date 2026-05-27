@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { TENANT_REGISTRY } from '@/components/TenantContext'
+
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -43,14 +43,22 @@ export async function GET(
     pac = pacRes.data
   }
 
-  const tid = pac.tenant_id || '2845c423-affa-4ca2-9c5f-f4ec8e35701a'
-  const registry = TENANT_REGISTRY[tid] || {
+  const tid = pac.tenant_id || process.env.NEXT_PUBLIC_DEFAULT_TENANT_ID || ''
+  
+  let registry = {
     nombre: 'Consultorio Dental',
     direccion: 'Dirección del consultorio',
     telefono: '',
     primaryColor: '#0a1e3d',
     secondaryColor: '#185FA5',
     accentColor: '#138A6B'
+  }
+  
+  if (tid) {
+    const { data: dbTenant } = await supabaseAdmin.from('tenants').select('*').eq('id', tid).single()
+    if (dbTenant) {
+      registry = { ...registry, ...dbTenant }
+    }
   }
 
   const ahora = new Date().toISOString()

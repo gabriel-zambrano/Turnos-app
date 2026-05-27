@@ -1,7 +1,7 @@
 import { Resend } from 'resend'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { TENANT_REGISTRY } from '@/components/TenantContext'
+
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 const supabaseAdmin = createClient(
@@ -16,11 +16,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ enviados: [], fallidos: [] })
   }
 
-  const tid = tenantId || '2845c423-affa-4ca2-9c5f-f4ec8e35701a'
-  const registry = TENANT_REGISTRY[tid] || {
+  const tid = tenantId || process.env.NEXT_PUBLIC_DEFAULT_TENANT_ID || ''
+  let registry = {
     nombre: 'DentalDesk',
     direccion: 'Dirección del consultorio',
     telefono: '',
+  }
+  
+  if (tid) {
+    const { data: dbTenant } = await supabaseAdmin.from('tenants').select('nombre, direccion, telefono').eq('id', tid).single()
+    if (dbTenant) {
+      registry = { ...registry, ...dbTenant }
+    }
   }
 
   const ids = citas.map((c: any) => c.id)

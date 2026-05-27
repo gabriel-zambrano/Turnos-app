@@ -6,11 +6,28 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
+// Allowed origins for CORS
+const ALLOWED_ORIGINS = [
+  process.env.NEXT_PUBLIC_APP_URL || 'https://turnos-app-delta.vercel.app',
+  'http://localhost:3000'
+]
+
 export async function GET(req: NextRequest) {
+  const origin = req.headers.get('origin') || ''
+  
+  // Basic CORS validation (if origin is present, check it)
+  if (origin && !ALLOWED_ORIGINS.includes(origin)) {
+    return NextResponse.json({ error: 'Origin not allowed' }, { status: 403 })
+  }
+
   const fecha = req.nextUrl.searchParams.get('fecha')
   const tenantId = req.nextUrl.searchParams.get('tenant_id')
+  
   if (!fecha || !/^\d{4}-\d{2}-\d{2}$/.test(fecha)) {
     return NextResponse.json({ error: 'Fecha inválida' }, { status: 400 })
+  }
+  if (tenantId && !/^[0-9a-f-]{36}$/i.test(tenantId)) {
+    return NextResponse.json({ error: 'Tenant ID inválido' }, { status: 400 })
   }
 
   let q = supabaseAdmin
@@ -32,5 +49,10 @@ export async function GET(req: NextRequest) {
     return String(ar.getHours()).padStart(2,'0') + ':' + String(ar.getMinutes()).padStart(2,'0')
   })
 
-  return NextResponse.json({ ocupadas })
+  const headers = new Headers()
+  if (origin) {
+    headers.set('Access-Control-Allow-Origin', origin)
+  }
+
+  return NextResponse.json({ ocupadas }, { headers })
 }

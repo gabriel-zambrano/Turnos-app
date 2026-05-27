@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
     .lte('fecha_hora', `${nextDay}T02:59:59Z`)
     .in('estado', ['pendiente', 'confirmado'])
 
-  console.log('CITAS:', JSON.stringify(citas), 'ERROR:', JSON.stringify(error))
+  if (error) console.error('ERROR FETCHING CITAS:', error)
 
   if (!citas || citas.length === 0) {
     return NextResponse.json({ ok: true, enviados: 0, mensaje: 'Sin citas para esa fecha' })
