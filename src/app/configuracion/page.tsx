@@ -20,6 +20,8 @@ export default function Configuracion() {
   const [secondaryColor, setSecondaryColor] = useState('#185FA5')
   const [accentColor, setAccentColor] = useState('#138A6B')
   const [whatsappTemplate, setWhatsappTemplate] = useState('')
+  const [logoUrl, setLogoUrl] = useState('')
+  const [uploadingLogo, setUploadingLogo] = useState(false)
 
   useEffect(() => {
     if (tenant) {
@@ -30,12 +32,52 @@ export default function Configuracion() {
       setSecondaryColor(tenant.secondaryColor || '#185FA5')
       setAccentColor(tenant.accentColor || '#138A6B')
       setWhatsappTemplate(tenant.whatsappTemplate || '')
+      setLogoUrl(tenant.logoUrl || '')
     }
   }, [tenant])
 
   function msg(m: string, tipo = 'ok') {
     setToast({ msg: m, tipo })
     setTimeout(() => setToast(null), 3500)
+  }
+
+  async function handleUploadLogo(e: React.ChangeEvent<HTMLInputElement>) {
+    if (!e.target.files || e.target.files.length === 0 || !tenant?.id) return
+    const file = e.target.files[0]
+    
+    // Validar tipo de archivo
+    if (!file.type.startsWith('image/')) {
+      return msg('Por favor, seleccioná una imagen válida (JPG, PNG, SVG).', 'error')
+    }
+
+    setUploadingLogo(true)
+    const fileExt = file.name.split('.').pop()
+    const fileName = `${tenant.id}-${Math.random().toString(36).substring(2)}.${fileExt}`
+    const filePath = `tenant-logos/${fileName}`
+
+    try {
+      // 1. Subir a Supabase Storage (bucket 'logos')
+      const { error: uploadError } = await supabase.storage
+        .from('logos')
+        .upload(filePath, file, { cacheControl: '3600', upsert: false })
+      
+      if (uploadError) throw uploadError
+
+      // 2. Obtener la URL pública
+      const { data: { publicUrl } } = supabase.storage.from('logos').getPublicUrl(filePath)
+      
+      // 3. Actualizar el estado local y la DB
+      setLogoUrl(publicUrl)
+      const { error: dbError } = await supabase.from('tenants').update({ logoUrl: publicUrl }).eq('id', tenant.id)
+      
+      if (dbError) throw dbError
+      msg('Logo subido correctamente ✓')
+      
+    } catch (err: any) {
+      msg('Error al subir logo: ' + err.message, 'error')
+    } finally {
+      setUploadingLogo(false)
+    }
   }
 
   async function handleSave() {
@@ -101,6 +143,24 @@ export default function Configuracion() {
             <div style={groupCss}>
               <label style={labelCss}>Dirección (para portal y agenda)</label>
               <input style={inputCss} value={direccion} onChange={e => setDireccion(e.target.value)} placeholder="Av. Santa Fe 3329, Piso 1 B, Palermo" />
+            </div>
+
+            <div style={{ ...groupCss, marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: '1px solid #e8edf2' }}>
+              <label style={labelCss}>Logo Oficial de la Clínica</label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                {logoUrl ? (
+                  <img src={logoUrl} alt="Logo" style={{ width: 60, height: 60, objectFit: 'contain', borderRadius: 8, border: '1px solid #e8edf2' }} />
+                ) : (
+                  <div style={{ width: 60, height: 60, background: '#f1f5f9', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', fontSize: 24 }}>🏢</div>
+                )}
+                <div>
+                  <input type="file" accept="image/*" onChange={handleUploadLogo} id="logo-upload" style={{ display: 'none' }} />
+                  <label htmlFor="logo-upload" style={{ display: 'inline-block', fontSize: 13, fontWeight: 600, padding: '8px 16px', borderRadius: 8, border: '1px solid #dde5ef', background: '#fff', color: '#4a6080', cursor: uploadingLogo ? 'not-allowed' : 'pointer' }}>
+                    {uploadingLogo ? 'Subiendo...' : 'Subir nuevo logo'}
+                  </label>
+                  <div style={{ fontSize: 11, color: '#8fa3bc', marginTop: 6 }}>Formatos soportados: JPG, PNG, SVG.</div>
+                </div>
+              </div>
             </div>
           </div>
 

@@ -252,7 +252,14 @@ export default function PacientePage() {
     <div style={{ minHeight:'100vh', fontFamily:'DM Sans, system-ui', padding:'2.5rem 1.25rem', background: 'var(--portal-bg)', transition: 'background-color 0.3s ease' }}>
       <div style={{ maxWidth:480, margin:'0 auto' }}>
         
-        {/* Encabezado Mock */}
+        {/* Logo de la Clínica */}
+        {tenant?.logoUrl && (
+          <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+            <img src={tenant.logoUrl} alt={tenant.nombre || 'Logo clínica'} style={{ height: 60, objectFit: 'contain', borderRadius: 8 }} />
+          </div>
+        )}
+
+        {/* Encabezado Paciente */}
         <div style={{ textAlign:'center', marginBottom:'2rem' }}>
           <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'linear-gradient(135deg, var(--portal-text-primary), #185FA5)', color: '#fff', fontSize: 28, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
             {paciente?.nombre ? paciente.nombre.charAt(0).toUpperCase() : 'M'}
