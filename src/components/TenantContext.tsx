@@ -56,15 +56,41 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
       try {
         const hostname = window.location.hostname
         
-        // Intentar resolver desde base de datos
-        const { data, error } = await supabase
-          .from('tenants')
-          .select('*')
-          .or(`custom_domain.eq.${hostname},subdominio_generico.eq.${hostname.split('.')[0]}`)
-          .eq('activo', true)
-          .single()
+        // 1. Intentar resolver por usuario autenticado (para el dashboard)
+        const { data: { session } } = await supabase.auth.getSession()
+        
+        let tenantData = null
 
-        if (data) {
+        if (session?.user) {
+          const { data: tuData } = await supabase
+            .from('tenant_users')
+            .select('tenant_id')
+            .eq('user_id', session.user.id)
+            .single()
+            
+          if (tuData?.tenant_id) {
+            const { data: tData } = await supabase
+              .from('tenants')
+              .select('*')
+              .eq('id', tuData.tenant_id)
+              .single()
+            tenantData = tData
+          }
+        }
+
+        // 2. Si no hay usuario (ej. portal del paciente), intentar por hostname
+        if (!tenantData) {
+          const { data } = await supabase
+            .from('tenants')
+            .select('*')
+            .or(`custom_domain.eq.${hostname},subdominio_generico.eq.${hostname.split('.')[0]}`)
+            .eq('activo', true)
+            .single()
+          tenantData = data
+        }
+
+        if (tenantData) {
+          const data = tenantData
           setTenant({
             id: data.id,
             nombre: data.nombre,
