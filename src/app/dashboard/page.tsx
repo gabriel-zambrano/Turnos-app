@@ -39,7 +39,6 @@ export default function Dashboard() {
   const [enviando, setEnviando] = useState(false)
   const [filtro, setFiltro] = useState('todas')
   const [logFiltro, setLogFiltro] = useState<'todos'|'enviado'|'fallido'>('todos')
-  const [mostrarMañana, setMostrarMañana] = useState(false)
   const [enviandoEmail, setEnviandoEmail] = useState(false)
   const [toast, setToast] = useState<{msg:string;tipo:string}|null>(null)
   const [hoy, setHoy] = useState('')
@@ -364,11 +363,7 @@ export default function Dashboard() {
   const minDiff = nextCita ? parseTimeToMin(nextCita.hora) - ahoraMin : 0
   const tiempoRestante = minDiff < 60 ? `en ${minDiff} min` : `en ${Math.floor(minDiff/60)}h ${minDiff%60}m`
 
-  // Horario blocks
-  const bM = citas.filter(c => { const m = parseTimeToMin(c.hora); return m >= 8*60 && m < 12*60 }).length
-  const bMD = citas.filter(c => { const m = parseTimeToMin(c.hora); return m >= 12*60 && m < 16*60 }).length
-  const bT = citas.filter(c => { const m = parseTimeToMin(c.hora); return m >= 16*60 && m < 20*60 }).length
-  const bMax = Math.max(bM, bMD, bT, 1)
+
 
   const logsFiltrados = logFiltro === 'todos' ? logs : logs.filter(l => l.estado === logFiltro)
 
@@ -502,50 +497,34 @@ export default function Dashboard() {
               )}
             </div>
 
-            {/* Peak Hours Visualizer Chart */}
-            <div className="glass-container" style={{ padding: '1.25rem 1.4rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: '#7a8f9d', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>
-                Distribución Horaria
+            {/* Preparación para Mañana */}
+            <div className="glass-container" style={{ padding: '1.25rem 1.4rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', background: `linear-gradient(135deg, ${primaryColor}, ${secondaryColor})`, color: '#fff', borderRadius: 16 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>
+                Preparación para mañana
               </div>
               
-              <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', height: 75, gap: 10, padding: '0 8px' }}>
-                {/* Block 1 */}
-                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
-                  <div style={{
-                    width: '100%',
-                    height: `${(bM / bMax) * 50}px`,
-                    background: `linear-gradient(180deg, ${secondaryColor}, ${secondaryColor}66)`,
-                    borderRadius: '4px 4px 0 0',
-                    minHeight: bM > 0 ? 4 : 0,
-                    transition: 'height 0.3s ease'
-                  }}/>
-                  <span style={{ fontSize: 9, fontWeight: 700, color: primaryColor }}>Mañana</span>
-                </div>
-                {/* Block 2 */}
-                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
-                  <div style={{
-                    width: '100%',
-                    height: `${(bMD / bMax) * 50}px`,
-                    background: `linear-gradient(180deg, ${accentColor}, ${accentColor}66)`,
-                    borderRadius: '4px 4px 0 0',
-                    minHeight: bMD > 0 ? 4 : 0,
-                    transition: 'height 0.3s ease'
-                  }}/>
-                  <span style={{ fontSize: 9, fontWeight: 700, color: primaryColor }}>Tarde</span>
-                </div>
-                {/* Block 3 */}
-                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
-                  <div style={{
-                    width: '100%',
-                    height: `${(bT / bMax) * 50}px`,
-                    background: `linear-gradient(180deg, ${primaryColor}, ${primaryColor}66)`,
-                    borderRadius: '4px 4px 0 0',
-                    minHeight: bT > 0 ? 4 : 0,
-                    transition: 'height 0.3s ease'
-                  }}/>
-                  <span style={{ fontSize: 9, fontWeight: 700, color: primaryColor }}>Noche</span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 1, justifyContent: 'center' }}>
+                <div style={{ fontSize: 32, fontWeight: 800, lineHeight: 1 }}>{citasMañana.length}</div>
+                <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.9)', lineHeight: 1.4 }}>
+                  {citasMañana.length === 1 ? 'turno agendado' : 'turnos agendados'} para el próximo día.
                 </div>
               </div>
+              
+              <button 
+                onClick={enviarEmailsMañana} 
+                disabled={enviandoEmail || citasMañana.length === 0}
+                className="btn-premium" 
+                style={{ 
+                  marginTop: 12, width: '100%', padding: '0.75rem', borderRadius: 10, border: 'none', 
+                  background: enviandoEmail || citasMañana.length === 0 ? 'rgba(255,255,255,0.2)' : '#fff', 
+                  color: enviandoEmail || citasMañana.length === 0 ? 'rgba(255,255,255,0.5)' : primaryColor, 
+                  fontWeight: 700, fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: enviandoEmail || citasMañana.length === 0 ? 'not-allowed' : 'pointer', fontFamily: 'DM Sans, sans-serif' 
+                }}>
+                {enviandoEmail
+                  ? <><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{animation:'spin 1s linear infinite'}}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>Enviando...</>
+                  : <>📧 Enviar recordatorios</>
+                }
+              </button>
             </div>
 
             {/* Quick Actions Card */}
@@ -818,16 +797,7 @@ export default function Dashboard() {
             </div>
           )}
 
-          <div className="glass-container progress-glow" style={{padding:isMobile?'1rem':'1.1rem 1.4rem',marginBottom:'1.5rem', '--glow-color': `${tasa >= 85 ? accentColor : '#EF9F27'}25` } as React.CSSProperties}>
-            <div style={{display:'flex',justifyContent:'space-between',marginBottom:8}}>
-              <span style={{fontSize:13,fontWeight:600,color:primaryColor}}>Progreso del día</span>
-              <span style={{fontSize:13,color:'#8fa3bc',fontWeight:600}}>{conf} de {citas.length}</span>
-            </div>
-            <div style={{height:8,background:'#f0f0ee',borderRadius:4,overflow:'hidden'}}>
-              <div style={{height:'100%',width:`${tasa}%`,background:tasa>=85?accentColor:secondaryColor,borderRadius:4,transition:'width .5s ease'}}/>
-            </div>
-            <div style={{fontSize:11,color:'#8fa3bc',marginTop:5}}>Objetivo: 85%</div>
-          </div>
+
           <div style={{display:'grid',gridTemplateColumns:isMobile?'1fr':'1fr 300px',gap:16,alignItems:'start'}}>
             <div>
               <div style={{display:'flex',justifyContent:'space-between',alignItems:isMobile?'flex-start':'center',flexDirection:isMobile?'column':'row',gap:isMobile?8:0,marginBottom:12}}>
@@ -968,66 +938,7 @@ export default function Dashboard() {
               </div>
             </div>
           </div>
-          <div style={{marginTop:32,borderTop:'1px solid rgba(56,138,221,0.12)',paddingTop:24}}>
-            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:mostrarMañana?16:0}}>
-              <div style={{display:'flex',alignItems:'center',gap:10}}>
-                <span style={{fontWeight:700,fontSize:15,color:primaryColor}}>Turnos de mañana</span>
-                <span style={{fontSize:12,fontWeight:700,padding:'2px 10px',borderRadius:20,background:`${accentColor}20`,color:accentColor}}>{citasMañana.length}</span>
-              </div>
-              <div style={{display:'flex',gap:8,alignItems:'center'}}>
-                <button onClick={enviarEmailsMañana} disabled={enviandoEmail||citasMañana.length===0} className="btn-premium" style={{fontSize:12,fontWeight:600,padding:'5px 14px',borderRadius:8,border:'none',background:enviandoEmail||citasMañana.length===0?'#e5e5e5':primaryColor,color:enviandoEmail||citasMañana.length===0?'#aaa':'#fff',cursor:enviandoEmail||citasMañana.length===0?'not-allowed':'pointer',fontFamily:'DM Sans, sans-serif',display:'flex',alignItems:'center',gap:6,boxShadow: enviandoEmail||citasMañana.length===0?'none':`0 2px 8px ${secondaryColor}25`}}>
-                  {enviandoEmail
-                    ? <><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{animation:'spin 1s linear infinite'}}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>Enviando...</>
-                    : <>📧 Emails ({citasMañana.length})</>
-                  }
-                </button>
-                <button onClick={()=>setMostrarMañana(v=>!v)} className="btn-premium" style={{fontSize:12,fontWeight:600,padding:'5px 14px',borderRadius:8,border:'0.5px solid rgba(56,138,221,0.2)',background:'#fff',color:primaryColor,cursor:'pointer',fontFamily:'DM Sans, sans-serif',display:'flex',alignItems:'center',gap:5}}>
-                  {mostrarMañana?'Ocultar ▲':'Ver turnos ▼'}
-                </button>
-              </div>
-            </div>
-            {mostrarMañana&&(
-              loading?<Spinner/>:citasMañana.length===0
-                ?<div style={{textAlign:'center',padding:'2.5rem 1.5rem',background:'rgba(255,255,255,0.7)',backdropFilter:'blur(20px)',border:'1px dashed rgba(56,138,221,0.15)',borderRadius:12,color:'#8fa3bc',fontSize:13}}>Sin turnos para mañana</div>
-                :<div style={{display:'grid',gridTemplateColumns:isMobile?'1fr':'repeat(3,1fr)',gap:12}}>
-                  {citasMañana.map(c=>{
-                    const ar=new Date(new Date(c.fecha_hora).toLocaleString('en-US',{timeZone:'America/Argentina/Buenos_Aires'}))
-                    const DIAS=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado']
-                    const MESES=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre']
-                    return(
-                      <div key={c.id} className="interactive-item" style={{background:'rgba(255,255,255,0.7)',borderRadius:12,padding:16,border:'1px solid rgba(255,255,255,0.85)',display:'flex',flexDirection:'column',gap:8}}>
-                        <div style={{fontSize:22,fontWeight:700,color:accentColor,lineHeight:1}}>{c.hora}</div>
-                        <div style={{fontWeight:600,fontSize:14,color:primaryColor,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{c.nombre}</div>
-                        <div style={{fontSize:13,color:'#8fa3bc'}}>{c.tratamiento}</div>
-                        {c.token&&(
-                          <button onClick={()=>{
-                            const ar=new Date(new Date(c.fecha_hora).toLocaleString('en-US',{timeZone:'America/Argentina/Buenos_Aires'}))
-                            const DIAS=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado']
-                            const MESES=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre']
-                            const diaSemana=DIAS[ar.getDay()]
-                            const fechaTexto=ar.getDate()+' de '+MESES[ar.getMonth()]
-                            const horaTexto=String(ar.getHours()).padStart(2,'0')+':'+String(ar.getMinutes()).padStart(2,'0')
-                            let msgText = tenant?.whatsappTemplate || ''
-                            msgText = msgText
-                              .replace(/{nombre_paciente}/g, c.nombre)
-                              .replace(/{nombre_clinica}/g, tenant?.nombre || 'DentalDesk')
-                              .replace(/{dia_semana}/g, diaSemana)
-                              .replace(/{fecha}/g, fechaTexto)
-                              .replace(/{hora}/g, horaTexto)
-                              .replace(/{tratamiento}/g, c.tratamiento)
-                              .replace(/{link}/g, `${window.location.origin}/paciente/${c.token}`)
-                            const txt = encodeURIComponent(msgText)
-                            window.open(`https://wa.me/${normalizarTelefono(c.telefono)}?text=${txt}`,'_blank')
-                          }} className="btn-premium" style={{marginTop:'auto',width:'100%',padding:'7px 0',borderRadius:8,border:'none',background:'#25D366',color:'#fff',fontWeight:600,fontSize:12,cursor:'pointer',fontFamily:'DM Sans, sans-serif',boxShadow: '0 2px 6px rgba(37,211,102,0.15)'}}>
-                            Enviar WhatsApp
-                          </button>
-                        )}
-                      </div>
-                    )
-                  })}
-                </div>
-            )}
-          </div>
+
         </div>
       </main>
 
