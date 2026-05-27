@@ -127,8 +127,7 @@ export default function PacientePage() {
   const [reproConfirm, setReproConfirm] = useState<Turno | null>(null)
   
   // Tabs and History states
-  const [activeTab, setActiveTab] = useState<'turnos' | 'historial' | 'plan' | 'fotos'>('turnos')
-  const [historial, setHistorial] = useState<any[]>([])
+
   const [pastTurnos, setPastTurnos] = useState<any[]>([])
   const [fotos, setFotos] = useState<any[]>([])
   const [feedbackPendiente, setFeedbackPendiente] = useState<any>(null)
@@ -156,7 +155,6 @@ export default function PacientePage() {
       const data = await res.json()
       setPaciente(data.paciente)
       setTurnos(data.turnos)
-      setHistorial(data.historial || [])
       setPastTurnos(data.pastTurnos || [])
       setFotos(data.fotos || [])
       setFeedbackPendiente(data.feedbackPendiente || null)
@@ -213,7 +211,9 @@ export default function PacientePage() {
   if (error) return (
     <div style={{ minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'DM Sans, system-ui', background:'#f8fafc' }}>
       <div style={{ textAlign:'center', maxWidth:360, padding:'2rem', background:'#fff', borderRadius:24, boxShadow:'0 10px 30px rgba(0,0,0,0.05)' }}>
-        <div style={{ fontSize:48, marginBottom:16 }}>🔍</div>
+        <div style={{ fontSize:48, marginBottom:16 }}>
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{margin:'0 auto', color:'#8fa3bc'}}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        </div>
         <div style={{ fontSize:18, fontWeight:700, color:'#0a1e3d' }}>Enlace de turno no válido</div>
         <div style={{ color:'#8fa3bc', marginTop:8, fontSize:14, lineHeight:1.5 }}>Por favor ponte en contacto con tu odontólogo para que te envíe un nuevo enlace de gestión.</div>
       </div>
@@ -236,7 +236,7 @@ export default function PacientePage() {
   const getEstimadoMesesRestantes = () => {
     const pct = paciente?.progreso_plan_porcentaje || 0
     if (pct <= 0) return null
-    if (pct >= 100) return '¡Tratamiento completado! 🎉'
+    if (pct >= 100) return 'Tratamiento completado'
     const elapsed = getMesesTranscurridos()
     const remaining = Math.max(1, Math.round(elapsed * (100 - pct) / pct))
     return `~${remaining} meses estimados restantes`
@@ -246,18 +246,48 @@ export default function PacientePage() {
     <div style={{ minHeight:'100vh', fontFamily:'DM Sans, system-ui', padding:'2.5rem 1.25rem', background: 'var(--portal-bg)', transition: 'background-color 0.3s ease' }}>
       <div style={{ maxWidth:480, margin:'0 auto' }}>
         
-        {/* Encabezado */}
-        <div style={{ textAlign:'center', marginBottom:'2.5rem' }}>
-          {tenant?.logoUrl ? (
-            <img src={tenant.logoUrl} alt={tenant.nombre} style={{ height: 60, margin: '0 auto 16px', display: 'block', objectFit: 'contain' }} />
-          ) : (
-            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#00F5A0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ margin: '0 auto 16px', display: 'block', filter: 'drop-shadow(0 0 10px rgba(0, 245, 160, 0.3))' }}>
-              <path d="M12 2C9.5 2 7.5 4 7.5 6.5C7.5 8.5 9 10 9 11C9 12.5 8 13.5 7 14C5.5 14.8 4 16.5 4 19C4 20.5 5 22 7.5 22C9.5 22 10.5 20.5 12 20.5C13.5 20.5 14.5 22 16.5 22C19 22 20 20.5 20 19C20 16.5 18.5 14.8 17 14C16 13.5 15 12.5 15 11C15 10 16.5 8.5 16.5 6.5C16.5 4 14.5 2 12 2Z" />
-            </svg>
-          )}
-          <h1 style={{ fontSize:22, fontWeight:800, color: 'var(--portal-text-primary)', letterSpacing: '-0.5px', margin:0 }}>Hola, {paciente?.nombre}</h1>
-          <p style={{ color:'var(--portal-text-muted)', fontSize:14, marginTop:6, fontWeight:500 }}>Gestiona tus próximos turnos programados</p>
+        {/* Encabezado Mock */}
+        <div style={{ textAlign:'center', marginBottom:'2rem' }}>
+          <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'linear-gradient(135deg, var(--portal-text-primary), #185FA5)', color: '#fff', fontSize: 28, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
+            {paciente?.nombre ? paciente.nombre.charAt(0).toUpperCase() : 'M'}
+          </div>
+          <h1 style={{ fontSize:22, fontWeight:800, color: 'var(--portal-text-primary)', letterSpacing: '-0.5px', margin:0 }}>{paciente?.nombre}</h1>
+          <div style={{ fontSize:15, fontWeight:700, color: secondaryColor, marginTop:4 }}>
+            {paciente?.progreso_plan_porcentaje && paciente.progreso_plan_porcentaje > 0 
+              ? `${turnos[0]?.tipo_tratamiento || pastTurnos[0]?.tipo_tratamiento || 'Ortodoncia'} activa · ${getMesesTranscurridos()} meses`
+              : 'Consulta General'}
+          </div>
         </div>
+
+        {/* Progreso del tratamiento */}
+        {paciente?.progreso_plan_porcentaje && paciente.progreso_plan_porcentaje > 0 && (
+          <div style={{ marginBottom: 24 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 8 }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--portal-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Progreso del tratamiento</span>
+              <span style={{ fontSize: 18, fontWeight: 800, color: 'var(--portal-text-primary)' }}>{paciente.progreso_plan_porcentaje}%</span>
+            </div>
+            <div style={{
+              height: 12,
+              background: 'rgba(255,255,255,0.05)',
+              border: '1px solid rgba(255,255,255,0.08)',
+              borderRadius: 6,
+              overflow: 'hidden',
+              marginBottom: 8
+            }}>
+              <div style={{
+                height: '100%',
+                width: `${paciente.progreso_plan_porcentaje}%`,
+                background: '#00F5A0',
+                borderRadius: 6,
+                boxShadow: '0 0 10px rgba(0, 245, 160, 0.4)'
+              }} />
+            </div>
+            <div style={{ fontSize:13, color:'var(--portal-text-secondary)', fontWeight:500, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00F5A0" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              {getEstimadoMesesRestantes()}
+            </div>
+          </div>
+        )}
 
         {/* Banner de Feedback Pendiente */}
         {feedbackPendiente && !showFeedbackModal && (
@@ -289,421 +319,144 @@ export default function PacientePage() {
           </div>
         )}
 
-        {/* Ficha Clínica Viva Stats Panel */}
-        <div className="patient-card" style={{ borderRadius:20, padding:'1.25rem', marginBottom:20, border:'1px solid var(--portal-card-border)', background:'var(--portal-card-bg)' }}>
-          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', borderBottom:'1px solid var(--portal-card-border)', paddingBottom:12, marginBottom:12 }}>
-            <div>
-              <span style={{ fontSize:10, fontWeight:700, color:'var(--portal-text-muted)', textTransform:'uppercase', letterSpacing:'0.06em' }}>Tratamiento Activo</span>
-              <div style={{ fontSize:15, fontWeight:800, color:'#fff', marginTop:2 }}>
-                {paciente?.progreso_plan_porcentaje && paciente.progreso_plan_porcentaje > 0 
-                  ? `${turnos[0]?.tipo_tratamiento || pastTurnos[0]?.tipo_tratamiento || 'Ortodoncia'} activa · ${getMesesTranscurridos()} meses`
-                  : 'Consulta / Control'}
-              </div>
-            </div>
-            <span style={{ fontSize:11, fontWeight:700, color:'#00F5A0', background:'rgba(0,245,160,0.08)', padding:'4px 10px', borderRadius:20 }}>
-              {paciente?.progreso_plan_porcentaje && paciente.progreso_plan_porcentaje > 0 ? 'Activo' : 'Básico'}
-            </span>
-          </div>
-          
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:8 }}>
-            <div style={{ textAlign:'center', borderRight:'1px solid var(--portal-card-border)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span style={{ fontSize:20, fontWeight:800, color: '#fff' }}>{pastTurnos.filter(pt => pt.estado === 'asistio' || pt.estado === 'completado').length}</span>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#00F5A0" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-              </div>
-              <div style={{ fontSize:9.5, fontWeight:600, color:'var(--portal-text-muted)', marginTop:4, textTransform:'uppercase', letterSpacing:'0.02em' }}>Visitas</div>
-            </div>
-            
-            <div style={{ textAlign:'center', borderRight:'1px solid var(--portal-card-border)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-              {(() => {
-                const pastNonCanceled = pastTurnos.filter(pt => pt.estado !== 'cancelado')
-                const attendedCount = pastNonCanceled.filter(pt => pt.estado === 'asistio' || pt.estado === 'completado').length
-                const adherence = pastNonCanceled.length > 0 
-                  ? Math.round((attendedCount / pastNonCanceled.length) * 100) 
-                  : 100
+        {/* Próximo turno */}
+        {turnos.length > 0 && (
+          <div style={{ marginBottom: 24 }}>
+            <h3 style={{ fontSize:16, fontWeight:800, color:'var(--portal-text-primary)', marginBottom:12 }}>Próximo turno</h3>
+            <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+              {turnos.map(t => {
+                const { dia, fecha, hora } = formatFecha(t.fecha_hora)
                 return (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span style={{ fontSize:20, fontWeight:800, color: '#fff' }}>
-                      {adherence}%
-                    </span>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#00F5A0" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+                  <div key={t.id} className="patient-card" style={{ borderRadius:20, padding:'1.5rem', border:'1px solid var(--portal-card-border)', background: 'var(--portal-card-bg)' }}>
+                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:16 }}>
+                      <div>
+                        <div style={{ fontSize:18, fontWeight:800, color: 'var(--portal-text-primary)' }}>{dia} {fecha} · {hora} hs</div>
+                        <div style={{ display:'flex', alignItems:'center', gap:6, marginTop:8 }}>
+                          <span style={{ fontSize:14, fontWeight:600, color: 'var(--portal-text-secondary)' }}>{t.tipo_tratamiento}</span>
+                          <span style={{ fontSize:14, color:'var(--portal-text-muted)' }}>· {t.duracion_minutos} min</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {t.estado === 'pendiente' && (
+                      <div style={{ display:'flex', gap:10 }}>
+                        <button
+                          onClick={() => cambiarEstado(t.id, 'confirmado')}
+                          disabled={accion?.id===t.id}
+                          style={{ flex:1, fontSize:14, padding:'12px', borderRadius:12, border:'none', background: '#D1E7DD', color: '#0A3622', cursor:'pointer', fontWeight:700, fontFamily:'DM Sans, system-ui', transition:'transform 0.2s' }}
+                        >
+                          Confirmar
+                        </button>
+                        <button
+                          onClick={() => setReproConfirm(t)}
+                          disabled={accion?.id===t.id}
+                          style={{ flex:1, fontSize:14, padding:'12px', borderRadius:12, border:'none', background: 'rgba(24,95,165,0.08)', color: secondaryColor, cursor:'pointer', fontWeight:600, fontFamily:'DM Sans, system-ui', transition:'transform 0.2s' }}
+                        >
+                          Reprogramar
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )
-              })()}
-              <div style={{ fontSize:9.5, fontWeight:600, color:'var(--portal-text-muted)', marginTop:4, textTransform:'uppercase', letterSpacing:'0.02em' }}>Adherencia</div>
-            </div>
-            
-            <div style={{ textAlign:'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span style={{ fontSize:20, fontWeight:800, color: '#fff' }}>{fotos.length}</span>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#00F5A0" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-              </div>
-              <div style={{ fontSize:9.5, fontWeight:600, color:'var(--portal-text-muted)', marginTop:4, textTransform:'uppercase', letterSpacing:'0.02em' }}>Fotos</div>
+              })}
             </div>
           </div>
-          
-          {/* Adherence and milestone encouraging micro-copy banner */}
-          {(() => {
-            const pastNonCanceled = pastTurnos.filter(pt => pt.estado !== 'cancelado')
-            const attendedCount = pastNonCanceled.filter(pt => pt.estado === 'asistio' || pt.estado === 'completado').length
-            const adherence = pastNonCanceled.length > 0 ? Math.round((attendedCount / pastNonCanceled.length) * 100) : 100
-            
-            let message = '¡Sos de los pacientes más constantes! 🏆'
-            if (adherence < 80) message = '¡A seguir mejorando la regularidad! 💪'
-            else if (adherence < 90) message = '¡Excelente constancia en tus visitas! ✨'
-            
-            return (
-              <div style={{ marginTop: 12, padding: '8px 12px', background: 'rgba(0, 245, 160, 0.08)', borderRadius: 10, fontSize: 11, fontWeight: 600, color: '#00F5A0', textAlign: 'center' }}>
-                {message}
-              </div>
-            )
-          })()}
-        </div>
-
-        {/* Tabs switcher */}
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          borderBottom: '1px solid var(--portal-card-border)',
-          marginBottom: 20,
-          overflowX: 'auto',
-          WebkitOverflowScrolling: 'touch',
-          position: 'relative'
-        }}>
-          {[
-            {
-              id: 'turnos',
-              label: 'Turnos',
-              icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-            },
-            {
-              id: 'historial',
-              label: 'Historial',
-              icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2C9.5 2 7.5 4 7.5 6.5C7.5 8.5 9 10 9 11C9 12.5 8 13.5 7 14C5.5 14.8 4 16.5 4 19C4 20.5 5 22 7.5 22C9.5 22 10.5 20.5 12 20.5C13.5 20.5 14.5 22 16.5 22C19 22 20 20.5 20 19C20 16.5 18.5 14.8 17 14C16 13.5 15 12.5 15 11C15 10 16.5 8.5 16.5 6.5C16.5 4 14.5 2 12 2Z" /></svg>
-            },
-            {
-              id: 'plan',
-              label: 'Mi Plan',
-              icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
-            },
-            {
-              id: 'fotos',
-              label: 'Fotos',
-              icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-            }
-          ].map(tab => {
-            const active = activeTab === tab.id
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
-                style={{
-                  flex: 1,
-                  flexShrink: 0,
-                  padding: '12px 8px',
-                  background: 'transparent',
-                  border: 'none',
-                  color: active ? '#00F5A0' : 'var(--portal-text-secondary)',
-                  fontWeight: 700,
-                  fontSize: 13.5,
-                  cursor: 'pointer',
-                  fontFamily: 'DM Sans, system-ui',
-                  transition: 'all 0.2s',
-                  whiteSpace: 'nowrap',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 6,
-                  borderBottom: active ? '2.5px solid #00F5A0' : '2.5px solid transparent',
-                  marginBottom: -1
-                }}
-              >
-                {tab.icon}
-                <span>{tab.label}</span>
-              </button>
-            )
-          })}
-        </div>
-
-        {/* Tab Panel: Turnos */}
-        {activeTab === 'turnos' && (
-          <>
-            {turnos.length === 0 ? (
-              <div className="patient-card" style={{ textAlign:'center', padding:'3rem 2rem', borderRadius:20, color:'var(--portal-text-muted)', fontSize:14 }}>
-                No tienes turnos próximos programados en este momento.
-              </div>
-            ) : (
-              <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
-                {turnos.map(t => {
-                  const { dia, fecha, hora } = formatFecha(t.fecha_hora)
-                  const est = ESTADO_STYLE[t.estado] || ESTADO_STYLE.pendiente
-                  return (
-                    <div key={t.id} className="patient-card" style={{ borderRadius:20, padding:'1.5rem', border:'1px solid var(--portal-card-border)' }}>
-                      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:16 }}>
-                        <div>
-                          <div style={{ fontSize:11, color:'var(--portal-text-muted)', fontWeight:700, textTransform:'uppercase', letterSpacing:'0.06em' }}>{dia}</div>
-                          <div style={{ fontSize:18, fontWeight:800, color: 'var(--portal-text-primary)', marginTop:3 }}>{fecha}</div>
-                          <div style={{ fontSize:20, fontWeight:800, color: secondaryColor, marginTop:2 }}>{hora} hs</div>
-                          
-                          <div style={{ display:'inline-flex', alignItems:'center', gap:6, marginTop:12, background:'rgba(0, 245, 160, 0.08)', padding:'6px 12px', borderRadius:10 }}>
-                            <span style={{ fontSize:13, fontWeight:600, color: '#00F5A0', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2C9.5 2 7.5 4 7.5 6.5C7.5 8.5 9 10 9 11C9 12.5 8 13.5 7 14C5.5 14.8 4 16.5 4 19C4 20.5 5 22 7.5 22C9.5 22 10.5 20.5 12 20.5C13.5 20.5 14.5 22 16.5 22C19 22 20 20.5 20 19C20 16.5 18.5 14.8 17 14C16 13.5 15 12.5 15 11C15 10 16.5 8.5 16.5 6.5C16.5 4 14.5 2 12 2Z" /></svg>
-                              {t.tipo_tratamiento}
-                            </span>
-                            <span style={{ fontSize:11, color:'var(--portal-text-secondary)', fontWeight:500 }}>· {t.duracion_minutos} min</span>
-                          </div>
-                          
-                          {t.notes && (
-                            <div style={{ fontSize:13, color:'var(--portal-text-secondary)', marginTop:12, paddingLeft:10, borderLeft:`2.5px solid #00F5A0`, fontStyle:'italic' }}>
-                              {t.notes}
-                            </div>
-                          )}
-                        </div>
-                        <span style={{ background:est.bg, color:est.color, fontSize:11, fontWeight:700, padding:'4px 10px', borderRadius:20, textTransform:'uppercase', letterSpacing:'0.04em' }}>{est.label}</span>
-                      </div>
-
-                      <div style={{ display:'flex', gap:10, marginTop:16 }}>
-                        <button
-                          onClick={() => compartirWhatsApp(t, paciente!, token, tenant)}
-                          style={{ flex:1.8, display:'inline-flex', alignItems:'center', justifyContent:'center', gap:6, fontSize:13, padding:'10px 14px', borderRadius:12, border:'none', background:'linear-gradient(135deg,#25D366,#128C7E)', color:'#fff', cursor:'pointer', fontWeight:600, fontFamily:'DM Sans, system-ui', boxShadow: '0 4px 12px rgba(37,211,102,0.15)', transition:'transform 0.2s' }}
-                          onMouseEnter={e=>e.currentTarget.style.transform='scale(1.02)'}
-                          onMouseLeave={e=>e.currentTarget.style.transform='scale(1)'}
-                        >
-                          <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.514 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.724-1.455L0 24zm6.59-4.846c1.66.986 3.288 1.488 4.905 1.489 5.5.003 9.975-4.47 9.979-9.967.002-2.662-1.033-5.166-2.915-7.05C16.734 1.744 14.236.703 11.58.701c-5.503 0-9.98 4.47-9.985 9.969-.001 1.776.48 3.5 1.391 5.01L1.93 21.72l6.147-1.611-.43-.255z"/></svg>
-                          Enviar WhatsApp
-                        </button>
-                        <button
-                          onClick={() => generateICS(t, tenant)}
-                          style={{ flex:1, display:'inline-flex', alignItems:'center', justifyContent:'center', gap:6, fontSize:13, padding:'10px 14px', borderRadius:12, border:`1px solid rgba(255,255,255,0.08)`, background:`rgba(255,255,255,0.03)`, color: '#fff', cursor:'pointer', fontWeight:600, fontFamily:'DM Sans, system-ui', transition:'transform 0.2s' }}
-                          onMouseEnter={e=>e.currentTarget.style.transform='scale(1.02)'}
-                          onMouseLeave={e=>e.currentTarget.style.transform='scale(1)'}
-                        >
-                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                          Agendar
-                        </button>
-                      </div>
-
-                      {t.estado === 'pendiente' && (
-                        <div style={{ display:'flex', gap:10, marginTop:10 }}>
-                          <button
-                            onClick={() => cambiarEstado(t.id, 'confirmado')}
-                            disabled={accion?.id===t.id}
-                            style={{ flex:1, fontSize:13, padding:'11px', borderRadius:12, border:'none', background: '#D1E7DD', color: '#0A3622', cursor:'pointer', fontWeight:700, fontFamily:'DM Sans, system-ui', boxShadow: '0 3px 10px rgba(10,54,34,0.06)', transition:'transform 0.2s' }}
-                            onMouseEnter={e=>e.currentTarget.style.transform='scale(1.02)'}
-                            onMouseLeave={e=>e.currentTarget.style.transform='scale(1)'}
-                          >
-                            {accion?.id===t.id&&accion.tipo==='confirmado'?'...':'Confirmar asistencia'}
-                          </button>
-                          <button
-                            onClick={() => setReproConfirm(t)}
-                            disabled={accion?.id===t.id}
-                            style={{ flex:1, fontSize:13, padding:'11px', borderRadius:12, border:'none', background: 'rgba(24,95,165,0.06)', color: secondaryColor, cursor:'pointer', fontWeight:600, fontFamily:'DM Sans, system-ui', transition:'transform 0.2s' }}
-                            onMouseEnter={e=>e.currentTarget.style.transform='scale(1.02)'}
-                            onMouseLeave={e=>e.currentTarget.style.transform='scale(1)'}
-                          >
-                            {accion?.id===t.id&&accion.tipo==='cancelado'?'...':'Reprogramar'}
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-          </>
         )}
 
-        {/* Tab Panel: Historial */}
-        {activeTab === 'historial' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            {pastTurnos.length === 0 && historial.length === 0 ? (
-              <div className="patient-card" style={{ textAlign:'center', padding:'3rem 2rem', borderRadius:20, color:'var(--portal-text-muted)', fontSize:14 }}>
-                No hay tratamientos o visitas anteriores registradas.
-              </div>
-            ) : (
-              <>
-                {/* Past appointments */}
-                {pastTurnos.length > 0 && (
+        {/* Stats Grid */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12, marginBottom: 24 }}>
+          <div className="patient-card" style={{ padding: '16px', borderRadius: 16, border: '1px solid var(--portal-card-border)', background: 'var(--portal-card-bg)' }}>
+            <div style={{ fontSize: 24, fontWeight: 800, color: '#fff' }}>{pastTurnos.filter(pt => pt.estado === 'asistio' || pt.estado === 'completado').length}</div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--portal-text-muted)', textTransform: 'uppercase', letterSpacing: '0.02em', marginTop: 4 }}>Visitas totales</div>
+          </div>
+          <div className="patient-card" style={{ padding: '16px', borderRadius: 16, border: '1px solid var(--portal-card-border)', background: 'var(--portal-card-bg)' }}>
+            {(() => {
+              const pastNonCanceled = pastTurnos.filter(pt => pt.estado !== 'cancelado')
+              const attendedCount = pastNonCanceled.filter(pt => pt.estado === 'asistio' || pt.estado === 'completado').length
+              const adherence = pastNonCanceled.length > 0 ? Math.round((attendedCount / pastNonCanceled.length) * 100) : 100
+              return (
+                <>
+                  <div style={{ fontSize: 24, fontWeight: 800, color: '#00F5A0' }}>{adherence}%</div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--portal-text-muted)', textTransform: 'uppercase', letterSpacing: '0.02em', marginTop: 4 }}>Adherencia</div>
+                </>
+              )
+            })()}
+          </div>
+          <div className="patient-card" style={{ padding: '16px', borderRadius: 16, border: '1px solid var(--portal-card-border)', background: 'var(--portal-card-bg)' }}>
+            {(() => {
+              const pct = paciente?.progreso_plan_porcentaje || 0
+              const elapsed = getMesesTranscurridos()
+              const remaining = pct > 0 ? Math.max(1, Math.round(elapsed * (100 - pct) / pct)) : 0
+              return (
+                <>
+                  <div style={{ fontSize: 24, fontWeight: 800, color: '#fff' }}>{remaining}</div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--portal-text-muted)', textTransform: 'uppercase', letterSpacing: '0.02em', marginTop: 4 }}>Meses restantes</div>
+                </>
+              )
+            })()}
+          </div>
+          <div className="patient-card" style={{ padding: '16px', borderRadius: 16, border: '1px solid var(--portal-card-border)', background: 'var(--portal-card-bg)' }}>
+            <div style={{ fontSize: 24, fontWeight: 800, color: '#fff' }}>{fotos.length}</div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--portal-text-muted)', textTransform: 'uppercase', letterSpacing: '0.02em', marginTop: 4 }}>Fotos del proceso</div>
+          </div>
+        </div>
+
+        {/* Adherence microcopy (no emojis) */}
+        {(() => {
+          const pastNonCanceled = pastTurnos.filter(pt => pt.estado !== 'cancelado')
+          const attendedCount = pastNonCanceled.filter(pt => pt.estado === 'asistio' || pt.estado === 'completado').length
+          const adherence = pastNonCanceled.length > 0 ? Math.round((attendedCount / pastNonCanceled.length) * 100) : 100
+          let message = 'Sos de los pacientes más constantes'
+          if (adherence < 80) message = 'A seguir mejorando la regularidad'
+          else if (adherence < 90) message = 'Excelente constancia en tus visitas'
+          return (
+            <div style={{ marginBottom: 24, padding: '12px', background: 'rgba(0, 245, 160, 0.08)', borderRadius: 12, fontSize: 13, fontWeight: 600, color: '#00F5A0', textAlign: 'center', border: '1px solid rgba(0, 245, 160, 0.2)' }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ verticalAlign: 'middle', marginRight: 6 }}><polyline points="20 6 9 17 4 12"/></svg>
+              {message}
+            </div>
+          )
+        })()}
+
+        {/* Últimas visitas */}
+        {pastTurnos.length > 0 && (
+          <div style={{ marginBottom: 24 }}>
+            <h3 style={{ fontSize:16, fontWeight:800, color:'var(--portal-text-primary)', marginBottom:12 }}>Últimas visitas</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {pastTurnos.slice(-3).reverse().map(pt => (
+                <div key={pt.id} className="patient-card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderRadius:16, padding:'1rem 1.25rem', border:'1px solid var(--portal-card-border)', background: 'var(--portal-card-bg)' }}>
                   <div>
-                    <h3 style={{ fontSize:14, fontWeight:800, color:'var(--portal-text-primary)', marginBottom:10 }}>Visitas Anteriores</h3>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                      {pastTurnos.map(pt => (
-                        <div key={pt.id} className="patient-card" style={{ borderRadius:18, padding:'1.25rem', border:'1px solid var(--portal-card-border)' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <div>
-                              <div style={{ fontSize:11, color:'var(--portal-text-muted)', fontWeight:700 }}>{formatFecha(pt.fecha_hora).full}</div>
-                              <div style={{ fontSize:14, fontWeight:800, color: 'var(--portal-text-primary)', marginTop:3, display: 'flex', alignItems: 'center', gap: 6 }}>
-                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#00F5A0" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2C9.5 2 7.5 4 7.5 6.5C7.5 8.5 9 10 9 11C9 12.5 8 13.5 7 14C5.5 14.8 4 16.5 4 19C4 20.5 5 22 7.5 22C9.5 22 10.5 20.5 12 20.5C13.5 20.5 14.5 22 16.5 22C19 22 20 20.5 20 19C20 16.5 18.5 14.8 17 14C16 13.5 15 12.5 15 11C15 10 16.5 8.5 16.5 6.5C16.5 4 14.5 2 12 2Z" /></svg>
-                                {pt.tipo_tratamiento}
-                              </div>
-                            </div>
-                            <span style={{ fontSize:10, fontWeight:700, color:'#0A3622', background:'#D1E7DD', padding:'2px 8px', borderRadius:20, textTransform:'uppercase' }}>Atendido</span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+                    <div style={{ fontSize:14, fontWeight:700, color: 'var(--portal-text-primary)' }}>{pt.tipo_tratamiento}</div>
+                    <div style={{ fontSize:13, color:'var(--portal-text-muted)', marginTop:2 }}>{formatFecha(pt.fecha_hora).fecha}</div>
                   </div>
-                )}
-
-                {/* Historial dental logs */}
-                {historial.length > 0 && (
-                  <div style={{ marginTop: 6 }}>
-                    <h3 style={{ fontSize:14, fontWeight:800, color:'var(--portal-text-primary)', marginBottom:10 }}>Evolución Dental</h3>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                      {historial.map(h => (
-                        <div key={h.id} className="patient-card" style={{ borderRadius:18, padding:'1.25rem', borderLeft:`4px solid #00F5A0` }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span style={{ fontWeight:800, fontSize:13.5, color: 'var(--portal-text-primary)' }}>Pieza {h.diente}</span>
-                            <span style={{ fontSize:11, fontWeight:700, color: secondaryColor, background:'rgba(24,95,165,0.06)', padding:'2px 8px', borderRadius:8 }}>{h.estado}</span>
-                          </div>
-                          {h.notas && <div style={{ fontSize:12.5, color:'var(--portal-text-secondary)', marginTop:6, fontStyle:'italic' }}>"{h.notas}"</div>}
-                          <div style={{ fontSize:10.5, color:'var(--portal-text-muted)', marginTop:6, fontWeight:500 }}>Registrado el {new Date(h.creado_en).toLocaleDateString('es-AR')}</div>
-                        </div>
-                      ))}
-                    </div>
+                  <div style={{ width: 24, height: 24, borderRadius: '50%', background: '#D1E7DD', color: '#0A3622', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                   </div>
-                )}
-              </>
-            )}
-          </div>
-        )}
-
-        {/* Tab Panel: Plan de Tratamiento */}
-        {activeTab === 'plan' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            {/* Progress indicator */}
-            <div className="patient-card" style={{ borderRadius:20, padding:'1.5rem', display:'flex', flexDirection:'column', gap:16 }}>
-              <div style={{ fontSize:16, fontWeight:800, color: '#fff' }}>Mi Plan</div>
-              
-              <div style={{
-                height: 26,
-                background: 'rgba(255,255,255,0.03)',
-                border: '1px solid rgba(255,255,255,0.08)',
-                borderRadius: 13,
-                overflow: 'hidden',
-                position: 'relative',
-                display: 'flex',
-                alignItems: 'center'
-              }}>
-                <div style={{
-                  height: '100%',
-                  width: `${paciente?.progreso_plan_porcentaje || 0}%`,
-                  background: 'linear-gradient(90deg, #10B981, #00F5A0)',
-                  borderRadius: 13,
-                  transition: 'width 0.6s cubic-bezier(0.4, 0, 0.2, 1)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  boxShadow: '0 0 15px rgba(0, 245, 160, 0.4)'
-                }}>
-                  <span style={{ fontSize: 12, fontWeight: 800, color: '#070e17' }}>
-                    {paciente?.progreso_plan_porcentaje || 0}%
-                  </span>
                 </div>
-              </div>
-
-              {paciente?.progreso_plan_porcentaje && paciente.progreso_plan_porcentaje > 0 && paciente.progreso_plan_porcentaje < 100 && (
-                <div style={{
-                  padding: '10px',
-                  background: 'rgba(255,255,255,0.03)',
-                  border: '1px solid rgba(255,255,255,0.06)',
-                  borderRadius: 12,
-                  fontSize: 13,
-                  fontWeight: 700,
-                  color: '#fff',
-                  textAlign: 'center',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 8
-                }}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00F5A0" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                  <span>{getEstimadoMesesRestantes()?.replace('~', '')}</span>
-                </div>
-              )}
-              <div style={{ fontSize:11, color:'var(--portal-text-muted)', textAlign:'center', fontWeight:500, lineHeight:1.4 }}>
-                Estimación basada en las fases completadas de tu plan clínico y tiempo transcurrido.
-              </div>
-            </div>
-
-            {/* Recommendations / Allergies */}
-            <div className="patient-card" style={{ borderRadius:20, padding:'1.5rem', display:'flex', flexDirection:'column', gap:14 }}>
-              <h3 style={{ fontSize:14, fontWeight:800, color:'var(--portal-text-primary)', margin:0 }}>Indicaciones Clínicas</h3>
-              
-              <div>
-                <span style={{ fontSize:11, color:'var(--portal-text-muted)', fontWeight:700, textTransform:'uppercase', letterSpacing:'0.05em' }}>Alergias / Restricciones</span>
-                {paciente?.alergias ? (
-                  <div style={{ fontSize:13.5, color:'#EF4444', fontWeight:700, marginTop:4, background:'rgba(239,68,68,0.08)', border:'1px solid rgba(239,68,68,0.2)', padding:'8px 12px', borderRadius:10, display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-                    {paciente.alergias}
-                  </div>
-                ) : (
-                  <div style={{ fontSize:13, color:'var(--portal-text-secondary)', marginTop:4 }}>Ninguna alergia registrada.</div>
-                )}
-              </div>
-
-              <div style={{ borderTop:'1px solid var(--portal-card-border)', paddingTop:12 }}>
-                <span style={{ fontSize:11, color:'var(--portal-text-muted)', fontWeight:700, textTransform:'uppercase', letterSpacing:'0.05em' }}>Antecedentes Relevantes</span>
-                <div style={{ fontSize:13, color:'var(--portal-text-primary)', marginTop:4, lineHeight:1.4 }}>{paciente?.antecedentes || 'Sin antecedentes médicos registrados.'}</div>
-              </div>
+              ))}
             </div>
           </div>
         )}
 
-        {/* Tab Panel: Fotos de Progreso */}
-        {activeTab === 'fotos' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            {fotos.length === 0 ? (
-              <div className="patient-card" style={{ textAlign:'center', padding:'3rem 2rem', borderRadius:20, color:'var(--portal-text-muted)', fontSize:14, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
-                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--portal-text-muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-                Tu odontólogo irá subiendo fotos de tu progreso en cada etapa para que puedas ver tu evolución aquí.
-              </div>
-            ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 16 }}>
-                {/* Visual before/after showcase card if there are multiple photos */}
-                {fotos.length >= 2 && (
-                  <div className="patient-card" style={{ borderRadius:20, padding:'1.25rem', border:'1px solid var(--portal-card-border)' }}>
-                    <div style={{ fontSize:14, fontWeight:800, color:'#fff', display:'flex', alignItems:'center', gap:6, marginBottom:12 }}>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00F5A0" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-                      Comparativa de Evolución (Antes y Después)
-                    </div>
-                    <div style={{ display:'flex', gap:10 }}>
-                      <div style={{ flex:1, textAlign:'center' }}>
-                        <div style={{ fontSize:11, color:'var(--portal-text-muted)', fontWeight:700, marginBottom:4 }}>INICIO ({new Date(fotos[0].creado_en).toLocaleDateString('es-AR')})</div>
-                        <img src={fotos[0].url} alt="Antes" style={{ width:'100%', aspectRatio:'4/3', objectFit:'cover', borderRadius:12, border:'1px solid var(--portal-card-border)' }} />
-                      </div>
-                      <div style={{ flex:1, textAlign:'center' }}>
-                        <div style={{ fontSize:11, color:'var(--portal-text-muted)', fontWeight:700, marginBottom:4 }}>ACTUAL ({new Date(fotos[fotos.length-1].creado_en).toLocaleDateString('es-AR')})</div>
-                        <img src={fotos[fotos.length-1].url} alt="Después" style={{ width:'100%', aspectRatio:'4/3', objectFit:'cover', borderRadius:12, border:'1px solid var(--portal-card-border)' }} />
-                      </div>
-                    </div>
-                  </div>
-                )}
-                
-                {/* List of all stages */}
-                <h3 style={{ fontSize:14, fontWeight:800, color:'var(--portal-text-primary)', margin:'6px 0 0' }}>Línea de Tiempo de Fotos</h3>
-                {fotos.map((f, idx) => (
-                  <div key={f.id} className="patient-card" style={{ borderRadius:20, overflow:'hidden', border:'1px solid var(--portal-card-border)' }}>
-                    <img src={f.url} alt={f.etapa || 'Progreso'} style={{ width:'100%', maxHeight:320, objectFit:'cover' }} />
-                    <div style={{ padding:'1.25rem' }}>
-                      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6 }}>
-                        <span style={{ fontSize:13, fontWeight:800, color: secondaryColor, background:'rgba(24,95,165,0.06)', padding:'2px 8px', borderRadius:8 }}>
-                          {f.etapa || `Etapa ${idx + 1}`}
-                        </span>
-                        <span style={{ fontSize:11, color:'var(--portal-text-muted)', fontWeight:500 }}>
-                          {new Date(f.creado_en).toLocaleDateString('es-AR')}
-                        </span>
-                      </div>
-                      {f.descripcion && (
-                        <p style={{ fontSize:13.5, color:'var(--portal-text-secondary)', margin:0, lineHeight:1.4 }}>
-                          {f.descripcion}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+        {/* Fotos de progreso (if any) */}
+        {fotos.length > 0 && (
+          <div style={{ marginBottom: 24 }}>
+             <h3 style={{ fontSize:16, fontWeight:800, color:'var(--portal-text-primary)', marginBottom:12 }}>Fotos del proceso</h3>
+             <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 16 }}>
+               {fotos.length >= 2 && (
+                 <div className="patient-card" style={{ borderRadius:16, padding:'1rem', border:'1px solid var(--portal-card-border)', background: 'var(--portal-card-bg)' }}>
+                   <div style={{ display:'flex', gap:10 }}>
+                     <div style={{ flex:1, textAlign:'center' }}>
+                       <div style={{ fontSize:11, color:'var(--portal-text-muted)', fontWeight:700, marginBottom:6 }}>ANTES</div>
+                       <img src={fotos[0].url} alt="Antes" style={{ width:'100%', aspectRatio:'4/3', objectFit:'cover', borderRadius:10 }} />
+                     </div>
+                     <div style={{ flex:1, textAlign:'center' }}>
+                       <div style={{ fontSize:11, color:'var(--portal-text-muted)', fontWeight:700, marginBottom:6 }}>DESPUÉS</div>
+                       <img src={fotos[fotos.length-1].url} alt="Después" style={{ width:'100%', aspectRatio:'4/3', objectFit:'cover', borderRadius:10 }} />
+                     </div>
+                   </div>
+                 </div>
+               )}
+             </div>
           </div>
         )}
 

@@ -552,6 +552,8 @@ export default function Agenda() {
     }
   }
 
+  const [whatsappCita, setWhatsappCita] = useState<{ telefono: string; mensajeWA: string } | null>(null)
+
   async function agendarPropuesta(fechaDest: string) {
     if (!tenant || !propuestaProximaCita) return
     setGuardandoPropuesta(true)
@@ -572,6 +574,12 @@ export default function Agenda() {
       msg('Error al agendar propuesta: ' + error.message, 'error')
     } else {
       msg('Próxima cita pre-agendada con éxito ✓')
+      const waMsg = `Hola *${propuestaProximaCita.nombre.trim().split(' ')[0]}* 👋\nTe confirmamos tu próximo turno de *${propuestaProximaCita.tratamiento}* para el *${fechaDest.split('-').reverse().join('/')}* a las *${propuestaProximaCita.hora} hs*.\n\n🗓️ Podés sumarlo a tu calendario haciendo clic aquí:\nhttps://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(`Turno Odontológico - ${propuestaProximaCita.tratamiento}`)}&dates=${new Date(`${fechaDest}T${propuestaProximaCita.hora}:00-03:00`).toISOString().replace(/-|:|\.\d\d\d/g, '')}/${new Date(new Date(`${fechaDest}T${propuestaProximaCita.hora}:00-03:00`).getTime() + propuestaProximaCita.duracion * 60000).toISOString().replace(/-|:|\.\d\d\d/g, '')}&details=${encodeURIComponent(`Turno para ${propuestaProximaCita.tratamiento}.`)}`
+      
+      setWhatsappCita({
+        telefono: propuestaProximaCita.telefono,
+        mensajeWA: waMsg
+      })
       setPropuestaProximaCita(null)
       loadCitas()
     }
@@ -1689,6 +1697,42 @@ export default function Agenda() {
           </div>
         </div>
       )}
+
+      {/* MODAL: WhatsApp Confirmation */}
+      {whatsappCita && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(10,30,61,0.5)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 4000, padding: 16 }}>
+          <div className="slide-up" style={{ background: '#fff', borderRadius: 20, width: '100%', maxWidth: 360, overflow: 'hidden', boxShadow: '0 20px 40px rgba(10,30,61,0.15)', padding: '2rem 1.5rem', textAlign: 'center' }}>
+            <div style={{ width: 60, height: 60, borderRadius: '50%', background: '#E1F5EE', margin: '0 auto 16px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#1D9E75" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>
+            <h3 style={{ margin: '0 0 8px 0', fontSize: 18, color: '#0a1e3d' }}>¡Turno agendado!</h3>
+            <p style={{ margin: '0 0 20px 0', fontSize: 14, color: '#4a6080', lineHeight: 1.5 }}>
+              ¿Querés enviarle un mensaje por WhatsApp al paciente para que lo sume a su calendario?
+            </p>
+            
+            <a
+              href={`https://wa.me/${whatsappCita.telefono.replace(/\D/g, '')}?text=${encodeURIComponent(whatsappCita.mensajeWA)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%',
+                padding: '0.8rem 1rem', borderRadius: 12, border: 'none', background: '#25D366', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'DM Sans, sans-serif', boxShadow: '0 4px 12px rgba(37,211,102,0.25)', textDecoration: 'none', marginBottom: 12
+              }}
+              onClick={() => setWhatsappCita(null)}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+              Enviar WhatsApp
+            </a>
+            <button 
+              onClick={() => setWhatsappCita(null)}
+              style={{ width: '100%', padding: '0.8rem 1rem', borderRadius: 12, border: 'none', background: '#f4f7fb', color: '#687e96', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
+            >
+              Cerrar
+            </button>
+          </div>
+        </div>
+      )}
+
       {toast&&<Toast msg={toast.msg} tipo={toast.tipo} isMobile={isMobile}/>}
     </div>
   )
