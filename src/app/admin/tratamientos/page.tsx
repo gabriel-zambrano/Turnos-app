@@ -50,12 +50,15 @@ export default function TratamientosPage() {
     setTimeout(() => setToast(null), 3500)
   }
 
+  const { tenant, loading: tenantLoading } = useTenantContext()
+
   const load = useCallback(async () => {
+    if (!tenant) return
     setLoading(true)
-    const { data } = await supabase.from('tratamientos').select('*').order('nombre')
+    const { data } = await supabase.from('tratamientos').select('*').eq('tenant_id', tenant.id).order('nombre')
     if (data) setTratamientos(data as Tratamiento[])
     setLoading(false)
-  }, [])
+  }, [tenant, supabase])
 
   useEffect(() => { load() }, [load])
 
@@ -76,6 +79,7 @@ export default function TratamientosPage() {
   }
 
   async function insertar() {
+    if (!tenant?.id) return msg('Error de sesión', 'error')
     if (!fNombre.trim()) return msg('Ingresá el nombre', 'error')
     setGuardando(true)
     const { error } = await supabase.from('tratamientos').insert({
@@ -83,7 +87,7 @@ export default function TratamientosPage() {
       precio_base: fPrecio === '' ? null : fPrecio,
       duracion_default: fDuracion === '' ? null : fDuracion,
       activo: true,
-      tenant_id: '2845c423-affa-4ca2-9c5f-f4ec8e35701a',
+      tenant_id: tenant.id,
     })
     setGuardando(false)
     if (error) { msg('Error: ' + error.message, 'error'); return }
