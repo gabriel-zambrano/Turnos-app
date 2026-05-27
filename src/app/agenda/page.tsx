@@ -511,7 +511,7 @@ export default function Agenda() {
   async function saveEditar(){
     if(!sel) return
     setSaving(true)
-    const {error} = await supabase.from('citas').update({fecha_hora:`${fFecha}T${fHora}:00-03:00`,tipo_tratamiento:fTrat as TipoTratamiento,estado:fEst,duracion_minutos:fDur,notes:fNotas||null,valor:fValor||null,sena:fSena||null,medio_pago:fMedioPago||null}).eq('id',sel.id)
+    const {error} = await supabase.from('citas').update({fecha_hora:`${fFecha}T${fHora}:00-03:00`,tipo_tratamiento:fTrat as TipoTratamiento,estado:fEst,duracion_minutos:fDur,notas:fNotas||null,valor:fValor||null,sena:fSena||null,medio_pago:fMedioPago||null}).eq('id',sel.id)
     setSaving(false)
     if(error) return msg('Error: '+error.message,'error')
     if(fEst === 'asistio') {
