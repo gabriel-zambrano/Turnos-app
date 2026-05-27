@@ -106,13 +106,19 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
             feature_whatsapp: data.feature_whatsapp ?? false,
             feature_recordatorios: data.feature_recordatorios ?? false
           })
-        } else {
+        } else if (DEFAULT_TENANT_ID) {
           // Fallback a Dr. Walter Benegas en localhost/dev
           setTenant(defaultBranding(DEFAULT_TENANT_ID, 'Dr. Walter Benegas'))
+        } else {
+          setTenant(null)
         }
       } catch (err) {
         console.error('Error resolving tenant:', err)
-        setTenant(defaultBranding(DEFAULT_TENANT_ID, 'Dr. Walter Benegas'))
+        if (DEFAULT_TENANT_ID) {
+          setTenant(defaultBranding(DEFAULT_TENANT_ID, 'Dr. Walter Benegas'))
+        } else {
+          setTenant(null)
+        }
       } finally {
         setLoading(false)
       }
