@@ -224,6 +224,12 @@ export default function PacientePage() {
   const secondaryColor = tenant?.secondaryColor || '#185FA5'
   const accentColor = tenant?.accentColor || '#138A6B'
 
+  // Lógica de segmentación del paciente
+  const isOrtodoncia = (paciente?.progreso_plan_porcentaje && paciente.progreso_plan_porcentaje > 0) || 
+                       pastTurnos.some(t => t.tipo_tratamiento.toLowerCase().includes('ortodoncia')) || 
+                       turnos.some(t => t.tipo_tratamiento.toLowerCase().includes('ortodoncia'))
+  const isPrimeraVez = pastTurnos.length === 0
+
   const getMesesTranscurridos = () => {
     if (pastTurnos.length === 0) return 1
     const firstCita = new Date(pastTurnos[pastTurnos.length - 1].fecha_hora)
@@ -260,7 +266,7 @@ export default function PacientePage() {
         </div>
 
         {/* Progreso del tratamiento */}
-        {paciente?.progreso_plan_porcentaje && paciente.progreso_plan_porcentaje > 0 && (
+        {isOrtodoncia && paciente?.progreso_plan_porcentaje && paciente.progreso_plan_porcentaje > 0 && (
           <div style={{ marginBottom: 24 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 8 }}>
               <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--portal-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Progreso del tratamiento</span>
@@ -364,11 +370,12 @@ export default function PacientePage() {
         )}
 
         {/* Stats Grid */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12, marginBottom: 24 }}>
-          <div className="patient-card" style={{ padding: '16px', borderRadius: 16, border: '1px solid var(--portal-card-border)', background: 'var(--portal-card-bg)' }}>
-            <div style={{ fontSize: 24, fontWeight: 800, color: '#fff' }}>{pastTurnos.filter(pt => pt.estado === 'asistio' || pt.estado === 'completado').length}</div>
-            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--portal-text-muted)', textTransform: 'uppercase', letterSpacing: '0.02em', marginTop: 4 }}>Visitas totales</div>
-          </div>
+        {isOrtodoncia && (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12, marginBottom: 24 }}>
+            <div className="patient-card" style={{ padding: '16px', borderRadius: 16, border: '1px solid var(--portal-card-border)', background: 'var(--portal-card-bg)' }}>
+              <div style={{ fontSize: 24, fontWeight: 800, color: '#fff' }}>{pastTurnos.filter(pt => pt.estado === 'asistio' || pt.estado === 'completado').length}</div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--portal-text-muted)', textTransform: 'uppercase', letterSpacing: '0.02em', marginTop: 4 }}>Visitas totales</div>
+            </div>
           <div className="patient-card" style={{ padding: '16px', borderRadius: 16, border: '1px solid var(--portal-card-border)', background: 'var(--portal-card-bg)' }}>
             {(() => {
               const pastNonCanceled = pastTurnos.filter(pt => pt.estado !== 'cancelado')
@@ -397,12 +404,13 @@ export default function PacientePage() {
           </div>
           <div className="patient-card" style={{ padding: '16px', borderRadius: 16, border: '1px solid var(--portal-card-border)', background: 'var(--portal-card-bg)' }}>
             <div style={{ fontSize: 24, fontWeight: 800, color: '#fff' }}>{fotos.length}</div>
-            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--portal-text-muted)', textTransform: 'uppercase', letterSpacing: '0.02em', marginTop: 4 }}>Fotos del proceso</div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--portal-text-muted)', textTransform: 'uppercase', letterSpacing: '0.02em', marginTop: 4 }}>Fotos</div>
           </div>
         </div>
+        )}
 
         {/* Adherence microcopy (no emojis) */}
-        {(() => {
+        {isOrtodoncia && (() => {
           const pastNonCanceled = pastTurnos.filter(pt => pt.estado !== 'cancelado')
           const attendedCount = pastNonCanceled.filter(pt => pt.estado === 'asistio' || pt.estado === 'completado').length
           const adherence = pastNonCanceled.length > 0 ? Math.round((attendedCount / pastNonCanceled.length) * 100) : 100
@@ -438,7 +446,7 @@ export default function PacientePage() {
         )}
 
         {/* Fotos de progreso (if any) */}
-        {fotos.length > 0 && (
+        {isOrtodoncia && fotos.length > 0 && (
           <div style={{ marginBottom: 24 }}>
              <h3 style={{ fontSize:16, fontWeight:800, color:'var(--portal-text-primary)', marginBottom:12 }}>Fotos del proceso</h3>
              <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 16 }}>
@@ -459,6 +467,63 @@ export default function PacientePage() {
              </div>
           </div>
         )}
+
+          {/* Sección de Engagement para Pacientes No Ortodoncia / Primera Vez */}
+          {!isOrtodoncia && (
+            <div style={{ marginBottom: 24 }}>
+              {isPrimeraVez && (
+                <div style={{ marginBottom: 16, textAlign: 'center' }}>
+                  <div style={{ display: 'inline-block', padding: '6px 12px', background: 'rgba(0, 245, 160, 0.1)', color: '#00F5A0', borderRadius: 20, fontSize: 13, fontWeight: 700, marginBottom: 8 }}>
+                    ¡Hola, te esperamos!
+                  </div>
+                  <p style={{ color: 'var(--portal-text-secondary)', fontSize: 14, lineHeight: 1.5, margin: 0 }}>
+                    Conocé por qué nuestros pacientes nos eligen cada día.
+                  </p>
+                </div>
+              )}
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {/* Beneficio 1: Google Reviews */}
+                <div className="patient-card" style={{ padding: '16px', borderRadius: 16, border: '1px solid var(--portal-card-border)', background: 'var(--portal-card-bg)', display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                  <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'rgba(255, 193, 7, 0.1)', color: '#FFC107', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--portal-text-primary)' }}>4.9 en Google Reviews</div>
+                    <div style={{ fontSize: 13, color: 'var(--portal-text-muted)', marginTop: 2, lineHeight: 1.4 }}>
+                      Atención cien por ciento personalizada y calidez humana. Priorizamos tu comodidad.
+                    </div>
+                  </div>
+                </div>
+
+                {/* Beneficio 2: Turnos Inmediatos */}
+                <div className="patient-card" style={{ padding: '16px', borderRadius: 16, border: '1px solid var(--portal-card-border)', background: 'var(--portal-card-bg)', display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                  <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'rgba(0, 245, 160, 0.1)', color: '#00F5A0', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--portal-text-primary)' }}>Turnos inmediatos</div>
+                    <div style={{ fontSize: 13, color: 'var(--portal-text-muted)', marginTop: 2, lineHeight: 1.4 }}>
+                      Sabemos que tu tiempo vale. Ofrecemos disponibilidad rápida y sin largas esperas.
+                    </div>
+                  </div>
+                </div>
+
+                {/* Beneficio 3: Ubicación */}
+                <div className="patient-card" style={{ padding: '16px', borderRadius: 16, border: '1px solid var(--portal-card-border)', background: 'var(--portal-card-bg)', display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                  <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'rgba(24, 95, 165, 0.2)', color: '#3BA0FF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--portal-text-primary)' }}>Ubicación inmejorable</div>
+                    <div style={{ fontSize: 13, color: 'var(--portal-text-muted)', marginTop: 2, lineHeight: 1.4 }}>
+                      {tenant?.direccion || 'Av. Santa Fe 3329 1 B, Palermo.'} A pasos de la estación de Subte Línea D.
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
         <div style={{ textAlign:'center', marginTop:'2.5rem', fontSize:12, color:'var(--portal-text-muted)', fontWeight:500 }}>
           {tenant?.nombre || 'Dr. Walter Benegas'} {tenant?.direccion ? `— ${tenant.direccion}` : ''}
