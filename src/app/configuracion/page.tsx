@@ -68,7 +68,7 @@ export default function Configuracion() {
       
       // 3. Actualizar el estado local y la DB
       setLogoUrl(publicUrl)
-      const { error: dbError } = await supabase.from('tenants').update({ logoUrl: publicUrl }).eq('id', tenant.id)
+      const { error: dbError } = await supabase.from('tenants').update({ logourl: publicUrl }).eq('id', tenant.id)
       
       if (dbError) throw dbError
       msg('Logo subido correctamente ✓')
@@ -88,10 +88,10 @@ export default function Configuracion() {
       nombre,
       direccion,
       telefono,
-      primaryColor,
-      secondaryColor,
-      accentColor,
-      whatsappTemplate
+      primarycolor: primaryColor,
+      secondarycolor: secondaryColor,
+      accentcolor: accentColor,
+      whatsapptemplate: whatsappTemplate
     }
 
     const { error } = await supabase

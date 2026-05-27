@@ -72,10 +72,10 @@ export async function POST(req: Request) {
       nombre: tenant.nombre || 'Consultorio Dental',
       direccion: (tenant as any).direccion || 'Dirección del consultorio',
       telefono: (tenant as any).telefono || '',
-      logoUrl: (tenant as any).logoUrl || undefined,
-      primaryColor: (tenant as any).primaryColor || '#0a1e3d',
-      secondaryColor: (tenant as any).secondaryColor || '#185FA5',
-      accentColor: (tenant as any).accentColor || '#138A6B'
+      logoUrl: (tenant as any).logourl || undefined,
+      primaryColor: (tenant as any).primarycolor || '#0a1e3d',
+      secondaryColor: (tenant as any).secondarycolor || '#185FA5',
+      accentColor: (tenant as any).accentcolor || '#138A6B'
     }
 
     // Consultar citas de mañana exclusivas de este tenant
@@ -117,6 +117,7 @@ export async function POST(req: Request) {
           subject: `Recordatorio de turno — ${horaAR}`,
           html: `
             <div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:32px 24px">
+              ${branding.logoUrl ? `<img src="${branding.logoUrl}" alt="${branding.nombre}" style="max-height:60px;margin-bottom:20px;display:block" />` : ''}
               <h2 style="color:${branding.accentColor || '#1D9E75'};margin-bottom:8px">Recordatorio de turno</h2>
               <p style="color:#333;font-size:15px">Hola <strong>${paciente.nombre}</strong>,</p>
               <p style="color:#333;font-size:15px">Te recordamos que tenés un turno programado:</p>
