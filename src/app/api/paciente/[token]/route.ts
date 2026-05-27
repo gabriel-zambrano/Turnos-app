@@ -86,8 +86,8 @@ export async function GET(
   let fotos: any[] = []
   try {
     const { data: fotosRes, error: fotosErr } = await supabaseAdmin
-      .from('fotos_progreso')
-      .select('id, url, descripcion, etapa, creado_en')
+      .from('paciente_fotos')
+      .select('id, url, tipo, creado_en')
       .eq('paciente_id', pac.id)
       .order('creado_en', { ascending: true })
     if (!fotosErr && fotosRes) {

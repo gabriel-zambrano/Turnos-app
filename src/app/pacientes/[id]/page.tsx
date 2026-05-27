@@ -29,6 +29,13 @@ interface HistorialLog {
   creado_en: string
 }
 
+interface PacienteFoto {
+  id: string
+  url: string
+  tipo: string
+  creado_en: string
+}
+
 const DIENTES_SUPERIORES = [18, 17, 16, 15, 14, 13, 12, 11, 21, 22, 23, 24, 25, 26, 27, 28]
 const DIENTES_INFERIORES = [48, 47, 46, 45, 44, 43, 42, 41, 31, 32, 33, 34, 35, 36, 37, 38]
 
@@ -156,6 +163,7 @@ export default function PacienteDetalle() {
 
   const [paciente, setPaciente] = useState<Paciente | null>(null)
   const [historial, setHistorial] = useState<HistorialLog[]>([])
+  const [fotos, setFotos] = useState<PacienteFoto[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [toast, setToast] = useState<{ msg: string; tipo: string } | null>(null)
@@ -166,6 +174,11 @@ export default function PacienteDetalle() {
   const [editAntecedentes, setEditAntecedentes] = useState('')
   const [editProgreso, setEditProgreso] = useState<number>(0)
   const [guardandoFicha, setGuardandoFicha] = useState(false)
+
+  // Fotos states
+  const [modalFoto, setModalFoto] = useState(false)
+  const [fotoTipo, setFotoTipo] = useState('Antes')
+  const [uploadingFoto, setUploadingFoto] = useState(false)
 
   async function guardarFichaMedica() {
     if (!tenant || !paciente) return
@@ -238,6 +251,17 @@ export default function PacienteDetalle() {
 
       if (histError) throw histError
       setHistorial(histData as HistorialLog[])
+
+      // 3. Cargar fotos clínicas
+      const { data: fotosData, error: fotosError } = await supabase
+        .from('paciente_fotos')
+        .select('*')
+        .eq('paciente_id', id)
+        .eq('tenant_id', tenant.id)
+        .order('creado_en', { ascending: false })
+
+      if (fotosError) throw fotosError
+      setFotos(fotosData as PacienteFoto[])
     } catch (err: any) {
       showMsg('Error al cargar datos: ' + err.message, 'error')
     } finally {
@@ -295,6 +319,47 @@ export default function PacienteDetalle() {
     setNuevoEstado(getDienteEstadoActual(num))
     setNotasEstado(getDienteNotasActuales(num))
     setModalRegistro(true)
+  }
+
+  // Guardar Foto Clínica
+  const uploadFoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file || !tenant || !paciente) return
+
+    setUploadingFoto(true)
+    try {
+      const ext = file.name.split('.').pop()
+      const fileName = `${tenant.id}/${paciente.id}/${Date.now()}.${ext}`
+
+      const { error: uploadError } = await supabase.storage
+        .from('fotos_clinicas')
+        .upload(fileName, file)
+
+      if (uploadError) throw uploadError
+
+      const { data: publicUrlData } = supabase.storage
+        .from('fotos_clinicas')
+        .getPublicUrl(fileName)
+
+      const { error: dbError } = await supabase
+        .from('paciente_fotos')
+        .insert({
+          paciente_id: paciente.id,
+          tenant_id: tenant.id,
+          url: publicUrlData.publicUrl,
+          tipo: fotoTipo
+        })
+
+      if (dbError) throw dbError
+
+      showMsg('Foto guardada correctamente ✓')
+      setModalFoto(false)
+      loadData()
+    } catch (err: any) {
+      showMsg('Error al subir foto: ' + err.message, 'error')
+    } finally {
+      setUploadingFoto(false)
+    }
   }
 
   // Renderiza una celda de diente interactiva
@@ -641,6 +706,36 @@ export default function PacienteDetalle() {
                   </div>
                 )}
               </div>
+
+              {/* Galería de Fotos Clínicas */}
+              <div className="glass-card" style={{ padding: '1.5rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+                  <h3 style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-dark)', margin: 0 }}>Fotos Clínicas</h3>
+                  <button 
+                    onClick={() => setModalFoto(true)}
+                    style={{ background: '#185FA5', color: '#fff', border: 'none', borderRadius: 8, padding: '6px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+                  >
+                    + Agregar
+                  </button>
+                </div>
+
+                {fotos.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '1rem', color: 'var(--text-muted)', fontSize: 13, background: 'var(--bg-input)', borderRadius: 10 }}>
+                    Aún no hay fotos clínicas registradas.
+                  </div>
+                ) : (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
+                    {fotos.map(foto => (
+                      <div key={foto.id} style={{ position: 'relative', borderRadius: 8, overflow: 'hidden', border: '1px solid var(--border-light)' }}>
+                        <img src={foto.url} alt={foto.tipo} style={{ width: '100%', height: 100, objectFit: 'cover', display: 'block' }} />
+                        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'rgba(0,0,0,0.6)', color: '#fff', fontSize: 10, padding: '4px 8px', fontWeight: 600 }}>
+                          {foto.tipo}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
 
           </div>
@@ -727,6 +822,43 @@ export default function PacienteDetalle() {
               <button style={btnDarkCss} onClick={guardarFichaMedica} disabled={guardandoFicha}>
                 {guardandoFicha ? 'Guardando...' : 'Guardar'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal para Agregar Foto Clínica */}
+      {modalFoto && (
+        <div style={overlayCss(isMobile)} onClick={() => setModalFoto(false)}>
+          <div style={modalCss(isMobile)} onClick={e => e.stopPropagation()}>
+            <div style={modalTitleCss}>Subir Foto Clínica</div>
+            
+            <div style={groupCss}>
+              <label style={labelCss}>Etapa del Tratamiento</label>
+              <select style={selectCss} value={fotoTipo} onChange={e => setFotoTipo(e.target.value)}>
+                <option value="Antes">Antes</option>
+                <option value="Durante">Durante</option>
+                <option value="Después">Después</option>
+                <option value="Radiografía">Radiografía</option>
+                <option value="Estudio 3D">Estudio 3D</option>
+                <option value="Otro">Otro</option>
+              </select>
+            </div>
+
+            <div style={groupCss}>
+              <label style={labelCss}>Seleccionar Archivo</label>
+              <input 
+                type="file" 
+                accept="image/*" 
+                onChange={uploadFoto} 
+                style={{ ...inputCss, padding: '10px' }} 
+                disabled={uploadingFoto}
+              />
+              {uploadingFoto && <div style={{ fontSize: 12, color: '#185FA5', marginTop: 8, fontWeight: 600 }}>Subiendo foto, por favor espera...</div>}
+            </div>
+
+            <div style={footerCss}>
+              <button style={btnLightCss} onClick={() => setModalFoto(false)} disabled={uploadingFoto}>Cancelar</button>
             </div>
           </div>
         </div>
