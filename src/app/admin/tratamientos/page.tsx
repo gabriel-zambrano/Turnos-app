@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { Sidebar } from '@/components/Sidebar'
 import { Toast, Spinner } from '@/components/UI'
 import { createClient } from '@/lib/supabase/client'
+import { useTenantContext } from '@/components/TenantContext'
 
 interface Tratamiento {
   id: string
