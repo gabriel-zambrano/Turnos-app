@@ -26,8 +26,8 @@ export async function POST(req: Request) {
       }
     )
 
-    const { data: { session } } = await supabaseClient.auth.getSession()
-    if (!session) {
+    const { data: { user } } = await supabaseClient.auth.getUser()
+    if (!user) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     }
 
@@ -35,7 +35,7 @@ export async function POST(req: Request) {
     const { data: ownerTenant } = await supabaseAdmin
       .from('tenant_users')
       .select('tenant_id, role')
-      .eq('user_id', session.user.id)
+      .eq('user_id', user.id)
       .single()
 
     if (!ownerTenant || (ownerTenant.role !== 'owner' && ownerTenant.role !== 'admin')) {

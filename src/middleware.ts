@@ -2,29 +2,41 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { updateSession } from './lib/supabase/middleware'
 
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
-
 export async function middleware(req: NextRequest) {
   const hostname = req.headers.get('host') || ''
   const { pathname } = req.nextUrl
 
-  // Rutas sin restricción
-  if (
-    pathname.startsWith('/_next/') ||
-    pathname.startsWith('/favicon') ||
-    pathname.startsWith('/api/') ||
-    pathname.startsWith('/paciente') ||
-    pathname.startsWith('/auth') ||
-    pathname.startsWith('/login')
-  ) {
-    return NextResponse.next()
+  // 1. Definir rutas públicas
+  const publicPrefixes = [
+    '/_next/',
+    '/favicon',
+    '/api/',
+    '/paciente',
+    '/auth',
+    '/login',
+    '/registro',
+    '/legal'
+  ]
+  
+  const isPublic = publicPrefixes.some(prefix => pathname.startsWith(prefix)) || pathname === '/'
+
+  // Refrescar sesión de Supabase Auth
+  const response = NextResponse.next()
+  const { response: updatedResponse, user } = await updateSession(req, response)
+
+  // 2. Proteger rutas privadas server-side si no hay sesión activa
+  if (!isPublic && !user) {
+    const loginUrl = new URL('/login', req.url)
+    return NextResponse.redirect(loginUrl)
   }
 
-  // Resolver tenant por hostname
+  // 3. Resolver tenant por hostname (instanciando el cliente admin dentro del handler)
   let tenantId: string | null = null
+
+  const supabaseAdmin = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
 
   const { data: byCustomDomain } = await supabaseAdmin
     .from('tenants')
@@ -44,21 +56,9 @@ export async function middleware(req: NextRequest) {
     if (bySubdomain) tenantId = bySubdomain.id
   }
 
-  // Refrescar sesión de Supabase Auth
-  const response = NextResponse.next()
-  const { response: updatedResponse, user } = await updateSession(req, response)
-
   // Inyectar tenant en headers
   if (tenantId) {
     updatedResponse.headers.set('x-tenant-id', tenantId)
-  }
-
-  // Proteger /login y /admin
-  if (pathname.startsWith('/login') || pathname.startsWith('/admin')) {
-    if (!user) {
-      const loginUrl = new URL('/login', req.url)
-      return NextResponse.redirect(loginUrl)
-    }
   }
 
   return updatedResponse

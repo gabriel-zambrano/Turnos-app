@@ -1,6 +1,7 @@
 import { Resend } from 'resend'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { createClient as createSupabaseServerClient } from '@/lib/supabase/server'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
@@ -10,6 +11,12 @@ const supabaseAdmin = createClient(
 )
 
 export async function POST(req: NextRequest) {
+  const supabase = createSupabaseServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  }
+
   const { nombre, email, fecha, hora, tratamiento, duracion, notas, tenantId } = await req.json()
 
   if (!email) return NextResponse.json({ error: 'Email requerido' }, { status: 400 })

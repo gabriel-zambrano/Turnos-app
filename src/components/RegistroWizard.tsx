@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
+import { createClient } from '@/lib/supabase/client'
 
 export function RegistroWizard() {
   const [step, setStep] = useState(1)
@@ -38,8 +39,19 @@ export function RegistroWizard() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Error al registrar')
       
-      // Auto login or redirect to login
-      window.location.href = '/login?registered=true'
+      // Iniciar sesión automáticamente
+      const supabase = createClient()
+      const { error: loginError } = await supabase.auth.signInWithPassword({
+        email: formData.email,
+        password: formData.password
+      })
+
+      if (loginError) {
+        console.warn('Auto-login falló, redirigiendo a login manual:', loginError.message)
+        window.location.href = '/login?registered=true'
+      } else {
+        window.location.href = '/dashboard?welcome=true'
+      }
     } catch (err: any) {
       setError(err.message)
     } finally {
