@@ -20,8 +20,6 @@ export default function Login() {
     setLoading(true); setError('')
     try {
       const { data, error } = await supabase.auth.signInWithPassword({ email, password: pass })
-      console.log('data:', data)
-      console.log('error:', error)
       if (error) {
         setError('Error: ' + error.message)
         setLoading(false)
@@ -31,7 +29,6 @@ export default function Login() {
         window.location.href = destino
       }
     } catch(e) {
-      console.log('catch:', e)
       setError('Error inesperado')
       setLoading(false)
     }
