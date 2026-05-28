@@ -11,6 +11,8 @@ export default function Configuracion() {
 
   const [saving, setSaving] = useState(false)
   const [toast, setToast] = useState<{ msg: string; tipo: string } | null>(null)
+  const [email, setEmail] = useState('')
+  const [checkingOut, setCheckingOut] = useState(false)
 
   // Form states
   const [nombre, setNombre] = useState('')
@@ -35,6 +37,87 @@ export default function Configuracion() {
       setLogoUrl(tenant.logoUrl || '')
     }
   }, [tenant])
+
+  useEffect(() => {
+    async function getSession() {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session?.user?.email) {
+        setEmail(session.user.email)
+      }
+    }
+    getSession()
+  }, [])
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search)
+      const billingParam = params.get('billing')
+      const preapprovalId = params.get('preapproval_id')
+
+      if (billingParam === 'success') {
+        msg('¡Suscripción procesada con éxito! Tu plan se actualizará en unos instantes. ✓')
+        window.history.replaceState({}, '', window.location.pathname)
+      } else if (billingParam === 'success-mock' && preapprovalId) {
+        const triggerMockWebhook = async () => {
+          try {
+            const res = await fetch('/api/webhooks/mercadopago', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ id: preapprovalId })
+            })
+            if (res.ok) {
+              msg('¡Simulación de suscripción activada! Plan Pro habilitado ✓')
+              setTimeout(() => {
+                window.history.replaceState({}, '', window.location.pathname)
+                window.location.reload()
+              }, 2000)
+            } else {
+              msg('Error al activar la suscripción simulada', 'error')
+            }
+          } catch (err) {
+            console.error(err)
+            msg('Error al activar la simulación', 'error')
+          }
+        }
+        triggerMockWebhook()
+      }
+    }
+  }, [])
+
+  async function handleUpgrade() {
+    if (!tenant?.id) return msg('Error: No se encontró el consultorio actual', 'error')
+    if (!email) return msg('Error: No se encontró la sesión del usuario', 'error')
+    setCheckingOut(true)
+
+    try {
+      const res = await fetch('/api/billing/checkout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          tenantId: tenant.id,
+          email: email
+        })
+      })
+
+      const data = await res.json()
+      if (!res.ok) {
+        throw new Error(data.error || 'Error al generar checkout')
+      }
+
+      if (data.checkoutUrl) {
+        msg('Redirigiendo a la pasarela de pago...')
+        window.location.href = data.checkoutUrl
+      } else {
+        throw new Error('No se recibió la URL de checkout')
+      }
+    } catch (err: any) {
+      msg(err.message, 'error')
+    } finally {
+      setCheckingOut(false)
+    }
+  }
 
   function msg(m: string, tipo = 'ok') {
     setToast({ msg: m, tipo })
@@ -195,6 +278,101 @@ export default function Configuracion() {
               Estos colores se aplicarán automáticamente en el Portal del Paciente.
             </p>
           </div>
+
+          {tenant && (
+            <div className="glass-card" style={{ padding: '1.5rem', marginBottom: '2rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                <h3 style={{ fontSize: 16, color: 'var(--text-dark, #0a1e3d)', fontWeight: 700, margin: 0 }}>
+                  Planes y Suscripción (Facturación)
+                </h3>
+                <span style={{
+                  padding: '4px 10px',
+                  borderRadius: 20,
+                  fontSize: 11,
+                  fontWeight: 700,
+                  textTransform: 'uppercase',
+                  background: tenant.plan === 'pro' ? '#d1fae5' : '#e2e8f0',
+                  color: tenant.plan === 'pro' ? '#065f46' : '#64748b'
+                }}>
+                  Plan {tenant.plan === 'pro' ? 'Pro 🚀' : 'Starter'}
+                </span>
+              </div>
+
+              {tenant.plan !== 'pro' ? (
+                <div>
+                  <p style={{ fontSize: 14, color: '#4a6080', lineHeight: 1.5, marginBottom: '1.5rem' }}>
+                    Tu consultorio se encuentra en el <strong>Plan Starter</strong>. Actualizá al <strong>Plan Pro</strong> para desbloquear las herramientas de Business Intelligence, analítica financiera avanzada, exportación de reportes y potenciar tu clínica dental.
+                  </p>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
+                    <div style={{ padding: '1rem', border: '1px solid #e8edf2', borderRadius: 12, background: '#f8fafc' }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: '#64748b', marginBottom: '0.5rem' }}>Plan Starter</div>
+                      <ul style={{ paddingLeft: '1.2rem', margin: 0, fontSize: 12, color: '#64748b', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        <li>Agenda interactiva & turnos</li>
+                        <li>Historial básico de pacientes</li>
+                        <li>Filtros y buscador de citas</li>
+                      </ul>
+                    </div>
+
+                    <div style={{ padding: '1rem', border: '2px solid #6366f1', borderRadius: 12, background: '#e0e7ff33', position: 'relative' }}>
+                      <span style={{ position: 'absolute', top: -10, right: 10, background: '#6366f1', color: '#fff', fontSize: 9, fontWeight: 700, padding: '2px 8px', borderRadius: 10, textTransform: 'uppercase' }}>Recomendado</span>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: '#0f1e2b', marginBottom: '0.5rem' }}>Plan Pro ⭐</div>
+                      <ul style={{ paddingLeft: '1.2rem', margin: 0, fontSize: 12, color: '#312e81', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        <li><strong>Módulo de Analítica & BI</strong></li>
+                        <li><strong>Ganancia neta y rentabilidad</strong></li>
+                        <li><strong>Exportación a CSV / Excel</strong></li>
+                        <li>Recordatorios automáticos</li>
+                      </ul>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1.5rem', flexWrap: 'wrap', background: '#f8fafc', padding: '1rem', borderRadius: 12, border: '1px solid #e8edf2' }}>
+                    <div>
+                      <div style={{ fontSize: 12, color: '#8fa3bc', fontWeight: 600 }}>PRECIO MENSUAL</div>
+                      <div style={{ fontSize: 20, fontWeight: 700, color: '#0f1e2b' }}>$3.500 ARS <span style={{ fontSize: 13, fontWeight: 500, color: '#8fa3bc' }}>/mes</span></div>
+                    </div>
+                    <BtnPrimary onClick={handleUpgrade} disabled={checkingOut}>
+                      {checkingOut ? 'Procesando...' : 'Mejorar al Plan Pro'}
+                    </BtnPrimary>
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start', background: '#d1fae533', border: '1px solid #10b98133', padding: '1rem 1.25rem', borderRadius: 12, marginBottom: '1.5rem' }}>
+                    <span style={{ fontSize: 20, color: '#10b981' }}>✓</span>
+                    <div>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: '#065f46', marginBottom: 2 }}>¡Tu suscripción Pro está activa!</div>
+                      <p style={{ fontSize: 13, color: '#047857', margin: 0, lineHeight: 1.4 }}>
+                        Tenés acceso completo a todas las características premium, incluyendo el módulo de Business Intelligence y Analítica.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', fontSize: 13, color: '#4a6080' }}>
+                    <div style={{ padding: '0.75rem 1rem', border: '1px solid #e8edf2', borderRadius: 10 }}>
+                      <span style={{ fontSize: 11, color: '#8fa3bc', display: 'block', marginBottom: 2, fontWeight: 600 }}>ESTADO DE FACTURACIÓN</span>
+                      <strong>
+                        {tenant.subscriptionStatus === 'authorized' ? 'Autorizado / Activo' : tenant.subscriptionStatus || 'Activo'}
+                      </strong>
+                    </div>
+                    <div style={{ padding: '0.75rem 1rem', border: '1px solid #e8edf2', borderRadius: 10 }}>
+                      <span style={{ fontSize: 11, color: '#8fa3bc', display: 'block', marginBottom: 2, fontWeight: 600 }}>PRÓXIMA FECHA DE PAGO</span>
+                      <strong>
+                        {tenant.nextPaymentDate 
+                          ? new Date(tenant.nextPaymentDate).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+                          : 'No programada'
+                        }
+                      </strong>
+                    </div>
+                  </div>
+
+                  <div style={{ marginTop: '1.5rem', fontSize: 11, color: '#8fa3bc', textAlign: 'center' }}>
+                    Suscripción gestionada de forma segura mediante MercadoPago. Si necesitás cancelar o modificar tu método de pago, ponete en contacto con nuestro equipo de soporte.
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="glass-card" style={{ padding: '1.5rem' }}>
             <h3 style={{ fontSize: 16, color: 'var(--text-dark, #0a1e3d)', marginBottom: '1.5rem', fontWeight: 700 }}>
