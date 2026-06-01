@@ -18,7 +18,10 @@ interface Paciente {
   alergias: string | null
   antecedentes: string | null
   progreso_plan_porcentaje: number | null
+  puntos: number | null
+  recomendaciones: string | null
 }
+
 
 interface HistorialLog {
   id: string
@@ -173,7 +176,11 @@ export default function PacienteDetalle() {
   const [editAlergias, setEditAlergias] = useState('')
   const [editAntecedentes, setEditAntecedentes] = useState('')
   const [editProgreso, setEditProgreso] = useState<number>(0)
+  const [editPuntos, setEditPuntos] = useState<number>(0)
+  const [editRecomendaciones, setEditRecomendaciones] = useState('')
   const [guardandoFicha, setGuardandoFicha] = useState(false)
+  const [attendedVisitsCount, setAttendedVisitsCount] = useState(0)
+
 
   // Fotos states
   const [modalFoto, setModalFoto] = useState(false)
@@ -188,7 +195,9 @@ export default function PacienteDetalle() {
       .update({
         alergias: editAlergias.trim() || null,
         antecedentes: editAntecedentes.trim() || null,
-        progreso_plan_porcentaje: editProgreso
+        progreso_plan_porcentaje: editProgreso,
+        puntos: editPuntos,
+        recomendaciones: editRecomendaciones.trim() || null
       })
       .eq('id', paciente.id)
 
@@ -201,11 +210,14 @@ export default function PacienteDetalle() {
         ...prev, 
         alergias: editAlergias.trim() || null, 
         antecedentes: editAntecedentes.trim() || null, 
-        progreso_plan_porcentaje: editProgreso 
+        progreso_plan_porcentaje: editProgreso,
+        puntos: editPuntos,
+        recomendaciones: editRecomendaciones.trim() || null
       } : null)
       showMsg('Ficha médica actualizada ✓')
     }
   }
+
 
   // Pieza dental seleccionada actualmente para visualización o edición
   const [dienteSel, setDienteSel] = useState<number | null>(null)
@@ -262,12 +274,24 @@ export default function PacienteDetalle() {
 
       if (fotosError) throw fotosError
       setFotos(fotosData as PacienteFoto[])
+
+      // 4. Cargar cantidad de citas asistidas/completadas
+      const { count, error: countError } = await supabase
+        .from('citas')
+        .select('*', { count: 'exact', head: true })
+        .eq('paciente_id', id)
+        .in('estado', ['asistio', 'completado'])
+
+      if (!countError) {
+        setAttendedVisitsCount(count || 0)
+      }
     } catch (err: any) {
       showMsg('Error al cargar datos: ' + err.message, 'error')
     } finally {
       setLoading(false)
     }
   }, [tenant, id])
+
 
   useEffect(() => {
     if (tenant) loadData()
@@ -606,6 +630,8 @@ export default function PacienteDetalle() {
                         setEditAlergias(paciente.alergias || '')
                         setEditAntecedentes(paciente.antecedentes || '')
                         setEditProgreso(paciente.progreso_plan_porcentaje || 0)
+                        setEditPuntos(paciente.puntos || 0)
+                        setEditRecomendaciones(paciente.recomendaciones || '')
                         setModalFicha(true)
                       }}
                       style={{ background: 'none', border: 'none', color: '#185FA5', fontSize: 12, fontWeight: 700, cursor: 'pointer', padding: 0 }}
@@ -613,6 +639,7 @@ export default function PacienteDetalle() {
                       ✏️ Editar
                     </button>
                   </div>
+
 
                   {paciente.alergias ? (
                     <div style={{ background: '#FEE2E2', border: '1px solid #FECACA', borderRadius: 10, padding: '10px 12px', color: '#991B1B', display: 'flex', alignItems: 'flex-start', gap: 8 }}>
@@ -644,7 +671,29 @@ export default function PacienteDetalle() {
                       <div style={{ height: '100%', width: `${paciente.progreso_plan_porcentaje || 0}%`, background: 'linear-gradient(90deg, #185FA5, #138A6B)', borderRadius: 4, transition: 'width 0.4s ease' }} />
                     </div>
                   </div>
+
+                  <div style={{ borderTop: '1px solid var(--border-light, #dde5ef)', paddingTop: 12 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: 10.5, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Sistema de Puntos VIP</span>
+                      <span style={{ fontSize: 14, fontWeight: 700, color: '#F59E0B' }}>
+                        {(paciente.puntos || 0) + (attendedVisitsCount * 100)} pts
+                      </span>
+                    </div>
+                    <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                      Ajuste manual: {paciente.puntos || 0} pts · Visitas ({attendedVisitsCount}): +{attendedVisitsCount * 100} pts
+                    </div>
+                  </div>
+
+                  {paciente.recomendaciones && (
+                    <div style={{ borderTop: '1px solid var(--border-light, #dde5ef)', paddingTop: 12 }}>
+                      <span style={{ fontSize: 10.5, color: 'var(--text-muted)', display: 'block', fontWeight: 600, textTransform: 'uppercase' }}>Indicaciones para el portal</span>
+                      <span style={{ fontSize: 12.5, color: 'var(--text-dark)', marginTop: 2, display: 'block', fontStyle: 'italic', whiteSpace: 'pre-wrap' }}>
+                        "{paciente.recomendaciones}"
+                      </span>
+                    </div>
+                  )}
                 </div>
+
               )}
 
               <div className="glass-card" style={{ padding: '1.5rem', height: 'fit-content' }}>
@@ -817,12 +866,37 @@ export default function PacienteDetalle() {
               />
             </div>
 
+            <div style={groupCss}>
+              <label style={labelCss}>Puntos de Ajuste Manual (Adicionales)</label>
+              <input 
+                type="number" 
+                style={inputCss} 
+                value={editPuntos} 
+                onChange={e => setEditPuntos(Number(e.target.value))} 
+                placeholder="Ej: 50, -100..."
+              />
+              <span style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2, display: 'block' }}>
+                Se sumarán automáticamente a los puntos ganados por visitas ({attendedVisitsCount * 100} pts).
+              </span>
+            </div>
+
+            <div style={groupCss}>
+              <label style={labelCss}>Indicaciones / Recomendaciones (Visible en Portal)</label>
+              <textarea 
+                style={{ ...textareaCss, height: 80, resize: 'vertical' }} 
+                value={editRecomendaciones} 
+                onChange={e => setEditRecomendaciones(e.target.value)} 
+                placeholder="Ej: Usar elásticos intermaxilares por las noches. Próximo control en 3 semanas..." 
+              />
+            </div>
+
             <div style={footerCss}>
               <button style={btnLightCss} onClick={() => setModalFicha(false)} disabled={guardandoFicha}>Cancelar</button>
               <button style={btnDarkCss} onClick={guardarFichaMedica} disabled={guardandoFicha}>
                 {guardandoFicha ? 'Guardando...' : 'Guardar'}
               </button>
             </div>
+
           </div>
         </div>
       )}

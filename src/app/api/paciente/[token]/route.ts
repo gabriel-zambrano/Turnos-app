@@ -20,7 +20,7 @@ export async function GET(
   let pac: any = null
   const pacRes = await supabaseAdmin
     .from('pacientes')
-    .select('id, nombre, telefono, tenant_id, alergias, antecedentes, progreso_plan_porcentaje')
+    .select('id, nombre, telefono, tenant_id, alergias, antecedentes, progreso_plan_porcentaje, puntos, recomendaciones')
     .eq('token', token)
     .single()
   
@@ -30,6 +30,7 @@ export async function GET(
       .select('id, nombre, telefono, tenant_id')
       .eq('token', token)
       .single()
+
     if (fallback.error || !fallback.data) {
       return NextResponse.json({ error: 'Link inválido' }, { status: 404 })
     }
@@ -37,8 +38,11 @@ export async function GET(
       ...fallback.data,
       alergias: null,
       antecedentes: null,
-      progreso_plan_porcentaje: 0
+      progreso_plan_porcentaje: 0,
+      puntos: 0,
+      recomendaciones: null
     }
+
   } else {
     pac = pacRes.data
   }
@@ -141,8 +145,11 @@ export async function GET(
       telefono: pac.telefono,
       alergias: pac.alergias || null,
       antecedentes: pac.antecedentes || null,
-      progreso_plan_porcentaje: pac.progreso_plan_porcentaje || 0
+      progreso_plan_porcentaje: pac.progreso_plan_porcentaje || 0,
+      puntos: pac.puntos || 0,
+      recomendaciones: pac.recomendaciones || null
     },
+
     turnos: citas || [],
     historial: historial || [],
     pastTurnos: pastCitas || [],
