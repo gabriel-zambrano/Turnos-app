@@ -274,7 +274,7 @@ export function NuevaCitaModal({ onClose, onSuccess, defaultFecha, defaultHora }
 
   const getWhatsAppMessage = () => {
     if (!pacienteSeleccionado) return ''
-    const rawTemplate = tenant?.whatsappTemplate || `Hola {nombre_paciente},\n\nTe recordamos tu turno en *{nombre_clinica}*:\n\n{dia_semana} {fecha} a las *{hora}hs*\n{tratamiento}\n\nConfirma o cancela tu turno acá:\n{link}`
+    const rawTemplate = (tenant?.whatsappTemplate || `Hola {nombre_paciente},\n\nTe recordamos tu turno en *{nombre_clinica}*:\n\n{dia_semana} {fecha} a las *{hora}hs*\n{tratamiento}\n\nConfirma o cancela tu turno acá:\n{link}`).replace(/\\n/g, '\n')
     
     const dt = new Date(`${fecha}T${hora}:00-03:00`)
     const dias = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado']

@@ -96,7 +96,7 @@ function compartirWhatsApp(t: Turno, paciente: Paciente, token: string, tenant: 
   
   const doctorName = tenant?.nombre || 'Dr. Walter Benegas'
   const address = tenant?.direccion || 'Av. Santa Fe 3329 1° B, Palermo, CABA'
-  const template = tenant?.whatsappTemplate || `Hola {nombre_paciente},\n\nTe recordamos tu turno con el *{nombre_clinica}*:\n\n{dia_semana} {fecha} a las *{hora}hs*\n{tratamiento}\n\nConfirma o cancela tu turno acá:\n{link}\n\nRecordá que los turnos no cancelados con más de 48hs de anticipación o no asistidos deben ser abonados.\n\n_{nombre_clinica} - {direccion}_`
+  const template = (tenant?.whatsappTemplate || `Hola {nombre_paciente},\n\nTe recordamos tu turno con el *{nombre_clinica}*:\n\n{dia_semana} {fecha} a las *{hora}hs*\n{tratamiento}\n\nConfirma o cancela tu turno acá:\n{link}\n\nRecordá que los turnos no cancelados con más de 48hs de anticipación o no asistidos deben ser abonados.\n\n_{nombre_clinica} - {direccion}_`).replace(/\\n/g, '\n')
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://turnos-app-delta.vercel.app'
   const link = `${appUrl}/paciente/${token}`

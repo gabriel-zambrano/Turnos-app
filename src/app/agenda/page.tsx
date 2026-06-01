@@ -1466,6 +1466,7 @@ export default function Agenda() {
                 const num = normalizarTelefono(sel.telefono)
                 const d   = parseFechaLocal(sel.fecha)
                 let msgText = tenant?.whatsappTemplate || ''
+                msgText = msgText.replace(/\\n/g, '\n')
                 msgText = msgText
                   .replace(/{nombre_paciente}/g, sel.nombre)
                   .replace(/{nombre_clinica}/g, tenant?.nombre || 'DentalDesk')

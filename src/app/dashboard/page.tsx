@@ -378,7 +378,7 @@ export default function Dashboard() {
   const enviarRecordatorioWhatsApp = (cita: any) => {
     if (!tenant) return
     const num = normalizarTelefono(cita.telefono)
-    const rawTemplate = tenant.whatsappTemplate || `Hola {nombre_paciente},\n\nTe recordamos tu turno en *{nombre_clinica}*:\n\n{dia_semana} {fecha} a las *{hora}hs*\n{tratamiento}\n\nConfirma o cancela tu turno acá:\n{link}`
+    const rawTemplate = (tenant.whatsappTemplate || `Hola {nombre_paciente},\n\nTe recordamos tu turno en *{nombre_clinica}*:\n\n{dia_semana} {fecha} a las *{hora}hs*\n{tratamiento}\n\nConfirma o cancela tu turno acá:\n{link}`).replace(/\\n/g, '\n')
     
     let dia = ''
     let fecha = ''
