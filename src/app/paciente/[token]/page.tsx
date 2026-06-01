@@ -362,7 +362,7 @@ export default function PacientePage() {
 
         {/* Progreso del tratamiento */}
 
-        {isOrtodoncia && paciente?.progreso_plan_porcentaje && paciente.progreso_plan_porcentaje > 0 && (
+        {isOrtodoncia && paciente && (paciente.progreso_plan_porcentaje || 0) > 0 && (
           <div style={{ marginBottom: 28 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 8 }}>
               <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--portal-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Progreso del tratamiento</span>
