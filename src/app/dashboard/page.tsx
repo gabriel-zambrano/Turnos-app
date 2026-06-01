@@ -10,7 +10,7 @@ import type { EstadoCita } from '@/types'
 import { NuevaCitaModal } from '@/components/NuevaCitaModal'
 import { triggerConfetti } from '@/lib/confetti'
 
-interface Cita { id:string; nombre:string; hora:string; tratamiento:string; estado:EstadoCita; telefono:string; precio_cobrado?:number|null; valor?:number|null; paciente_id?:string }
+interface Cita { id:string; nombre:string; hora:string; tratamiento:string; estado:EstadoCita; telefono:string; precio_cobrado?:number|null; valor?:number|null; paciente_id?:string; token?:string|null; fecha_hora?:string }
 interface CitaMañana extends Cita { token:string|null; fecha_hora:string }
 interface LogItem { id:string; paciente:string; canal:string; estado:string; hora:string }
 const FILTROS = [{k:'todas',l:'Todas'},{k:'pendiente',l:'Pendientes'},{k:'confirmado',l:'Confirmadas'},{k:'asistio',l:'Asistieron'}]
@@ -234,6 +234,8 @@ export default function Dashboard() {
         id: c.id,
         nombre: pac?.nombre ?? '—',
         telefono: pac?.telefono ?? '—',
+        token: pac?.token ?? null,
+        fecha_hora: c.fecha_hora,
         hora: new Date(c.fecha_hora).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Argentina/Buenos_Aires' }),
         tratamiento: c.tipo_tratamiento,
         estado: c.estado as EstadoCita,
@@ -371,6 +373,47 @@ export default function Dashboard() {
     await supabase.from('citas').update({estado:'confirmado'}).eq('id',id)
     setCitas(p=>p.map(c=>c.id===id?{...c,estado:'confirmado' as EstadoCita}:c))
     msg('Cita confirmada ✓')
+  }
+
+  const enviarRecordatorioWhatsApp = (cita: any) => {
+    if (!tenant) return
+    const num = normalizarTelefono(cita.telefono)
+    const rawTemplate = tenant.whatsappTemplate || `Hola {nombre_paciente},\n\nTe recordamos tu turno en *{nombre_clinica}*:\n\n{dia_semana} {fecha} a las *{hora}hs*\n{tratamiento}\n\nConfirma o cancela tu turno acá:\n{link}`
+    
+    let dia = ''
+    let fecha = ''
+    let hora = cita.hora
+    if (cita.fecha_hora) {
+      const dt = new Date(cita.fecha_hora)
+      const ar = new Date(dt.toLocaleString('en-US', { timeZone: 'America/Argentina/Buenos_Aires' }))
+      const dias = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado']
+      const meses = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre']
+      dia = dias[ar.getDay()]
+      fecha = ar.getDate() + ' de ' + meses[ar.getMonth()]
+      hora = String(ar.getHours()).padStart(2,'0') + ':' + String(ar.getMinutes()).padStart(2,'0')
+    } else {
+      const dt = new Date(selectedDate + 'T' + cita.hora + ':00-03:00')
+      const dias = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado']
+      const meses = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre']
+      dia = dias[dt.getDay()]
+      fecha = dt.getDate() + ' de ' + meses[dt.getMonth()]
+    }
+
+    const appUrl = window.location.origin
+    const link = cita.token ? `${appUrl}/paciente/${cita.token}` : ''
+    
+    const msgText = rawTemplate
+      .replace(/{nombre_paciente}/g, cita.nombre)
+      .replace(/{nombre_clinica}/g, tenant.nombre || 'DentalDesk')
+      .replace(/{dia_semana}/g, dia)
+      .replace(/{fecha}/g, fecha)
+      .replace(/{hora}/g, hora)
+      .replace(/{tratamiento}/g, cita.tratamiento)
+      .replace(/{link}/g, link)
+      .replace(/{direccion}/g, tenant.direccion || '')
+
+    const txt = encodeURIComponent(msgText)
+    window.open(`https://wa.me/${num}?text=${txt}`, '_blank')
   }
 
   async function enviarMasivo(){
@@ -774,10 +817,7 @@ export default function Dashboard() {
                   {tiempoRestante}
                 </span>
                 {nextCita.telefono && (
-                  <button onClick={() => {
-                    const txt = encodeURIComponent(`Hola ${nextCita.nombre}, te recordamos tu turno hoy a las ${nextCita.hora}hs.`)
-                    window.open(`https://wa.me/${normalizarTelefono(nextCita.telefono)}?text=${txt}`, '_blank')
-                  }} className="btn-premium" style={{
+                  <button onClick={() => enviarRecordatorioWhatsApp(nextCita)} className="btn-premium" style={{
                     background: '#25D366',
                     border: 'none',
                     borderRadius: 8,
@@ -828,10 +868,7 @@ export default function Dashboard() {
                                 Confirmar
                               </button>
                               {c.telefono && (
-                                <button onClick={()=>{
-                                  const txt=encodeURIComponent(`Hola ${c.nombre}, te recordamos tu turno hoy a las ${c.hora}hs. ¡Te esperamos!`)
-                                  window.open(`https://wa.me/${normalizarTelefono(c.telefono)}?text=${txt}`,'_blank')
-                                }} className="btn-premium" title="Enviar recordatorio WhatsApp" style={{fontSize:11,padding:'4px 8px',borderRadius:7,border:'none',background:'#25D36618',color:'#128C7E',cursor:'pointer',fontFamily:'DM Sans, sans-serif',display:'flex',alignItems:'center',gap:3}}>
+                                <button onClick={()=>enviarRecordatorioWhatsApp(c)} className="btn-premium" title="Enviar recordatorio WhatsApp" style={{fontSize:11,padding:'4px 8px',borderRadius:7,border:'none',background:'#25D36618',color:'#128C7E',cursor:'pointer',fontFamily:'DM Sans, sans-serif',display:'flex',alignItems:'center',gap:3}}>
                                   <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.514 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.724-1.455L0 24zm6.59-4.846c1.66.986 3.288 1.488 4.905 1.489 5.5.003 9.975-4.47 9.979-9.967.002-2.662-1.033-5.166-2.915-7.05C16.734 1.744 14.236.703 11.58.701c-5.503 0-9.98 4.47-9.985 9.969-.001 1.776.48 3.5 1.391 5.01L1.93 21.72l6.147-1.611-.43-.255z"/></svg>
                                 </button>
                               )}
