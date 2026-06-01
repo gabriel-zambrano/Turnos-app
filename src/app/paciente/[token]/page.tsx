@@ -351,21 +351,52 @@ export default function PacientePage() {
                       </div>
                     </div>
 
-                    {t.estado === 'pendiente' && (
-                      <div style={{ display:'flex', gap:10 }}>
+                    {t.estado === 'pendiente' ? (
+                      <div style={{ display:'flex', flexDirection: 'column', gap:8 }}>
+                        <div style={{ display:'flex', gap:10 }}>
+                          <button
+                            onClick={() => cambiarEstado(t.id, 'confirmado')}
+                            disabled={accion?.id===t.id}
+                            style={{ flex:1, fontSize:14, padding:'12px', borderRadius:12, border:'none', background: '#D1E7DD', color: '#0A3622', cursor:'pointer', fontWeight:700, fontFamily:'DM Sans, system-ui', transition:'transform 0.2s' }}
+                          >
+                            Confirmar
+                          </button>
+                          <button
+                            onClick={() => setReproConfirm(t)}
+                            disabled={accion?.id===t.id}
+                            style={{ flex:1, fontSize:14, padding:'12px', borderRadius:12, border:'none', background: 'rgba(24,95,165,0.08)', color: secondaryColor, cursor:'pointer', fontWeight:600, fontFamily:'DM Sans, system-ui', transition:'transform 0.2s' }}
+                          >
+                            Reprogramar
+                          </button>
+                        </div>
                         <button
-                          onClick={() => cambiarEstado(t.id, 'confirmado')}
-                          disabled={accion?.id===t.id}
-                          style={{ flex:1, fontSize:14, padding:'12px', borderRadius:12, border:'none', background: '#D1E7DD', color: '#0A3622', cursor:'pointer', fontWeight:700, fontFamily:'DM Sans, system-ui', transition:'transform 0.2s' }}
+                          onClick={() => generateICS(t, tenant)}
+                          style={{ width:'100%', fontSize:13, padding:'10px', borderRadius:12, border:'1px solid var(--portal-card-border)', background: 'transparent', color: 'var(--portal-text-secondary)', cursor:'pointer', fontWeight:600, fontFamily:'DM Sans, system-ui', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
                         >
-                          Confirmar
+                          📅 Agregar a mi calendario
                         </button>
+                      </div>
+                    ) : (
+                      <div style={{ display:'flex', flexDirection: 'column', gap:8 }}>
+                        <div style={{ display:'flex', gap:10 }}>
+                          <button
+                            disabled
+                            style={{ flex:1, fontSize:14, padding:'12px', borderRadius:12, border:'none', background: '#e2f0d9', color: '#385723', fontWeight:700, fontFamily:'DM Sans, system-ui' }}
+                          >
+                            ✓ Confirmado
+                          </button>
+                          <button
+                            onClick={() => setReproConfirm(t)}
+                            style={{ flex:1, fontSize:14, padding:'12px', borderRadius:12, border:'none', background: 'rgba(24,95,165,0.08)', color: secondaryColor, cursor:'pointer', fontWeight:600, fontFamily:'DM Sans, system-ui', transition:'transform 0.2s' }}
+                          >
+                            Reprogramar
+                          </button>
+                        </div>
                         <button
-                          onClick={() => setReproConfirm(t)}
-                          disabled={accion?.id===t.id}
-                          style={{ flex:1, fontSize:14, padding:'12px', borderRadius:12, border:'none', background: 'rgba(24,95,165,0.08)', color: secondaryColor, cursor:'pointer', fontWeight:600, fontFamily:'DM Sans, system-ui', transition:'transform 0.2s' }}
+                          onClick={() => generateICS(t, tenant)}
+                          style={{ width:'100%', fontSize:13, padding:'10px', borderRadius:12, border:'1px solid var(--portal-card-border)', background: 'transparent', color: 'var(--portal-text-secondary)', cursor:'pointer', fontWeight:600, fontFamily:'DM Sans, system-ui', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
                         >
-                          Reprogramar
+                          📅 Agregar a mi calendario
                         </button>
                       </div>
                     )}

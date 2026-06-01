@@ -37,7 +37,7 @@ const DURACIONES = [
   { label: '120 min', value: 120 },
 ]
 
-interface Paciente { id: string; nombre: string; telefono: string; email: string }
+interface Paciente { id: string; nombre: string; telefono: string; email: string; token?: string | null }
 interface TratamientoDB { nombre: string; duracion_default: number | null; precio_base: number | null }
 
 interface Props {
@@ -119,7 +119,7 @@ export function NuevaCitaModal({ onClose, onSuccess, defaultFecha, defaultHora }
     const timeout = setTimeout(async () => {
       const { data } = await supabase
         .from('pacientes')
-        .select('id,nombre,telefono,email')
+        .select('id,nombre,telefono,email,token')
         .eq('tenant_id', tenant.id)
         .ilike('nombre', `%${query}%`)
         .limit(6)
@@ -184,9 +184,10 @@ export function NuevaCitaModal({ onClose, onSuccess, defaultFecha, defaultHora }
     if (!nuevoPaciente.telefono) { setError('Ingresá el teléfono'); return }
     if (!tenant) return
     setError('')
+    const token = crypto.randomUUID()
     const { data, error: err } = await supabase
       .from('pacientes')
-      .insert({ nombre: nuevoPaciente.nombre, telefono: nuevoPaciente.telefono, email: nuevoPaciente.email || null, tenant_id: tenant.id })
+      .insert({ nombre: nuevoPaciente.nombre, telefono: nuevoPaciente.telefono, email: nuevoPaciente.email || null, tenant_id: tenant.id, token })
       .select()
       .single()
     if (err || !data) { setError('Error al crear paciente'); return }
@@ -247,6 +248,7 @@ export function NuevaCitaModal({ onClose, onSuccess, defaultFecha, defaultHora }
         body: JSON.stringify({
           nombre: pacienteSeleccionado.nombre,
           email: pacienteSeleccionado.email,
+          token: pacienteSeleccionado.token || null,
           fecha, hora, tratamiento, duracion,
           notas: notas || null,
           tenantId: tenant?.id
@@ -268,6 +270,30 @@ export function NuevaCitaModal({ onClose, onSuccess, defaultFecha, defaultHora }
   const card: React.CSSProperties = {
     background: 'rgba(255, 255, 255, 0.72)', borderRadius: 14, padding: '1.25rem', border: '1px solid var(--border-light, rgba(56,138,221,0.08))',
     boxShadow: '0 2px 8px rgba(10,30,61,0.015)'
+  }
+
+  const getWhatsAppMessage = () => {
+    if (!pacienteSeleccionado) return ''
+    const rawTemplate = tenant?.whatsappTemplate || `Hola {nombre_paciente},\n\nTe recordamos tu turno en *{nombre_clinica}*:\n\n{dia_semana} {fecha} a las *{hora}hs*\n{tratamiento}\n\nConfirma o cancela tu turno acá:\n{link}`
+    
+    const dt = new Date(`${fecha}T${hora}:00-03:00`)
+    const dias = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado']
+    const meses = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre']
+    const diaSemana = dias[dt.getDay()]
+    const fechaTexto = dt.getDate() + ' de ' + meses[dt.getMonth()]
+    
+    const appUrl = typeof window !== 'undefined' ? window.location.origin : ''
+    const link = pacienteSeleccionado.token ? `${appUrl}/paciente/${pacienteSeleccionado.token}` : ''
+    
+    return rawTemplate
+      .replace(/{nombre_paciente}/g, pacienteSeleccionado.nombre)
+      .replace(/{nombre_clinica}/g, tenant?.nombre || 'DentalDesk')
+      .replace(/{dia_semana}/g, diaSemana)
+      .replace(/{fecha}/g, fechaTexto)
+      .replace(/{hora}/g, hora)
+      .replace(/{tratamiento}/g, tratamiento)
+      .replace(/{link}/g, link)
+      .replace(/{direccion}/g, tenant?.direccion || '')
   }
 
   return (
@@ -348,9 +374,7 @@ export function NuevaCitaModal({ onClose, onSuccess, defaultFecha, defaultHora }
               
               {pacienteSeleccionado?.telefono && (
                 <a
-                  href={`https://wa.me/${pacienteSeleccionado.telefono.replace(/\D/g, '')}?text=${encodeURIComponent(
-                    `Hola *${pacienteSeleccionado.nombre.trim().split(' ')[0]}* 👋\nTe confirmamos tu turno de *${tratamiento}* para el *${fecha.split('-').reverse().join('/')}* a las *${hora} hs*.\n\n🗓️ Podés sumarlo a tu calendario haciendo clic aquí:\nhttps://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(`Turno Odontológico - ${tratamiento}`)}&dates=${new Date(`${fecha}T${hora}:00-03:00`).toISOString().replace(/-|:|\.\d\d\d/g, '')}/${new Date(new Date(`${fecha}T${hora}:00-03:00`).getTime() + duracion * 60000).toISOString().replace(/-|:|\.\d\d\d/g, '')}&details=${encodeURIComponent(`Turno para ${tratamiento}.`)}`
-                  )}`}
+                  href={`https://wa.me/${pacienteSeleccionado.telefono.replace(/\D/g, '')}?text=${encodeURIComponent(getWhatsAppMessage())}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   style={{

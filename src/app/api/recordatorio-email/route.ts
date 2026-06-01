@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
     const hasta = new Date(objetivo.getTime() + ventana).toISOString()
     const { data } = await supabase
       .from('citas')
-      .select('id, fecha_hora, tipo_tratamiento, duracion_minutos, notas, pacientes(nombre, email, telefono)')
+      .select('id, fecha_hora, tipo_tratamiento, duracion_minutos, notas, pacientes(nombre, email, telefono, token)')
       .gte('fecha_hora', desde)
       .lte('fecha_hora', hasta)
       .in('estado', ['pendiente', 'confirmado'])
@@ -79,9 +79,12 @@ export async function POST(req: NextRequest) {
                 </td></tr>
               </table>
             </div>
-
+            ${paciente.token ? `
+            <div style="text-align:center;margin:24px 0">
+              <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://walterbenegas.com.ar'}/paciente/${paciente.token}" style="display:inline-block;background:#1D9E75;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px">✓ Confirmar o ver mi turno</a>
+            </div>` : ''}
             <p style="font-size: 12px; color: #94a3b8; text-align: center; margin: 0;">
-              Si necesitás cancelar o reprogramar, respondé este email o llamanos.
+              Si necesitás cancelar o reprogramar, podés hacerlo ingresando al link de arriba o respondiendo este email.
             </p>
           </div>
         </div>

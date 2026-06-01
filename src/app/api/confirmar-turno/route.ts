@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   }
 
-  const { nombre, email, fecha, hora, tratamiento, duracion, notas, tenantId } = await req.json()
+  const { nombre, email, token, fecha, hora, tratamiento, duracion, notas, tenantId } = await req.json()
 
   if (!email) return NextResponse.json({ error: 'Email requerido' }, { status: 400 })
 
@@ -90,6 +90,15 @@ export async function POST(req: NextRequest) {
               ${notas ? `<tr><td style="padding-top: 12px;"><span style="font-size: 18px;">📝</span><span style="font-size: 11px; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-top: 4px;">Notas</span><span style="font-size: 14px; color: #0f1e2b;">${notas}</span></td></tr>` : ''}
             </table>
           </div>
+
+          ${token ? `
+          <div style="text-align: center; margin-bottom: 24px;">
+            <a href="${baseUrl}/paciente/${token}" target="_blank" style="display: inline-block; text-align: center; background: #1D9E75; color: #fff; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: 700; font-size: 14px; box-shadow: 0 4px 10px rgba(29,158,117,0.2);">
+              📲 Ver o gestionar mi turno en el portal
+            </a>
+            <p style="font-size: 12px; color: #94a3b8; margin: 8px 0 0;">Podés confirmar asistencia, cancelar o reprogramar desde tu celular.</p>
+          </div>
+          ` : ''}
 
           <p style="font-size: 13px; font-weight: 600; color: #0f1e2b; text-align: center; margin-bottom: 12px;">Guardá tu turno en el calendario:</p>
 
