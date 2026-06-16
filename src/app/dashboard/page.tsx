@@ -9,6 +9,7 @@ import { useTenantContext } from '@/components/TenantContext'
 import type { EstadoCita } from '@/types'
 import { NuevaCitaModal } from '@/components/NuevaCitaModal'
 import { triggerConfetti } from '@/lib/confetti'
+import { registrarInasistenciaAction, aprobarAsistenciaAction } from '@/app/actions/fidelizacion'
 
 interface Cita { id:string; nombre:string; hora:string; tratamiento:string; estado:EstadoCita; telefono:string; precio_cobrado?:number|null; valor?:number|null; paciente_id?:string; token?:string|null; fecha_hora?:string }
 interface CitaMañana extends Cita { token:string|null; fecha_hora:string }
@@ -123,11 +124,18 @@ export default function Dashboard() {
       const { error: errCita } = await supabase
         .from('citas')
         .update({
-          precio_cobrado: Number(cobMonto),
-          estado: 'asistio'
+          precio_cobrado: Number(cobMonto)
         })
         .eq('id', cobCitaId)
-      errorCita = errCita
+      
+      if (errCita) {
+        errorCita = errCita
+      } else {
+        const resAprobar = await aprobarAsistenciaAction(cobCitaId)
+        if (!resAprobar.success) {
+          errorCita = { message: resAprobar.error }
+        }
+      }
     }
 
     setGuardandoAccion(false)
@@ -878,10 +886,23 @@ export default function Dashboard() {
                           {c.estado === 'confirmado' && (
                             <button 
                               onClick={async () => {
-                                await supabase.from('citas').update({ estado: 'asistio' }).eq('id', c.id)
-                                setCitas(p => p.map(x => x.id === c.id ? { ...x, estado: 'asistio' as EstadoCita } : x))
-                                msg('Cita marcada como Asistió ✓')
-                                triggerConfetti()
+                                if (!c.precio_cobrado) {
+                                  setCobConcepto(`Pago ${c.tratamiento} — ${c.nombre}`)
+                                  setCobMonto(c.valor || '')
+                                  setCobCitaId(c.id)
+                                  setCobFecha(new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }))
+                                  setModalCobro(true)
+                                  msg('Ingresá el cobro para procesar los puntos.')
+                                } else {
+                                  const res = await aprobarAsistenciaAction(c.id)
+                                  if (!res.success) {
+                                    msg('Error al procesar puntos: ' + res.error, 'error')
+                                  } else {
+                                    setCitas(p => p.map(x => x.id === c.id ? { ...x, estado: 'asistio' as EstadoCita } : x))
+                                    msg('Cita marcada como Asistió ✓')
+                                    triggerConfetti()
+                                  }
+                                }
                               }}
                               className="btn-premium" 
                               style={{fontSize:11,padding:'4px 10px',borderRadius:7,border:`1.5px solid ${accentColor}`,background:`${accentColor}18`,color:accentColor,cursor:'pointer',fontWeight:600,fontFamily:'DM Sans, sans-serif',whiteSpace:'nowrap'}}

@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client'
 import type { EstadoCita, TipoTratamiento } from '@/types'
 import { useTenantContext } from '@/components/TenantContext'
 import { triggerConfetti } from '@/lib/confetti'
+import { registrarInasistenciaAction, aprobarAsistenciaAction } from '@/app/actions/fidelizacion'
 import { NuevaCitaModal } from '@/components/NuevaCitaModal'
 
 interface CitaDB { id:string; paciente_id:string; fecha_hora:string; tipo_tratamiento:string; estado:string; notas:string|null; duracion_minutos:number; valor:number|null; sena:number|null; medio_pago:string|null; precio_cobrado:number|null; pacientes:{nombre:string;telefono:string;token:string}|null }
@@ -400,17 +401,23 @@ export default function Agenda() {
 
     // 2. Update price_cobrado on appointment
     const { error: updError } = await supabase.from('citas').update({
-      precio_cobrado: Number(cobMonto),
-      estado: 'asistio'
+      precio_cobrado: Number(cobMonto)
     }).eq('id', sel.id)
 
+    if (insError || updError) {
+      setGuardandoCobro(false)
+      return msg('Error al registrar cobro: ' + (insError?.message || updError?.message), 'error')
+    }
+
+    // 3. Approve assistance and process points
+    const resAprobar = await aprobarAsistenciaAction(sel.id)
     setGuardandoCobro(false)
 
-    if (insError || updError) {
-      msg('Error al registrar cobro: ' + (insError?.message || updError?.message), 'error')
+    if (!resAprobar.success) {
+      msg('Cobro registrado pero error al procesar puntos: ' + resAprobar.error, 'error')
     } else {
       setModal(null)
-      msg('Cobro registrado correctamente ✓')
+      msg('Cobro registrado y puntos acreditados correctamente ✓')
       triggerConfetti()
       loadCitas()
       setPropuestaProximaCita(sel)
@@ -540,16 +547,43 @@ export default function Agenda() {
   }
 
   async function cambiarEstado(id:string,estado:EstadoCita){
+    if (estado === 'ausente' || estado === 'cancelado') {
+      const res = await registrarInasistenciaAction(id, estado as any)
+      if (!res.success) {
+        msg('Error al registrar inasistencia: ' + res.error, 'error')
+      } else {
+        setCitas(p=>p.map(c=>c.id===id?{...c,estado}:c))
+        msg('Estado actualizado ✓')
+      }
+      return
+    }
+
+    if (estado === 'asistio') {
+      const cita = citas.find(c => c.id === id)
+      if (cita) {
+        if (!cita.precio_cobrado) {
+          openCobroExpress(cita)
+          msg('Ingresá el cobro para procesar los puntos.')
+          return
+        } else {
+          const res = await aprobarAsistenciaAction(id)
+          if (!res.success) {
+            msg('Error al procesar puntos: ' + res.error, 'error')
+          } else {
+            setCitas(p=>p.map(c=>c.id===id?{...c,estado}:c))
+            msg('Turno cerrado y puntos acumulados ✓')
+            triggerConfetti()
+            setPropuestaProximaCita(cita)
+          }
+          return
+        }
+      }
+    }
+
+    // For other states (pendiente, confirmado, completado)
     await supabase.from('citas').update({estado}).eq('id',id)
     setCitas(p=>p.map(c=>c.id===id?{...c,estado}:c))
     msg('Estado actualizado')
-    if(estado === 'asistio') {
-      triggerConfetti()
-      const cita = citas.find(c => c.id === id)
-      if (cita) {
-        setPropuestaProximaCita(cita)
-      }
-    }
   }
 
   const [whatsappCita, setWhatsappCita] = useState<{ telefono: string; mensajeWA: string } | null>(null)

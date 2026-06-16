@@ -66,17 +66,24 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
         let tenantData = null
 
         if (session?.user) {
-          const { data: tuData } = await supabase
+          const { data: tuList } = await supabase
             .from('tenant_users')
             .select('tenant_id')
             .eq('user_id', session.user.id)
-            .single()
             
-          if (tuData?.tenant_id) {
+          if (tuList && tuList.length > 0) {
+            let activeId = localStorage.getItem('active_tenant_id') || ''
+            const isValidActive = activeId ? tuList.some(item => item.tenant_id === activeId) : false
+            
+            if (!activeId || !isValidActive) {
+              activeId = tuList[0].tenant_id
+              localStorage.setItem('active_tenant_id', activeId)
+            }
+
             const { data: tData } = await supabase
               .from('tenants')
               .select('*')
-              .eq('id', tuData.tenant_id)
+              .eq('id', activeId)
               .single()
             tenantData = tData
           }

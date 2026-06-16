@@ -1,5 +1,5 @@
 export const TRATAMIENTOS = ['Limpieza','Ortodoncia','Implante','Cirugia','Endodoncia','Blanqueamiento','Consulta','Otro']
-export const ESTADOS      = ['pendiente','confirmado','asistio','cancelado']
+export const ESTADOS      = ['pendiente','confirmado','asistio','cancelado','completado','ausente']
 export const DURACIONES   = [20,40,60,80,120]
 export const AVATAR_COLORS = ['#1D9E75','#7F77DD','#378ADD','#EF9F27','#D85A30','#E24B4A']
 
@@ -19,6 +19,8 @@ export const ESTADO_STYLE: Record<string, {bg:string; color:string; label:string
   pendiente:  { bg:'#FAEEDA', color:'#633806', label:'Pendiente'  },
   asistio:    { bg:'#E6F1FB', color:'#0C447C', label:'Asistió'    },
   cancelado:  { bg:'#FAECE7', color:'#712B13', label:'Cancelado'  },
+  completado: { bg:'#E2E3E5', color:'#41464B', label:'Completado' },
+  ausente:    { bg:'#F8D7DA', color:'#842029', label:'Ausente'    },
 }
 
 export function horasDisponibles(): string[] {

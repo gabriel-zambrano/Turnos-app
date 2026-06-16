@@ -1,2 +1,2 @@
-export type EstadoCita = 'pendiente' | 'confirmado' | 'asistio' | 'cancelado'
+export type EstadoCita = 'pendiente' | 'confirmado' | 'asistio' | 'cancelado' | 'completado' | 'ausente'
 export type TipoTratamiento = 'Limpieza' | 'Ortodoncia' | 'Implante' | 'Cirugia' | 'Endodoncia' | 'Blanqueamiento' | 'Consulta' | 'Otro'
