@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { createClient } from '@/lib/supabase/server'
 
 export async function POST(req: Request) {
   try {
@@ -7,12 +8,33 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Faltan parámetros' }, { status: 400 })
     }
 
+    // ── Autorización: el usuario debe estar logueado y pertenecer al tenant ──
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+    }
+
+    const { data: membership } = await supabase
+      .from('tenant_users')
+      .select('tenant_id')
+      .eq('user_id', user.id)
+      .eq('tenant_id', tenantId)
+      .single()
+
+    if (!membership) {
+      return NextResponse.json({ error: 'No autorizado para este consultorio' }, { status: 403 })
+    }
+
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
     const mpAccessToken = process.env.MERCADOPAGO_ACCESS_TOKEN
 
-    // Si no hay credenciales configuradas, devolvemos un enlace sandbox simulado para no bloquear
     if (!mpAccessToken) {
-      console.warn('MERCADOPAGO_ACCESS_TOKEN no configurado. Utilizando modo simulado.')
+      // Modo simulado SOLO fuera de producción.
+      if (process.env.NODE_ENV === 'production') {
+        return NextResponse.json({ error: 'Pasarela de pago no configurada' }, { status: 500 })
+      }
+      console.warn('MERCADOPAGO_ACCESS_TOKEN no configurado. Modo simulado.')
       return NextResponse.json({
         checkoutUrl: `${appUrl}/configuracion?billing=success-mock&preapproval_id=mock-preapp-${tenantId}`
       })
@@ -31,7 +53,7 @@ export async function POST(req: Request) {
         auto_recurring: {
           frequency: 1,
           frequency_type: 'months',
-          transaction_amount: 3500, // Precio de la suscripción (AR$)
+          transaction_amount: 3500,
           currency_id: 'ARS'
         },
         back_url: `${appUrl}/configuracion?billing=success`,
@@ -44,10 +66,9 @@ export async function POST(req: Request) {
       throw new Error(data.message || 'Error al conectar con MercadoPago')
     }
 
-    // Retornamos el init_point de MercadoPago para la redirección
     return NextResponse.json({ checkoutUrl: data.init_point })
   } catch (err: any) {
-    console.error('Error in MercadoPago Checkout:', err)
-    return NextResponse.json({ error: err.message }, { status: 500 })
+    console.error('Error in MercadoPago Checkout:', err?.message || err)
+    return NextResponse.json({ error: 'Error al iniciar el pago' }, { status: 500 })
   }
 }

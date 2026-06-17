@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
-
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -17,13 +16,15 @@ export async function GET(
   if (!token || !UUID_REGEX.test(token)) {
     return NextResponse.json({ error: 'Link inválido' }, { status: 400 })
   }
+
   let pac: any = null
   const pacRes = await supabaseAdmin
     .from('pacientes')
-    .select('id, nombre, telefono, tenant_id, alergias, antecedentes, progreso_plan_porcentaje, puntos, recomendaciones')
+    // token_expira: añadir la columna con la migración incluida en los fixes.
+    .select('id, nombre, telefono, tenant_id, alergias, antecedentes, progreso_plan_porcentaje, puntos, recomendaciones, token_expira')
     .eq('token', token)
     .single()
-  
+
   if (pacRes.error) {
     const fallback = await supabaseAdmin
       .from('pacientes')
@@ -40,15 +41,21 @@ export async function GET(
       antecedentes: null,
       progreso_plan_porcentaje: 0,
       puntos: 0,
-      recomendaciones: null
+      recomendaciones: null,
+      token_expira: null
     }
-
   } else {
     pac = pacRes.data
   }
 
+  // ── Expiración del token ──
+  // Si el token tiene fecha de expiración y ya pasó, se rechaza el acceso.
+  if (pac.token_expira && new Date(pac.token_expira).getTime() < Date.now()) {
+    return NextResponse.json({ error: 'Este enlace ha expirado. Solicitá uno nuevo a tu consultorio.' }, { status: 410 })
+  }
+
   const tid = pac.tenant_id || process.env.NEXT_PUBLIC_DEFAULT_TENANT_ID || ''
-  
+
   let registry = {
     nombre: 'Consultorio Dental',
     direccion: 'Dirección del consultorio',
@@ -57,36 +64,50 @@ export async function GET(
     secondaryColor: '#185FA5',
     accentColor: '#138A6B'
   }
-  
+
   if (tid) {
-    const { data: dbTenant } = await supabaseAdmin.from('tenants').select('*').eq('id', tid).single()
+    const { data: dbTenant } = await supabaseAdmin
+      .from('tenants')
+      .select('*')
+      .eq('id', tid)
+      .single()
     if (dbTenant) {
-      registry = { ...registry, ...dbTenant }
+      // Nunca exponer al paciente campos internos de facturación/suscripción.
+      const SENSITIVE = [
+        'mp_preapproval_id', 'subscription_status', 'plan', 'next_payment_date',
+        'feature_bi', 'custom_domain', 'subdominio_generico', 'activo', 'created_at'
+      ]
+      const safeTenant = Object.fromEntries(
+        Object.entries(dbTenant).filter(([k]) => !SENSITIVE.includes(k))
+      )
+      registry = { ...registry, ...safeTenant }
     }
   }
 
   const ahora = new Date().toISOString()
+
+  // IMPORTANTE: NO devolvemos el campo `notas` de las citas: son notas internas del
+  // profesional y no deben mostrarse al paciente.
   const { data: citas } = await supabaseAdmin
     .from('citas')
-    .select('id, fecha_hora, tipo_tratamiento, estado, duracion_minutos, notas')
+    .select('id, fecha_hora, tipo_tratamiento, estado, duracion_minutos')
     .eq('paciente_id', pac.id)
     .gte('fecha_hora', ahora)
     .order('fecha_hora', { ascending: true })
 
   const { data: historial } = await supabaseAdmin
     .from('historial_dental')
-    .select('id, diente, estado, notas, creado_en')
+    .select('id, diente, estado, creado_en')
     .eq('paciente_id', pac.id)
     .order('creado_en', { ascending: false })
 
   const { data: pastCitas } = await supabaseAdmin
     .from('citas')
-    .select('id, fecha_hora, tipo_tratamiento, estado, duracion_minutos, notas')
+    .select('id, fecha_hora, tipo_tratamiento, estado, duracion_minutos')
     .eq('paciente_id', pac.id)
     .lt('fecha_hora', ahora)
     .order('fecha_hora', { ascending: false })
 
-  // Query progress photos safely
   let fotos: any[] = []
   try {
     const { data: fotosRes, error: fotosErr } = await supabaseAdmin
@@ -98,10 +119,9 @@ export async function GET(
       fotos = fotosRes
     }
   } catch (err) {
-    console.error('Error fetching progress photos:', err)
+    console.error('Error fetching progress photos')
   }
 
-  // Check for pending post-visit feedback (last 48 hours) safely
   let feedbackPendiente: any = null
   try {
     const { data: pastCitas48h } = await supabaseAdmin
@@ -115,8 +135,7 @@ export async function GET(
     if (pastCitas48h && pastCitas48h.length > 0) {
       const latestCita = pastCitas48h[0]
       const citaTime = new Date(latestCita.fecha_hora).getTime()
-      const nowTime = new Date().getTime()
-      const hoursDiff = (nowTime - citaTime) / 3600000
+      const hoursDiff = (Date.now() - citaTime) / 3600000
 
       if (hoursDiff <= 48) {
         const { data: existingFeedback, error: feedbackErr } = await supabaseAdmin
@@ -135,13 +154,13 @@ export async function GET(
       }
     }
   } catch (err) {
-    console.error('Error checking pending feedback:', err)
+    console.error('Error checking pending feedback')
   }
 
-  return NextResponse.json({
-    paciente: { 
-      id: pac.id, 
-      nombre: pac.nombre, 
+  const res = NextResponse.json({
+    paciente: {
+      id: pac.id,
+      nombre: pac.nombre,
       telefono: pac.telefono,
       alergias: pac.alergias || null,
       antecedentes: pac.antecedentes || null,
@@ -149,15 +168,16 @@ export async function GET(
       puntos: pac.puntos || 0,
       recomendaciones: pac.recomendaciones || null
     },
-
     turnos: citas || [],
     historial: historial || [],
     pastTurnos: pastCitas || [],
     fotos,
     feedbackPendiente,
-    tenant: {
-      id: tid,
-      ...registry
-    }
+    tenant: { id: tid, ...registry }
   })
+
+  // Evitar que el contenido clínico quede cacheado por intermediarios o se indexe.
+  res.headers.set('Cache-Control', 'no-store, max-age=0')
+  res.headers.set('X-Robots-Tag', 'noindex, nofollow')
+  return res
 }

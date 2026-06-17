@@ -11,7 +11,7 @@ export default function Terminos() {
         </Link>
 
         <h1 style={{ fontSize: 32, fontWeight: 800, color: '#fff', marginBottom: 8, letterSpacing: '-0.8px' }}>Términos y Condiciones</h1>
-        <p style={{ fontSize: 13, color: '#64748b', marginBottom: 32 }}>Última actualización: 28 de Mayo, 2026</p>
+        <p style={{ fontSize: 13, color: '#64748b', marginBottom: 32 }}>Última actualización: 17 de Junio, 2026</p>
 
         <p style={{ fontSize: 15, lineHeight: 1.6, marginBottom: 24 }}>
           Al registrarse, acceder o utilizar la plataforma web <strong>DentalDesk</strong> (en adelante, "el Servicio"), el odontólogo o representante de la clínica dental (en adelante, "el Usuario") acepta y se compromete a cumplir con los siguientes Términos y Condiciones.
@@ -24,7 +24,7 @@ export default function Terminos() {
 
         <h2 style={{ fontSize: 20, color: '#fff', fontWeight: 700, marginTop: 32, marginBottom: 12 }}>2. Suscripciones y Pagos (MercadoPago)</h2>
         <p style={{ fontSize: 14, lineHeight: 1.6, marginBottom: 20 }}>
-          El Servicio dispone de un plan gratuito (Starter) y un plan de pago (Plan Pro). Las suscripciones mensuales del Plan Pro son cobradas en pesos argentinos (ARS) mediante la plataforma de pagos segura de <strong>MercadoPago</strong>.
+          El Servicio dispone de un plan gratuito (Starter) y un plan de pago (Plan Pro). En Argentina, las suscripciones mensuales del Plan Pro son cobradas en pesos argentinos (ARS) mediante la plataforma de pagos segura de <strong>MercadoPago</strong>. Para usuarios de Venezuela u otros países, los medios de pago y precios aplicables se informan durante el proceso de contratación.
         </p>
         <ul style={{ paddingLeft: 20, fontSize: 14, lineHeight: 1.6, display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
           <li><strong>Suscripción Recurrente:</strong> Al activar el Plan Pro, el Usuario autoriza el débito automático mensual por el valor vigente.</li>
@@ -47,7 +47,17 @@ export default function Terminos() {
           El Usuario puede cancelar su suscripción a DentalDesk en cualquier momento desde su panel de Configuración de Clínica o poniéndose en contacto con soporte. Al rescindir el servicio, se le dará la posibilidad de solicitar la exportación de sus fichas de pacientes en formato estructurado (CSV) durante los siguientes 30 días hábiles.
         </p>
 
-        <h2 style={{ fontSize: 20, color: '#fff', fontWeight: 700, marginTop: 32, marginBottom: 12 }}>6. Jurisdicción y Ley Aplicable</h2>
+        <h2 style={{ fontSize: 20, color: '#fff', fontWeight: 700, marginTop: 32, marginBottom: 12 }}>6. Protección de Datos</h2>
+        <p style={{ fontSize: 14, lineHeight: 1.6, marginBottom: 20 }}>
+          El tratamiento de datos personales se rige por nuestra <Link href="/legal/privacidad" style={{ color: '#38bdf8', textDecoration: 'none', fontWeight: 600 }}>Política de Privacidad</Link> y por el Acuerdo de Tratamiento de Datos (DPA), que el Usuario acepta al registrarse. El Usuario se obliga a recabar el consentimiento informado de sus pacientes antes de cargar sus datos.
+        </p>
+
+        <h2 style={{ fontSize: 20, color: '#fff', fontWeight: 700, marginTop: 32, marginBottom: 12 }}>7. Limitación de Responsabilidad</h2>
+        <p style={{ fontSize: 14, lineHeight: 1.6, marginBottom: 20 }}>
+          La Plataforma es una herramienta de gestión y no sustituye el criterio clínico profesional. En la máxima medida permitida por la ley, DentalDesk no responde por daños indirectos, lucro cesante ni pérdida de datos ajena a su control. La responsabilidad total de DentalDesk se limita al monto efectivamente abonado por el Usuario en los últimos 3 meses.
+        </p>
+
+        <h2 style={{ fontSize: 20, color: '#fff', fontWeight: 700, marginTop: 32, marginBottom: 12 }}>8. Jurisdicción y Ley Aplicable</h2>
         <p style={{ fontSize: 14, lineHeight: 1.6, marginBottom: 20 }}>
           Estos Términos y Condiciones se rigen e interpretan bajo las leyes vigentes de la República Argentina. Cualquier conflicto derivado de la interpretación de este acuerdo se someterá a la jurisdicción de los Tribunales Ordinarios en lo Comercial de la Ciudad Autónoma de Buenos Aires.
         </p>

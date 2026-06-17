@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic'
 
 import { google } from "googleapis";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
 const auth = new google.auth.GoogleAuth({
@@ -12,17 +12,28 @@ const auth = new google.auth.GoogleAuth({
   scopes: ["https://www.googleapis.com/auth/spreadsheets"],
 });
 
-// supabase se crea dentro de cada handler
+export async function POST(req: NextRequest) {
+  // ── Autenticación: este endpoint solo debe ser llamado por el Database Webhook de Supabase ──
+  // Configurá el webhook en Supabase para enviar el header:
+  //   Authorization: Bearer <SYNC_SHEET_SECRET>
+  const authHeader = req.headers.get("authorization");
+  if (!process.env.SYNC_SHEET_SECRET || authHeader !== `Bearer ${process.env.SYNC_SHEET_SECRET}`) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
-export async function POST(req: Request) {
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
+  );
+
   try {
     const body = await req.json();
     const record = body.record ?? body;
     const type = body.type ?? "INSERT";
+
+    if (!record?.paciente_id || !record?.id) {
+      return NextResponse.json({ error: "Payload inválido" }, { status: 400 });
+    }
 
     const { data: paciente } = await supabase
       .from("pacientes")
