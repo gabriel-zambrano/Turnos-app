@@ -138,11 +138,83 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-#particles-bg {
+/* Aurora Premium Background Blobs */
+.aurora-bg {
   position: fixed;
   inset: 0;
   z-index: 0;
+  overflow: hidden;
+  background: var(--bg-app);
   pointer-events: none;
+  transition: background-color 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.aurora-blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(130px);
+  mix-blend-mode: multiply;
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+[data-theme="dark"] .aurora-blob {
+  mix-blend-mode: screen;
+  opacity: 0.35;
+}
+
+.aurora-1 {
+  top: -10%;
+  left: -10%;
+  width: 50vw;
+  height: 50vh;
+  background: radial-gradient(circle, rgba(56, 138, 221, 0.28) 0%, rgba(56, 138, 221, 0) 70%);
+  animation: aurora-float-1 25s infinite alternate ease-in-out;
+}
+
+.aurora-2 {
+  bottom: -10%;
+  right: -10%;
+  width: 55vw;
+  height: 55vh;
+  background: radial-gradient(circle, rgba(127, 119, 221, 0.25) 0%, rgba(127, 119, 221, 0) 70%);
+  animation: aurora-float-2 30s infinite alternate ease-in-out;
+}
+
+.aurora-3 {
+  top: 35%;
+  right: 15%;
+  width: 45vw;
+  height: 45vh;
+  background: radial-gradient(circle, rgba(29, 158, 117, 0.18) 0%, rgba(29, 158, 117, 0) 70%);
+  animation: aurora-float-3 28s infinite alternate ease-in-out;
+}
+
+.aurora-4 {
+  bottom: 20%;
+  left: 10%;
+  width: 40vw;
+  height: 40vh;
+  background: radial-gradient(circle, rgba(99, 163, 230, 0.22) 0%, rgba(99, 163, 230, 0) 70%);
+  animation: aurora-float-1 35s infinite alternate-reverse ease-in-out;
+}
+
+@keyframes aurora-float-1 {
+  0% { transform: translate(0, 0) rotate(0deg) scale(1); }
+  50% { transform: translate(8%, 12%) rotate(180deg) scale(1.1); }
+  100% { transform: translate(-5%, -8%) rotate(360deg) scale(0.95); }
+}
+
+@keyframes aurora-float-2 {
+  0% { transform: translate(0, 0) rotate(0deg) scale(1.05); }
+  50% { transform: translate(-10%, -15%) rotate(-180deg) scale(0.9); }
+  100% { transform: translate(6%, 5%) rotate(-360deg) scale(1.15); }
+}
+
+@keyframes aurora-float-3 {
+  0% { transform: translate(0, 0) scale(0.95); }
+  50% { transform: translate(15%, -10%) scale(1.15); }
+  100% { transform: translate(-8%, 12%) scale(0.9); }
 }
 
 .glass-card {
