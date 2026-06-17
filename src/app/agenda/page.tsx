@@ -903,7 +903,7 @@ export default function Agenda() {
                       const es = ESTADO_STYLE[c.estado]||ESTADO_STYLE.pendiente
                       const isSobreturno = c.totalCols && c.totalCols > 1
                       return (
-                        <div key={c.id} onClick={() => { setSel(c); setModal('detalle') }}
+                        <div key={c.id} onClick={() => openEditar(c)}
                           style={{
                             background: 'var(--bg-card, rgba(255,255,255,0.7))',
                             backdropFilter: 'blur(10px)',
@@ -1239,7 +1239,7 @@ export default function Agenda() {
 
                         return(
                           <div key={c.id} data-cita="1"
-                            onClick={e=>{e.stopPropagation();setSel(c);setModal('detalle')}}
+                            onClick={e=>{e.stopPropagation();openEditar(c)}}
                             draggable
                             onDragStart={e => handleDragStart(e, c)}
                             onDragEnd={() => setDraggedCitaId(null)}
@@ -1476,56 +1476,6 @@ export default function Agenda() {
         </div>
       </main>
 
-      {/* Modal detalle */}
-      {modal==='detalle'&&sel&&(
-        <div style={overlayCss(isMobile)} onClick={()=>setModal(null)}>
-          <div style={{...modalCss(isMobile),maxWidth:400}} onClick={e=>e.stopPropagation()}>
-            <div style={modalTitleCss}>{sel.nombre}</div>
-            <div style={{fontSize:14,color:'#555',lineHeight:2}}>
-              <div>📅 <strong>{sel.fecha}</strong> a las <strong>{sel.hora}</strong></div>
-              <div>🦷 {sel.tratamiento} · {sel.duracion} min</div>
-              {sel.valor!=null&&<div>💰 Valor: <strong>${sel.valor}</strong>{sel.sena?<> · Seña: <strong>${sel.sena}</strong> · Saldo: <strong>${sel.valor-sel.sena}</strong></>:null}</div>}
-              {sel.medio_pago&&<div>💳 Medio de pago: <strong>{sel.medio_pago}</strong></div>}
-              <div>📞 <a href={`tel:${sel.telefono}`} style={{color:'#185FA5',textDecoration:'none'}}>{sel.telefono}</a></div>
-              {sel.notas&&<div>📝 {sel.notas}</div>}
-            </div>
-            <div style={{margin:'12px 0'}}>
-              <label style={labelCss}>Estado</label>
-              <select value={sel.estado} onChange={e=>{cambiarEstado(sel.id,e.target.value as EstadoCita);setSel({...sel,estado:e.target.value as EstadoCita})}} style={selectCss}>
-                {ESTADOS.map(est=><option key={est} value={est}>{est.charAt(0).toUpperCase()+est.slice(1)}</option>)}
-              </select>
-            </div>
-            {sel.token&&(
-              <button style={{...btnLightCss,width:'100%',marginTop:8,gap:6,color:'#128C7E',borderColor:'rgba(18,140,126,0.3)'}} onClick={()=>{
-                const num = normalizarTelefono(sel.telefono)
-                const d   = parseFechaLocal(sel.fecha)
-                let msgText = tenant?.whatsappTemplate || ''
-                msgText = msgText.replace(/\\n/g, '\n')
-                msgText = msgText
-                  .replace(/{nombre_paciente}/g, sel.nombre)
-                  .replace(/{nombre_clinica}/g, tenant?.nombre || 'DentalDesk')
-                  .replace(/{dia_semana}/g, d.toLocaleDateString('es-AR',{weekday:'long'}))
-                  .replace(/{fecha}/g, d.toLocaleDateString('es-AR',{day:'numeric',month:'long'}))
-                  .replace(/{hora}/g, sel.hora)
-                  .replace(/{tratamiento}/g, sel.tratamiento)
-                  .replace(/{link}/g, `${window.location.origin}/paciente/${sel.token}`)
-                const txt = encodeURIComponent(msgText)
-                window.open(`https://wa.me/${num}?text=${txt}`,'_blank')
-              }}>
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.123.553 4.116 1.522 5.849L0 24l6.335-1.505A11.94 11.94 0 0 0 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.818 9.818 0 0 1-5.006-1.371l-.358-.214-3.759.893.952-3.653-.234-.374A9.818 9.818 0 0 1 2.182 12C2.182 6.57 6.57 2.182 12 2.182S21.818 6.57 21.818 12 17.43 21.818 12 21.818z"/></svg>
-                Enviar por WhatsApp
-              </button>
-            )}
-            <div style={footerCss}>
-              <button style={btnLightCss} onClick={()=>{setModal(null);setTimeout(()=>{setSel(sel);setModal('borrar')},50)}}>Eliminar</button>
-              {sel.estado==='asistio'&&!sel.precio_cobrado&&(
-                <button style={{...btnDarkCss,background:'#138A6B',borderColor:'#138A6B',color:'#fff'}} onClick={()=>openCobroExpress(sel)}>💰 Cobrar</button>
-              )}
-              <button style={btnDarkCss} onClick={()=>{setModal(null);setTimeout(()=>openEditar(sel),50)}}>Editar</button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Modal nueva (Unified slide-in drawer component) */}
       {modal==='nueva'&&(
@@ -1542,6 +1492,49 @@ export default function Agenda() {
         <div style={overlayCss(isMobile)} onClick={()=>setModal(null)}>
           <div style={modalCss(isMobile)} onClick={e=>e.stopPropagation()}>
             <div style={modalTitleCss}>Editar cita — {sel?.nombre}</div>
+
+            {sel?.telefono && (
+              <div style={{ fontSize: 13, color: 'var(--text-muted-darker)', marginBottom: 15, display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+                <span>📞 <a href={`tel:${sel.telefono}`} style={{ color: '#185FA5', textDecoration: 'none', fontWeight: 600 }}>{sel.telefono}</a></span>
+                {sel.token && (
+                  <button 
+                    style={{
+                      background: 'rgba(18, 140, 126, 0.08)',
+                      border: '1px solid rgba(18, 140, 126, 0.15)',
+                      borderRadius: 8,
+                      color: '#128C7E',
+                      cursor: 'pointer',
+                      fontSize: 12,
+                      fontWeight: 600,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 4,
+                      padding: '4px 10px'
+                    }} 
+                    onClick={() => {
+                      const num = normalizarTelefono(sel.telefono)
+                      const d   = parseFechaLocal(sel.fecha)
+                      let msgText = tenant?.whatsappTemplate || ''
+                      msgText = msgText.replace(/\\n/g, '\n')
+                      msgText = msgText
+                        .replace(/{nombre_paciente}/g, sel.nombre)
+                        .replace(/{nombre_clinica}/g, tenant?.nombre || 'DentalDesk')
+                        .replace(/{dia_semana}/g, d.toLocaleDateString('es-AR',{weekday:'long'}))
+                        .replace(/{fecha}/g, d.toLocaleDateString('es-AR',{day:'numeric',month:'long'}))
+                        .replace(/{hora}/g, sel.hora)
+                        .replace(/{tratamiento}/g, sel.tratamiento)
+                        .replace(/{link}/g, `${window.location.origin}/paciente/${sel.token}`)
+                      const txt = encodeURIComponent(msgText)
+                      window.open(`https://wa.me/${num}?text=${txt}`,'_blank')
+                    }}
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.123.553 4.116 1.522 5.849L0 24l6.335-1.505A11.94 11.94 0 0 0 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.818 9.818 0 0 1-5.006-1.371l-.358-.214-3.759.893.952-3.653-.234-.374A9.818 9.818 0 0 1 2.182 12C2.182 6.57 6.57 2.182 12 2.182S21.818 6.57 21.818 12 17.43 21.818 12 21.818z"/></svg>
+                    WhatsApp
+                  </button>
+                )}
+              </div>
+            )}
+
             <div style={grid2Css}>
               <div style={groupCss}><label style={labelCss}>Fecha</label><input type="date" style={{...selectCss}} value={fFecha} onChange={e=>setFFecha(e.target.value)}/></div>
               <div style={groupCss}><label style={labelCss}>Horario</label><select style={selectCss} value={fHora} onChange={e=>setFHora(e.target.value)}>{horasDisponibles().map(h=><option key={h} value={h}>{h}</option>)}</select></div>
@@ -1558,9 +1551,30 @@ export default function Agenda() {
             </div>
             {(fValor!==''||fSena!=='')&&<div style={{fontSize:13,color:'#888',padding:'0.25rem 0'}}>Saldo: <strong style={{color:'#222'}}>${(Number(fValor)||0)-(Number(fSena)||0)}</strong></div>}
             <div style={groupCss}><label style={labelCss}>Medio de pago</label><select style={selectCss} value={fMedioPago} onChange={e=>setFMedioPago(e.target.value)}><option value="">— Sin especificar —</option>{MEDIOS_PAGO.map(m=><option key={m} value={m}>{m}</option>)}</select></div>
-            <div style={footerCss}>
-              <button style={btnLightCss} onClick={()=>setModal(null)} disabled={saving}>Cancelar</button>
-              <button style={{...btnDarkCss,opacity:saving?.6:1}} onClick={saveEditar} disabled={saving}>{saving?'Guardando...':'Guardar cambios'}</button>
+
+            <div style={{...footerCss, justifyContent: 'space-between', flexWrap: 'wrap', gap: 10}}>
+              <div style={{display:'flex', gap: 6}}>
+                <button 
+                  style={{...btnLightCss, color: '#D85A30', borderColor: 'rgba(216,90,48,0.3)', padding: '0.55rem 0.85rem'}} 
+                  onClick={()=>{setModal(null);setTimeout(()=>{setSel(sel);setModal('borrar')},50)}}
+                  disabled={saving}
+                >
+                  Eliminar
+                </button>
+                {sel?.estado==='asistio'&&!sel?.precio_cobrado&&(
+                  <button 
+                    style={{...btnDarkCss, background: '#138A6B', borderColor: '#138A6B', color: '#fff', padding: '0.55rem 0.85rem'}} 
+                    onClick={()=>{setModal(null);setTimeout(()=>openCobroExpress(sel),50)}}
+                    disabled={saving}
+                  >
+                    💰 Cobrar
+                  </button>
+                )}
+              </div>
+              <div style={{display:'flex', gap: 6}}>
+                <button style={btnLightCss} onClick={()=>setModal(null)} disabled={saving}>Cancelar</button>
+                <button style={{...btnDarkCss,opacity:saving?.6:1}} onClick={saveEditar} disabled={saving}>{saving?'Guardando...':'Guardar cambios'}</button>
+              </div>
             </div>
           </div>
         </div>

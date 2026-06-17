@@ -8,7 +8,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useTenantContext } from '@/components/TenantContext'
 
 interface PacDB { id:string; nombre:string; telefono:string; email:string|null; fecha_nacimiento:string|null; ultimo_tratamiento:string|null; creado_en:string; token:string|null; alergias:string|null; antecedentes:string|null; progreso_plan_porcentaje:number|null }
-interface Pac { id:string; nombre:string; telefono:string; email:string; nacimiento:string; tratamiento:string; alta:string; token:string|null; alergias:string; antecedentes:string; progresoPlan:number }
+interface Pac { id:string; nombre:string; telefono:string; email:string; nacimiento:string; tratamiento:string; alta:string; token:string|null; alergias:string; antecedentes:string; progresoPlan:number; tieneTurnosFuturos?:boolean }
 function toPac(p: PacDB): Pac {
   return { id:p.id, nombre:p.nombre, telefono:p.telefono, email:p.email??'', nacimiento:p.fecha_nacimiento??'', tratamiento:p.ultimo_tratamiento??'Consulta', alta:p.creado_en?.split('T')[0]??'', token:p.token??null, alergias:p.alergias??'', antecedentes:p.antecedentes??'', progresoPlan:p.progreso_plan_porcentaje??0 }
 }
@@ -42,9 +42,34 @@ export default function Pacientes() {
   const load = useCallback(async()=>{
     if (!tenant) return
     setLoading(true)
-    const {data,error} = await supabase.from('pacientes').select('*').eq('tenant_id', tenant.id).order('creado_en',{ascending:false})
-    if(error) msg('Error al cargar: '+error.message,'error')
-    else setRows((data as PacDB[]).map(toPac))
+    const {data: pacData, error: pacError} = await supabase.from('pacientes').select('*').eq('tenant_id', tenant.id).order('creado_en',{ascending:false})
+    const {data: citasData, error: citasError} = await supabase.from('citas').select('paciente_id, fecha_hora, estado').eq('tenant_id', tenant.id)
+
+    if (pacError) {
+      msg('Error al cargar pacientes: ' + pacError.message, 'error')
+    } else {
+      const citasMap: Record<string, any[]> = {}
+      if (citasData) {
+        citasData.forEach(c => {
+          if (!citasMap[c.paciente_id]) citasMap[c.paciente_id] = []
+          citasMap[c.paciente_id].push(c)
+        })
+      }
+      const mappedPacs = (pacData as PacDB[]).map(p => {
+        const pac = toPac(p)
+        const pacCitas = citasMap[p.id] || []
+        const tieneTurnosFuturos = pacCitas.some(c => {
+          const isFuture = new Date(c.fecha_hora) >= new Date()
+          const isCancelled = c.estado === 'cancelado' || c.estado === 'ausente'
+          return isFuture && !isCancelled
+        })
+        return {
+          ...pac,
+          tieneTurnosFuturos
+        }
+      })
+      setRows(mappedPacs)
+    }
     setLoading(false)
   },[tenant])
 
@@ -144,6 +169,13 @@ export default function Pacientes() {
                       <div style={{flex:1,minWidth:0}}>
                         <div style={{fontWeight:600,fontSize:15,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',color:'var(--text-dark)'}}>{p.nombre}</div>
                         <div style={{fontSize:12,color:'var(--text-muted)'}}>{p.telefono}</div>
+                        <div style={{marginTop:4}}>
+                          {p.tieneTurnosFuturos ? (
+                            <span style={{ fontSize: 11, background: '#E1F5EE', color: '#085041', padding: '2px 6px', borderRadius: 4, fontWeight: 700 }}>📅 Turno programado</span>
+                          ) : (
+                            <span style={{ fontSize: 11, background: '#FAEEDA', color: '#633806', padding: '2px 6px', borderRadius: 4, fontWeight: 700 }}>⚠️ Sin turnos</span>
+                          )}
+                        </div>
                       </div>
                       <Badge bg={tc.bg} color={tc.color}>{p.tratamiento}</Badge>
                     </div>
@@ -172,7 +204,14 @@ export default function Pacientes() {
                         <div style={{width:36,height:36,borderRadius:'50%',background:color+'22',border:`1.5px solid ${color}44`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,fontWeight:700,color,flexShrink:0}}>{initials(p.nombre)}</div>
                         <div>
                           <div style={{fontWeight:600,fontSize:14,color:'var(--text-dark)',textDecoration:'underline'}}>{p.nombre}</div>
-                          <div style={{fontSize:11,color:'var(--text-muted, #aaa)'}}>Alta: {p.alta}</div>
+                          <div style={{display:'flex',gap:6,alignItems:'center',marginTop:4}}>
+                            <span style={{fontSize:11,color:'var(--text-muted, #aaa)'}}>Alta: {p.alta}</span>
+                            {p.tieneTurnosFuturos ? (
+                              <span style={{ fontSize: 10, background: '#E1F5EE', color: '#085041', padding: '1px 5px', borderRadius: 4, fontWeight: 700 }}>📅 Turno programado</span>
+                            ) : (
+                              <span style={{ fontSize: 10, background: '#FAEEDA', color: '#633806', padding: '1px 5px', borderRadius: 4, fontWeight: 700 }}>⚠️ Sin turnos</span>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </TD>

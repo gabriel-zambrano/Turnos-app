@@ -658,6 +658,17 @@ export default function PacienteDetalle() {
     )
   }
 
+  // Calcular próximo turno futuro (activo)
+  const proximaCita = citas && citas.length > 0 
+    ? citas
+        .filter(c => {
+          const isFuture = new Date(c.fecha_hora) >= new Date()
+          const isCancelled = c.estado === 'cancelado' || c.estado === 'ausente'
+          return isFuture && !isCancelled
+        })
+        .sort((a, b) => new Date(a.fecha_hora).getTime() - new Date(b.fecha_hora).getTime())[0]
+    : null
+
   return (
     <div style={{ display: 'flex', minHeight: '100vh', fontFamily: 'DM Sans, sans-serif' }}>
       <Sidebar />
@@ -691,7 +702,7 @@ export default function PacienteDetalle() {
             }}>
               {initials(paciente.nombre)}
             </div>
-            <div style={{ flex: 1, display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(4, 1fr)', gap: 16, width: '100%', textAlign: isMobile ? 'center' : 'left' }}>
+            <div style={{ flex: 1, display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(5, 1fr)', gap: 16, width: '100%', textAlign: isMobile ? 'center' : 'left' }}>
               <div>
                 <span style={{ fontSize: 11, color: 'var(--text-muted)', display: 'block', fontWeight: 600, textTransform: 'uppercase' }}>Nombre Completo</span>
                 <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-dark)' }}>{paciente.nombre}</span>
@@ -709,6 +720,28 @@ export default function PacienteDetalle() {
                 <span style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-dark)' }}>
                   {calcEdad(paciente.fecha_nacimiento)} {paciente.fecha_nacimiento ? `(${paciente.fecha_nacimiento})` : ''}
                 </span>
+              </div>
+              <div>
+                <span style={{ fontSize: 11, color: 'var(--text-muted)', display: 'block', fontWeight: 600, textTransform: 'uppercase' }}>Próximo Turno</span>
+                {proximaCita ? (
+                  <span 
+                    style={{ fontSize: 13, fontWeight: 700, color: '#185FA5', cursor: 'pointer', display: 'block', textDecoration: 'underline' }} 
+                    onClick={() => setTabActiva('turnos')}
+                    title="Haga click para ver el historial de turnos"
+                  >
+                    📅 {new Date(proximaCita.fecha_hora).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })} a las {new Date(proximaCita.fecha_hora).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })} hs
+                  </span>
+                ) : (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: isMobile ? 'center' : 'flex-start', flexWrap: 'wrap', marginTop: 2 }}>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: '#d97706', display: 'block' }}>⚠️ Sin turnos</span>
+                    <button 
+                      onClick={() => { setTabActiva('turnos'); setModalTurno(true); }}
+                      style={{ background: '#185FA5', border: 'none', color: '#fff', borderRadius: 6, padding: '2px 8px', fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: 'DM Sans, sans-serif' }}
+                    >
+                      + Agendar
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           </div>
