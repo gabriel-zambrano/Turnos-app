@@ -47,11 +47,12 @@ END $$;
 -- ── 3. Expiración de token del portal de paciente ──
 ALTER TABLE pacientes ADD COLUMN IF NOT EXISTS token_expira TIMESTAMP WITH TIME ZONE;
 
--- Opcional: por defecto, los tokens existentes expiran a 90 días desde hoy.
--- Ajustá el plazo según tu política de retención de enlaces.
-UPDATE pacientes
-SET token_expira = now() + interval '90 days'
-WHERE token IS NOT NULL AND token_expira IS NULL;
-
--- Recomendación: al generar/rotar el token de un paciente, setear también
--- token_expira = now() + interval '90 days' (o el plazo que definas).
+-- IMPORTANTE (sistema en producción): NO expiramos los tokens existentes.
+-- Los pacientes ya tienen sus links en uso, así que token_expira queda NULL
+-- para todos = los enlaces actuales NO caducan y la operativa no se rompe.
+-- El portal trata token_expira NULL como "válido para siempre".
+--
+-- La columna queda disponible como capacidad de seguridad: si algún día
+-- un link se filtra, podés invalidarlo seteando manualmente su expiración:
+--   UPDATE pacientes SET token_expira = now() WHERE id = '<id_del_paciente>';
+-- o rotarlo generando un token nuevo. No se aplica ninguna expiración automática.
