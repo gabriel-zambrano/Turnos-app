@@ -10,7 +10,11 @@ const supabaseAdmin = createClient(
 
 export async function POST(req: Request) {
   try {
-    const { email, role } = await req.json()
+    const { email, role, tenantId } = await req.json()
+
+    if (!tenantId) {
+      return NextResponse.json({ error: 'Falta tenantId' }, { status: 400 })
+    }
 
     // 1. Verificar sesión del admin/owner que está invitando
     const cookieStore = cookies()
@@ -31,15 +35,18 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     }
 
-    // 2. Obtener el tenant_id del owner
+    // 2. Verificar que el usuario sea owner/admin de ESTA clínica puntual — antes esto
+    // buscaba "una" fila de tenant_users del usuario con .single(), lo cual rompe (o
+    // elige la clínica equivocada) para usuarios que pertenecen a más de una clínica.
     const { data: ownerTenant } = await supabaseAdmin
       .from('tenant_users')
       .select('tenant_id, role')
       .eq('user_id', user.id)
-      .single()
+      .eq('tenant_id', tenantId)
+      .maybeSingle()
 
     if (!ownerTenant || (ownerTenant.role !== 'owner' && ownerTenant.role !== 'admin')) {
-      return NextResponse.json({ error: 'No tienes permisos para invitar al equipo' }, { status: 403 })
+      return NextResponse.json({ error: 'No tienes permisos para invitar al equipo de esta clínica' }, { status: 403 })
     }
 
     // 3. Invitar al usuario a través de Supabase Auth

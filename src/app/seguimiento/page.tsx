@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/client'
 import { Sidebar } from '@/components/Sidebar'
 import { PageHeader } from '@/components/UI'
 import { AVATAR_COLORS, initials, normalizarTelefono } from '@/lib/constants'
+import { useTenantContext } from '@/components/TenantContext'
 
 interface PacienteAlerta {
   id: string
@@ -36,6 +37,7 @@ const GRUPOS = {
 
 export default function SeguimientoPage() {
   const supabase = useMemo(() => createClient(), [])
+  const { tenant } = useTenantContext()
   const isMobile = useIsMobile()
   const [alertas, setAlertas] = useState<PacienteAlerta[]>([])
   const [feedbacks, setFeedbacks] = useState<any[]>([])
@@ -46,9 +48,10 @@ export default function SeguimientoPage() {
 
   function msg(t: string) { setToast(t); setTimeout(() => setToast(null), 3000) }
 
-  useEffect(() => { load() }, [])
+  useEffect(() => { if (tenant) load() }, [tenant])
 
   async function load() {
+    if (!tenant) return
     setLoading(true)
     const hoy = new Date()
     const hoyISO = hoy.toISOString()
@@ -57,6 +60,7 @@ export default function SeguimientoPage() {
     const { data: pacientes } = await supabase
       .from('pacientes')
       .select('id, nombre, telefono, email, token, ultimo_tratamiento')
+      .eq('tenant_id', tenant.id)
 
     if (!pacientes) { setLoading(false); return }
 
@@ -64,6 +68,7 @@ export default function SeguimientoPage() {
     const { data: citas } = await supabase
       .from('citas')
       .select('paciente_id, fecha_hora, tipo_tratamiento, estado')
+      .eq('tenant_id', tenant.id)
       .order('fecha_hora', { ascending: false })
 
     const nuevasAlertas: PacienteAlerta[] = []
@@ -127,6 +132,7 @@ export default function SeguimientoPage() {
       const { data: feedbacksRes, error: fErr } = await supabase
         .from('feedback_post_visita')
         .select('*, pacientes(nombre, telefono)')
+        .eq('tenant_id', tenant.id)
         .order('creado_en', { ascending: false })
       if (!fErr && feedbacksRes) {
         loadedFeedbacks = feedbacksRes

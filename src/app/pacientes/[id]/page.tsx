@@ -473,6 +473,7 @@ export default function PacienteDetalle() {
         .from('citas')
         .select('*', { count: 'exact', head: true })
         .eq('paciente_id', id)
+        .eq('tenant_id', tenant.id)
         .in('estado', ['asistio', 'completado'])
 
       if (!countError) {

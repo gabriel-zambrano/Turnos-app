@@ -61,13 +61,14 @@ export default function Equipo() {
 
   async function handleInvite() {
     if (!inviteEmail) return msg('Ingresá un correo electrónico', 'error')
+    if (!tenant) return
     setSaving(true)
 
     try {
       const res = await fetch('/api/equipo/invitar', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: inviteEmail, role: inviteRole })
+        body: JSON.stringify({ email: inviteEmail, role: inviteRole, tenantId: tenant.id })
       })
       const result = await res.json()
 

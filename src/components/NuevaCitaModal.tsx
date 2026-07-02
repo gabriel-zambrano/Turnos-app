@@ -171,9 +171,11 @@ export function NuevaCitaModal({ onClose, onSuccess, defaultFecha, defaultHora }
   }
 
   async function crearPaciente() {
+    if (!tenant) return
     const { data: existe } = await supabase
       .from('pacientes')
       .select('id,nombre')
+      .eq('tenant_id', tenant.id)
       .or(`email.eq.${nuevoPaciente.email},telefono.eq.${nuevoPaciente.telefono}`)
       .limit(1)
     if (existe && existe.length > 0) {

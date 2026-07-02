@@ -40,6 +40,7 @@ export default function Recordatorios() {
     const { data } = await supabase
       .from('recordatorios_log')
       .select('*, citas(fecha_hora, pacientes(nombre))')
+      .eq('tenant_id', tenant.id)
       .order('creado_en', { ascending: false })
       .limit(50)
     

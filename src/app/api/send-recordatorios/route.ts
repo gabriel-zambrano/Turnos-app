@@ -1,18 +1,29 @@
 import { Resend } from 'resend'
 import { createClient } from '@supabase/supabase-js'
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
+import { createClient as createSupabaseServerClient } from '@/lib/supabase/server'
 
 
 export const dynamic = 'force-dynamic'
 
 const DEFAULT_TENANT_ID = '2845c423-affa-4ca2-9c5f-f4ec8e35701a'
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   const resend = new Resend(process.env.RESEND_API_KEY)
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
+
+  // Antes este endpoint no verificaba nada: cualquiera en internet podía
+  // llamarlo y disparar el envío de recordatorios (sin token, sin sesión,
+  // sin nada). Ahora acepta dos caminos válidos:
+  //   a) El cron diario, que manda ?token=CRON_SECRET — puede procesar
+  //      todas las clínicas activas.
+  //   b) Un usuario logueado desde el dashboard, que solo puede procesar
+  //      la clínica a la que pertenece (se verifica más abajo).
+  const cronToken = req.nextUrl.searchParams.get('token')
+  const isCron = !!cronToken && cronToken === process.env.CRON_SECRET
 
   // 1. Determinar el/los tenant(s) a procesar
   let bodyTenantId: string | null = null
@@ -21,6 +32,28 @@ export async function POST(req: Request) {
     bodyTenantId = body?.tenantId || null
   } catch (e) {
     // El request body puede estar vacío (ej. en invocaciones cron automáticas)
+  }
+
+  if (!isCron) {
+    // No es el cron: exigimos un usuario logueado que pertenezca al tenant pedido.
+    const supabaseServer = createSupabaseServerClient()
+    const { data: { user } } = await supabaseServer.auth.getUser()
+    if (!user) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+    }
+    if (!bodyTenantId) {
+      // Sin token de cron, no se puede pedir "procesar todas las clínicas".
+      return NextResponse.json({ error: 'Falta tenantId' }, { status: 400 })
+    }
+    const { data: membership } = await supabase
+      .from('tenant_users')
+      .select('tenant_id')
+      .eq('user_id', user.id)
+      .eq('tenant_id', bodyTenantId)
+      .maybeSingle()
+    if (!membership) {
+      return NextResponse.json({ error: 'No autorizado para esta clínica' }, { status: 403 })
+    }
   }
 
   let tenantsToProcess: { id: string; nombre: string }[] = []

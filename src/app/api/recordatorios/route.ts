@@ -23,6 +23,21 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ enviados: [], fallidos: [] })
   }
 
+  // Verificar que el usuario autenticado realmente pertenezca al tenantId que pide
+  // procesar — si no, cualquier usuario logueado podría mandar recordatorios en
+  // nombre de una clínica que no es la suya con solo cambiar este valor.
+  if (tenantId) {
+    const { data: membership } = await supabaseAdmin
+      .from('tenant_users')
+      .select('tenant_id')
+      .eq('user_id', user.id)
+      .eq('tenant_id', tenantId)
+      .maybeSingle()
+    if (!membership) {
+      return NextResponse.json({ error: 'No autorizado para esta clínica' }, { status: 403 })
+    }
+  }
+
   const tid = tenantId || process.env.NEXT_PUBLIC_DEFAULT_TENANT_ID || ''
   let registry = {
     nombre: 'DentalDesk',
