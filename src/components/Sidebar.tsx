@@ -251,10 +251,10 @@ export function Sidebar({ pendientes }: { pendientes?: number }) {
       }}
     >
       {/* Header */}
-      <div style={{ padding: '1.25rem 1rem', borderBottom: '1px solid var(--border-light, rgba(56,138,221,0.08))', display: 'flex', alignItems: 'center', justifyContent: showExpanded ? 'space-between' : 'center', gap: 6, minHeight: 63, overflow: 'hidden' }}>
+      <div style={{ padding: '1.25rem 1rem', borderBottom: '1px solid var(--border-light, rgba(56,138,221,0.08))', display: 'flex', alignItems: 'center', justifyContent: showExpanded ? 'space-between' : 'center', gap: 6, minHeight: 63 }}>
         {showExpanded ? (
-          <div style={{ overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', flex: 1 }}>
-            <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-dark, #0a1e3d)', letterSpacing: '-0.3px' }}>DentalDesk</div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-dark, #0a1e3d)', letterSpacing: '-0.3px', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>DentalDesk</div>
             <div style={{ position: 'relative' }}>
               <button 
                 onClick={() => setShowClinicDropdown(!showClinicDropdown)} 
