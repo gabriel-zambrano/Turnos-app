@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Sidebar } from '@/components/Sidebar'
 import { PageHeader } from '@/components/UI'
@@ -35,7 +35,7 @@ const GRUPOS = {
 }
 
 export default function SeguimientoPage() {
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
   const isMobile = useIsMobile()
   const [alertas, setAlertas] = useState<PacienteAlerta[]>([])
   const [feedbacks, setFeedbacks] = useState<any[]>([])
@@ -220,13 +220,13 @@ export default function SeguimientoPage() {
                       borderBottom:'1px solid #f4f6f8',
                       background: f.dolor >= 4 ? '#FEF2F2' : 'transparent' 
                     }}>
-                      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:12 }}>
+                      <div style={{ display:'flex', alignItems: isMobile ? 'stretch' : 'center', justifyContent:'space-between', flexDirection: isMobile ? 'column' : 'row', gap: 12 }}>
                         <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-                          <div style={{ width:36, height:36, borderRadius:'50%', background: f.dolor >= 4 ? '#FEE2E2' : '#E6FFFA', display:'flex', alignItems:'center', justifyContent:'center', fontSize:12, fontWeight:700, color: f.dolor >= 4 ? '#EF4444' : '#0D9488' }}>
+                          <div style={{ width:36, height:36, borderRadius:'50%', background: f.dolor >= 4 ? '#FEE2E2' : '#E6FFFA', display:'flex', alignItems:'center', justifyContent:'center', fontSize:12, fontWeight:700, color: f.dolor >= 4 ? '#EF4444' : '#0D9488', flexShrink: 0 }}>
                             {initials(f.pacientes?.nombre || 'P')}
                           </div>
                           <div>
-                            <div style={{ fontWeight:600, fontSize:14, color:'#1a1a1a', display:'flex', alignItems:'center', gap:6 }}>
+                            <div style={{ fontWeight:600, fontSize:14, color:'#1a1a1a', display:'flex', alignItems:'center', gap:6, flexWrap: 'wrap' }}>
                               {f.pacientes?.nombre}
                               {f.dolor >= 4 && (
                                 <span style={{ fontSize:11, color:'#DC2626', background:'#FEE2E2', padding:'2px 8px', borderRadius:20, fontWeight:700 }}>
@@ -241,14 +241,14 @@ export default function SeguimientoPage() {
                         </div>
                         
                         {/* Metrics: Dolor & Satisfacción */}
-                        <div style={{ display:'flex', gap:12, alignItems:'center' }}>
-                          <div style={{ textAlign:'right' }}>
+                        <div style={{ display:'flex', gap:12, alignItems:'center', justifyContent: isMobile ? 'space-between' : 'flex-start', marginTop: isMobile ? 8 : 0, borderTop: isMobile ? '1px solid #f1f3f5' : 'none', paddingTop: isMobile ? 8 : 0 }}>
+                          <div style={{ textAlign: isMobile ? 'left' : 'right' }}>
                             <span style={{ fontSize:11, color:'#888', display:'block' }}>Dolor</span>
                             <span style={{ fontSize:14, fontWeight:700, color: f.dolor >= 4 ? '#EF4444' : f.dolor >= 3 ? '#F59E0B' : '#10B981' }}>
                               {f.dolor === 5 ? '😩 Alto (5/5)' : f.dolor === 3 ? '😐 Medio (3/5)' : '😊 Leve (1/5)'}
                             </span>
                           </div>
-                          <div style={{ textAlign:'right', borderLeft:'1px solid #e2e8ed', paddingLeft:12 }}>
+                          <div style={{ textAlign: isMobile ? 'left' : 'right', borderLeft:'1px solid #e2e8ed', paddingLeft:12 }}>
                             <span style={{ fontSize:11, color:'#888', display:'block' }}>Satisfacción</span>
                             <span style={{ fontSize:14, fontWeight:700, color:'#F59E0B' }}>
                               {'★'.repeat(f.satisfaccion)}{'☆'.repeat(5 - f.satisfaccion)}
@@ -267,14 +267,15 @@ export default function SeguimientoPage() {
                           borderRadius:10, 
                           border: '1px solid ' + (f.dolor >= 4 ? '#FCA5A5' : '#e2e8ed'),
                           fontStyle:'italic',
-                          marginLeft: 46
+                          marginLeft: isMobile ? 0 : 46,
+                          marginTop: 4
                         }}>
                           "{f.comentario}"
                         </div>
                       )}
 
                       {/* WhatsApp trigger button */}
-                      <div style={{ display:'flex', justifyContent:'flex-end', marginTop: 4 }}>
+                      <div style={{ display:'flex', justifyContent:'flex-end', marginTop: 4, width: '100%' }}>
                         <button 
                           onClick={() => {
                             const num = normalizarTelefono(f.pacientes?.telefono || '')
@@ -285,8 +286,8 @@ export default function SeguimientoPage() {
                           }}
                           style={{ 
                             fontSize:12, 
-                            padding:'5px 12px', 
-                            borderRadius:6, 
+                            padding:'8px 12px', 
+                            borderRadius:8, 
                             border:'none', 
                             background:'#25D366', 
                             color:'#fff', 
@@ -294,7 +295,9 @@ export default function SeguimientoPage() {
                             fontWeight:700,
                             display:'flex',
                             alignItems:'center',
-                            gap:4
+                            justifyContent: 'center',
+                            gap:4,
+                            width: isMobile ? '100%' : 'auto'
                           }}
                         >
                           <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.514 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.724-1.455L0 24zm6.59-4.846c1.66.986 3.288 1.488 4.905 1.489 5.5.003 9.975-4.47 9.979-9.967.002-2.662-1.033-5.166-2.915-7.05C16.734 1.744 14.236.703 11.58.701c-5.503 0-9.98 4.47-9.985 9.969-.001 1.776.48 3.5 1.391 5.01L1.93 21.72l6.147-1.611-.43-.255z"/></svg>
@@ -314,17 +317,19 @@ export default function SeguimientoPage() {
                   const g = GRUPOS[p.motivo]
                   const diasText = p.diasDesde === 9999 ? 'Nunca asistió' : `Hace ${p.diasDesde} días`
                   return (
-                    <div key={p.id} style={{ display:'flex', alignItems:'center', gap:12, padding:'0.9rem 1.25rem', borderBottom:'1px solid #f4f6f8' }}>
-                      <div style={{ width:36, height:36, borderRadius:'50%', background:color+'22', border:`1.5px solid ${color}44`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:12, fontWeight:700, color, flexShrink:0 }}>
-                        {initials(p.nombre)}
+                    <div key={p.id} style={{ display:'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'stretch' : 'center', justifyContent: 'space-between', gap:12, padding: isMobile ? '1rem' : '0.9rem 1.25rem', borderBottom:'1px solid #f4f6f8', width: '100%', boxSizing: 'border-box' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <div style={{ width:36, height:36, borderRadius:'50%', background:color+'22', border:`1.5px solid ${color}44`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:12, fontWeight:700, color, flexShrink:0 }}>
+                          {initials(p.nombre)}
+                        </div>
+                        <div style={{ flex:1, minWidth:0 }}>
+                          <div style={{ fontWeight:600, fontSize:14, color:'#1a1a1a' }}>{p.nombre}</div>
+                          <div style={{ fontSize:12, color:'#aaa', marginTop: 2 }}>{diasText} · <span style={{ background:g.bg, color:g.color, padding:'1px 7px', borderRadius:10, fontSize:11, fontWeight:600 }}>{g.label}</span></div>
+                        </div>
                       </div>
-                      <div style={{ flex:1, minWidth:0 }}>
-                        <div style={{ fontWeight:600, fontSize:14, color:'#1a1a1a' }}>{p.nombre}</div>
-                        <div style={{ fontSize:12, color:'#aaa' }}>{diasText} · <span style={{ background:g.bg, color:g.color, padding:'1px 7px', borderRadius:10, fontSize:11, fontWeight:600 }}>{g.label}</span></div>
-                      </div>
-                      <div style={{ display:'flex', gap:6, flexShrink:0 }}>
+                      <div style={{ display:'flex', gap:6, width: isMobile ? '100%' : 'auto', justifyContent: 'flex-end', marginTop: isMobile ? 4 : 0 }}>
                         <button onClick={() => enviarWA(p)}
-                          style={{ fontSize:12, padding:'6px 12px', borderRadius:8, border:'none', background:'#25D366', color:'#fff', cursor:'pointer', fontWeight:600, whiteSpace:'nowrap' }}>
+                          style={{ fontSize:12, padding:'8px 12px', borderRadius:8, border:'none', background:'#25D366', color:'#fff', cursor:'pointer', fontWeight:700, whiteSpace:'nowrap', width: isMobile ? '100%' : 'auto', display: 'flex', justifyContent: 'center' }}>
                           WhatsApp
                         </button>
                       </div>

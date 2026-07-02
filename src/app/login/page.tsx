@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useTenantContext } from '@/components/TenantContext'
@@ -12,7 +12,7 @@ export default function Login() {
   const [loading, setLoading] = useState(false)
   const [error,   setError]   = useState('')
 
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
 
   async function handleLogin(e: React.FormEvent) {
 

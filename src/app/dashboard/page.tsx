@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { Sidebar } from '@/components/Sidebar'
 import Link from 'next/link'
 import { Badge, Toast, PageHeader, FilterBar, Spinner, MetricCard, inputCss, selectCss, overlayCss, modalCss, modalTitleCss, footerCss, groupCss, labelCss, grid2Css, btnDarkCss, btnLightCss } from '@/components/UI'
@@ -18,7 +18,7 @@ const FILTROS = [{k:'todas',l:'Todas'},{k:'pendiente',l:'Pendientes'},{k:'confir
 
 export default function Dashboard() {
   const [authChecked, setAuthChecked] = useState(false)
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
   const { tenant, loading: tenantLoading } = useTenantContext()
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -1085,7 +1085,7 @@ export default function Dashboard() {
         </div>
       )}
 
-      {toast && <Toast msg={toast.msg} tipo={toast.tipo} />}
+      {toast && <Toast msg={toast.msg} tipo={toast.tipo} isMobile={isMobile} />}
     </div>
   )
 }

@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { Sidebar } from '@/components/Sidebar'
 import { Toast, Spinner, PageHeader } from '@/components/UI'
 import { createClient } from '@/lib/supabase/client'
@@ -22,7 +22,7 @@ interface Cita {
 const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
 
 export default function CRMPage() {
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
   const { tenant, loading: tenantLoading } = useTenantContext()
   const [isMobile, setIsMobile] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -171,13 +171,13 @@ export default function CRMPage() {
                     const wpUrl = p.telefono ? `https://wa.me/${p.telefono.replace(/\D/g, '')}?text=${mensaje}` : null
 
                     return (
-                      <div key={p.id} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'1rem', borderRadius:12, border: isHoy ? '1px solid #3b82f6' : '1px solid #e2e8f0', background: isHoy ? '#eff6ff' : '#f8fafc' }}>
+                      <div key={p.id} style={{ display:'flex', alignItems: isMobile ? 'flex-start' : 'center', justifyContent:'space-between', flexDirection: isMobile ? 'column' : 'row', gap: isMobile ? '0.75rem' : '1rem', padding:'1rem', borderRadius:12, border: isHoy ? '1px solid #3b82f6' : '1px solid #e2e8f0', background: isHoy ? '#eff6ff' : '#f8fafc', width: '100%', boxSizing: 'border-box' }}>
                         <div>
                           <div style={{ fontSize:14, fontWeight:700, color:'#0f1e2b' }}>{p.nombre} {isHoy && '🎈'}</div>
                           <div style={{ fontSize:12, color: isHoy ? '#2563eb' : '#64748b', fontWeight: isHoy ? 600 : 400 }}>{isHoy ? 'Cumple hoy!' : `Cumple el ${diaTexto}`}</div>
                         </div>
                         {wpUrl ? (
-                          <a href={wpUrl} target="_blank" rel="noreferrer" style={{ fontSize:12, fontWeight:600, padding:'6px 14px', borderRadius:8, background:'#25D366', color:'#fff', textDecoration:'none', display:'flex', alignItems:'center', gap:6 }}>
+                          <a href={wpUrl} target="_blank" rel="noreferrer" style={{ fontSize:12, fontWeight:600, padding:'6px 14px', borderRadius:8, background:'#25D366', color:'#fff', textDecoration:'none', display:'flex', alignItems:'center', gap:6, width: isMobile ? '100%' : 'auto', justifyContent: 'center', boxSizing: 'border-box' }}>
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
                             Saludar
                           </a>
@@ -211,13 +211,13 @@ export default function CRMPage() {
                     const wpUrl = p.telefono ? `https://wa.me/${p.telefono.replace(/\D/g, '')}?text=${mensaje}` : null
 
                     return (
-                      <div key={p.id} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'1rem', borderRadius:12, border:'1px solid #e2e8f0', background:'#f8fafc' }}>
+                      <div key={p.id} style={{ display:'flex', alignItems: isMobile ? 'flex-start' : 'center', justifyContent:'space-between', flexDirection: isMobile ? 'column' : 'row', gap: isMobile ? '0.75rem' : '1rem', padding:'1rem', borderRadius:12, border:'1px solid #e2e8f0', background:'#f8fafc', width: '100%', boxSizing: 'border-box' }}>
                         <div>
                           <div style={{ fontSize:14, fontWeight:700, color:'#0f1e2b' }}>{p.nombre}</div>
                           <div style={{ fontSize:12, color:'#ef4444', fontWeight:600 }}>Última visita: {ultimaVisitaStr}</div>
                         </div>
                         {wpUrl ? (
-                          <a href={wpUrl} target="_blank" rel="noreferrer" style={{ fontSize:12, fontWeight:600, padding:'6px 14px', borderRadius:8, background:'#25D366', color:'#fff', textDecoration:'none', display:'flex', alignItems:'center', gap:6 }}>
+                          <a href={wpUrl} target="_blank" rel="noreferrer" style={{ fontSize:12, fontWeight:600, padding:'6px 14px', borderRadius:8, background:'#25D366', color:'#fff', textDecoration:'none', display:'flex', alignItems:'center', gap:6, width: isMobile ? '100%' : 'auto', justifyContent: 'center', boxSizing: 'border-box' }}>
                             Invitar
                           </a>
                         ) : (
@@ -233,7 +233,7 @@ export default function CRMPage() {
 
         </div>
       </main>
-      {toast && <Toast msg={toast.msg} tipo={toast.tipo} />}
+      {toast && <Toast msg={toast.msg} tipo={toast.tipo} isMobile={isMobile} />}
     </div>
   )
 }

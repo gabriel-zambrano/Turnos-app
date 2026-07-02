@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { Sidebar } from '@/components/Sidebar'
 import { PageHeader, Badge, Spinner } from '@/components/UI'
 import { createClient } from '@/lib/supabase/client'
@@ -16,7 +16,7 @@ interface LogDB {
 }
 
 export default function Recordatorios() {
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
   const { tenant, loading: tenantLoading } = useTenantContext()
   
   const [activeTab, setActiveTab] = useState<'historial' | 'inactivos'>('historial')
@@ -227,43 +227,50 @@ export default function Recordatorios() {
                           background: '#fff',
                           border: '1.5px solid var(--border-light, #dde5ef)',
                           borderRadius: 14,
-                          padding: '1.1rem 1.4rem',
+                          padding: isMobile ? '1rem' : '1.1rem 1.4rem',
                           display: 'flex',
-                          alignItems: 'center',
+                          flexDirection: isMobile ? 'column' : 'row',
+                          alignItems: isMobile ? 'stretch' : 'center',
                           justifyContent: 'space-between',
-                          flexWrap: 'wrap',
                           gap: 14,
                           boxShadow: '0 2px 10px rgba(10,30,61,0.02)'
                         }}
                       >
                         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                           <div style={{
-                            width: 38, height: 38, borderRadius: '50%',
+                            width: 38,
+                            height: 38,
+                            borderRadius: '50%',
                             background: isUrgent ? '#FEE2E2' : '#FEF3C7',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            fontSize: 16, fontWeight: 700,
-                            color: isUrgent ? '#EF4444' : '#F59E0B'
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: 16,
+                            fontWeight: 700,
+                            color: isUrgent ? '#EF4444' : '#F59E0B',
+                            flexShrink: 0
                           }}>
                             👤
                           </div>
                           <div>
                             <div style={{ fontSize: 14.5, fontWeight: 700, color: 'var(--text-dark, #0a1e3d)' }}>{p.nombre}</div>
-                            <div style={{ fontSize: 12, color: 'var(--text-muted, #8fa3bc)', marginTop: 2 }}>
-                              Tratamiento: <strong>{p.ultimo_tratamiento}</strong> · Último control: <strong>{p.lastCitaDate || 'Nunca'}</strong>
+                            <div style={{ fontSize: 12, color: 'var(--text-muted, #8fa3bc)', marginTop: 2, lineHeight: 1.4 }}>
+                              Tratamiento: <strong>{p.ultimo_tratamiento}</strong> <br/> Último control: <strong>{p.lastCitaDate || 'Nunca'}</strong>
                             </div>
                           </div>
                         </div>
 
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'stretch' : 'center', gap: 10 }}>
                           <span style={{
                             fontSize: 11.5,
                             fontWeight: 700,
-                            padding: '3px 10px',
+                            padding: '4px 10px',
                             borderRadius: 20,
                             background: isUrgent ? '#FEE2E2' : '#FEF3C7',
-                            color: isUrgent ? '#B91C1C' : '#B45309'
+                            color: isUrgent ? '#B91C1C' : '#B45309',
+                            textAlign: 'center'
                           }}>
-                            {isUrgent ? `🚨 Urgente: ${p.daysInactive} días inactivo` : `⚠️ Alta: ${p.daysInactive} días inactivo`}
+                            {isUrgent ? `🚨 Urgente: ${p.daysInactive} días` : `⚠️ Alta: ${p.daysInactive} días`}
                           </span>
                           
                           <button
@@ -272,16 +279,18 @@ export default function Recordatorios() {
                               background: '#25D366',
                               border: 'none',
                               color: '#fff',
-                              padding: '6px 14px',
+                              padding: '8px 14px',
                               borderRadius: 8,
                               fontSize: 12.5,
                               fontWeight: 700,
                               cursor: 'pointer',
                               display: 'flex',
                               alignItems: 'center',
+                              justifyContent: 'center',
                               gap: 6,
                               fontFamily: 'DM Sans, sans-serif',
-                              transition: 'background-color 0.2s'
+                              transition: 'background-color 0.2s',
+                              width: '100%'
                             }}
                             onMouseEnter={e => e.currentTarget.style.backgroundColor = '#20ba5a'}
                             onMouseLeave={e => e.currentTarget.style.backgroundColor = '#25D366'}

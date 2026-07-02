@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { Sidebar } from '@/components/Sidebar'
 import { Toast, Spinner } from '@/components/UI'
 import { createClient } from '@/lib/supabase/client'
@@ -21,7 +21,7 @@ const inputSt: React.CSSProperties = {
 }
 
 export default function TratamientosPage() {
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
   const [tratamientos, setTratamientos] = useState<Tratamiento[]>([])
   const [loading, setLoading]     = useState(true)
   const [isMobile, setIsMobile]   = useState(false)
@@ -218,7 +218,7 @@ export default function TratamientosPage() {
         </div>
       )}
 
-      {toast && <Toast msg={toast.msg} tipo={toast.tipo} />}
+      {toast && <Toast msg={toast.msg} tipo={toast.tipo} isMobile={isMobile} />}
     </div>
   )
 }

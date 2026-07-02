@@ -1,7 +1,7 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Sidebar } from '@/components/Sidebar'
-import { PageHeader, BtnPrimary, BtnSm, groupCss, labelCss, inputCss, selectCss, Toast, Spinner, DataTable, TR, TD, Badge, overlayCss, modalCss, modalTitleCss, footerCss, btnLightCss } from '@/components/UI'
+import { PageHeader, BtnPrimary, BtnSm, groupCss, labelCss, inputCss, selectCss, Toast, Spinner, DataTable, TR, TD, Badge, overlayCss, modalCss, modalTitleCss, footerCss, btnLightCss, useIsMobile } from '@/components/UI'
 import { createClient } from '@/lib/supabase/client'
 import { useTenantContext } from '@/components/TenantContext'
 
@@ -14,9 +14,10 @@ interface TeamMember {
 }
 
 export default function Equipo() {
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
   const { tenant, loading: tenantLoading } = useTenantContext()
 
+  const isMobile = useIsMobile()
   const [members, setMembers] = useState<TeamMember[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -105,7 +106,7 @@ export default function Equipo() {
   return (
     <div style={{ display: 'flex', minHeight: '100vh', fontFamily: 'DM Sans, sans-serif' }}>
       <Sidebar />
-      <main style={{ flex: 1, minWidth: 0 }}>
+      <main style={{ flex: 1, marginLeft: isMobile ? 0 : 'var(--sidebar-width, 240px)', paddingBottom: isMobile ? 80 : 0, minWidth: 0 }}>
         <PageHeader 
           title="Gestión de Equipo" 
           sub="Invitá secretarias o colegas a gestionar tu consultorio"
@@ -116,8 +117,38 @@ export default function Equipo() {
           }
         />
         
-        <div style={{ padding: '2rem' }}>
-          {loading ? <Spinner /> : (
+        <div style={{ padding: isMobile ? '1rem' : '2rem' }}>
+          {loading ? <Spinner /> : isMobile ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              {members.map(m => (
+                <div key={m.id} className="glass-card" style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem' }}>
+                    <div>
+                      <div style={{ fontWeight: 600, fontSize: 13.5, color: 'var(--text-dark, #0a1e3d)', wordBreak: 'break-all' }}>
+                        Usuario ({m.user_id.substring(0, 8)}...)
+                      </div>
+                      <div style={{ fontSize: 11, color: '#8fa3bc', marginTop: 3 }}>
+                        Alta: {new Date(m.creado_en).toLocaleDateString('es-AR')}
+                      </div>
+                    </div>
+                    <Badge bg={m.role === 'owner' ? '#e8f0fc' : '#faece7'} color={m.role === 'owner' ? '#185FA5' : '#D85A30'}>
+                      {m.role === 'owner' ? 'Propietario' : m.role === 'admin' ? 'Administrador' : 'Staff'}
+                    </Badge>
+                  </div>
+                  {m.role !== 'owner' && (
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid var(--border-lighter, rgba(56,138,221,0.06))', paddingTop: '0.75rem', marginTop: '0.25rem' }}>
+                      <BtnSm variant="delete" onClick={() => handleRemove(m.user_id)}>Quitar</BtnSm>
+                    </div>
+                  )}
+                </div>
+              ))}
+              {members.length === 0 && (
+                <div style={{ textAlign: 'center', color: '#aab8c8', padding: '2.5rem', fontSize: 13 }}>
+                  Sin miembros en el equipo
+                </div>
+              )}
+            </div>
+          ) : (
             <DataTable headers={['ID / Usuario', 'Rol', 'Fecha de alta', 'Acciones']} empty={members.length === 0}>
               {members.map(m => (
                 <TR key={m.id}>
@@ -143,8 +174,8 @@ export default function Equipo() {
       </main>
 
       {modalOpen && (
-        <div style={overlayCss()}>
-          <div style={modalCss()}>
+        <div style={overlayCss(isMobile)}>
+          <div style={modalCss(isMobile)}>
             <h3 style={modalTitleCss}>Invitar al equipo</h3>
             <div style={groupCss}>
               <label style={labelCss}>Correo Electrónico</label>
@@ -176,7 +207,7 @@ export default function Equipo() {
         </div>
       )}
 
-      {toast && <Toast msg={toast.msg} tipo={toast.tipo} />}
+      {toast && <Toast msg={toast.msg} tipo={toast.tipo} isMobile={isMobile} />}
     </div>
   )
 }

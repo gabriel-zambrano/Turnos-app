@@ -1,8 +1,9 @@
 'use client'
 import { usePathname, useRouter } from 'next/navigation'
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { useTenantContext } from '@/components/TenantContext'
 import { CommandPalette } from '@/components/CommandPalette'
+import { createClient } from '@/lib/supabase/client'
 
 const NAV = [
   { href: '/dashboard',              label: 'Dashboard',    icon: 'grid'  },
@@ -39,8 +40,10 @@ const ICONS: Record<string, React.ReactNode> = {
 export function Sidebar({ pendientes }: { pendientes?: number }) {
   const path = usePathname()
   const router = useRouter()
+  const supabase = useMemo(() => createClient(), [])
   const { tenant, loading: tenantLoading } = useTenantContext()
   const [isMobile, setIsMobile] = useState(false)
+  const [loggingOut, setLoggingOut] = useState(false)
   const [theme, setTheme] = useState<'light'|'dark'>('light')
   
   // Desktop collapse state
@@ -81,6 +84,18 @@ export function Sidebar({ pendientes }: { pendientes?: number }) {
     setCollapsed(next)
     localStorage.setItem('sidebar_collapsed', String(next))
     document.documentElement.style.setProperty('--sidebar-width', isMobile ? '0px' : next ? '52px' : '240px')
+  }
+
+  const handleLogout = async () => {
+    if (loggingOut) return
+    setLoggingOut(true)
+    try {
+      await supabase.auth.signOut()
+    } finally {
+      localStorage.removeItem('authed')
+      localStorage.removeItem('active_tenant_id')
+      window.location.href = '/login'
+    }
   }
 
   // Mobile Bottom Sheet Navigation
@@ -134,7 +149,7 @@ export function Sidebar({ pendientes }: { pendientes?: number }) {
                 })}
               </div>
 
-              <div style={{ display: 'flex', gap: 10 }}>
+              <div style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
                 <button onClick={toggleTheme} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '12px', borderRadius: 12, border: '1px solid var(--border-color)', background: 'var(--bg-input)', color: 'var(--text-dark)', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'DM Sans, sans-serif' }}>
                   {theme === 'light' ? ICONS.moon : ICONS.sun}
                   <span>{theme === 'light' ? 'Modo Oscuro' : 'Modo Claro'}</span>
@@ -143,6 +158,11 @@ export function Sidebar({ pendientes }: { pendientes?: number }) {
                   Cerrar
                 </button>
               </div>
+
+              <button onClick={handleLogout} disabled={loggingOut} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '12px', borderRadius: 12, border: '1px solid #D85A3030', background: '#D85A3012', color: '#D85A30', fontSize: 13, fontWeight: 700, cursor: loggingOut ? 'not-allowed' : 'pointer', fontFamily: 'DM Sans, sans-serif', opacity: loggingOut ? 0.6 : 1 }}>
+                {ICONS.out}
+                <span>{loggingOut ? 'Saliendo...' : 'Cerrar sesión'}</span>
+              </button>
             </div>
           </div>
         )}
@@ -271,6 +291,35 @@ export function Sidebar({ pendientes }: { pendientes?: number }) {
             {theme === 'light' ? ICONS.moon : ICONS.sun}
           </div>
           {showExpanded && <span style={{ whiteSpace: 'nowrap' }}>{theme === 'light' ? 'Modo Oscuro' : 'Modo Claro'}</span>}
+        </button>
+
+        <button
+          onClick={handleLogout}
+          disabled={loggingOut}
+          className="quick-action-btn"
+          title={collapsed && !hovered ? 'Cerrar sesión' : undefined}
+          style={{
+            width: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: showExpanded ? 'flex-start' : 'center',
+            gap: showExpanded ? 10 : 0,
+            padding: '10px 12px',
+            borderRadius: 10,
+            border: '1px solid #D85A3030',
+            background: '#D85A3012',
+            color: '#D85A30',
+            cursor: loggingOut ? 'not-allowed' : 'pointer',
+            fontFamily: 'DM Sans, sans-serif',
+            fontSize: 13,
+            fontWeight: 700,
+            opacity: loggingOut ? 0.6 : 1
+          }}
+        >
+          <div style={{ display: 'flex', flexShrink: 0 }}>
+            {ICONS.out}
+          </div>
+          {showExpanded && <span style={{ whiteSpace: 'nowrap' }}>{loggingOut ? 'Saliendo...' : 'Cerrar sesión'}</span>}
         </button>
 
         {collapsed && !hovered ? (

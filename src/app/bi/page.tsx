@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Sidebar } from '@/components/Sidebar'
 import { useIsMobile } from '@/components/UI'
@@ -109,7 +109,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 }
 
 export default function BiPage() {
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
   const { tenant, loading: loadingTenant } = useTenantContext()
   const [citas, setCitas] = useState<Cita[]>([])
   const [loading, setLoading] = useState(true)

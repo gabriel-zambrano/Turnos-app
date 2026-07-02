@@ -34,7 +34,7 @@ function diasRestantes(mes: number, anio: number) {
 const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
 
 export default function FinanzasPage() {
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
   const { tenant, loading: tenantLoading } = useTenantContext()
   const [isMobile, setIsMobile] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -607,7 +607,7 @@ export default function FinanzasPage() {
         </div>
       )}
 
-      {toast && <Toast msg={toast.msg} tipo={toast.tipo} />}
+      {toast && <Toast msg={toast.msg} tipo={toast.tipo} isMobile={isMobile} />}
     </div>
   )
 }
