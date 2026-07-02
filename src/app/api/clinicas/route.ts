@@ -70,7 +70,13 @@ export async function POST(req: NextRequest) {
       .from('tenants')
       .insert({
         nombre: cleanNombre,
+        // `subdominio_generico` es la columna que lee el resto de la app (middleware,
+        // TenantContext) para resolver el tenant por hostname. `subdominio` es una
+        // columna legada de un esquema anterior que sigue existiendo con NOT NULL
+        // — la completamos con el mismo valor para no romper el insert, aunque hoy
+        // ningún otro lugar del código la lee.
         subdominio_generico: cleanSubdomain,
+        subdominio: cleanSubdomain,
         activo: true,
         plan: cleanPlan, // Default to pro trial (same as registration wizard)
         primarycolor: primaryColor || '#0a1e3d',
