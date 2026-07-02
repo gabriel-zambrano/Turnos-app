@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useMemo } from 'react'
 import { useTenantContext } from '@/components/TenantContext'
 import { CommandPalette } from '@/components/CommandPalette'
 import { createClient } from '@/lib/supabase/client'
+import { AgregarClinicaModal } from '@/components/AgregarClinicaModal'
 
 const NAV = [
   { href: '/dashboard',              label: 'Dashboard',    icon: 'grid'  },
@@ -41,17 +42,35 @@ export function Sidebar({ pendientes }: { pendientes?: number }) {
   const path = usePathname()
   const router = useRouter()
   const supabase = useMemo(() => createClient(), [])
-  const { tenant, loading: tenantLoading } = useTenantContext()
+  const { tenant, loading: tenantLoading, clinics: userClinics } = useTenantContext()
   const [isMobile, setIsMobile] = useState(false)
   const [loggingOut, setLoggingOut] = useState(false)
   const [theme, setTheme] = useState<'light'|'dark'>('light')
-  
+
   // Desktop collapse state
   const [collapsed, setCollapsed] = useState(false)
   const [hovered, setHovered] = useState(false)
-  
+
   // Mobile bottom sheet state
   const [showMoreMenu, setShowMoreMenu] = useState(false)
+
+  // Multi-tenant states — la lista de clínicas del usuario (userClinics) viene de
+  // TenantContext, que ya la resuelve una sola vez al cargar la app. Evitamos así
+  // repetir acá la consulta a tenant_users en cada página.
+  const [showClinicDropdown, setShowClinicDropdown] = useState(false)
+  const [showNewClinicModal, setShowNewClinicModal] = useState(false)
+  const dropdownRef = useRef<HTMLDivElement>(null)
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setShowClinicDropdown(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768)
@@ -159,6 +178,40 @@ export function Sidebar({ pendientes }: { pendientes?: number }) {
                 </button>
               </div>
 
+              {/* Selector de Clínicas Mobile */}
+              <div style={{ borderTop: '1px solid var(--border-color, #e2e8f0)', paddingTop: '12px', marginTop: '12px', marginBottom: '12px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <div style={{ fontSize: 10.5, fontWeight: 700, color: '#8fa3bc', textTransform: 'uppercase', letterSpacing: 0.5 }}>Clínicas</div>
+                <select 
+                  value={tenant?.id || ''} 
+                  onChange={(e) => {
+                    if (e.target.value === 'new') {
+                      setShowMoreMenu(false)
+                      setShowNewClinicModal(true)
+                    } else if (e.target.value) {
+                      localStorage.setItem('active_tenant_id', e.target.value)
+                      window.location.reload()
+                    }
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    borderRadius: 10,
+                    border: '1px solid var(--border-color, #dde5ef)',
+                    background: 'var(--bg-input, rgba(255,255,255,0.8))',
+                    color: 'var(--text-dark, #0a1e3d)',
+                    fontSize: 13,
+                    fontWeight: 600,
+                    fontFamily: 'DM Sans, sans-serif',
+                    outline: 'none'
+                  }}
+                >
+                  {userClinics.map(c => (
+                    <option key={c.id} value={c.id}>{c.nombre}</option>
+                  ))}
+                  <option value="new">+ Agregar clínica</option>
+                </select>
+              </div>
+
               <button onClick={handleLogout} disabled={loggingOut} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '12px', borderRadius: 12, border: '1px solid #D85A3030', background: '#D85A3012', color: '#D85A30', fontSize: 13, fontWeight: 700, cursor: loggingOut ? 'not-allowed' : 'pointer', fontFamily: 'DM Sans, sans-serif', opacity: loggingOut ? 0.6 : 1 }}>
                 {ICONS.out}
                 <span>{loggingOut ? 'Saliendo...' : 'Cerrar sesión'}</span>
@@ -200,9 +253,111 @@ export function Sidebar({ pendientes }: { pendientes?: number }) {
       {/* Header */}
       <div style={{ padding: '1.25rem 1rem', borderBottom: '1px solid var(--border-light, rgba(56,138,221,0.08))', display: 'flex', alignItems: 'center', justifyContent: showExpanded ? 'space-between' : 'center', gap: 6, minHeight: 63, overflow: 'hidden' }}>
         {showExpanded ? (
-          <div style={{ overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
+          <div style={{ overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', flex: 1 }}>
             <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-dark, #0a1e3d)', letterSpacing: '-0.3px' }}>DentalDesk</div>
-            <div style={{ fontSize: 10, color: 'var(--text-muted, #8fa3bc)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis' }}>{tenantLoading ? 'Cargando...' : tenant?.nombre}</div>
+            <div style={{ position: 'relative' }}>
+              <button 
+                onClick={() => setShowClinicDropdown(!showClinicDropdown)} 
+                style={{ 
+                  background: 'none', 
+                  border: 'none', 
+                  padding: 0, 
+                  color: 'var(--text-muted, #8fa3bc)', 
+                  fontSize: 10.5, 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: 4, 
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  width: '100%',
+                  marginTop: 2
+                }}
+              >
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 140 }}>
+                  {tenantLoading ? 'Cargando...' : tenant?.nombre}
+                </span>
+                <span style={{ fontSize: 8 }}>▼</span>
+              </button>
+              
+              {showClinicDropdown && (
+                <div 
+                  ref={dropdownRef} 
+                  style={{ 
+                    position: 'absolute', 
+                    top: '100%', 
+                    left: 0, 
+                    width: 190, 
+                    background: 'var(--bg-modal, #fff)', 
+                    border: '1px solid var(--border-light, rgba(56,138,221,0.12))', 
+                    borderRadius: 8, 
+                    boxShadow: '0 4px 12px rgba(10,30,61,0.1)', 
+                    zIndex: 1000,
+                    padding: '4px 0',
+                    marginTop: 6
+                  }}
+                >
+                  <div style={{ padding: '6px 12px', fontSize: 9.5, fontWeight: 700, color: '#aab8c8', borderBottom: '1px solid var(--border-lighter, rgba(56,138,221,0.06))', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                    Mis Clínicas
+                  </div>
+                  
+                  {userClinics.map(clinic => (
+                    <button
+                      key={clinic.id}
+                      onClick={() => {
+                        localStorage.setItem('active_tenant_id', clinic.id)
+                        setShowClinicDropdown(false)
+                        window.location.reload()
+                      }}
+                      style={{
+                        width: '100%',
+                        padding: '8px 12px',
+                        fontSize: 12,
+                        textAlign: 'left',
+                        background: clinic.id === tenant?.id ? 'var(--border-lighter, rgba(56,138,221,0.06))' : 'transparent',
+                        color: clinic.id === tenant?.id ? 'var(--text-dark, #0a1e3d)' : 'var(--text-muted-darker, #4a6080)',
+                        border: 'none',
+                        cursor: 'pointer',
+                        fontWeight: clinic.id === tenant?.id ? 700 : 500,
+                        fontFamily: 'inherit',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap'
+                      }}
+                      onMouseEnter={e => clinic.id !== tenant?.id && (e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.02)')}
+                      onMouseLeave={e => clinic.id !== tenant?.id && (e.currentTarget.style.backgroundColor = 'transparent')}
+                    >
+                      {clinic.nombre}
+                    </button>
+                  ))}
+                  
+                  <div style={{ borderTop: '1px solid var(--border-lighter, rgba(56,138,221,0.06))', marginTop: 4, padding: '4px 0' }}>
+                    <button
+                      onClick={() => {
+                        setShowClinicDropdown(false)
+                        setShowNewClinicModal(true)
+                      }}
+                      style={{
+                        width: '100%',
+                        padding: '8px 12px',
+                        fontSize: 11.5,
+                        textAlign: 'left',
+                        background: 'transparent',
+                        color: secondaryColor,
+                        border: 'none',
+                        cursor: 'pointer',
+                        fontWeight: 600,
+                        fontFamily: 'inherit',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 6
+                      }}
+                    >
+                      <span>+</span> Agregar clínica
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         ) : (
           <div style={{ fontSize: 20, cursor: 'pointer', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.05))' }} onClick={toggleCollapse}>🦷</div>
@@ -349,6 +504,18 @@ export function Sidebar({ pendientes }: { pendientes?: number }) {
         )}
       </div>
       <CommandPalette />
+
+      {showNewClinicModal && (
+        <AgregarClinicaModal
+          isMobile={isMobile}
+          onClose={() => setShowNewClinicModal(false)}
+          onSuccess={(newId) => {
+            localStorage.setItem('active_tenant_id', newId)
+            setShowNewClinicModal(false)
+            window.location.reload()
+          }}
+        />
+      )}
     </aside>
   )
 }

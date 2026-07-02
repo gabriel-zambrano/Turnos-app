@@ -43,38 +43,57 @@ const defaultBranding = (id: string, name: string): TenantBranding => {
   }
 }
 
+export interface TenantSummary {
+  id: string
+  nombre: string
+}
+
 interface TenantContextType {
   tenant: TenantBranding | null
   loading: boolean
+  clinics: TenantSummary[]
 }
 
-const TenantContext = createContext<TenantContextType>({ tenant: null, loading: true })
+const TenantContext = createContext<TenantContextType>({ tenant: null, loading: true, clinics: [] })
 
 export function TenantProvider({ children }: { children: React.ReactNode }) {
   const [tenant, setTenant] = useState<TenantBranding | null>(null)
   const [loading, setLoading] = useState(true)
+  const [clinics, setClinics] = useState<TenantSummary[]>([])
   const supabase = useMemo(() => createClient(), [])
 
   useEffect(() => {
     async function loadTenant() {
       try {
         const hostname = window.location.hostname
-        
+
         // 1. Intentar resolver por usuario autenticado (para el dashboard)
         const { data: { session } } = await supabase.auth.getSession()
-        
+
         let tenantData = null
 
         if (session?.user) {
+          // Traemos de una sola vez la lista de tenant_id + nombre de cada clínica
+          // a la que pertenece el usuario. Esto alimenta tanto la resolución del
+          // tenant activo acá abajo, como el selector de clínicas del Sidebar
+          // (así evitamos que el Sidebar tenga que repetir esta misma consulta).
           const { data: tuList } = await supabase
             .from('tenant_users')
-            .select('tenant_id')
+            .select('tenant_id, tenants(id, nombre)')
             .eq('user_id', session.user.id)
-            
+
+          const misClinicas: TenantSummary[] = (tuList || [])
+            .map((item: any) => {
+              const t = Array.isArray(item.tenants) ? item.tenants[0] : item.tenants
+              return t ? { id: t.id as string, nombre: t.nombre as string } : null
+            })
+            .filter((c): c is TenantSummary => c !== null)
+          setClinics(misClinicas)
+
           if (tuList && tuList.length > 0) {
             let activeId = localStorage.getItem('active_tenant_id') || ''
             const isValidActive = activeId ? tuList.some(item => item.tenant_id === activeId) : false
-            
+
             if (!activeId || !isValidActive) {
               activeId = tuList[0].tenant_id
               localStorage.setItem('active_tenant_id', activeId)
@@ -140,7 +159,7 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   return (
-    <TenantContext.Provider value={{ tenant, loading }}>
+    <TenantContext.Provider value={{ tenant, loading, clinics }}>
       {children}
     </TenantContext.Provider>
   )

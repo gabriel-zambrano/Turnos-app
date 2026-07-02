@@ -17,15 +17,12 @@ interface LogItem { id:string; paciente:string; canal:string; estado:string; hor
 const FILTROS = [{k:'todas',l:'Todas'},{k:'pendiente',l:'Pendientes'},{k:'confirmado',l:'Confirmadas'},{k:'asistio',l:'Asistieron'}]
 
 export default function Dashboard() {
-  const [authChecked, setAuthChecked] = useState(false)
+  // Nota: no hace falta re-verificar la sesión acá — el middleware (src/middleware.ts)
+  // ya bloquea el acceso a /dashboard server-side si no hay sesión activa, antes de
+  // que este componente llegue a montarse. Repetirlo acá solo agregaba un viaje de
+  // red extra en cada carga.
   const supabase = useMemo(() => createClient(), [])
   const { tenant, loading: tenantLoading } = useTenantContext()
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) window.location.replace('/login')
-      else setAuthChecked(true)
-    })
-  }, [])
   const [citas, setCitas] = useState<Cita[]>([])
   const [citasMañana, setCitasMañana] = useState<CitaMañana[]>([])
   const [isMobile, setIsMobile] = useState(false)
@@ -467,7 +464,7 @@ export default function Dashboard() {
     }
   }
 
-  if (!authChecked || tenantLoading) return (
+  if (tenantLoading) return (
     <div style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',background:'var(--bg-page,#f0f4f8)',fontFamily:'DM Sans, sans-serif'}}>
       <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:12}}>
         <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#185FA5" strokeWidth="2.5" strokeLinecap="round" style={{animation:'spin 1s linear infinite'}}>
