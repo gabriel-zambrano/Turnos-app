@@ -314,6 +314,7 @@ export default function Agenda() {
   const [sobreturnoAgenda, setSobreturnoAgenda] = useState<string|null>(null)
   const [modal,   setModal]   = useState<'nueva'|'editar'|'borrar'|'detalle'|'bloqueo'|'menu'|'cobrar'|null>(null)
   const [sel,     setSel]     = useState<Cita|null>(null)
+  const [enviandoWA, setEnviandoWA] = useState(false)
   const [fecha,   setFecha]   = useState(hoyISO())
   const [toast,   setToast]   = useState<{msg:string;tipo:string}|null>(null)
   const [menuPos, setMenuPos] = useState<{x:number;y:number;f:string;h:string}|null>(null)
@@ -1496,42 +1497,56 @@ export default function Agenda() {
             {sel?.telefono && (
               <div style={{ fontSize: 13, color: 'var(--text-muted-darker)', marginBottom: 15, display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
                 <span>📞 <a href={`tel:${sel.telefono}`} style={{ color: '#185FA5', textDecoration: 'none', fontWeight: 600 }}>{sel.telefono}</a></span>
-                {sel.token && (
-                  <button 
-                    style={{
-                      background: 'rgba(18, 140, 126, 0.08)',
-                      border: '1px solid rgba(18, 140, 126, 0.15)',
-                      borderRadius: 8,
-                      color: '#128C7E',
-                      cursor: 'pointer',
-                      fontSize: 12,
-                      fontWeight: 600,
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 4,
-                      padding: '4px 10px'
-                    }} 
-                    onClick={() => {
-                      const num = normalizarTelefono(sel.telefono)
-                      const d   = parseFechaLocal(sel.fecha)
-                      let msgText = tenant?.whatsappTemplate || ''
-                      msgText = msgText.replace(/\\n/g, '\n')
-                      msgText = msgText
-                        .replace(/{nombre_paciente}/g, sel.nombre)
-                        .replace(/{nombre_clinica}/g, tenant?.nombre || 'DentalDesk')
-                        .replace(/{dia_semana}/g, d.toLocaleDateString('es-AR',{weekday:'long'}))
-                        .replace(/{fecha}/g, d.toLocaleDateString('es-AR',{day:'numeric',month:'long'}))
-                        .replace(/{hora}/g, sel.hora)
-                        .replace(/{tratamiento}/g, sel.tratamiento)
-                        .replace(/{link}/g, `${window.location.origin}/paciente/${sel.token}`)
-                      const txt = encodeURIComponent(msgText)
-                      window.open(`https://wa.me/${num}?text=${txt}`,'_blank')
-                    }}
-                  >
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.123.553 4.116 1.522 5.849L0 24l6.335-1.505A11.94 11.94 0 0 0 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.818 9.818 0 0 1-5.006-1.371l-.358-.214-3.759.893.952-3.653-.234-.374A9.818 9.818 0 0 1 2.182 12C2.182 6.57 6.57 2.182 12 2.182S21.818 6.57 21.818 12 17.43 21.818 12 21.818z"/></svg>
-                    WhatsApp
-                  </button>
-                )}
+                <button
+                  disabled={enviandoWA}
+                  style={{
+                    background: 'rgba(18, 140, 126, 0.08)',
+                    border: '1px solid rgba(18, 140, 126, 0.15)',
+                    borderRadius: 8,
+                    color: '#128C7E',
+                    cursor: enviandoWA ? 'not-allowed' : 'pointer',
+                    fontSize: 12,
+                    fontWeight: 600,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 4,
+                    padding: '4px 10px',
+                    opacity: enviandoWA ? 0.6 : 1
+                  }}
+                  onClick={async () => {
+                    if (!sel) return
+                    let token = sel.token
+                    // Turnos creados antes de tener portal de paciente pueden no
+                    // tener token todavía — lo generamos al vuelo para que el
+                    // link del mensaje funcione, en vez de esconder el botón.
+                    if (!token) {
+                      setEnviandoWA(true)
+                      token = crypto.randomUUID()
+                      const { error } = await supabase.from('pacientes').update({ token }).eq('id', sel.paciente_id)
+                      setEnviandoWA(false)
+                      if (error) { msg('No se pudo generar el link del paciente', 'error'); return }
+                      setSel(prev => prev ? { ...prev, token } : prev)
+                      setCitas(prev => prev.map(c => c.paciente_id === sel.paciente_id ? { ...c, token } : c))
+                    }
+                    const num = normalizarTelefono(sel.telefono)
+                    const d   = parseFechaLocal(sel.fecha)
+                    let msgText = tenant?.whatsappTemplate || ''
+                    msgText = msgText.replace(/\\n/g, '\n')
+                    msgText = msgText
+                      .replace(/{nombre_paciente}/g, sel.nombre)
+                      .replace(/{nombre_clinica}/g, tenant?.nombre || 'DentalDesk')
+                      .replace(/{dia_semana}/g, d.toLocaleDateString('es-AR',{weekday:'long'}))
+                      .replace(/{fecha}/g, d.toLocaleDateString('es-AR',{day:'numeric',month:'long'}))
+                      .replace(/{hora}/g, sel.hora)
+                      .replace(/{tratamiento}/g, sel.tratamiento)
+                      .replace(/{link}/g, `${window.location.origin}/paciente/${token}`)
+                    const txt = encodeURIComponent(msgText)
+                    window.open(`https://wa.me/${num}?text=${txt}`,'_blank')
+                  }}
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.123.553 4.116 1.522 5.849L0 24l6.335-1.505A11.94 11.94 0 0 0 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.818 9.818 0 0 1-5.006-1.371l-.358-.214-3.759.893.952-3.653-.234-.374A9.818 9.818 0 0 1 2.182 12C2.182 6.57 6.57 2.182 12 2.182S21.818 6.57 21.818 12 17.43 21.818 12 21.818z"/></svg>
+                  {enviandoWA ? 'Generando link...' : 'WhatsApp'}
+                </button>
               </div>
             )}
 
