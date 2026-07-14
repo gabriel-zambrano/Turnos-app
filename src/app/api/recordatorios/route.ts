@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
   const tid = tenantId || process.env.NEXT_PUBLIC_DEFAULT_TENANT_ID || ''
   let registry = {
     nombre: 'DentalDesk',
-    direccion: 'Dirección del consultorio',
+    direccion: 'Av. Santa Fe 3329 1 B',
     telefono: '',
   }
   

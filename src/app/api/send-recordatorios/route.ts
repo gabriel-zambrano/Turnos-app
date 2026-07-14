@@ -103,7 +103,7 @@ export async function POST(req: NextRequest) {
     const branding = {
       id: tenant.id,
       nombre: tenant.nombre || 'Consultorio Dental',
-      direccion: (tenant as any).direccion || 'Dirección del consultorio',
+      direccion: (tenant as any).direccion || 'Av. Santa Fe 3329 1 B',
       telefono: (tenant as any).telefono || '',
       logoUrl: (tenant as any).logourl || undefined,
       primaryColor: (tenant as any).primarycolor || '#0a1e3d',

@@ -1540,6 +1540,7 @@ export default function Agenda() {
                       .replace(/{hora}/g, sel.hora)
                       .replace(/{tratamiento}/g, sel.tratamiento)
                       .replace(/{link}/g, `${window.location.origin}/paciente/${token}`)
+                      .replace(/{direccion}/g, tenant?.direccion || '')
                     const txt = encodeURIComponent(msgText)
                     window.open(`https://wa.me/${num}?text=${txt}`,'_blank')
                   }}
