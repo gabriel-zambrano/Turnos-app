@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { rateLimit, getClientIp } from '@/lib/rate-limit'
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -16,6 +17,17 @@ export async function GET(req: NextRequest) {
 
   if (origin && !ALLOWED_ORIGINS.includes(origin)) {
     return NextResponse.json({ error: 'Origin not allowed' }, { status: 403 })
+  }
+
+  // El header Origin es falsificable, así que sumamos rate limit por IP como
+  // defensa real contra el barrido de disponibilidad de cualquier tenant.
+  const ip = getClientIp(req)
+  const rl = rateLimit(`horas-ocupadas:${ip}`, 60, 60 * 1000)
+  if (!rl.ok) {
+    return NextResponse.json(
+      { error: 'Demasiadas solicitudes. Esperá un momento.' },
+      { status: 429, headers: { 'Retry-After': String(rl.retryAfterSec) } }
+    )
   }
 
   const fecha = req.nextUrl.searchParams.get('fecha')

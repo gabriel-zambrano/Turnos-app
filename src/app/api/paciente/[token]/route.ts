@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { rateLimit, getClientIp } from '@/lib/rate-limit'
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -9,9 +10,21 @@ const supabaseAdmin = createClient(
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: { token: string } }
 ) {
+  // El portal es público (sin login) y expone datos clínicos. Limitamos por IP
+  // para que nadie pueda barrer tokens por fuerza bruta: 30 accesos por minuto
+  // es holgado para un paciente real y corta cualquier escaneo automatizado.
+  const ip = getClientIp(req)
+  const rl = rateLimit(`paciente:${ip}`, 30, 60 * 1000)
+  if (!rl.ok) {
+    return NextResponse.json(
+      { error: 'Demasiadas solicitudes. Esperá un momento.' },
+      { status: 429, headers: { 'Retry-After': String(rl.retryAfterSec) } }
+    )
+  }
+
   const { token } = params
   if (!token || !UUID_REGEX.test(token)) {
     return NextResponse.json({ error: 'Link inválido' }, { status: 400 })

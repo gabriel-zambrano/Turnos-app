@@ -21,6 +21,22 @@ export async function POST(req: NextRequest) {
 
   if (!email) return NextResponse.json({ error: 'Email requerido' }, { status: 400 })
 
+  // El usuario solo puede enviar confirmaciones con el branding de una clínica
+  // a la que efectivamente pertenece. Sin esta verificación, cualquier usuario
+  // autenticado podría suplantar el branding de otro consultorio.
+  if (tenantId) {
+    const { data: membership } = await supabaseAdmin
+      .from('tenant_users')
+      .select('tenant_id')
+      .eq('user_id', user.id)
+      .eq('tenant_id', tenantId)
+      .maybeSingle()
+
+    if (!membership) {
+      return NextResponse.json({ error: 'No autorizado para esta clínica' }, { status: 403 })
+    }
+  }
+
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://turnos-app-delta.vercel.app'
 
   // Resolver branding del tenant

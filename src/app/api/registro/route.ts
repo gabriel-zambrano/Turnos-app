@@ -1,13 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { Resend } from 'resend'
+import { rateLimit, getClientIp } from '@/lib/rate-limit'
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 export async function POST(req: NextRequest) {
   try {
+    // Freno de abuso: máximo 5 registros por IP cada 15 minutos.
+    const ip = getClientIp(req)
+    const rl = rateLimit(`registro:${ip}`, 5, 15 * 60 * 1000)
+    if (!rl.ok) {
+      return NextResponse.json(
+        { error: 'Demasiados intentos. Probá de nuevo en unos minutos.' },
+        { status: 429, headers: { 'Retry-After': String(rl.retryAfterSec) } }
+      )
+    }
+
     const { email, password, nombreProfesional, nombreConsultorio, direccion, telefono, primaryColor, secondaryColor, accentColor } = await req.json()
 
     if (!email || !password || !nombreProfesional || !nombreConsultorio) {
       return NextResponse.json({ error: 'Faltan datos requeridos' }, { status: 400 })
+    }
+
+    if (!EMAIL_REGEX.test(email)) {
+      return NextResponse.json({ error: 'Email inválido' }, { status: 400 })
+    }
+
+    if (typeof password !== 'string' || password.length < 8) {
+      return NextResponse.json({ error: 'La contraseña debe tener al menos 8 caracteres' }, { status: 400 })
     }
 
     const supabaseAdmin = createClient(

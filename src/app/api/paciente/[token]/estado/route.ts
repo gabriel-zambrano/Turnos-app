@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { rateLimit, getClientIp } from '@/lib/rate-limit'
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -13,6 +14,17 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: { token: string } }
 ) {
+  // Endpoint público que cambia el estado de turnos. Rate limit por IP para
+  // impedir que se barran tokens o se cancelen turnos de forma automatizada.
+  const ip = getClientIp(req)
+  const rl = rateLimit(`paciente-estado:${ip}`, 20, 60 * 1000)
+  if (!rl.ok) {
+    return NextResponse.json(
+      { error: 'Demasiadas solicitudes. Esperá un momento.' },
+      { status: 429, headers: { 'Retry-After': String(rl.retryAfterSec) } }
+    )
+  }
+
   const { token } = params
   const { citaId, estado } = await req.json()
   if (!UUID_REGEX.test(token) || !UUID_REGEX.test(citaId)) {

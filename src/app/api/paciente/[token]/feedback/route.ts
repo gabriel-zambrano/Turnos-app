@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { rateLimit, getClientIp } from '@/lib/rate-limit'
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -12,6 +13,16 @@ export async function POST(
   req: NextRequest,
   { params }: { params: { token: string } }
 ) {
+  // Endpoint público de escritura. Rate limit por IP contra spam de feedback.
+  const ip = getClientIp(req)
+  const rl = rateLimit(`paciente-feedback:${ip}`, 20, 60 * 1000)
+  if (!rl.ok) {
+    return NextResponse.json(
+      { error: 'Demasiadas solicitudes. Esperá un momento.' },
+      { status: 429, headers: { 'Retry-After': String(rl.retryAfterSec) } }
+    )
+  }
+
   const { token } = params
   if (!token || !UUID_REGEX.test(token)) {
     return NextResponse.json({ error: 'Link inválido' }, { status: 400 })
