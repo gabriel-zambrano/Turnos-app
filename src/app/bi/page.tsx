@@ -119,11 +119,8 @@ export default function BiPage() {
   const [citasFact, setCitasFact] = useState<CitaFact[]>([])
   const [loadingFact, setLoadingFact] = useState(false)
   const isMobile = useIsMobile()
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) window.location.replace('/login')
-    })
-  }, [])
+  // La protección de sesión la hace el middleware (src/middleware.ts) server-side
+  // antes de montar esta página; no hace falta re-verificar acá (era un viaje de red extra).
 
   useEffect(() => {
     if (tab !== 'facturacion' || !tenant) return

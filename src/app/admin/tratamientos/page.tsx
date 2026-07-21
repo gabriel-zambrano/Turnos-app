@@ -33,11 +33,8 @@ export default function TratamientosPage() {
   const [fDuracion, setFDuracion] = useState<number | ''>('')
   const [guardando, setGuardando] = useState(false)
 
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) window.location.replace('/login')
-    })
-  }, [])
+  // La protección de sesión la hace el middleware (src/middleware.ts) server-side
+  // antes de montar esta página; no hace falta re-verificar acá (era un viaje de red extra).
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768)
