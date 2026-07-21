@@ -5,5 +5,8 @@ node_modules/
 .vercel
 .env*.local
 
+# Caché incremental de TypeScript (artefacto generado; no debe versionarse)
+tsconfig.tsbuildinfo
+
 # Sentry Config File
 .env.sentry-build-plugin
