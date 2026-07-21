@@ -8,7 +8,10 @@ import type { EstadoCita, TipoTratamiento } from '@/types'
 import { useTenantContext } from '@/components/TenantContext'
 import { triggerConfetti } from '@/lib/confetti'
 import { registrarInasistenciaAction, aprobarAsistenciaAction } from '@/app/actions/fidelizacion'
-import { NuevaCitaModal } from '@/components/NuevaCitaModal'
+import dynamic from 'next/dynamic'
+
+// Lazy-load: el modal solo se descarga cuando el usuario lo abre, no en la carga inicial.
+const NuevaCitaModal = dynamic(() => import('@/components/NuevaCitaModal').then(m => m.NuevaCitaModal), { ssr: false })
 
 interface CitaDB { id:string; paciente_id:string; fecha_hora:string; tipo_tratamiento:string; estado:string; notas:string|null; duracion_minutos:number; valor:number|null; sena:number|null; medio_pago:string|null; precio_cobrado:number|null; pacientes:{nombre:string;telefono:string;token:string}|null }
 interface Cita   { id:string; paciente_id:string; nombre:string; telefono:string; token:string; hora:string; fecha:string; tratamiento:string; estado:EstadoCita; duracion:number; notas:string; minutos:number; valor:number|null; sena:number|null; medio_pago:string|null; precio_cobrado:number|null }

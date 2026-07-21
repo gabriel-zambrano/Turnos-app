@@ -7,9 +7,12 @@ import { TRAT_STYLE, ESTADO_STYLE, hoyISO, normalizarTelefono, TRATAMIENTOS } fr
 import { createClient } from '@/lib/supabase/client'
 import { useTenantContext } from '@/components/TenantContext'
 import type { EstadoCita } from '@/types'
-import { NuevaCitaModal } from '@/components/NuevaCitaModal'
+import dynamic from 'next/dynamic'
 import { triggerConfetti } from '@/lib/confetti'
 import { registrarInasistenciaAction, aprobarAsistenciaAction } from '@/app/actions/fidelizacion'
+
+// Lazy-load: el modal solo se descarga cuando el usuario lo abre, no en la carga inicial.
+const NuevaCitaModal = dynamic(() => import('@/components/NuevaCitaModal').then(m => m.NuevaCitaModal), { ssr: false })
 
 interface Cita { id:string; nombre:string; hora:string; tratamiento:string; estado:EstadoCita; telefono:string; precio_cobrado?:number|null; valor?:number|null; paciente_id?:string; token?:string|null; fecha_hora?:string }
 interface CitaMañana extends Cita { token:string|null; fecha_hora:string }
