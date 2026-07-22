@@ -22,7 +22,9 @@ const PLAN_STYLE: Record<string, { bg: string; color: string }> = {
   business: { bg: '#CFE2FF', color: '#084298' },
 }
 
-const ADMIN_EMAIL = 'studioandbrand@gmail.com'
+// Se configura con NEXT_PUBLIC_ADMIN_EMAIL. Este chequeo es solo de UX: la
+// autorización real la hace /api/admin/tenants del lado del servidor.
+const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_EMAIL || ''
 
 export default function AdminPanel() {
   const supabase = useMemo(() => createClient(), [])

@@ -1,4 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { APP_NAME, EMAIL_DOMAIN } from '@/lib/config'
+
+/** Escapa los caracteres que el formato iCalendar exige escapar. */
+function esc(v: string): string {
+  return (v || '').replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n')
+}
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
@@ -7,6 +13,10 @@ export async function GET(req: NextRequest) {
   const tratamiento = searchParams.get('tratamiento') || ''
   const duracion = parseInt(searchParams.get('duracion') || '30')
   const notas = searchParams.get('notas') || ''
+  // Datos de la clínica: llegan por querystring desde quien arma el link.
+  // Sin ellos cae al nombre de la plataforma, nunca a una clínica concreta.
+  const clinica = searchParams.get('clinica') || APP_NAME
+  const direccion = searchParams.get('direccion') || ''
 
   const inicio = new Date(`${fecha}T${hora}:00-03:00`)
   const fin = new Date(inicio.getTime() + duracion * 60000)
@@ -16,15 +26,15 @@ export async function GET(req: NextRequest) {
   const ics = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
-    'PRODID:-//DentalDesk//Turnos//ES',
+    `PRODID:-//${esc(APP_NAME)}//Turnos//ES`,
     'BEGIN:VEVENT',
-    `UID:${Date.now()}@walterbenegas.com.ar`,
+    `UID:${Date.now()}@${EMAIL_DOMAIN}`,
     `DTSTAMP:${fmt(new Date())}`,
     `DTSTART:${fmt(inicio)}`,
     `DTEND:${fmt(fin)}`,
-    `SUMMARY:Turno Dr. Benegas - ${tratamiento}`,
-    `DESCRIPTION:Turno con el Dr. Walter Benegas\\nTratamiento: ${tratamiento}${notas ? '\\nNotas: ' + notas : ''}`,
-    'LOCATION:Palermo\\, CABA',
+    `SUMMARY:Turno ${esc(clinica)} - ${esc(tratamiento)}`,
+    `DESCRIPTION:Turno en ${esc(clinica)}\\nTratamiento: ${esc(tratamiento)}${notas ? '\\nNotas: ' + esc(notas) : ''}`,
+    ...(direccion ? [`LOCATION:${esc(direccion)}`] : []),
     'END:VEVENT',
     'END:VCALENDAR',
   ].join('\r\n')
@@ -32,7 +42,7 @@ export async function GET(req: NextRequest) {
   return new NextResponse(ics, {
     headers: {
       'Content-Type': 'text/calendar; charset=utf-8',
-      'Content-Disposition': `attachment; filename="turno-benegas.ics"`,
+      'Content-Disposition': 'attachment; filename="turno.ics"',
     },
   })
 }

@@ -146,12 +146,18 @@ export default function SeguimientoPage() {
 
   function mensajeWA(p: PacienteAlerta) {
     const link = p.token ? `${window.location.origin}/paciente/${p.token}` : ''
-    const footer = `\n\nRecorda que los turnos no cancelados con mas de 48hs de anticipacion o no asistidos deben ser abonados.\n\n_Consultorio Dr. Walter Benegas - Av. Santa Fe 3329 1 B - Palermo, CABA_`
+    // Los datos salen del tenant activo: cada clínica firma con lo suyo.
+    const clinica = tenant?.nombre || 'nuestro consultorio'
+    const pieDatos = [tenant?.nombre, tenant?.direccion].filter(Boolean).join(' - ')
+    const footer =
+      `\n\nRecorda que los turnos no cancelados con mas de 48hs de anticipacion o no asistidos deben ser abonados.` +
+      (pieDatos ? `\n\n_${pieDatos}_` : '')
+
     if (p.motivo === 'ortodoncia_vencida')
-      return `Hola ${p.nombre},\n\nTe escribimos del consultorio del *Dr. Walter Benegas*. Notamos que ya pasaron ${p.diasDesde} dias desde tu ultimo ajuste de ortodoncia.\n\nQueres coordinar un turno?\n${link}${footer}`
+      return `Hola ${p.nombre},\n\nTe escribimos de *${clinica}*. Notamos que ya pasaron ${p.diasDesde} dias desde tu ultimo ajuste de ortodoncia.\n\nQueres coordinar un turno?\n${link}${footer}`
     if (p.motivo === 'limpieza_vencida')
-      return `Hola ${p.nombre},\n\nTe escribimos del consultorio del *Dr. Walter Benegas*. Ya pasaron mas de 6 meses desde tu ultima limpieza dental.\n\nQueres sacar un turno?\n${link}${footer}`
-    return `Hola ${p.nombre},\n\nTe escribimos del consultorio del *Dr. Walter Benegas*. Queriamos recordarte que podes sacar turno cuando quieras.\n\n${link}${footer}`
+      return `Hola ${p.nombre},\n\nTe escribimos de *${clinica}*. Ya pasaron mas de 6 meses desde tu ultima limpieza dental.\n\nQueres sacar un turno?\n${link}${footer}`
+    return `Hola ${p.nombre},\n\nTe escribimos de *${clinica}*. Queriamos recordarte que podes sacar turno cuando quieras.\n\n${link}${footer}`
   }
 
   function enviarWA(p: PacienteAlerta) {
@@ -285,9 +291,10 @@ export default function SeguimientoPage() {
                         <button 
                           onClick={() => {
                             const num = normalizarTelefono(f.pacientes?.telefono || '')
-                            const text = f.dolor >= 4 
-                              ? `Hola ${f.pacientes?.nombre}, nos ponemos en contacto desde el consultorio del Dr. Walter Benegas porque vimos que estás con algunas molestias importantes tras tu última visita. ¿Cómo te encuentras?`
-                              : `Hola ${f.pacientes?.nombre}, te escribimos del consultorio del Dr. Walter Benegas para agradecerte por tu feedback sobre la atención y saludarte. ¿Cómo te encuentras?`
+                            const clinicaNombre = tenant?.nombre || 'nuestro consultorio'
+                            const text = f.dolor >= 4
+                              ? `Hola ${f.pacientes?.nombre}, nos ponemos en contacto desde ${clinicaNombre} porque vimos que estás con algunas molestias importantes tras tu última visita. ¿Cómo te encuentras?`
+                              : `Hola ${f.pacientes?.nombre}, te escribimos de ${clinicaNombre} para agradecerte por tu feedback sobre la atención y saludarte. ¿Cómo te encuentras?`
                             window.open(`https://wa.me/${num}?text=${encodeURIComponent(text)}`, '_blank')
                           }}
                           style={{ 

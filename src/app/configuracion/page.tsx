@@ -233,7 +233,7 @@ export default function Configuracion() {
             </div>
             <div style={groupCss}>
               <label style={labelCss}>Dirección (para portal y agenda)</label>
-              <input style={inputCss} value={direccion} onChange={e => setDireccion(e.target.value)} placeholder="Av. Santa Fe 3329, Piso 1 B, Palermo" />
+              <input style={inputCss} value={direccion} onChange={e => setDireccion(e.target.value)} placeholder="Ej: Av. Corrientes 1234, Piso 2 B, CABA" />
             </div>
 
             <div style={{ ...groupCss, marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: '1px solid #e8edf2' }}>

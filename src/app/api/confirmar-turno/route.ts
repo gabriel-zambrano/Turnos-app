@@ -2,6 +2,7 @@ import { Resend } from 'resend'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { createClient as createSupabaseServerClient } from '@/lib/supabase/server'
+import { APP_NAME, APP_URL, remitente } from '@/lib/config'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
@@ -37,13 +38,13 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://turnos-app-delta.vercel.app'
+  const baseUrl = APP_URL
 
   // Resolver branding del tenant
   const tid = tenantId || process.env.NEXT_PUBLIC_DEFAULT_TENANT_ID || ''
   let registry = {
-    nombre: 'DentalDesk',
-    direccion: 'Av. Santa Fe 3329 1 B',
+    nombre: APP_NAME,
+    direccion: '',
     telefono: '',
   }
   if (tid) {
@@ -64,10 +65,10 @@ export async function POST(req: NextRequest) {
   const outlookLink = `https://outlook.live.com/calendar/0/deeplink/compose?subject=${encodeURIComponent(`Turno ${registry.nombre} - ${tratamiento}`)}&startdt=${fecha}T${hora}:00&enddt=${fechaFin.toISOString()}&body=${encodeURIComponent(`Turno con ${registry.nombre}\nTratamiento: ${tratamiento}`)}&location=${encodeURIComponent(registry.direccion)}`
 
   // iCal / Apple Calendar
-  const icsLink = `${baseUrl}/api/ics?fecha=${fecha}&hora=${encodeURIComponent(hora)}&tratamiento=${encodeURIComponent(tratamiento)}&duracion=${duracion || 30}&notas=${encodeURIComponent(notas || '')}`
+  const icsLink = `${baseUrl}/api/ics?fecha=${fecha}&hora=${encodeURIComponent(hora)}&tratamiento=${encodeURIComponent(tratamiento)}&duracion=${duracion || 30}&notas=${encodeURIComponent(notas || '')}&clinica=${encodeURIComponent(registry.nombre || '')}&direccion=${encodeURIComponent(registry.direccion || '')}`
 
   const { error } = await resend.emails.send({
-    from: `${registry.nombre} <turnos@walterbenegas.com.ar>`,
+    from: remitente(registry.nombre),
     to: email,
     subject: `✅ Turno confirmado — ${fecha} a las ${hora}hs`,
     html: `

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { Resend } from 'resend'
 import { rateLimit, getClientIp } from '@/lib/rate-limit'
+import { baseSubdominioDesdeNombre } from '@/lib/subdominio'
+import { APP_NAME, APP_URL, remitente } from '@/lib/config'
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -50,12 +52,29 @@ export async function POST(req: NextRequest) {
 
     const userId = authData.user.id
 
+    // Subdominio de la clínica. `tenants.subdominio` es NOT NULL sin default:
+    // si no lo mandamos, el INSERT falla y el alta se rompe entera.
+    // Generamos uno a partir del nombre y le agregamos sufijo si ya existe.
+    const base = baseSubdominioDesdeNombre(nombreConsultorio)
+    let subdominio = base
+    for (let i = 0; i < 25; i++) {
+      const { data: ocupado } = await supabaseAdmin
+        .from('tenants')
+        .select('id')
+        .eq('subdominio_generico', subdominio)
+        .maybeSingle()
+      if (!ocupado) break
+      subdominio = `${base}-${i + 2}`
+    }
+
     // 2. Create Tenant (con fallback robusto si no se han corrido las migraciones de suscripciones)
     let tenantData = null
     let tenantError = null
 
     const trialData = {
       nombre: nombreConsultorio,
+      subdominio,
+      subdominio_generico: subdominio,
       direccion,
       telefono,
       primarycolor: primaryColor,
@@ -81,6 +100,8 @@ export async function POST(req: NextRequest) {
         .from('tenants')
         .insert({
           nombre: nombreConsultorio,
+          subdominio,
+          subdominio_generico: subdominio,
           direccion,
           telefono,
           primarycolor: primaryColor,
@@ -124,7 +145,7 @@ export async function POST(req: NextRequest) {
       try {
         const resendClient = new Resend(process.env.RESEND_API_KEY)
         await resendClient.emails.send({
-          from: 'DentalDesk <turnos@walterbenegas.com.ar>',
+          from: remitente(APP_NAME),
           to: email,
           subject: '👋 ¡Bienvenido a DentalDesk! Tu consultorio está listo',
           html: `
@@ -150,7 +171,7 @@ export async function POST(req: NextRequest) {
                 </div>
 
                 <div style="text-align: center; margin: 24px 0;">
-                  <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://walterbenegas.com.ar'}/login" style="display: inline-block; background: #185FA5; color: #fff; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 14px;">
+                  <a href="${APP_URL}/login" style="display: inline-block; background: #185FA5; color: #fff; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 14px;">
                     Ingresar al Panel
                   </a>
                 </div>

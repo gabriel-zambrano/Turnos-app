@@ -27,7 +27,7 @@ const defaultBranding = (id: string, name: string): TenantBranding => {
   return {
     id,
     nombre: name || 'Consultorio Dental',
-    direccion: 'Av. Santa Fe 3329 1 B',
+    direccion: '',
     telefono: '',
     logoUrl: undefined,
     primaryColor: '#0a1e3d',
@@ -127,7 +127,7 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
           setTenant({
             id: data.id,
             nombre: data.nombre,
-            direccion: data.direccion || 'Av. Santa Fe 3329 1 B',
+            direccion: data.direccion || '',
             telefono: data.telefono || '',
             logoUrl: data.logourl || undefined,
             primaryColor: data.primarycolor || '#0a1e3d',
@@ -142,15 +142,15 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
             nextPaymentDate: data.next_payment_date || null
           })
         } else if (DEFAULT_TENANT_ID) {
-          // Fallback a Dr. Walter Benegas en localhost/dev
-          setTenant(defaultBranding(DEFAULT_TENANT_ID, 'Dr. Walter Benegas'))
+          // Fallback genérico al tenant por defecto (localhost/dev)
+          setTenant(defaultBranding(DEFAULT_TENANT_ID, ''))
         } else {
           setTenant(null)
         }
       } catch (err) {
         console.error('Error resolving tenant:', err)
         if (DEFAULT_TENANT_ID) {
-          setTenant(defaultBranding(DEFAULT_TENANT_ID, 'Dr. Walter Benegas'))
+          setTenant(defaultBranding(DEFAULT_TENANT_ID, ''))
         } else {
           setTenant(null)
         }

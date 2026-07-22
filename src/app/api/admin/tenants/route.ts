@@ -12,7 +12,7 @@ import { createClient as createSupabaseServerClient } from '@/lib/supabase/serve
 // de `tenants` sin romper el panel.
 // ─────────────────────────────────────────────────────────────
 
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'studioandbrand@gmail.com'
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || process.env.NEXT_PUBLIC_ADMIN_EMAIL || ''
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,

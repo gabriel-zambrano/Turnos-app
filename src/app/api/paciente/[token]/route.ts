@@ -72,7 +72,7 @@ export async function GET(
 
   let registry = {
     nombre: 'Consultorio Dental',
-    direccion: 'Av. Santa Fe 3329 1 B',
+    direccion: '',
     telefono: '',
     primaryColor: '#0a1e3d',
     secondaryColor: '#185FA5',

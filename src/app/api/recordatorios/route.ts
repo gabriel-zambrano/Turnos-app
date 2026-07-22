@@ -2,6 +2,7 @@ import { Resend } from 'resend'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { createClient as createSupabaseServerClient } from '@/lib/supabase/server'
+import { APP_NAME, APP_URL, remitente } from '@/lib/config'
 
 
 const resend = new Resend(process.env.RESEND_API_KEY)
@@ -40,8 +41,8 @@ export async function POST(req: NextRequest) {
 
   const tid = tenantId || process.env.NEXT_PUBLIC_DEFAULT_TENANT_ID || ''
   let registry = {
-    nombre: 'DentalDesk',
-    direccion: 'Av. Santa Fe 3329 1 B',
+    nombre: APP_NAME,
+    direccion: '',
     telefono: '',
   }
   
@@ -87,7 +88,7 @@ export async function POST(req: NextRequest) {
       timeZone: 'America/Argentina/Buenos_Aires'
     })
 
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://walterbenegas.com.ar'
+    const appUrl = APP_URL
 
     const linkConfirmar = paciente.token
       ? `<div style="text-align:center;margin:24px 0">
@@ -99,7 +100,7 @@ export async function POST(req: NextRequest) {
       : ''
 
     const { error } = await resend.emails.send({
-      from: `${registry.nombre} <turnos@walterbenegas.com.ar>`,
+      from: remitente(registry.nombre),
       to: paciente.email,
       subject: `📅 Recordatorio — Hoy tenés turno a las ${hora}hs`,
       html: `

@@ -69,7 +69,7 @@ function generateICS(t: Turno, tenant: TenantBranding | null) {
   const end = new Date(start.getTime() + t.duracion_minutos * 60000)
   const fmt = (d: Date) => d.toISOString().replace(/[-:]/g,'').split('.')[0]+'Z'
   
-  const doctorName = tenant?.nombre || 'Dr. Walter Benegas'
+  const doctorName = tenant?.nombre || 'tu consultorio'
   const locationName = tenant?.direccion || 'Consultorio Odontológico'
 
   const ics = [
@@ -236,8 +236,8 @@ export default function PacientePage() {
   }
 
   return (
-    <div style={{ minHeight:'100vh', fontFamily:'DM Sans, system-ui', padding:'2.5rem 1.25rem', background: 'var(--portal-bg)', transition: 'background-color 0.3s ease' }}>
-      <div style={{ maxWidth:480, margin:'0 auto' }}>
+    <div className="portal-wrapper">
+      <div className="portal-container">
         
         {/* Logo de la Clínica */}
         <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
@@ -250,560 +250,565 @@ export default function PacientePage() {
           )}
         </div>
 
-        {/* Encabezado Paciente */}
-        <div style={{ textAlign:'center', marginBottom:'2.5rem' }}>
-          <div style={{ 
-            width: 72, 
-            height: 72, 
-            borderRadius: '24px', 
-            background: `linear-gradient(135deg, ${secondaryColor}, ${accentColor})`, 
-            color: '#fff', 
-            fontSize: 30, 
-            fontWeight: 800, 
-            display: 'flex', 
-            alignItems: 'center', 
-            justifyContent: 'center', 
-            margin: '0 auto 16px', 
-            boxShadow: `0 10px 25px ${secondaryColor}25`,
-            transform: 'rotate(-4deg)',
-            transition: 'transform 0.3s'
-          }} 
-          onMouseEnter={e => e.currentTarget.style.transform = 'rotate(0deg)'}
-          onMouseLeave={e => e.currentTarget.style.transform = 'rotate(-4deg)'}
-          >
-            {paciente?.nombre ? paciente.nombre.charAt(0).toUpperCase() : 'M'}
-          </div>
-          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--portal-text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>
-            {obtenerSaludo()},
-          </div>
-          <h1 style={{ fontSize:23, fontWeight:800, color: 'var(--portal-text-primary)', letterSpacing: '-0.02em', margin:0 }}>{paciente?.nombre}</h1>
-          <div style={{ display: 'inline-block', padding: '4px 12px', background: `${secondaryColor}10`, color: secondaryColor, fontSize: 13, fontWeight: 700, borderRadius: 20, marginTop: 8 }}>
-            {paciente?.progreso_plan_porcentaje && paciente.progreso_plan_porcentaje > 0 
-              ? `${turnos[0]?.tipo_tratamiento || pastTurnos[0]?.tipo_tratamiento || 'Ortodoncia'} activa · ${getMesesTranscurridos()} meses`
-              : 'Consulta General'}
-          </div>
-        </div>
-
-        {/* Tarjeta de Puntos VIP */}
-        {paciente && (
-          <div className="patient-card" style={{ 
-            padding: '1.25rem', 
-            borderRadius: 20, 
-            background: 'var(--portal-card-bg)', 
-            marginBottom: 28,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 16,
-            borderLeft: `4px solid #EAB308`
-          }}>
-            <div style={{ 
-              width: 44, 
-              height: 44, 
-              borderRadius: '50%', 
-              background: 'rgba(234, 179, 8, 0.1)', 
-              color: '#EAB308', 
-              display: 'flex', 
-              alignItems: 'center', 
-              justifyContent: 'center',
-              flexShrink: 0 
-            }}>
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-            </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--portal-text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Puntos acumulados</div>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 2 }}>
-                <span style={{ fontSize: 24, fontWeight: 900, color: 'var(--portal-text-primary)', letterSpacing: '-0.02em' }}>
-                  {(() => {
-                    const pastNonCanceled = pastTurnos.filter(pt => pt.estado !== 'cancelado')
-                    const quantityAsistio = pastNonCanceled.filter(pt => pt.estado === 'asistio' || pt.estado === 'completado').length
-                    return (paciente.puntos || 0) + (quantityAsistio * 100)
-                  })()}
-                </span>
-                <span style={{ fontSize: 12, fontWeight: 800, color: '#EAB308', textTransform: 'uppercase', letterSpacing: '0.02em' }}>puntos vip</span>
-              </div>
-              <div style={{ fontSize: 12, color: 'var(--portal-text-secondary)', marginTop: 4, lineHeight: 1.4 }}>
-                ¡Seguí asistiendo a tus citas para sumar más y canjearlos por premios!
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Indicaciones / Recomendaciones del Doctor */}
-        {paciente?.recomendaciones && (
-          <div className="patient-card" style={{ 
-            padding: '1.25rem', 
-            borderRadius: 20, 
-            background: 'var(--portal-card-bg)', 
-            marginBottom: 28,
-            borderLeft: `4px solid ${accentColor}`
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+        <div className="portal-layout">
+          
+          <div className="portal-column-main">
+            {/* Encabezado Paciente */}
+            <div style={{ textAlign:'center', marginBottom:'2.5rem' }}>
               <div style={{ 
-                width: 28, 
-                height: 28, 
-                borderRadius: '50%', 
-                background: `${accentColor}12`, 
-                color: accentColor, 
+                width: 72, 
+                height: 72, 
+                borderRadius: '24px', 
+                background: `linear-gradient(135deg, ${secondaryColor}, ${accentColor})`, 
+                color: '#fff', 
+                fontSize: 30, 
+                fontWeight: 800, 
                 display: 'flex', 
                 alignItems: 'center', 
-                justifyContent: 'center' 
-              }}>
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                justifyContent: 'center', 
+                margin: '0 auto 16px', 
+                boxShadow: `0 10px 25px ${secondaryColor}25`,
+                transform: 'rotate(-4deg)',
+                transition: 'transform 0.3s'
+              }} 
+              onMouseEnter={e => e.currentTarget.style.transform = 'rotate(0deg)'}
+              onMouseLeave={e => e.currentTarget.style.transform = 'rotate(-4deg)'}
+              >
+                {paciente?.nombre ? paciente.nombre.charAt(0).toUpperCase() : 'M'}
               </div>
-              <span style={{ fontSize: 12, fontWeight: 800, color: 'var(--portal-text-primary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                Indicaciones de tu Odontólogo
-              </span>
+              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--portal-text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>
+                {obtenerSaludo()},
+              </div>
+              <h1 style={{ fontSize:23, fontWeight:800, color: 'var(--portal-text-primary)', letterSpacing: '-0.02em', margin:0 }}>{paciente?.nombre}</h1>
+              <div style={{ display: 'inline-block', padding: '4px 12px', background: `${secondaryColor}10`, color: secondaryColor, fontSize: 13, fontWeight: 700, borderRadius: 20, marginTop: 8 }}>
+                {paciente?.progreso_plan_porcentaje && paciente.progreso_plan_porcentaje > 0 
+                  ? `${turnos[0]?.tipo_tratamiento || pastTurnos[0]?.tipo_tratamiento || 'Ortodoncia'} activa · ${getMesesTranscurridos()} meses`
+                  : 'Consulta General'}
+              </div>
             </div>
-            <p style={{ color: 'var(--portal-text-secondary)', fontSize: 13.5, lineHeight: 1.55, margin: 0, whiteSpace: 'pre-wrap', fontStyle: 'italic' }}>
-              "{paciente.recomendaciones}"
-            </p>
-          </div>
-        )}
 
-        {/* Progreso del tratamiento */}
+            {/* Banner de Feedback Pendiente */}
+            {feedbackPendiente && !showFeedbackModal && (
+              <div 
+                onClick={() => setShowFeedbackModal(true)}
+                style={{ 
+                  background: `linear-gradient(135deg, ${secondaryColor}, ${accentColor})`, 
+                  color: '#fff', 
+                  borderRadius: 22, 
+                  padding: '1.25rem', 
+                  marginBottom: 24, 
+                  cursor: 'pointer',
+                  boxShadow: `0 8px 24px ${secondaryColor}20`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 12,
+                  transition: 'transform 0.2s'
+                }}
+                onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.015)'}
+                onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+              >
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', opacity: 0.9 }}>Control Post-Visita</div>
+                  <div style={{ fontSize: 14, fontWeight: 800, marginTop: 4 }}>¿Cómo te sientes tras tu turno de {feedbackPendiente.tipo_tratamiento}?</div>
+                  <div style={{ fontSize: 12, opacity: 0.85, marginTop: 4 }}>Ayúdanos a cuidarte respondiendo 3 breves preguntas.</div>
+                </div>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ filter: 'drop-shadow(0 0 6px rgba(255,255,255,0.4))' }}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+              </div>
+            )}
 
-        {isOrtodoncia && paciente && (paciente.progreso_plan_porcentaje || 0) > 0 && (
-          <div style={{ marginBottom: 28 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 8 }}>
-              <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--portal-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Progreso del tratamiento</span>
-              <span style={{ fontSize: 17, fontWeight: 800, color: 'var(--portal-text-primary)' }}>{paciente.progreso_plan_porcentaje}%</span>
-            </div>
-            <div style={{
-              height: 10,
-              background: `${secondaryColor}10`,
-              borderRadius: 6,
-              overflow: 'hidden',
-              marginBottom: 8,
-              border: '1px solid rgba(0,0,0,0.01)'
-            }}>
-              <div style={{
-                height: '100%',
-                width: `${paciente.progreso_plan_porcentaje}%`,
-                background: `linear-gradient(90deg, ${secondaryColor}, ${accentColor})`,
-                borderRadius: 6,
-                boxShadow: `0 2px 6px ${accentColor}25`
-              }} />
-            </div>
-            <div style={{ fontSize:13, color:'var(--portal-text-secondary)', fontWeight:500, display: 'flex', alignItems: 'center', gap: 6 }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={accentColor} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-              {getEstimadoMesesRestantes()}
-            </div>
-          </div>
-        )}
-
-        {/* Banner de Feedback Pendiente */}
-        {feedbackPendiente && !showFeedbackModal && (
-          <div 
-            onClick={() => setShowFeedbackModal(true)}
-            style={{ 
-              background: `linear-gradient(135deg, ${secondaryColor}, ${accentColor})`, 
-              color: '#fff', 
-              borderRadius: 22, 
-              padding: '1.25rem', 
-              marginBottom: 24, 
-              cursor: 'pointer',
-              boxShadow: `0 8px 24px ${secondaryColor}20`,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: 12,
-              transition: 'transform 0.2s'
-            }}
-            onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.015)'}
-            onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
-          >
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', opacity: 0.9 }}>Control Post-Visita</div>
-              <div style={{ fontSize: 14, fontWeight: 800, marginTop: 4 }}>¿Cómo te sientes tras tu turno de {feedbackPendiente.tipo_tratamiento}?</div>
-              <div style={{ fontSize: 12, opacity: 0.85, marginTop: 4 }}>Ayúdanos a cuidarte respondiendo 3 breves preguntas.</div>
-            </div>
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ filter: 'drop-shadow(0 0 6px rgba(255,255,255,0.4))' }}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-          </div>
-        )}
-
-        {/* Próximo turno */}
-        {turnos.length > 0 && (
-          <div style={{ marginBottom: 28 }}>
-            <h3 style={{ fontSize:15, fontWeight:800, color:'var(--portal-text-primary)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom:12 }}>Próximo turno</h3>
-            <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
-              {turnos.map(t => {
-                const { dia, fecha, hora } = formatFecha(t.fecha_hora)
-                return (
-                  <div key={t.id} className="patient-card" style={{ borderRadius:22, padding:'1.5rem', background: 'var(--portal-card-bg)' }}>
-                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:16 }}>
-                      <div>
-                        <div style={{ fontSize:18, fontWeight:800, color: 'var(--portal-text-primary)', letterSpacing: '-0.01em' }}>{dia} {fecha} · {hora} hs</div>
-                        <div style={{ display:'flex', alignItems:'center', gap:6, marginTop:6 }}>
-                          <span style={{ fontSize:14, fontWeight:600, color: 'var(--portal-text-secondary)' }}>{t.tipo_tratamiento}</span>
-                          <span style={{ fontSize:14, color:'var(--portal-text-muted)' }}>· {t.duracion_minutos} min</span>
+            {/* Próximo turno */}
+            {turnos.length > 0 && (
+              <div style={{ marginBottom: 28 }}>
+                <h3 style={{ fontSize:15, fontWeight:800, color:'var(--portal-text-primary)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom:12 }}>Próximo turno</h3>
+                <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+                  {turnos.map(t => {
+                    const { dia, fecha, hora } = formatFecha(t.fecha_hora)
+                    return (
+                      <div key={t.id} className="patient-card" style={{ borderRadius:22, padding:'1.5rem', background: 'var(--portal-card-bg)' }}>
+                        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:16 }}>
+                          <div>
+                            <div style={{ fontSize:18, fontWeight:800, color: 'var(--portal-text-primary)', letterSpacing: '-0.01em' }}>{dia} {fecha} · {hora} hs</div>
+                            <div style={{ display:'flex', alignItems:'center', gap:6, marginTop:6 }}>
+                              <span style={{ fontSize:14, fontWeight:600, color: 'var(--portal-text-secondary)' }}>{t.tipo_tratamiento}</span>
+                              <span style={{ fontSize:14, color:'var(--portal-text-muted)' }}>· {t.duracion_minutos} min</span>
+                            </div>
+                          </div>
                         </div>
+
+                        {t.estado === 'pendiente' ? (
+                          <div style={{ display:'flex', flexDirection: 'column', gap:10 }}>
+                            <div style={{ display:'flex', gap:10 }}>
+                              <button
+                                onClick={() => cambiarEstado(t.id, 'confirmado')}
+                                disabled={accion?.id===t.id}
+                                style={{ 
+                                  flex:1, 
+                                  fontSize:14, 
+                                  padding:'12px', 
+                                  borderRadius:14, 
+                                  border:'none', 
+                                  background: accentColor, 
+                                  color: '#fff', 
+                                  cursor:'pointer', 
+                                  fontWeight:700, 
+                                  fontFamily:'DM Sans, system-ui', 
+                                  boxShadow: `0 4px 12px ${accentColor}30`, 
+                                  transition:'all 0.2s ease-in-out' 
+                                }}
+                                onMouseEnter={e => {
+                                  e.currentTarget.style.transform = 'translateY(-1px)'
+                                  e.currentTarget.style.boxShadow = `0 6px 16px ${accentColor}45`
+                                }}
+                                onMouseLeave={e => {
+                                  e.currentTarget.style.transform = 'none'
+                                  e.currentTarget.style.boxShadow = `0 4px 12px ${accentColor}30`
+                                }}
+                              >
+                                {accion?.id===t.id ? 'Confirmando...' : 'Confirmar Turno'}
+                              </button>
+                              <button
+                                onClick={() => setReproConfirm(t)}
+                                disabled={accion?.id===t.id}
+                                style={{ 
+                                  flex:1, 
+                                  fontSize:14, 
+                                  padding:'12px', 
+                                  borderRadius:14, 
+                                  border:`1px solid ${secondaryColor}20`, 
+                                  background: `${secondaryColor}0a`, 
+                                  color: secondaryColor, 
+                                  cursor:'pointer', 
+                                  fontWeight:600, 
+                                  fontFamily:'DM Sans, system-ui', 
+                                  transition:'all 0.2s' 
+                                }}
+                                onMouseEnter={e => {
+                                  e.currentTarget.style.background = `${secondaryColor}12`
+                                  e.currentTarget.style.borderColor = `${secondaryColor}40`
+                                }}
+                                onMouseLeave={e => {
+                                  e.currentTarget.style.background = `${secondaryColor}0a`
+                                  e.currentTarget.style.borderColor = `${secondaryColor}20`
+                                }}
+                              >
+                                Reprogramar
+                              </button>
+                            </div>
+                            <button
+                              onClick={() => generateICS(t, tenant)}
+                              style={{ 
+                                width:'100%', 
+                                fontSize:13, 
+                                padding:'11px', 
+                                borderRadius:14, 
+                                border:'1px solid var(--portal-card-border)', 
+                                background: 'transparent', 
+                                color: 'var(--portal-text-secondary)', 
+                                cursor:'pointer', 
+                                fontWeight:600, 
+                                fontFamily:'DM Sans, system-ui', 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                justifyContent: 'center', 
+                                gap: 8, 
+                                transition: 'all 0.2s' 
+                              }}
+                              onMouseEnter={e => {
+                                e.currentTarget.style.background = 'rgba(10,30,61,0.02)'
+                                e.currentTarget.style.borderColor = 'rgba(10,30,61,0.1)'
+                              }}
+                              onMouseLeave={e => {
+                                e.currentTarget.style.background = 'transparent'
+                                e.currentTarget.style.borderColor = 'var(--portal-card-border)'
+                              }}
+                            >
+                              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                              Agregar a mi calendario
+                            </button>
+                          </div>
+                        ) : (
+                          <div style={{ display:'flex', flexDirection: 'column', gap:10 }}>
+                            <div style={{ display:'flex', gap:10 }}>
+                              <div
+                                style={{ 
+                                  flex:1, 
+                                  fontSize:14, 
+                                  padding:'12px', 
+                                  borderRadius:14, 
+                                  background: `${accentColor}10`, 
+                                  border: `1px solid ${accentColor}25`, 
+                                  color: accentColor, 
+                                  fontWeight:700, 
+                                  fontFamily:'DM Sans, system-ui', 
+                                  display: 'flex', 
+                                  alignItems: 'center', 
+                                  justifyContent: 'center', 
+                                  gap: 6 
+                                }}
+                              >
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                                Turno Confirmado
+                              </div>
+                              <button
+                                onClick={() => setReproConfirm(t)}
+                                style={{ 
+                                  flex:1, 
+                                  fontSize:14, 
+                                  padding:'12px', 
+                                  borderRadius:14, 
+                                  border:`1px solid ${secondaryColor}20`, 
+                                  background: `${secondaryColor}0a`, 
+                                  color: secondaryColor, 
+                                  cursor:'pointer', 
+                                  fontWeight:600, 
+                                  fontFamily:'DM Sans, system-ui', 
+                                  transition:'all 0.2s' 
+                                }}
+                                onMouseEnter={e => {
+                                  e.currentTarget.style.background = `${secondaryColor}12`
+                                  e.currentTarget.style.borderColor = `${secondaryColor}40`
+                                }}
+                                onMouseLeave={e => {
+                                  e.currentTarget.style.background = `${secondaryColor}0a`
+                                  e.currentTarget.style.borderColor = `${secondaryColor}20`
+                                }}
+                              >
+                                Reprogramar
+                              </button>
+                            </div>
+                            <button
+                              onClick={() => generateICS(t, tenant)}
+                              style={{ 
+                                width:'100%', 
+                                fontSize:13, 
+                                padding:'11px', 
+                                borderRadius:14, 
+                                border:'1px solid var(--portal-card-border)', 
+                                background: 'transparent', 
+                                color: 'var(--portal-text-secondary)', 
+                                cursor:'pointer', 
+                                fontWeight:600, 
+                                fontFamily:'DM Sans, system-ui', 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                justifyContent: 'center', 
+                                gap: 8, 
+                                transition: 'all 0.2s' 
+                              }}
+                              onMouseEnter={e => {
+                                e.currentTarget.style.background = 'rgba(10,30,61,0.02)'
+                                e.currentTarget.style.borderColor = 'rgba(10,30,61,0.1)'
+                              }}
+                              onMouseLeave={e => {
+                                e.currentTarget.style.background = 'transparent'
+                                e.currentTarget.style.borderColor = 'var(--portal-card-border)'
+                              }}
+                            >
+                              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                              Agregar a mi calendario
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Engagement para Pacientes No Ortodoncia / Primera Vez */}
+            {!isOrtodoncia && (
+              <div style={{ marginBottom: 28 }}>
+                {isPrimeraVez && (
+                  <div style={{ marginBottom: 20, textAlign: 'center' }}>
+                    <div style={{ display: 'inline-block', padding: '6px 14px', background: `${accentColor}12`, color: accentColor, borderRadius: 20, fontSize: 13, fontWeight: 700, marginBottom: 8 }}>
+                      ¡Hola, te esperamos!
+                    </div>
+                    <p style={{ color: 'var(--portal-text-secondary)', fontSize: 14, lineHeight: 1.6, margin: 0 }}>
+                      Conocé por qué nuestros pacientes nos eligen cada día.
+                    </p>
+                  </div>
+                )}
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  {/* Reviews */}
+                  <div className="patient-card" style={{ padding: '16px', borderRadius: 18, background: 'var(--portal-card-bg)', display: 'flex', alignItems: 'flex-start', gap: 14 }}>
+                    <div style={{ width: 42, height: 42, borderRadius: '50%', background: 'rgba(245, 158, 11, 0.1)', color: '#F59E0B', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--portal-text-primary)' }}>4.9 en Google Reviews</div>
+                      <div style={{ fontSize: 13, color: 'var(--portal-text-secondary)', marginTop: 4, lineHeight: 1.5 }}>
+                        Atención cien por ciento personalizada y calidez humana. Priorizamos tu comodidad.
                       </div>
                     </div>
-
-                    {t.estado === 'pendiente' ? (
-                      <div style={{ display:'flex', flexDirection: 'column', gap:10 }}>
-                        <div style={{ display:'flex', gap:10 }}>
-                          <button
-                            onClick={() => cambiarEstado(t.id, 'confirmado')}
-                            disabled={accion?.id===t.id}
-                            style={{ 
-                              flex:1, 
-                              fontSize:14, 
-                              padding:'12px', 
-                              borderRadius:14, 
-                              border:'none', 
-                              background: accentColor, 
-                              color: '#fff', 
-                              cursor:'pointer', 
-                              fontWeight:700, 
-                              fontFamily:'DM Sans, system-ui', 
-                              boxShadow: `0 4px 12px ${accentColor}30`, 
-                              transition:'all 0.2s ease-in-out' 
-                            }}
-                            onMouseEnter={e => {
-                              e.currentTarget.style.transform = 'translateY(-1px)'
-                              e.currentTarget.style.boxShadow = `0 6px 16px ${accentColor}45`
-                            }}
-                            onMouseLeave={e => {
-                              e.currentTarget.style.transform = 'none'
-                              e.currentTarget.style.boxShadow = `0 4px 12px ${accentColor}30`
-                            }}
-                          >
-                            {accion?.id===t.id ? 'Confirmando...' : 'Confirmar Turno'}
-                          </button>
-                          <button
-                            onClick={() => setReproConfirm(t)}
-                            disabled={accion?.id===t.id}
-                            style={{ 
-                              flex:1, 
-                              fontSize:14, 
-                              padding:'12px', 
-                              borderRadius:14, 
-                              border:`1px solid ${secondaryColor}20`, 
-                              background: `${secondaryColor}0a`, 
-                              color: secondaryColor, 
-                              cursor:'pointer', 
-                              fontWeight:600, 
-                              fontFamily:'DM Sans, system-ui', 
-                              transition:'all 0.2s' 
-                            }}
-                            onMouseEnter={e => {
-                              e.currentTarget.style.background = `${secondaryColor}12`
-                              e.currentTarget.style.borderColor = `${secondaryColor}40`
-                            }}
-                            onMouseLeave={e => {
-                              e.currentTarget.style.background = `${secondaryColor}0a`
-                              e.currentTarget.style.borderColor = `${secondaryColor}20`
-                            }}
-                          >
-                            Reprogramar
-                          </button>
-                        </div>
-                        <button
-                          onClick={() => generateICS(t, tenant)}
-                          style={{ 
-                            width:'100%', 
-                            fontSize:13, 
-                            padding:'11px', 
-                            borderRadius:14, 
-                            border:'1px solid var(--portal-card-border)', 
-                            background: 'transparent', 
-                            color: 'var(--portal-text-secondary)', 
-                            cursor:'pointer', 
-                            fontWeight:600, 
-                            fontFamily:'DM Sans, system-ui', 
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            justifyContent: 'center', 
-                            gap: 8, 
-                            transition: 'all 0.2s' 
-                          }}
-                          onMouseEnter={e => {
-                            e.currentTarget.style.background = 'rgba(10,30,61,0.02)'
-                            e.currentTarget.style.borderColor = 'rgba(10,30,61,0.1)'
-                          }}
-                          onMouseLeave={e => {
-                            e.currentTarget.style.background = 'transparent'
-                            e.currentTarget.style.borderColor = 'var(--portal-card-border)'
-                          }}
-                        >
-                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                          Agregar a mi calendario
-                        </button>
-                      </div>
-                    ) : (
-                      <div style={{ display:'flex', flexDirection: 'column', gap:10 }}>
-                        <div style={{ display:'flex', gap:10 }}>
-                          <div
-                            style={{ 
-                              flex:1, 
-                              fontSize:14, 
-                              padding:'12px', 
-                              borderRadius:14, 
-                              background: `${accentColor}10`, 
-                              border: `1px solid ${accentColor}25`, 
-                              color: accentColor, 
-                              fontWeight:700, 
-                              fontFamily:'DM Sans, system-ui', 
-                              display: 'flex', 
-                              alignItems: 'center', 
-                              justifyContent: 'center', 
-                              gap: 6 
-                            }}
-                          >
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                            Turno Confirmado
-                          </div>
-                          <button
-                            onClick={() => setReproConfirm(t)}
-                            style={{ 
-                              flex:1, 
-                              fontSize:14, 
-                              padding:'12px', 
-                              borderRadius:14, 
-                              border:`1px solid ${secondaryColor}20`, 
-                              background: `${secondaryColor}0a`, 
-                              color: secondaryColor, 
-                              cursor:'pointer', 
-                              fontWeight:600, 
-                              fontFamily:'DM Sans, system-ui', 
-                              transition:'all 0.2s' 
-                            }}
-                            onMouseEnter={e => {
-                              e.currentTarget.style.background = `${secondaryColor}12`
-                              e.currentTarget.style.borderColor = `${secondaryColor}40`
-                            }}
-                            onMouseLeave={e => {
-                              e.currentTarget.style.background = `${secondaryColor}0a`
-                              e.currentTarget.style.borderColor = `${secondaryColor}20`
-                            }}
-                          >
-                            Reprogramar
-                          </button>
-                        </div>
-                        <button
-                          onClick={() => generateICS(t, tenant)}
-                          style={{ 
-                            width:'100%', 
-                            fontSize:13, 
-                            padding:'11px', 
-                            borderRadius:14, 
-                            border:'1px solid var(--portal-card-border)', 
-                            background: 'transparent', 
-                            color: 'var(--portal-text-secondary)', 
-                            cursor:'pointer', 
-                            fontWeight:600, 
-                            fontFamily:'DM Sans, system-ui', 
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            justifyContent: 'center', 
-                            gap: 8, 
-                            transition: 'all 0.2s' 
-                          }}
-                          onMouseEnter={e => {
-                            e.currentTarget.style.background = 'rgba(10,30,61,0.02)'
-                            e.currentTarget.style.borderColor = 'rgba(10,30,61,0.1)'
-                          }}
-                          onMouseLeave={e => {
-                            e.currentTarget.style.background = 'transparent'
-                            e.currentTarget.style.borderColor = 'var(--portal-card-border)'
-                          }}
-                        >
-                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                          Agregar a mi calendario
-                        </button>
-                      </div>
-                    )}
                   </div>
-                )
-              })}
-            </div>
-          </div>
-        )}
 
-        {/* Stats Grid */}
-        {isOrtodoncia && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 14, marginBottom: 28 }}>
-            
-            <div className="patient-card" style={{ padding: '16px', borderRadius: 18, borderLeft: `4px solid ${secondaryColor}`, background: 'var(--portal-card-bg)' }}>
-              <div style={{ fontSize: 26, fontWeight: 800, color: 'var(--portal-text-primary)', letterSpacing: '-0.02em' }}>
-                {pastTurnos.filter(pt => pt.estado === 'asistio' || pt.estado === 'completado').length}
-              </div>
-              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--portal-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginTop: 6 }}>
-                Visitas totales
-              </div>
-            </div>
-            
-            <div className="patient-card" style={{ padding: '16px', borderRadius: 18, borderLeft: `4px solid ${accentColor}`, background: 'var(--portal-card-bg)' }}>
-              {(() => {
-                const pastNonCanceled = pastTurnos.filter(pt => pt.estado !== 'cancelado')
-                const attendedCount = pastNonCanceled.filter(pt => pt.estado === 'asistio' || pt.estado === 'completado').length
-                const adherence = pastNonCanceled.length > 0 ? Math.round((attendedCount / pastNonCanceled.length) * 100) : 100
-                return (
-                  <>
-                    <div style={{ fontSize: 26, fontWeight: 800, color: accentColor, letterSpacing: '-0.02em' }}>{adherence}%</div>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--portal-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginTop: 6 }}>Adherencia</div>
-                  </>
-                )
-              })()}
-            </div>
-            
-            <div className="patient-card" style={{ padding: '16px', borderRadius: 18, borderLeft: `4px solid ${primaryColor}`, background: 'var(--portal-card-bg)' }}>
-              {(() => {
-                const pct = paciente?.progreso_plan_porcentaje || 0
-                const elapsed = getMesesTranscurridos()
-                const remaining = pct > 0 ? Math.max(1, Math.round(elapsed * (100 - pct) / pct)) : 0
-                return (
-                  <>
-                    <div style={{ fontSize: 26, fontWeight: 800, color: 'var(--portal-text-primary)', letterSpacing: '-0.02em' }}>{remaining}</div>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--portal-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginTop: 6 }}>Meses restantes</div>
-                  </>
-                )
-              })()}
-            </div>
-            
-            <div className="patient-card" style={{ padding: '16px', borderRadius: 18, borderLeft: '4px solid #94a3b8', background: 'var(--portal-card-bg)' }}>
-              <div style={{ fontSize: 26, fontWeight: 800, color: 'var(--portal-text-primary)', letterSpacing: '-0.02em' }}>{fotos.length}</div>
-              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--portal-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginTop: 6 }}>Fotos</div>
-            </div>
-          </div>
-        )}
-
-        {/* Adherence microcopy (no emojis) */}
-        {isOrtodoncia && (() => {
-          const pastNonCanceled = pastTurnos.filter(pt => pt.estado !== 'cancelado')
-          const attendedCount = pastNonCanceled.filter(pt => pt.estado === 'asistio' || pt.estado === 'completado').length
-          const adherence = pastNonCanceled.length > 0 ? Math.round((attendedCount / pastNonCanceled.length) * 100) : 100
-          let message = 'Sos de los pacientes más constantes'
-          if (adherence < 80) message = 'A seguir mejorando la regularidad'
-          else if (adherence < 90) message = 'Excelente constancia en tus visitas'
-          return (
-            <div style={{ marginBottom: 28, padding: '12px', background: `${accentColor}0e`, borderRadius: 14, fontSize: 13, fontWeight: 600, color: accentColor, textAlign: 'center', border: `1px solid ${accentColor}20` }}>
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ verticalAlign: 'middle', marginRight: 6 }}><polyline points="20 6 9 17 4 12"/></svg>
-              {message}
-            </div>
-          )
-        })()}
-
-        {/* Últimas visitas */}
-        {pastTurnos.length > 0 && (
-          <div style={{ marginBottom: 28 }}>
-            <h3 style={{ fontSize:15, fontWeight:800, color:'var(--portal-text-primary)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom:12 }}>Últimas visitas</h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {pastTurnos.slice(-3).reverse().map(pt => (
-                <div key={pt.id} className="patient-card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderRadius:18, padding:'1rem 1.25rem', background: 'var(--portal-card-bg)' }}>
-                  <div>
-                    <div style={{ fontSize:14, fontWeight:700, color: 'var(--portal-text-primary)' }}>{pt.tipo_tratamiento}</div>
-                    <div style={{ fontSize:13, color:'var(--portal-text-muted)', marginTop:3 }}>{formatFecha(pt.fecha_hora).fecha}</div>
+                  {/* Turnos Inmediatos */}
+                  <div className="patient-card" style={{ padding: '16px', borderRadius: 18, background: 'var(--portal-card-bg)', display: 'flex', alignItems: 'flex-start', gap: 14 }}>
+                    <div style={{ width: 42, height: 42, borderRadius: '50%', background: `${accentColor}12`, color: accentColor, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--portal-text-primary)' }}>Turnos inmediatos</div>
+                      <div style={{ fontSize: 13, color: 'var(--portal-text-secondary)', marginTop: 4, lineHeight: 1.5 }}>
+                        Sabemos que tu tiempo vale. Ofrecemos disponibilidad rápida y sin largas esperas.
+                      </div>
+                    </div>
                   </div>
-                  <div style={{ width: 26, height: 26, borderRadius: '50%', background: `${accentColor}12`, color: accentColor, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+
+                  {/* Ubicación */}
+                  <div className="patient-card" style={{ padding: '16px', borderRadius: 18, background: 'var(--portal-card-bg)', display: 'flex', alignItems: 'flex-start', gap: 14 }}>
+                    <div style={{ width: 42, height: 42, borderRadius: '50%', background: `${secondaryColor}12`, color: secondaryColor, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--portal-text-primary)' }}>Ubicación premium</div>
+                      <div style={{ fontSize: 13, color: 'var(--portal-text-secondary)', marginTop: 4, lineHeight: 1.5 }}>
+                        {tenant?.direccion || ''}
+                      </div>
+                    </div>
                   </div>
                 </div>
-              ))}
-            </div>
+              </div>
+            )}
           </div>
-        )}
 
-        {/* Fotos de progreso */}
-        {isOrtodoncia && fotos.length > 0 && (
-          <div style={{ marginBottom: 28 }}>
-             <h3 style={{ fontSize:15, fontWeight:800, color:'var(--portal-text-primary)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom:12 }}>Fotos del proceso</h3>
-             <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 16 }}>
-               {fotos.length >= 2 ? (
-                 <div className="patient-card" style={{ borderRadius:20, padding:'1.25rem', background: 'var(--portal-card-bg)' }}>
-                   <div style={{ display:'flex', gap:12 }}>
-                     <div style={{ flex:1, textAlign:'center' }}>
-                       <div style={{ fontSize:11, color:'var(--portal-text-muted)', fontWeight:800, marginBottom:8, letterSpacing: '0.04em' }}>ANTES</div>
-                       <img src={fotos[0].url} alt="Antes" style={{ width:'100%', aspectRatio:'4/3', objectFit:'cover', borderRadius:12, boxShadow: '0 4px 10px rgba(0,0,0,0.03)' }} />
-                     </div>
-                     <div style={{ flex:1, textAlign:'center' }}>
-                       <div style={{ fontSize:11, color:'var(--portal-text-muted)', fontWeight:800, marginBottom:8, letterSpacing: '0.04em' }}>DESPUÉS</div>
-                       <img src={fotos[fotos.length-1].url} alt="Después" style={{ width:'100%', aspectRatio:'4/3', objectFit:'cover', borderRadius:12, boxShadow: '0 4px 10px rgba(0,0,0,0.03)' }} />
-                     </div>
-                   </div>
-                 </div>
-               ) : (
-                 // Con una sola foto no hay comparativo posible, pero la mostramos igual.
-                 <div className="patient-card" style={{ borderRadius:20, padding:'1.25rem', background: 'var(--portal-card-bg)' }}>
-                   <div style={{ textAlign:'center' }}>
-                     <div style={{ fontSize:11, color:'var(--portal-text-muted)', fontWeight:800, marginBottom:8, letterSpacing: '0.04em' }}>
-                       {(fotos[0]?.tipo || 'Foto').toString().toUpperCase()}
-                     </div>
-                     <img src={fotos[0].url} alt="Foto del proceso" style={{ width:'100%', aspectRatio:'4/3', objectFit:'cover', borderRadius:12, boxShadow: '0 4px 10px rgba(0,0,0,0.03)' }} />
-                   </div>
-                 </div>
-               )}
-             </div>
-          </div>
-        )}
-
-        {/* Engagement para Pacientes No Ortodoncia / Primera Vez */}
-        {!isOrtodoncia && (
-          <div style={{ marginBottom: 28 }}>
-            {isPrimeraVez && (
-              <div style={{ marginBottom: 20, textAlign: 'center' }}>
-                <div style={{ display: 'inline-block', padding: '6px 14px', background: `${accentColor}12`, color: accentColor, borderRadius: 20, fontSize: 13, fontWeight: 700, marginBottom: 8 }}>
-                  ¡Hola, te esperamos!
+          <div className="portal-column-side">
+            {/* Tarjeta de Puntos VIP */}
+            {paciente && (
+              <div className="patient-card" style={{ 
+                padding: '1.25rem', 
+                borderRadius: 20, 
+                background: 'var(--portal-card-bg)', 
+                marginBottom: 28,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 16,
+                borderLeft: `4px solid #EAB308`
+              }}>
+                <div style={{ 
+                  width: 44, 
+                  height: 44, 
+                  borderRadius: '50%', 
+                  background: 'rgba(234, 179, 8, 0.1)', 
+                  color: '#EAB308', 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'center',
+                  flexShrink: 0 
+                }}>
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
                 </div>
-                <p style={{ color: 'var(--portal-text-secondary)', fontSize: 14, lineHeight: 1.6, margin: 0 }}>
-                  Conocé por qué nuestros pacientes nos eligen cada día.
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--portal-text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Puntos acumulados</div>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 2 }}>
+                    <span style={{ fontSize: 24, fontWeight: 900, color: 'var(--portal-text-primary)', letterSpacing: '-0.02em' }}>
+                      {(() => {
+                        const pastNonCanceled = pastTurnos.filter(pt => pt.estado !== 'cancelado')
+                        const quantityAsistio = pastNonCanceled.filter(pt => pt.estado === 'asistio' || pt.estado === 'completado').length
+                        return (paciente.puntos || 0) + (quantityAsistio * 100)
+                      })()}
+                    </span>
+                    <span style={{ fontSize: 12, fontWeight: 800, color: '#EAB308', textTransform: 'uppercase', letterSpacing: '0.02em' }}>puntos vip</span>
+                  </div>
+                  <div style={{ fontSize: 12, color: 'var(--portal-text-secondary)', marginTop: 4, lineHeight: 1.4 }}>
+                    ¡Seguí asistiendo a tus citas para sumar más y canjearlos por premios!
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Indicaciones / Recomendaciones del Doctor */}
+            {paciente?.recomendaciones && (
+              <div className="patient-card" style={{ 
+                padding: '1.25rem', 
+                borderRadius: 20, 
+                background: 'var(--portal-card-bg)', 
+                marginBottom: 28,
+                borderLeft: `4px solid ${accentColor}`
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                  <div style={{ 
+                    width: 28, 
+                    height: 28, 
+                    borderRadius: '50%', 
+                    background: `${accentColor}12`, 
+                    color: accentColor, 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center' 
+                  }}>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                  </div>
+                  <span style={{ fontSize: 12, fontWeight: 800, color: 'var(--portal-text-primary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    Indicaciones de tu Odontólogo
+                  </span>
+                </div>
+                <p style={{ color: 'var(--portal-text-secondary)', fontSize: 13.5, lineHeight: 1.55, margin: 0, whiteSpace: 'pre-wrap', fontStyle: 'italic' }}>
+                  "{paciente.recomendaciones}"
                 </p>
               </div>
             )}
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              {/* Reviews */}
-              <div className="patient-card" style={{ padding: '16px', borderRadius: 18, background: 'var(--portal-card-bg)', display: 'flex', alignItems: 'flex-start', gap: 14 }}>
-                <div style={{ width: 42, height: 42, borderRadius: '50%', background: 'rgba(245, 158, 11, 0.1)', color: '#F59E0B', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            {/* Progreso del tratamiento */}
+            {isOrtodoncia && paciente && (paciente.progreso_plan_porcentaje || 0) > 0 && (
+              <div style={{ marginBottom: 28 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 8 }}>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--portal-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Progreso del tratamiento</span>
+                  <span style={{ fontSize: 17, fontWeight: 800, color: 'var(--portal-text-primary)' }}>{paciente.progreso_plan_porcentaje}%</span>
                 </div>
-                <div>
-                  <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--portal-text-primary)' }}>4.9 en Google Reviews</div>
-                  <div style={{ fontSize: 13, color: 'var(--portal-text-secondary)', marginTop: 4, lineHeight: 1.5 }}>
-                    Atención cien por ciento personalizada y calidez humana. Priorizamos tu comodidad.
-                  </div>
+                <div style={{
+                  height: 10,
+                  background: `${secondaryColor}10`,
+                  borderRadius: 6,
+                  overflow: 'hidden',
+                  marginBottom: 8,
+                  border: '1px solid rgba(0,0,0,0.01)'
+                }}>
+                  <div style={{
+                    height: '100%',
+                    width: `${paciente.progreso_plan_porcentaje}%`,
+                    background: `linear-gradient(90deg, ${secondaryColor}, ${accentColor})`,
+                    borderRadius: 6,
+                    boxShadow: `0 2px 6px ${accentColor}25`
+                  }} />
+                </div>
+                <div style={{ fontSize:13, color:'var(--portal-text-secondary)', fontWeight:500, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={accentColor} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                  {getEstimadoMesesRestantes()}
                 </div>
               </div>
+            )}
 
-              {/* Turnos Inmediatos */}
-              <div className="patient-card" style={{ padding: '16px', borderRadius: 18, background: 'var(--portal-card-bg)', display: 'flex', alignItems: 'flex-start', gap: 14 }}>
-                <div style={{ width: 42, height: 42, borderRadius: '50%', background: `${accentColor}12`, color: accentColor, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                </div>
-                <div>
-                  <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--portal-text-primary)' }}>Turnos inmediatos</div>
-                  <div style={{ fontSize: 13, color: 'var(--portal-text-secondary)', marginTop: 4, lineHeight: 1.5 }}>
-                    Sabemos que tu tiempo vale. Ofrecemos disponibilidad rápida y sin largas esperas.
+            {/* Stats Grid */}
+            {isOrtodoncia && (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 14, marginBottom: 28 }}>
+                <div className="patient-card" style={{ padding: '16px', borderRadius: 18, borderLeft: `4px solid ${secondaryColor}`, background: 'var(--portal-card-bg)' }}>
+                  <div style={{ fontSize: 26, fontWeight: 800, color: 'var(--portal-text-primary)', letterSpacing: '-0.02em' }}>
+                    {pastTurnos.filter(pt => pt.estado === 'asistio' || pt.estado === 'completado').length}
+                  </div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--portal-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginTop: 6 }}>
+                    Visitas totales
                   </div>
                 </div>
+                
+                <div className="patient-card" style={{ padding: '16px', borderRadius: 18, borderLeft: `4px solid ${accentColor}`, background: 'var(--portal-card-bg)' }}>
+                  {(() => {
+                    const pastNonCanceled = pastTurnos.filter(pt => pt.estado !== 'cancelado')
+                    const attendedCount = pastNonCanceled.filter(pt => pt.estado === 'asistio' || pt.estado === 'completado').length
+                    const adherence = pastNonCanceled.length > 0 ? Math.round((attendedCount / pastNonCanceled.length) * 100) : 100
+                    return (
+                      <>
+                        <div style={{ fontSize: 26, fontWeight: 800, color: accentColor, letterSpacing: '-0.02em' }}>{adherence}%</div>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--portal-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginTop: 6 }}>Adherencia</div>
+                      </>
+                    )
+                  })()}
+                </div>
+                
+                <div className="patient-card" style={{ padding: '16px', borderRadius: 18, borderLeft: `4px solid ${primaryColor}`, background: 'var(--portal-card-bg)' }}>
+                  {(() => {
+                    const pct = paciente?.progreso_plan_porcentaje || 0
+                    const elapsed = getMesesTranscurridos()
+                    const remaining = pct > 0 ? Math.max(1, Math.round(elapsed * (100 - pct) / pct)) : 0
+                    return (
+                      <>
+                        <div style={{ fontSize: 26, fontWeight: 800, color: 'var(--portal-text-primary)', letterSpacing: '-0.02em' }}>{remaining}</div>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--portal-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginTop: 6 }}>Meses restantes</div>
+                      </>
+                    )
+                  })()}
+                </div>
+                
+                <div className="patient-card" style={{ padding: '16px', borderRadius: 18, borderLeft: '4px solid #94a3b8', background: 'var(--portal-card-bg)' }}>
+                  <div style={{ fontSize: 26, fontWeight: 800, color: 'var(--portal-text-primary)', letterSpacing: '-0.02em' }}>{fotos.length}</div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--portal-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginTop: 6 }}>Fotos</div>
+                </div>
               </div>
+            )}
 
-              {/* Ubicación */}
-              <div className="patient-card" style={{ padding: '16px', borderRadius: 18, background: 'var(--portal-card-bg)', display: 'flex', alignItems: 'flex-start', gap: 14 }}>
-                <div style={{ width: 42, height: 42, borderRadius: '50%', background: `${secondaryColor}12`, color: secondaryColor, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+            {/* Adherence microcopy (no emojis) */}
+            {isOrtodoncia && (() => {
+              const pastNonCanceled = pastTurnos.filter(pt => pt.estado !== 'cancelado')
+              const attendedCount = pastNonCanceled.filter(pt => pt.estado === 'asistio' || pt.estado === 'completado').length
+              const adherence = pastNonCanceled.length > 0 ? Math.round((attendedCount / pastNonCanceled.length) * 100) : 100
+              let message = 'Sos de los pacientes más constantes'
+              if (adherence < 80) message = 'A seguir mejorando la regularidad'
+              else if (adherence < 90) message = 'Excelente constancia en tus visitas'
+              return (
+                <div style={{ marginBottom: 28, padding: '12px', background: `${accentColor}0e`, borderRadius: 14, fontSize: 13, fontWeight: 600, color: accentColor, textAlign: 'center', border: `1px solid ${accentColor}20` }}>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ verticalAlign: 'middle', marginRight: 6 }}><polyline points="20 6 9 17 4 12"/></svg>
+                  {message}
                 </div>
-                <div>
-                  <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--portal-text-primary)' }}>Ubicación premium</div>
-                  <div style={{ fontSize: 13, color: 'var(--portal-text-secondary)', marginTop: 4, lineHeight: 1.5 }}>
-                    {tenant?.direccion || 'Av. Santa Fe 3329 1 B, Palermo.'} A pasos de la estación de Subte Línea D.
-                  </div>
+              )
+            })()}
+
+            {/* Fotos de progreso */}
+            {isOrtodoncia && fotos.length > 0 && (
+              <div style={{ marginBottom: 28 }}>
+                 <h3 style={{ fontSize:15, fontWeight:800, color:'var(--portal-text-primary)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom:12 }}>Fotos del proceso</h3>
+                 <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 16 }}>
+                   {fotos.length >= 2 ? (
+                     <div className="patient-card" style={{ borderRadius:20, padding:'1.25rem', background: 'var(--portal-card-bg)' }}>
+                       <div style={{ display:'flex', gap:12 }}>
+                         <div style={{ flex:1, textAlign:'center' }}>
+                           <div style={{ fontSize:11, color:'var(--portal-text-muted)', fontWeight:800, marginBottom:8, letterSpacing: '0.04em' }}>ANTES</div>
+                           <img src={fotos[0].url} alt="Antes" style={{ width:'100%', aspectRatio:'4/3', objectFit:'cover', borderRadius:12, boxShadow: '0 4px 10px rgba(0,0,0,0.03)' }} />
+                         </div>
+                         <div style={{ flex:1, textAlign:'center' }}>
+                           <div style={{ fontSize:11, color:'var(--portal-text-muted)', fontWeight:800, marginBottom:8, letterSpacing: '0.04em' }}>DESPUÉS</div>
+                           <img src={fotos[fotos.length-1].url} alt="Después" style={{ width:'100%', aspectRatio:'4/3', objectFit:'cover', borderRadius:12, boxShadow: '0 4px 10px rgba(0,0,0,0.03)' }} />
+                         </div>
+                       </div>
+                     </div>
+                   ) : (
+                     <div className="patient-card" style={{ borderRadius:20, padding:'1.25rem', background: 'var(--portal-card-bg)' }}>
+                       <div style={{ textAlign:'center' }}>
+                         <div style={{ fontSize:11, color:'var(--portal-text-muted)', fontWeight:800, marginBottom:8, letterSpacing: '0.04em' }}>
+                           {(fotos[0]?.tipo || 'Foto').toString().toUpperCase()}
+                         </div>
+                         <img src={fotos[0].url} alt="Foto del proceso" style={{ width:'100%', aspectRatio:'4/3', objectFit:'cover', borderRadius:12, boxShadow: '0 4px 10px rgba(0,0,0,0.03)' }} />
+                       </div>
+                     </div>
+                   )}
+                 </div>
+              </div>
+            )}
+
+            {/* Últimas visitas */}
+            {pastTurnos.length > 0 && (
+              <div style={{ marginBottom: 28 }}>
+                <h3 style={{ fontSize:15, fontWeight:800, color:'var(--portal-text-primary)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom:12 }}>Últimas visitas</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {pastTurnos.slice(-3).reverse().map(pt => (
+                    <div key={pt.id} className="patient-card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderRadius:18, padding:'1rem 1.25rem', background: 'var(--portal-card-bg)' }}>
+                      <div>
+                        <div style={{ fontSize:14, fontWeight:700, color: 'var(--portal-text-primary)' }}>{pt.tipo_tratamiento}</div>
+                        <div style={{ fontSize:13, color:'var(--portal-text-muted)', marginTop:3 }}>{formatFecha(pt.fecha_hora).fecha}</div>
+                      </div>
+                      <div style={{ width: 26, height: 26, borderRadius: '50%', background: `${accentColor}12`, color: accentColor, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
-            </div>
+            )}
           </div>
-        )}
+
+        </div>
 
         <div style={{ textAlign:'center', marginTop:'3rem', fontSize:12, color:'var(--portal-text-muted)', fontWeight:600, letterSpacing: '0.02em', textTransform: 'uppercase' }}>
-          {tenant?.nombre || 'Dr. Walter Benegas'} {tenant?.direccion ? `— ${tenant.direccion}` : ''}
+          {tenant?.nombre || ''} {tenant?.direccion ? `— ${tenant.direccion}` : ''}
         </div>
       </div>
 
       {/* Modal / Bottom Sheet Cuestionario Post-Visita */}
       {showFeedbackModal && feedbackPendiente && (
-        <div style={{ position:'fixed', inset:0, background:'rgba(10,30,61,0.5)', backdropFilter:'blur(10px)', zIndex:9999, display:'flex', alignItems:'flex-end', justifyContent:'center', padding:'0 0 env(safe-area-inset-bottom,0)' }} onClick={() => setShowFeedbackModal(false)}>
-          <div style={{ background:'var(--portal-card-bg,#fff)', borderRadius:'28px 28px 0 0', padding:'1.75rem 1.5rem 2.25rem', width:'100%', maxWidth:480, boxShadow:'0 -12px 40px rgba(10,30,61,0.12)', borderTop:'1px solid var(--portal-card-border)' }} onClick={e=>e.stopPropagation()}>
+        <div className="portal-modal-overlay" onClick={() => setShowFeedbackModal(false)}>
+          <div className="portal-modal-content" onClick={e=>e.stopPropagation()}>
             <div style={{ width:40, height:4, borderRadius:4, background:'#e2e8f0', margin:'0 auto 1.25rem' }}/>
             
             <div style={{ textAlign:'center', marginBottom:24 }}>
@@ -972,8 +977,8 @@ export default function PacientePage() {
 
       {/* Reschedule confirmation modal sheet */}
       {reproConfirm && (
-        <div style={{position:'fixed',inset:0,background:'rgba(10,30,61,0.5)',backdropFilter:'blur(10px)',zIndex:9999,display:'flex',alignItems:'flex-end',justifyContent:'center',padding:'0 0 env(safe-area-inset-bottom,0)'}}>
-          <div style={{background:'var(--portal-card-bg,#fff)',borderRadius:'28px 28px 0 0',padding:'1.75rem 1.5rem 2.25rem',width:'100%',maxWidth:480,boxShadow:'0 -12px 40px rgba(10,30,61,0.12)'}}>
+        <div className="portal-modal-overlay">
+          <div className="portal-modal-content">
             <div style={{width:40,height:4,borderRadius:4,background:'#e2e8f0',margin:'0 auto 1.5rem'}}/>
             <div style={{textAlign:'center',marginBottom:24}}>
               <div style={{width:54,height:54,borderRadius:'50%',background:`${secondaryColor}12`,display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 12px'}}>
@@ -1104,6 +1109,74 @@ export default function PacientePage() {
           transform: translateY(-2px);
           box-shadow: 0 15px 35px rgba(10, 30, 61, 0.05) !important;
           border-color: ${secondaryColor}20 !important;
+        }
+        
+        .portal-wrapper {
+          min-height: 100vh;
+          background: var(--portal-bg);
+          transition: background-color 0.3s ease;
+          padding: 2.5rem 1.25rem;
+        }
+        .portal-container {
+          max-width: 480px;
+          margin: 0 auto;
+        }
+        .portal-layout {
+          display: grid;
+          grid-template-columns: 1fr;
+          gap: 24px;
+        }
+        .portal-column-main, .portal-column-side {
+          display: flex;
+          flex-direction: column;
+          gap: 0px;
+        }
+        
+        /* Modales responsivos */
+        .portal-modal-overlay {
+          position: fixed;
+          inset: 0;
+          background: rgba(10, 30, 61, 0.5);
+          backdrop-filter: blur(10px);
+          z-index: 9999;
+          display: flex;
+          align-items: flex-end;
+          justify-content: center;
+          padding: 0 0 env(safe-area-inset-bottom, 0);
+          transition: all 0.3s ease;
+        }
+        .portal-modal-content {
+          background: var(--portal-card-bg, #fff);
+          border-radius: 28px 28px 0 0;
+          padding: 1.75rem 1.5rem 2.25rem;
+          width: 100%;
+          max-width: 480px;
+          box-shadow: 0 -12px 40px rgba(10, 30, 61, 0.12);
+          border-top: 1px solid var(--portal-card-border);
+          transition: all 0.3s ease;
+        }
+
+        @media (min-width: 768px) {
+          .portal-wrapper {
+            padding: 3.5rem 2rem;
+          }
+          .portal-container {
+            max-width: 1024px;
+          }
+          .portal-layout {
+            grid-template-columns: 1.1fr 0.9fr;
+            align-items: start;
+            gap: 32px;
+          }
+          .portal-modal-overlay {
+            align-items: center;
+            padding: 1rem;
+          }
+          .portal-modal-content {
+            border-radius: 28px;
+            border: 1px solid var(--portal-card-border);
+            box-shadow: 0 20px 50px rgba(10, 30, 61, 0.15);
+          }
         }
       `}</style>
     </div>

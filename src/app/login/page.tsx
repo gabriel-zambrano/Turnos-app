@@ -25,7 +25,8 @@ export default function Login() {
         setLoading(false)
       } else {
         localStorage.setItem('authed', '1')
-        const destino = data.user?.email === 'studioandbrand@gmail.com' ? '/admin' : '/dashboard'
+        const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL || ''
+        const destino = adminEmail && data.user?.email === adminEmail ? '/admin' : '/dashboard'
         window.location.href = destino
       }
     } catch(e) {
@@ -71,6 +72,13 @@ export default function Login() {
               {loading ? 'Ingresando...' : 'Ingresar'}
             </button>
           </form>
+
+          <div style={{ marginTop: '1.25rem', paddingTop: '1.25rem', borderTop: '1px solid rgba(255,255,255,0.1)', textAlign: 'center' }}>
+            <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.45)' }}>¿No tenés cuenta? </span>
+            <a href="/registro" style={{ fontSize: 13, color: '#fff', fontWeight: 600, textDecoration: 'none' }}>
+              Probá 14 días gratis
+            </a>
+          </div>
         </div>
       </div>
     </div>

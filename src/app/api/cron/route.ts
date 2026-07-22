@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { APP_URL } from '@/lib/config'
 
 export const dynamic = 'force-dynamic'
 
@@ -23,7 +24,7 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   }
 
-  const base = process.env.NEXT_PUBLIC_APP_URL || 'https://turnos-app-delta.vercel.app'
+  const base = APP_URL
 
   const res = await fetch(`${base}/api/send-recordatorios?token=${secret}`, {
     method: 'POST',

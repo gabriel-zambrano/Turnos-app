@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { APP_URL } from '@/lib/config'
 import { createClient } from '@supabase/supabase-js'
 import { rateLimit, getClientIp } from '@/lib/rate-limit'
 
@@ -8,7 +9,7 @@ const supabaseAdmin = createClient(
 )
 
 const ALLOWED_ORIGINS = [
-  process.env.NEXT_PUBLIC_APP_URL || 'https://turnos-app-delta.vercel.app',
+  APP_URL,
   'http://localhost:3000'
 ]
 

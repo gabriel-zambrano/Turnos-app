@@ -2,6 +2,7 @@ import { Resend } from 'resend'
 import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient as createSupabaseServerClient } from '@/lib/supabase/server'
+import { remitente, EMAIL_FROM_RECORDATORIOS } from '@/lib/config'
 
 
 export const dynamic = 'force-dynamic'
@@ -83,7 +84,7 @@ export async function POST(req: NextRequest) {
       tenantsToProcess = activeTenants
     } else {
       // Fallback al tenant por defecto
-      tenantsToProcess = [{ id: DEFAULT_TENANT_ID, nombre: 'Dr. Walter Benegas' }]
+      tenantsToProcess = [{ id: DEFAULT_TENANT_ID, nombre: '' }]
     }
   }
 
@@ -103,7 +104,7 @@ export async function POST(req: NextRequest) {
     const branding = {
       id: tenant.id,
       nombre: tenant.nombre || 'Consultorio Dental',
-      direccion: (tenant as any).direccion || 'Av. Santa Fe 3329 1 B',
+      direccion: (tenant as any).direccion || '',
       telefono: (tenant as any).telefono || '',
       logoUrl: (tenant as any).logourl || undefined,
       primaryColor: (tenant as any).primarycolor || '#0a1e3d',
@@ -142,7 +143,7 @@ export async function POST(req: NextRequest) {
         })
 
         const displayFromName = branding.nombre || 'DentalDesk'
-        const fromEmail = `${displayFromName} <recordatorios@walterbenegas.com.ar>`
+        const fromEmail = remitente(displayFromName, EMAIL_FROM_RECORDATORIOS)
 
         const { data: emailResult, error: emailError } = await resend.emails.send({
           from: fromEmail,
