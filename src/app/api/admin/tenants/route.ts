@@ -60,6 +60,38 @@ export async function GET() {
   return NextResponse.json({ tenants: data || [] })
 }
 
+export async function POST(req: NextRequest) {
+  const auth = await requireAdmin()
+  if (!auth.ok) return auth.res
+
+  const { nombre, subdominio, plan, custom_domain } = await req.json()
+
+  if (!nombre || !subdominio) {
+    return NextResponse.json({ error: 'Faltan nombre y subdominio' }, { status: 400 })
+  }
+
+  const PLANES_VALIDOS = ['starter', 'pro', 'business']
+  if (plan && !PLANES_VALIDOS.includes(plan)) {
+    return NextResponse.json({ error: 'Plan inválido' }, { status: 400 })
+  }
+
+  // La función crear_tenant es SECURITY DEFINER: su EXECUTE queda revocado para
+  // anon/authenticated y solo se invoca desde acá, con service-role y tras
+  // verificar que quien llama es admin.
+  const { data, error } = await supabaseAdmin.rpc('crear_tenant', {
+    p_nombre: nombre,
+    p_subdominio: String(subdominio).toLowerCase().replace(/[^a-z0-9-]/g, ''),
+    p_plan: plan || 'starter',
+    p_custom_domain: custom_domain || null,
+  })
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 400 })
+  }
+
+  return NextResponse.json({ ok: true, tenantId: data })
+}
+
 export async function PATCH(req: NextRequest) {
   const auth = await requireAdmin()
   if (!auth.ok) return auth.res

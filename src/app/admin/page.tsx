@@ -83,16 +83,23 @@ export default function AdminPanel() {
       return
     }
     setCreando(true)
-    const { data, error } = await supabase.rpc('crear_tenant', {
-      p_nombre: form.nombre,
-      p_subdominio: form.subdominio,
-      p_plan: form.plan,
-      p_custom_domain: form.custom_domain || null,
+    // Va por la API con service-role: la función crear_tenant ya no es
+    // ejecutable por usuarios comunes.
+    const res = await fetch('/api/admin/tenants', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        nombre: form.nombre,
+        subdominio: form.subdominio,
+        plan: form.plan,
+        custom_domain: form.custom_domain || null,
+      }),
     })
-    if (error) {
-      notify('Error: ' + error.message, 'error')
+    const data = await res.json()
+    if (!res.ok) {
+      notify('Error: ' + (data?.error || 'no se pudo crear la clínica'), 'error')
     } else {
-      notify(`Clínica creada. Tenant ID: ${data}`)
+      notify(`Clínica creada. Tenant ID: ${data.tenantId}`)
       setForm({ nombre: '', subdominio: '', plan: 'starter', custom_domain: '' })
       loadTenants()
     }
