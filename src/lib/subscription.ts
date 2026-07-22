@@ -39,3 +39,35 @@ export function isSubscriptionActive(
 
   return true
 }
+
+export type EstadoSuscripcion = 'trial' | 'activa' | 'vencida' | 'sin_datos'
+
+/**
+ * Clasifica el estado comercial de una clínica, para mostrarlo en el panel.
+ * Se apoya en isSubscriptionActive para que el corte sea el mismo criterio que
+ * usa el gate de la app (una sola fuente de verdad).
+ */
+export function estadoSuscripcion(
+  status?: string | null,
+  nextPaymentDate?: string | null,
+  now: number = Date.now()
+): EstadoSuscripcion {
+  if (!isSubscriptionActive(status, nextPaymentDate, now)) return 'vencida'
+  if (!status && !nextPaymentDate) return 'sin_datos'
+  if (status && status.toLowerCase() === 'trial') return 'trial'
+  return 'activa'
+}
+
+/**
+ * Días que faltan para el próximo pago o fin de trial.
+ * Negativo = ya venció. null = no hay fecha cargada.
+ */
+export function diasRestantes(
+  nextPaymentDate?: string | null,
+  now: number = Date.now()
+): number | null {
+  if (!nextPaymentDate) return null
+  const fin = new Date(nextPaymentDate).getTime()
+  if (Number.isNaN(fin)) return null
+  return Math.ceil((fin - now) / (24 * 60 * 60 * 1000))
+}

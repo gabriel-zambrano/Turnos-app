@@ -74,7 +74,46 @@ export async function GET() {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
-  return NextResponse.json({ tenants: data || [] })
+  const tenants = data || []
+
+  // Adjuntamos el email del titular de cada clínica para poder contactarlo
+  // desde el panel. Se resuelve tenant_users(owner) -> auth.users.
+  try {
+    const ids = tenants.map((t: any) => t.id)
+    if (ids.length > 0) {
+      const { data: miembros } = await supabaseAdmin
+        .from('tenant_users')
+        .select('tenant_id, user_id, role')
+        .in('tenant_id', ids)
+
+      const { data: usuarios } = await supabaseAdmin.auth.admin.listUsers({
+        page: 1,
+        perPage: 1000,
+      })
+      const emailPorUsuario = new Map(
+        (usuarios?.users || []).map((u: any) => [u.id, u.email as string])
+      )
+
+      // Preferimos el owner; si no hay, cualquier miembro sirve como contacto.
+      const contactoPorTenant = new Map<string, string>()
+      for (const m of miembros || []) {
+        const email = emailPorUsuario.get((m as any).user_id)
+        if (!email) continue
+        const esOwner = (m as any).role === 'owner'
+        if (esOwner || !contactoPorTenant.has((m as any).tenant_id)) {
+          contactoPorTenant.set((m as any).tenant_id, email)
+        }
+      }
+
+      for (const t of tenants as any[]) {
+        t.owner_email = contactoPorTenant.get(t.id) || null
+      }
+    }
+  } catch {
+    // Si falla la resolución de emails, devolvemos igual las clínicas.
+  }
+
+  return NextResponse.json({ tenants })
 }
 
 export async function POST(req: NextRequest) {

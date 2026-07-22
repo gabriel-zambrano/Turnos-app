@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest'
-import { isSubscriptionActive, SUBSCRIPTION_GRACE_DAYS } from './subscription'
+import {
+  isSubscriptionActive,
+  estadoSuscripcion,
+  diasRestantes,
+  SUBSCRIPTION_GRACE_DAYS,
+} from './subscription'
 
 const AHORA = new Date('2026-07-22T12:00:00Z').getTime()
 const dias = (n: number) => new Date(AHORA + n * 24 * 60 * 60 * 1000).toISOString()
@@ -47,5 +52,57 @@ describe('isSubscriptionActive', () => {
     // fin + gracia == ahora  →  no es "< ahora", sigue activo
     const fin = dias(-SUBSCRIPTION_GRACE_DAYS)
     expect(isSubscriptionActive('authorized', fin, AHORA)).toBe(true)
+  })
+})
+
+describe('estadoSuscripcion', () => {
+  it('clasifica un trial vigente', () => {
+    expect(estadoSuscripcion('trial', dias(5), AHORA)).toBe('trial')
+  })
+
+  it('clasifica una suscripción paga vigente', () => {
+    expect(estadoSuscripcion('authorized', dias(20), AHORA)).toBe('activa')
+  })
+
+  it('clasifica como vencida cuando pasó la gracia', () => {
+    expect(estadoSuscripcion('trial', dias(-10), AHORA)).toBe('vencida')
+  })
+
+  it('clasifica como vencida un estado cancelado', () => {
+    expect(estadoSuscripcion('cancelled', dias(30), AHORA)).toBe('vencida')
+  })
+
+  it('marca sin_datos a los tenants heredados', () => {
+    expect(estadoSuscripcion(null, null, AHORA)).toBe('sin_datos')
+  })
+
+  it('usa el mismo criterio que el gate de la app', () => {
+    // Si el gate lo deja pasar, no puede figurar como vencida.
+    const casos: Array<[string | null, string | null]> = [
+      ['trial', dias(3)],
+      ['authorized', dias(-1)],
+      ['cancelled', dias(30)],
+      [null, null],
+    ]
+    for (const [st, fecha] of casos) {
+      const activo = isSubscriptionActive(st, fecha, AHORA)
+      const estado = estadoSuscripcion(st, fecha, AHORA)
+      expect(estado === 'vencida').toBe(!activo)
+    }
+  })
+})
+
+describe('diasRestantes', () => {
+  it('cuenta los días que faltan', () => {
+    expect(diasRestantes(dias(7), AHORA)).toBe(7)
+  })
+
+  it('devuelve negativo si ya venció', () => {
+    expect(diasRestantes(dias(-3), AHORA)).toBe(-3)
+  })
+
+  it('devuelve null sin fecha o con fecha inválida', () => {
+    expect(diasRestantes(null, AHORA)).toBeNull()
+    expect(diasRestantes('no-es-fecha', AHORA)).toBeNull()
   })
 })

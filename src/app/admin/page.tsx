@@ -2,11 +2,13 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { estadoSuscripcion, diasRestantes, type EstadoSuscripcion } from '@/lib/subscription'
 
 interface Tenant {
   id: string
   nombre: string
   subdominio: string
+  subdominio_generico: string | null
   plan: string
   activo: boolean
   feature_bi: boolean
@@ -14,6 +16,21 @@ interface Tenant {
   feature_recordatorios: boolean
   custom_domain: string | null
   creado_en: string
+  subscription_status: string | null
+  next_payment_date: string | null
+  owner_email: string | null
+}
+
+const ESTADO_STYLE: Record<EstadoSuscripcion, { bg: string; color: string; label: string }> = {
+  trial:     { bg: '#FFF3CD', color: '#856404', label: 'Trial' },
+  activa:    { bg: '#D1E7DD', color: '#0A3622', label: 'Activa' },
+  vencida:   { bg: '#F8D7DA', color: '#58151C', label: 'Vencida' },
+  sin_datos: { bg: '#E2E3E5', color: '#41464B', label: 'Sin datos' },
+}
+
+function fechaCorta(iso: string) {
+  if (!iso) return '—'
+  return new Date(iso).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
 
 const PLAN_STYLE: Record<string, { bg: string; color: string }> = {
@@ -134,6 +151,16 @@ export default function AdminPanel() {
 
   if (!authChecked) return null
 
+  // Conteo por estado para el resumen de arriba.
+  const resumen = tenants.reduce(
+    (acc, t) => {
+      const e = estadoSuscripcion(t.subscription_status, t.next_payment_date)
+      acc[e] = (acc[e] || 0) + 1
+      return acc
+    },
+    { trial: 0, activa: 0, vencida: 0, sin_datos: 0 } as Record<EstadoSuscripcion, number>
+  )
+
   const inputStyle = {
     width: '100%', border: 'none', background: '#f4f7fb',
     borderRadius: 10, padding: '0.8rem 1rem', fontSize: 14,
@@ -183,19 +210,55 @@ export default function AdminPanel() {
           </button>
         </div>
 
+        {/* Resumen de la cartera */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: '1.5rem' }}>
+          {([
+            ['Total', tenants.length, '#0f1e2b'],
+            ['En trial', resumen.trial, '#856404'],
+            ['Activas', resumen.activa, '#0A3622'],
+            ['Vencidas', resumen.vencida, '#58151C'],
+          ] as const).map(([label, valor, color]) => (
+            <div key={label} style={{ background: '#fff', borderRadius: 14, border: '0.5px solid #e8e8e8', padding: '1rem 1.25rem' }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: '#aaa', textTransform: 'uppercase', letterSpacing: 1 }}>{label}</div>
+              <div style={{ fontSize: 26, fontWeight: 700, color, marginTop: 4 }}>{valor}</div>
+            </div>
+          ))}
+        </div>
+
         <div style={{ background: '#fff', borderRadius: 16, border: '0.5px solid #e8e8e8', overflow: 'hidden' }}>
           <div style={{ padding: '1rem 1.5rem', borderBottom: '0.5px solid #e8e8e8', fontSize: 15, fontWeight: 600, color: '#0f1e2b' }}>
-            Clínicas activas — {tenants.length}
+            Clínicas — {tenants.length}
           </div>
           {loading ? (
             <div style={{ padding: '2rem', textAlign: 'center', color: '#aaa' }}>Cargando...</div>
-          ) : tenants.map((t, i) => (
+          ) : tenants.map((t, i) => {
+            const estado = estadoSuscripcion(t.subscription_status, t.next_payment_date)
+            const dias = diasRestantes(t.next_payment_date)
+            const est = ESTADO_STYLE[estado]
+            return (
             <div key={t.id} style={{ padding: '1rem 1.5rem', borderBottom: i < tenants.length - 1 ? '0.5px solid #f0f0ee' : 'none', display: 'flex', alignItems: 'center', gap: 16 }}>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontWeight: 600, fontSize: 14, color: '#0f1e2b' }}>{t.nombre}</div>
-                <div style={{ fontSize: 12, color: '#aaa', marginTop: 2 }}>{t.custom_domain || `${t.subdominio}.turnos-app.com`}</div>
-                <div style={{ fontSize: 11, color: '#ccc', marginTop: 2, fontFamily: 'monospace' }}>{t.id}</div>
+                <div style={{ fontSize: 12, color: '#aaa', marginTop: 2 }}>
+                  {t.custom_domain || t.subdominio_generico || t.subdominio}
+                </div>
+                <div style={{ fontSize: 12, color: '#64748b', marginTop: 3 }}>
+                  {t.owner_email || <span style={{ color: '#ccc' }}>sin contacto</span>}
+                </div>
+                <div style={{ fontSize: 11, color: '#aaa', marginTop: 3 }}>
+                  Alta: {fechaCorta(t.creado_en)}
+                  {dias !== null && (
+                    <span style={{ color: dias < 0 ? '#D85A30' : dias <= 5 ? '#856404' : '#aaa', fontWeight: dias <= 5 ? 600 : 400 }}>
+                      {' · '}
+                      {dias < 0 ? `vencida hace ${Math.abs(dias)}d` : `${dias}d restantes`}
+                    </span>
+                  )}
+                </div>
               </div>
+
+              <span style={{ fontSize: 11, padding: '3px 10px', borderRadius: 20, fontWeight: 600, background: est.bg, color: est.color, whiteSpace: 'nowrap' }}>
+                {est.label}
+              </span>
               <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                 {t.feature_bi && <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 20, background: '#CFE2FF', color: '#084298', fontWeight: 600 }}>BI</span>}
                 {t.feature_whatsapp && <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 20, background: '#D1E7DD', color: '#0A3622', fontWeight: 600 }}>WA</span>}
@@ -206,7 +269,8 @@ export default function AdminPanel() {
                 {t.activo ? 'Activo' : 'Inactivo'}
               </button>
             </div>
-          ))}
+            )
+          })}
         </div>
       </div>
 
