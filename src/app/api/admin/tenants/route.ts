@@ -28,14 +28,31 @@ async function requireAdmin(): Promise<{ ok: true } | { ok: false; res: NextResp
     return { ok: false, res: NextResponse.json({ error: 'No autorizado' }, { status: 401 }) }
   }
 
-  // 1) Tabla admin_users (fuente preferida). 2) Fallback al email configurado.
-  const { data: adminRow } = await supabaseAdmin
-    .from('admin_users')
-    .select('user_id')
-    .eq('user_id', user.id)
-    .maybeSingle()
+  // Fuente preferida: tabla admin_users (columnas: id, email, creado_en).
+  // Se busca por id y también por email, porque las filas existentes pueden
+  // haberse cargado de cualquiera de las dos formas.
+  let esAdmin = false
 
-  const esAdmin = !!adminRow || user.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase()
+  const { data: porId } = await supabaseAdmin
+    .from('admin_users')
+    .select('id')
+    .eq('id', user.id)
+    .maybeSingle()
+  if (porId) esAdmin = true
+
+  if (!esAdmin && user.email) {
+    const { data: porEmail } = await supabaseAdmin
+      .from('admin_users')
+      .select('id')
+      .eq('email', user.email)
+      .maybeSingle()
+    if (porEmail) esAdmin = true
+  }
+
+  // Último recurso: el email configurado por entorno.
+  if (!esAdmin && ADMIN_EMAIL && user.email) {
+    esAdmin = user.email.toLowerCase() === ADMIN_EMAIL.toLowerCase()
+  }
 
   if (!esAdmin) {
     return { ok: false, res: NextResponse.json({ error: 'Acceso denegado' }, { status: 403 }) }

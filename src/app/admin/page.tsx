@@ -22,9 +22,10 @@ const PLAN_STYLE: Record<string, { bg: string; color: string }> = {
   business: { bg: '#CFE2FF', color: '#084298' },
 }
 
-// Se configura con NEXT_PUBLIC_ADMIN_EMAIL. Este chequeo es solo de UX: la
-// autorización real la hace /api/admin/tenants del lado del servidor.
-const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_EMAIL || ''
+// Nota: acá NO se decide quién es admin. La autorización la resuelve
+// /api/admin/tenants en el servidor (tabla admin_users o ADMIN_EMAIL) y este
+// componente solo reacciona al 401/403. Así nadie queda afuera del panel por
+// una variable de build mal seteada.
 
 export default function AdminPanel() {
   const supabase = useMemo(() => createClient(), [])
@@ -49,11 +50,8 @@ export default function AdminPanel() {
           router.replace('/login')
           return
         }
-        if (session.user.email !== ADMIN_EMAIL) {
-          router.replace('/dashboard')
-          return
-        }
-        setAuthChecked(true)
+        // Es el servidor el que dice si sos admin: si no lo sos, la API
+        // responde 403 y recién ahí salimos del panel.
         loadTenants()
       }
     })
@@ -62,13 +60,26 @@ export default function AdminPanel() {
 
   async function loadTenants() {
     // Va por la API con service-role, que verifica que seas admin en el servidor.
-    // (Antes leía la tabla directo y dependía de una política permisiva.)
     const res = await fetch('/api/admin/tenants')
+
+    if (res.status === 401) {
+      router.replace('/login')
+      return
+    }
+    if (res.status === 403) {
+      router.replace('/dashboard')
+      return
+    }
+
+    setAuthChecked(true)
+
     if (!res.ok) {
       setTenants([])
       setLoading(false)
+      notify('No se pudieron cargar las clínicas', 'error')
       return
     }
+
     const { tenants } = await res.json()
     setTenants(tenants || [])
     setLoading(false)
