@@ -43,15 +43,26 @@ npx supabase link --project-ref <PROD_REF>
 #    Te va a pedir la contraseña de la base (Dashboard → Project Settings →
 #    Database → Database password). Si no la recordás, reseteala ahí.
 
-# 5. Traer el esquema actual como migración base (necesita Docker corriendo)
-npx supabase db pull
-#    Esto crea supabase/migrations/<timestamp>_remote_schema.sql con TODO tu
-#    esquema actual, y lo marca como "ya aplicado" en producción.
+# 5. Traer el esquema actual como migración base
+#    NOTA: en este proyecto `db pull` devolvió "No schema changes found" porque
+#    el historial de migraciones remoto estaba vacío y no tenía contra qué
+#    comparar. La salida que SÍ funcionó fue el volcado directo:
+mkdir -p supabase/migrations
+npx supabase db dump -f supabase/migrations/20260722120000_remote_schema.sql --schema public
 
-# 6. Commitear la base al repo
+# 6. Registrar el baseline como ya aplicado en producción, para que un futuro
+#    `db push` no intente recrear todo el esquema:
+npx supabase migration repair --status applied 20260722120000
+
+# 7. Commitear la base al repo
 git add supabase/
 git commit -m "chore(db): baseline de migraciones desde producción (Supabase CLI)"
 ```
+
+> ✅ **HECHO** (22/07/2026). El baseline capturó 23 tablas, incluidas las 7 que
+> existían solo en producción y no estaban en ninguna migración del repo
+> (`costos_fijos`, `ingresos_manuales`, `meta_mensual`, `perfil_doctor`,
+> `presupuestos`, `turnos`, `whatsapp_contactos`).
 
 **De acá en adelante, cada cambio de base se hace así (nunca más pegando SQL a mano):**
 
@@ -78,58 +89,68 @@ No podés usar `db pull`, pero igual versionás todo de forma ordenada:
 
 ---
 
-## Parte 2 — Entorno de staging (gratis)
+## Parte 2 — Entorno de pruebas (gratis)
 
-Objetivo: probar migraciones y deploys sin tocar producción.
+Objetivo: probar migraciones sin tocar producción.
 
-**2.1 — Crear el proyecto de staging en Supabase**
-1. Dashboard → New project → nombre `dentaldesk-staging` (free tier).
-2. Anotá su `Project ref` → lo llamamos `STAGING_REF`.
+> ⚠️ Supabase permite **2 proyectos free por usuario** y ese cupo ya está usado,
+> así que NO se creó un staging hosteado. Se resolvió con **Supabase local**
+> (Docker), que para probar migraciones y restores alcanza y sobra.
 
-**2.2 — Aplicarle el mismo esquema que producción**
+**2.1 — Levantar el entorno local** (requiere Docker Desktop abierto)
 ```bash
-npx supabase link --project-ref <STAGING_REF>
-npx supabase db push          # aplica todas las migraciones versionadas a staging
-# Cuando termines de probar, volvé a linkear producción:
-npx supabase link --project-ref <PROD_REF>
+npx supabase start        # Postgres + Auth + Storage + API en tu máquina
 ```
+Studio local: http://127.0.0.1:54323
 
-**2.3 — Deploy de staging en Vercel**
-- Opción simple: en Vercel, creá un segundo proyecto apuntando al mismo repo
-  pero a la rama `staging` (creá esa rama en git). En sus Environment Variables
-  usá las claves del proyecto Supabase de **staging** (ver Parte 4).
-- Así, `staging` deploya contra la base de staging y `main` contra producción.
+**2.2 — Reconstruir la base desde cero con las migraciones**
+```bash
+npx supabase db reset     # SOLO local. Nunca uses `db reset --linked`.
+```
+Esto borra la base local y aplica todas las migraciones en orden. Si termina sin
+errores, tu esquema es reproducible desde el repo.
+
+> ✅ **HECHO** (22/07/2026). Las 2 migraciones aplicaron limpio sobre una base
+> vacía y reconstruyeron las 23 tablas.
+
+**2.3 — Cuando pases a Supabase Pro**, conviene además un staging hosteado con
+su propio deploy en Vercel (rama `staging` + env vars de esa base). Hace falta
+sobre todo para probar los webhooks de MercadoPago, que necesitan URL pública.
+Mientras tanto, para eso se puede usar un túnel (ngrok).
 
 ---
 
-## Parte 3 — Backup y restore PROBADO (gratis, con pg_dump)
+## Parte 3 — Backup y restore PROBADO
 
-Un backup que nunca restauraste no es un backup. Hacelo al menos una vez.
+Un backup que nunca restauraste no es un backup. Hacelo al menos una vez, y
+después repetí el dump periódicamente.
 
-**3.1 — Conseguir el connection string**
-Dashboard → Connect (botón arriba) → "Connection string" → URI. Se ve así:
-`postgresql://postgres.<ref>:<password>@aws-0-xx.pooler.supabase.com:5432/postgres`
-
-**3.2 — Hacer el dump completo (esquema + datos)**
+**3.1 — Dump de producción con datos** (el CLI ya está linkeado a producción)
 ```bash
-pg_dump "<CONNECTION_STRING_DE_PRODUCCION>" \
-  --no-owner --no-privileges \
-  -f backup_prod_$(date +%Y%m%d).sql
+mkdir -p ~/backups-dentaldesk
+npx supabase db dump --linked --data-only -f ~/backups-dentaldesk/prod_datos_$(date +%Y%m%d).sql
 ```
 
-**3.3 — Probar el restore contra STAGING**
-```bash
-# CUIDADO: esto sobreescribe staging, nunca lo corras contra producción.
-psql "<CONNECTION_STRING_DE_STAGING>" -f backup_prod_$(date +%Y%m%d).sql
-```
+> ⚠️ Ese archivo contiene datos reales de pacientes (nombres, teléfonos,
+> historias clínicas). Va **fuera del repo** y no se sube a ningún lado.
 
-**3.4 — Verificar que restauró bien**
+**3.2 — Restaurar sobre la base local para probarlo**
 ```bash
-psql "<CONNECTION_STRING_DE_STAGING>" -c "SELECT count(*) FROM pacientes;"
-psql "<CONNECTION_STRING_DE_STAGING>" -c "SELECT count(*) FROM citas;"
+# La base local ya tiene el esquema (Parte 2.2), así que restauramos solo datos.
+psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" \
+  -f ~/backups-dentaldesk/prod_datos_$(date +%Y%m%d).sql
 ```
-Si los números tienen sentido, tu backup/restore funciona. Guardá el `.sql` en
-un lugar seguro (NO en el repo git — puede tener datos de pacientes).
+Si no tenés `psql`: `brew install libpq && brew link --force libpq`
+
+**3.3 — Verificar que restauró bien**
+```bash
+psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" \
+  -c "SELECT (SELECT count(*) FROM pacientes) AS pacientes, (SELECT count(*) FROM citas) AS citas, (SELECT count(*) FROM tenants) AS clinicas;"
+```
+Compará contra la misma query en el SQL Editor de producción. Deben coincidir.
+
+> ✅ **HECHO** (22/07/2026). Restore sin errores y cotejo exacto:
+> 189 pacientes / 503 citas / 2 clínicas en ambos lados.
 
 > Recomendación: automatizá este dump semanal. En Supabase, el backup diario
 > automático con recuperación punto-en-tiempo viene con el plan Pro (~USD 25/mes);
@@ -212,10 +233,11 @@ activarle RLS y su política antes de lanzar.
 
 ## Checklist de lanzamiento
 
-- [ ] Migraciones versionadas y commiteadas (Parte 1)
-- [ ] Proyecto de staging creado y con el esquema aplicado (Parte 2)
-- [ ] Deploy de staging en Vercel apuntando a la base de staging (Parte 2.3)
-- [ ] Backup hecho Y restore probado contra staging (Parte 3)
+- [x] Migraciones versionadas y commiteadas (Parte 1)
+- [x] Entorno de pruebas local levantado y `db reset` verde (Parte 2)
+- [ ] Staging hosteado + deploy en Vercel (diferido: requiere plan Pro; hace
+      falta para probar webhooks de MercadoPago con URL pública)
+- [x] Backup hecho Y restore probado (Parte 3)
 - [ ] Todas las env vars cargadas en prod y en staging (Parte 4)
 - [ ] `CRON_SECRET` seteado en prod (Parte 5.1)
 - [ ] Webhook de MercadoPago configurado y ciclo de pago probado en staging (5.2)
