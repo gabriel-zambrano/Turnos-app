@@ -98,6 +98,23 @@ export function Sidebar({ pendientes }: { pendientes?: number }) {
     localStorage.setItem('theme', next)
   }
 
+  // ¿Es super-admin de la plataforma? Lo decide el servidor; acá solo se usa
+  // para mostrar u ocultar el acceso al panel.
+  const [esAdminPlataforma, setEsAdminPlataforma] = useState(false)
+  useEffect(() => {
+    let cancelado = false
+    fetch('/api/admin/me')
+      .then(r => (r.ok ? r.json() : { esAdmin: false }))
+      .then(d => { if (!cancelado) setEsAdminPlataforma(!!d.esAdmin) })
+      .catch(() => {})
+    return () => { cancelado = true }
+  }, [])
+
+  // El acceso al panel se agrega al final y solo para el admin de la plataforma.
+  const navItems = esAdminPlataforma
+    ? [...NAV, { href: '/admin', label: 'Panel Admin', icon: 'settings' as const }]
+    : NAV
+
   const toggleCollapse = () => {
     const next = !collapsed
     setCollapsed(next)
@@ -122,8 +139,8 @@ export function Sidebar({ pendientes }: { pendientes?: number }) {
     const activeColor = tenant?.secondaryColor || '#185FA5'
     
     // Split navigation: 4 main actions + "Más"
-    const mobileCoreItems = NAV.filter(item => !item.adminOnly).slice(0, 4)
-    const mobileMoreItems = NAV.filter((item, idx) => item.adminOnly || idx >= 4)
+    const mobileCoreItems = navItems.filter(item => !(item as any).adminOnly).slice(0, 4)
+    const mobileMoreItems = navItems.filter((item, idx) => (item as any).adminOnly || idx >= 4)
 
     return (
       <>
@@ -372,7 +389,7 @@ export function Sidebar({ pendientes }: { pendientes?: number }) {
 
       {/* Navigation */}
       <nav style={{ flex: 1, padding: '0.75rem 0.5rem', overflowX: 'hidden' }}>
-        {NAV.map(item => {
+        {navItems.map(item => {
           const active = path === item.href || (item.href !== '/dashboard' && path?.startsWith(item.href))
           return (
             <button 

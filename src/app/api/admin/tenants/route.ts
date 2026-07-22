@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { createClient as createSupabaseServerClient } from '@/lib/supabase/server'
+import { esAdminDePlataforma } from '@/lib/admin'
 
 // ─────────────────────────────────────────────────────────────
 // API del panel de super-admin (gestión de clínicas).
@@ -11,8 +12,6 @@ import { createClient as createSupabaseServerClient } from '@/lib/supabase/serve
 // lecturas van con service-role, lo que permite cerrar la política permisiva
 // de `tenants` sin romper el panel.
 // ─────────────────────────────────────────────────────────────
-
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL || process.env.NEXT_PUBLIC_ADMIN_EMAIL || ''
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -28,31 +27,7 @@ async function requireAdmin(): Promise<{ ok: true } | { ok: false; res: NextResp
     return { ok: false, res: NextResponse.json({ error: 'No autorizado' }, { status: 401 }) }
   }
 
-  // Fuente preferida: tabla admin_users (columnas: id, email, creado_en).
-  // Se busca por id y también por email, porque las filas existentes pueden
-  // haberse cargado de cualquiera de las dos formas.
-  let esAdmin = false
-
-  const { data: porId } = await supabaseAdmin
-    .from('admin_users')
-    .select('id')
-    .eq('id', user.id)
-    .maybeSingle()
-  if (porId) esAdmin = true
-
-  if (!esAdmin && user.email) {
-    const { data: porEmail } = await supabaseAdmin
-      .from('admin_users')
-      .select('id')
-      .eq('email', user.email)
-      .maybeSingle()
-    if (porEmail) esAdmin = true
-  }
-
-  // Último recurso: el email configurado por entorno.
-  if (!esAdmin && ADMIN_EMAIL && user.email) {
-    esAdmin = user.email.toLowerCase() === ADMIN_EMAIL.toLowerCase()
-  }
+  const esAdmin = await esAdminDePlataforma(user.id, user.email)
 
   if (!esAdmin) {
     return { ok: false, res: NextResponse.json({ error: 'Acceso denegado' }, { status: 403 }) }
