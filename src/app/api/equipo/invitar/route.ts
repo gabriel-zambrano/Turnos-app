@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
+import { puedeSumarUsuario, cuposDelPlan } from '@/lib/planes'
 
 // Usamos el cliente de admin para poder invitar usuarios
 const supabaseAdmin = createClient(
@@ -47,6 +48,30 @@ export async function POST(req: Request) {
 
     if (!ownerTenant || (ownerTenant.role !== 'owner' && ownerTenant.role !== 'admin')) {
       return NextResponse.json({ error: 'No tienes permisos para invitar al equipo de esta clínica' }, { status: 403 })
+    }
+
+    // 2b. Verificar el cupo de usuarios que incluye el plan.
+    const { data: tenantPlan } = await supabaseAdmin
+      .from('tenants')
+      .select('plan')
+      .eq('id', tenantId)
+      .maybeSingle()
+
+    const { count: usuariosActuales } = await supabaseAdmin
+      .from('tenant_users')
+      .select('user_id', { count: 'exact', head: true })
+      .eq('tenant_id', tenantId)
+
+    const plan = (tenantPlan as any)?.plan || null
+    if (!puedeSumarUsuario(plan, usuariosActuales ?? 0)) {
+      const cupos = cuposDelPlan(plan)
+      return NextResponse.json(
+        {
+          error: `Tu plan incluye ${cupos} usuario${cupos === 1 ? '' : 's'} y ya lo estás usando por completo. Cambiá de plan para sumar más gente al equipo.`,
+          motivo: 'cupo_lleno',
+        },
+        { status: 409 }
+      )
     }
 
     // 3. Invitar al usuario a través de Supabase Auth

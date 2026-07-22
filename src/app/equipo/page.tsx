@@ -10,7 +10,8 @@ interface TeamMember {
   user_id: string
   role: string
   creado_en: string
-  email?: string
+  email: string | null
+  es_vos: boolean
 }
 
 export default function Equipo() {
@@ -26,6 +27,8 @@ export default function Equipo() {
   const [modalOpen, setModalOpen] = useState(false)
   const [inviteEmail, setInviteEmail] = useState('')
   const [inviteRole, setInviteRole] = useState('staff')
+  // Cupo de usuarios del plan. cupos = null significa ilimitado.
+  const [cupos, setCupos] = useState<number | null>(null)
 
   useEffect(() => {
     if (tenant) {
@@ -36,20 +39,18 @@ export default function Equipo() {
   async function loadTeam() {
     if (!tenant) return
     setLoading(true)
-    
-    // We can't fetch emails of other users from auth.users via anon key easily, 
-    // so we just show the tenant_users records.
-    // In a real SaaS, we would use an RPC or edge function to fetch profiles.
-    // For now, we display the user_id and role.
-    const { data, error } = await supabase
-      .from('tenant_users')
-      .select('*')
-      .eq('tenant_id', tenant.id)
 
-    if (error) {
-      msg('Error cargando equipo: ' + error.message, 'error')
+    // Va por API con service-role: los emails viven en auth.users (inaccesible
+    // desde el navegador) y la política RLS de tenant_users solo deja ver la
+    // fila propia, así que desde el cliente se veía un solo miembro.
+    const res = await fetch(`/api/equipo/miembros?tenantId=${tenant.id}`)
+    const data = await res.json()
+
+    if (!res.ok) {
+      msg('Error cargando equipo: ' + (data?.error || 'desconocido'), 'error')
     } else {
-      setMembers(data || [])
+      setMembers(data.miembros || [])
+      setCupos(data.cupos ?? null)
     }
     setLoading(false)
   }
@@ -87,15 +88,18 @@ export default function Equipo() {
 
   async function handleRemove(userId: string) {
     if (!confirm('¿Estás seguro de que querés eliminar a este miembro del equipo?')) return
-    
-    const { error } = await supabase
-      .from('tenant_users')
-      .delete()
-      .eq('tenant_id', tenant!.id)
-      .eq('user_id', userId)
 
-    if (error) {
-      msg('Error al eliminar: ' + error.message, 'error')
+    // Server-side: tenant_users no tiene política de DELETE para usuarios, así
+    // que desde el cliente esto fallaba en silencio.
+    const res = await fetch('/api/equipo/miembros', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tenantId: tenant!.id, userId }),
+    })
+    const data = await res.json()
+
+    if (!res.ok) {
+      msg('Error al eliminar: ' + (data?.error || 'desconocido'), 'error')
     } else {
       msg('Miembro eliminado')
       loadTeam()
@@ -108,15 +112,28 @@ export default function Equipo() {
     <div style={{ display: 'flex', minHeight: '100vh', fontFamily: 'DM Sans, sans-serif' }}>
       <Sidebar />
       <main style={{ flex: 1, marginLeft: isMobile ? 0 : 'var(--sidebar-width, 240px)', paddingBottom: isMobile ? 80 : 0, minWidth: 0 }}>
-        <PageHeader 
-          title="Gestión de Equipo" 
-          sub="Invitá secretarias o colegas a gestionar tu consultorio"
+        <PageHeader
+          title="Gestión de Equipo"
+          sub={
+            cupos === null
+              ? `Tu plan incluye usuarios ilimitados · ${members.length} en el equipo`
+              : `Usuarios: ${members.length} de ${cupos} incluidos en tu plan`
+          }
           right={
-            <BtnPrimary onClick={() => setModalOpen(true)}>
+            <BtnPrimary
+              onClick={() => setModalOpen(true)}
+              disabled={cupos !== null && members.length >= cupos}
+            >
               + Invitar Miembro
             </BtnPrimary>
           }
         />
+
+        {cupos !== null && members.length >= cupos && (
+          <div style={{ margin: isMobile ? '1rem 1rem 0' : '1rem 2rem 0', padding: '0.85rem 1rem', background: '#FFF3CD', border: '1px solid #ffe69c', borderRadius: 12, fontSize: 13, color: '#856404' }}>
+            Llegaste al máximo de usuarios de tu plan. Para sumar más gente al equipo, cambiá de plan desde Configuración.
+          </div>
+        )}
         
         <div style={{ padding: isMobile ? '1rem' : '2rem' }}>
           {loading ? <Spinner /> : isMobile ? (
@@ -126,7 +143,8 @@ export default function Equipo() {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem' }}>
                     <div>
                       <div style={{ fontWeight: 600, fontSize: 13.5, color: 'var(--text-dark, #0a1e3d)', wordBreak: 'break-all' }}>
-                        Usuario ({m.user_id.substring(0, 8)}...)
+                        {m.email || `Usuario (${m.user_id.substring(0, 8)}...)`}
+                        {m.es_vos && <span style={{ color: '#94a3b8', fontWeight: 400 }}> — vos</span>}
                       </div>
                       <div style={{ fontSize: 11, color: '#8fa3bc', marginTop: 3 }}>
                         Alta: {new Date(m.creado_en).toLocaleDateString('es-AR')}
@@ -154,7 +172,10 @@ export default function Equipo() {
               {members.map(m => (
                 <TR key={m.id}>
                   <TD first>
-                    <div style={{ fontWeight: 600 }}>Usuario ({m.user_id.substring(0, 8)}...)</div>
+                    <div style={{ fontWeight: 600 }}>
+                      {m.email || `Usuario (${m.user_id.substring(0, 8)}...)`}
+                      {m.es_vos && <span style={{ color: '#94a3b8', fontWeight: 400 }}> — vos</span>}
+                    </div>
                   </TD>
                   <TD>
                     <Badge bg={m.role === 'owner' ? '#e8f0fc' : '#faece7'} color={m.role === 'owner' ? '#185FA5' : '#D85A30'}>
