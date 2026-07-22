@@ -5,7 +5,7 @@ import { Sidebar } from '@/components/Sidebar'
 import { Badge, Toast, PageHeader, BtnPrimary, BtnSm, Spinner, inputCss, selectCss, textareaCss, overlayCss, modalCss, modalTitleCss, footerCss, groupCss, labelCss, grid2Css, btnDarkCss, btnLightCss, btnRedCss } from '@/components/UI'
 import { initials } from '@/lib/constants'
 import { createClient } from '@/lib/supabase/client'
-import { storagePathFromUrl, BUCKET_FOTOS } from '@/lib/storage'
+import { storagePathFromUrl, esImagenSoportada, BUCKET_FOTOS } from '@/lib/storage'
 import { useTenantContext } from '@/components/TenantContext'
 import { aprobarAsistenciaAction, canjearPremioAction, ajustarPuntosManualAction, registrarInasistenciaAction } from '@/app/actions/fidelizacion'
 
@@ -559,6 +559,17 @@ export default function PacienteDetalle() {
   const uploadFoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file || !tenant || !paciente) return
+
+    // Red de contención: si igual entra un HEIC (por ejemplo eligiéndolo desde
+    // la app Archivos), avisamos en vez de guardar una foto que nadie va a ver.
+    if (!esImagenSoportada(file)) {
+      showMsg(
+        'Formato no compatible. Usá JPG, PNG o WEBP. Si es una foto de iPhone (HEIC), volvé a elegirla desde la galería y el teléfono la convierte sola.',
+        'error'
+      )
+      e.target.value = ''
+      return
+    }
 
     setUploadingFoto(true)
     try {
@@ -1741,10 +1752,12 @@ export default function PacienteDetalle() {
 
             <div style={groupCss}>
               <label style={labelCss}>Seleccionar Archivo</label>
-              <input 
-                type="file" 
-                accept="image/*" 
-                onChange={uploadFoto} 
+              <input
+                type="file"
+                // Sin "image/*" a propósito: al no aceptar HEIC, iOS convierte
+                // la foto a JPEG automáticamente al elegirla desde el iPhone.
+                accept="image/jpeg,image/png,image/webp"
+                onChange={uploadFoto}
                 style={{ ...inputCss, padding: '10px' }} 
                 disabled={uploadingFoto}
               />

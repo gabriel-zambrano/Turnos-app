@@ -710,7 +710,7 @@ export default function PacientePage() {
           <div style={{ marginBottom: 28 }}>
              <h3 style={{ fontSize:15, fontWeight:800, color:'var(--portal-text-primary)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom:12 }}>Fotos del proceso</h3>
              <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 16 }}>
-               {fotos.length >= 2 && (
+               {fotos.length >= 2 ? (
                  <div className="patient-card" style={{ borderRadius:20, padding:'1.25rem', background: 'var(--portal-card-bg)' }}>
                    <div style={{ display:'flex', gap:12 }}>
                      <div style={{ flex:1, textAlign:'center' }}>
@@ -721,6 +721,16 @@ export default function PacientePage() {
                        <div style={{ fontSize:11, color:'var(--portal-text-muted)', fontWeight:800, marginBottom:8, letterSpacing: '0.04em' }}>DESPUÉS</div>
                        <img src={fotos[fotos.length-1].url} alt="Después" style={{ width:'100%', aspectRatio:'4/3', objectFit:'cover', borderRadius:12, boxShadow: '0 4px 10px rgba(0,0,0,0.03)' }} />
                      </div>
+                   </div>
+                 </div>
+               ) : (
+                 // Con una sola foto no hay comparativo posible, pero la mostramos igual.
+                 <div className="patient-card" style={{ borderRadius:20, padding:'1.25rem', background: 'var(--portal-card-bg)' }}>
+                   <div style={{ textAlign:'center' }}>
+                     <div style={{ fontSize:11, color:'var(--portal-text-muted)', fontWeight:800, marginBottom:8, letterSpacing: '0.04em' }}>
+                       {(fotos[0]?.tipo || 'Foto').toString().toUpperCase()}
+                     </div>
+                     <img src={fotos[0].url} alt="Foto del proceso" style={{ width:'100%', aspectRatio:'4/3', objectFit:'cover', borderRadius:12, boxShadow: '0 4px 10px rgba(0,0,0,0.03)' }} />
                    </div>
                  </div>
                )}

@@ -15,6 +15,19 @@
 
 export const BUCKET_FOTOS = 'fotos_clinicas'
 
+// Formatos que los navegadores muestran de forma confiable. HEIC (el formato
+// por defecto del iPhone) queda afuera a propósito: ni Chrome ni Firefox lo
+// renderizan, así que una foto HEIC se sube "bien" pero después no se ve.
+export const FORMATOS_IMAGEN_WEB = ['image/jpeg', 'image/png', 'image/webp']
+
+export function esImagenSoportada(file: { name: string; type: string }): boolean {
+  const tipo = (file.type || '').toLowerCase()
+  if (FORMATOS_IMAGEN_WEB.includes(tipo)) return true
+  // Algunos navegadores no completan `type`; caemos a la extensión.
+  if (!tipo) return /\.(jpe?g|png|webp)$/i.test(file.name || '')
+  return false
+}
+
 export function storagePathFromUrl(
   value: string | null | undefined,
   bucket: string = BUCKET_FOTOS

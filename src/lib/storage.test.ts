@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { storagePathFromUrl, BUCKET_FOTOS } from './storage'
+import { storagePathFromUrl, esImagenSoportada, BUCKET_FOTOS } from './storage'
 
 const RUTA = 'aaaa-1111/bbbb-2222/1750000000000.jpg'
 
@@ -36,5 +36,27 @@ describe('storagePathFromUrl', () => {
   it('no rompe con una URL de formato desconocido', () => {
     const url = 'https://otro-dominio.com/algo/raro.jpg'
     expect(storagePathFromUrl(url)).toBe(url)
+  })
+})
+
+describe('esImagenSoportada', () => {
+  it('acepta jpeg, png y webp', () => {
+    expect(esImagenSoportada({ name: 'a.jpg', type: 'image/jpeg' })).toBe(true)
+    expect(esImagenSoportada({ name: 'a.png', type: 'image/png' })).toBe(true)
+    expect(esImagenSoportada({ name: 'a.webp', type: 'image/webp' })).toBe(true)
+  })
+
+  it('rechaza HEIC (no lo muestran los navegadores)', () => {
+    expect(esImagenSoportada({ name: 'foto.HEIC', type: 'image/heic' })).toBe(false)
+    expect(esImagenSoportada({ name: 'foto.heif', type: 'image/heif' })).toBe(false)
+  })
+
+  it('cae a la extensión cuando el navegador no informa el type', () => {
+    expect(esImagenSoportada({ name: 'foto.jpeg', type: '' })).toBe(true)
+    expect(esImagenSoportada({ name: 'foto.HEIC', type: '' })).toBe(false)
+  })
+
+  it('rechaza otros formatos', () => {
+    expect(esImagenSoportada({ name: 'doc.pdf', type: 'application/pdf' })).toBe(false)
   })
 })
