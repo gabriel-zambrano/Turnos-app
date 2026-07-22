@@ -108,13 +108,16 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
           }
         }
 
-        // 2. Si no hay usuario (ej. portal del paciente), intentar por hostname
+        // 2. Si no hay usuario (ej. portal del paciente), resolver por hostname.
+        //    Usamos la vista `tenants_public`, que expone SOLO columnas de branding.
+        //    Antes esto leía `tenants` completo, lo que obligaba a una política
+        //    permisiva que filtraba datos comerciales (plan, suscripción, MP) de
+        //    todas las clínicas a cualquier visitante.
         if (!tenantData) {
           const { data } = await supabase
-            .from('tenants')
+            .from('tenants_public')
             .select('*')
             .or(`custom_domain.eq.${hostname},subdominio_generico.eq.${hostname.split('.')[0]}`)
-            .eq('activo', true)
             .single()
           tenantData = data
         }

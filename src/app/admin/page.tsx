@@ -41,8 +41,7 @@ export default function AdminPanel() {
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      console.log('AUTH EVENT:', event)
-      console.log('AUTH SESSION:', session)
+      // Nota: no loguear `session` — contiene el access token del usuario.
       if (event === 'INITIAL_SESSION') {
         if (!session) {
           router.replace('/login')
@@ -60,11 +59,16 @@ export default function AdminPanel() {
   }, [router])
 
   async function loadTenants() {
-    const { data } = await supabase
-      .from('tenants')
-      .select('*')
-      .order('creado_en', { ascending: false })
-    setTenants(data || [])
+    // Va por la API con service-role, que verifica que seas admin en el servidor.
+    // (Antes leía la tabla directo y dependía de una política permisiva.)
+    const res = await fetch('/api/admin/tenants')
+    if (!res.ok) {
+      setTenants([])
+      setLoading(false)
+      return
+    }
+    const { tenants } = await res.json()
+    setTenants(tenants || [])
     setLoading(false)
   }
 
@@ -96,7 +100,15 @@ export default function AdminPanel() {
   }
 
   async function toggleActivo(id: string, activo: boolean) {
-    await supabase.from('tenants').update({ activo: !activo }).eq('id', id)
+    const res = await fetch('/api/admin/tenants', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, activo: !activo }),
+    })
+    if (!res.ok) {
+      notify('No se pudo cambiar el estado de la clínica', 'error')
+      return
+    }
     loadTenants()
   }
 
