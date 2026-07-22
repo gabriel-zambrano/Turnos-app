@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { rateLimit, getClientIp } from '@/lib/rate-limit'
+import { storagePathFromUrl, BUCKET_FOTOS } from '@/lib/storage'
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -129,7 +130,18 @@ export async function GET(
       .eq('paciente_id', pac.id)
       .order('creado_en', { ascending: true })
     if (!fotosErr && fotosRes) {
-      fotos = fotosRes
+      // El bucket es privado. El portal del paciente no tiene sesión, así que
+      // las URLs las firma el servidor con service-role y vencen en 1 hora.
+      fotos = await Promise.all(
+        fotosRes.map(async (f: any) => {
+          const ruta = storagePathFromUrl(f.url)
+          if (!ruta) return f
+          const { data: firmada } = await supabaseAdmin.storage
+            .from(BUCKET_FOTOS)
+            .createSignedUrl(ruta, 3600)
+          return firmada?.signedUrl ? { ...f, url: firmada.signedUrl } : f
+        })
+      )
     }
   } catch (err) {
     console.error('Error fetching progress photos')

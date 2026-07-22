@@ -5,6 +5,7 @@ import { Sidebar } from '@/components/Sidebar'
 import { Badge, Toast, PageHeader, BtnPrimary, BtnSm, Spinner, inputCss, selectCss, textareaCss, overlayCss, modalCss, modalTitleCss, footerCss, groupCss, labelCss, grid2Css, btnDarkCss, btnLightCss, btnRedCss } from '@/components/UI'
 import { initials } from '@/lib/constants'
 import { createClient } from '@/lib/supabase/client'
+import { storagePathFromUrl, BUCKET_FOTOS } from '@/lib/storage'
 import { useTenantContext } from '@/components/TenantContext'
 import { aprobarAsistenciaAction, canjearPremioAction, ajustarPuntosManualAction, registrarInasistenciaAction } from '@/app/actions/fidelizacion'
 
@@ -428,7 +429,22 @@ export default function PacienteDetalle() {
         .order('creado_en', { ascending: false })
 
       if (fotosError) throw fotosError
-      setFotos(fotosData as PacienteFoto[])
+
+      // El bucket es privado: generamos una URL firmada temporal por foto.
+      // storagePathFromUrl acepta tanto las rutas nuevas como las URLs públicas
+      // que quedaron guardadas antes de cerrar el bucket.
+      const fotosCrudas = (fotosData || []) as PacienteFoto[]
+      const fotosFirmadas = await Promise.all(
+        fotosCrudas.map(async (f) => {
+          const ruta = storagePathFromUrl(f.url)
+          if (!ruta) return f
+          const { data: firmada } = await supabase.storage
+            .from(BUCKET_FOTOS)
+            .createSignedUrl(ruta, 600) // 10 minutos
+          return firmada?.signedUrl ? { ...f, url: firmada.signedUrl } : f
+        })
+      )
+      setFotos(fotosFirmadas)
 
       // 4. Cargar citas del paciente
       const { data: citasData, error: citasError } = await supabase
@@ -555,16 +571,14 @@ export default function PacienteDetalle() {
 
       if (uploadError) throw uploadError
 
-      const { data: publicUrlData } = supabase.storage
-        .from('fotos_clinicas')
-        .getPublicUrl(fileName)
-
+      // Guardamos la RUTA dentro del bucket, no una URL pública: el bucket es
+      // privado y las fotos se sirven con URLs firmadas que vencen.
       const { error: dbError } = await supabase
         .from('paciente_fotos')
         .insert({
           paciente_id: paciente.id,
           tenant_id: tenant.id,
-          url: publicUrlData.publicUrl,
+          url: fileName,
           tipo: fotoTipo
         })
 
