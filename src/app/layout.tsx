@@ -1,6 +1,7 @@
 import * as Sentry from '@sentry/nextjs'
 import type { Metadata } from 'next'
 import { TenantProvider } from '@/components/TenantContext'
+import { SubscriptionGate } from '@/components/SubscriptionGate'
 import './globals.css'
 
 export function generateMetadata(): Metadata {
@@ -40,7 +41,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </div>
         <TenantProvider>
           <div style={{ position: 'relative', zIndex: 1, minHeight: '100vh' }}>
-            {children}
+            <SubscriptionGate>
+              {children}
+            </SubscriptionGate>
           </div>
         </TenantProvider>
       </body>
