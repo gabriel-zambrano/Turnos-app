@@ -22,8 +22,20 @@ const TENANT_B = '22222222-2222-2222-2222-222222222222'
 const USER_A = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
 const USER_B = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'
 
-// Las 4 tablas núcleo protegidas por la migración.
-const TABLAS = ['citas', 'pacientes', 'bloqueos', 'tratamientos'] as const
+// Tablas núcleo: sus políticas se leen de la migración de producción.
+const TABLAS_NUCLEO = ['citas', 'pacientes', 'bloqueos', 'tratamientos'] as const
+
+// Tablas secundarias: usan todas el mismo patrón canónico de aislamiento
+// (tenant_isolation_<tabla>, FOR ALL). Las incluimos para que una tabla nueva
+// mal protegida no pase desapercibida.
+const TABLAS_SECUNDARIAS = [
+  'config_fidelizacion', 'costos_fijos', 'egresos_manuales', 'historial_dental',
+  'historial_puntos', 'ingresos_manuales', 'logs_envios', 'meta_mensual',
+  'paciente_fotos', 'perfil_doctor', 'premios', 'presupuestos',
+  'recordatorios_log', 'whatsapp_contactos',
+] as const
+
+const TABLAS = [...TABLAS_NUCLEO, ...TABLAS_SECUNDARIAS] as const
 
 let db: PGlite
 
@@ -71,13 +83,27 @@ beforeAll(async () => {
   )
   await db.exec(migracion)
 
+  // 3b. Tablas secundarias con el patrón canónico de aislamiento, igual que en
+  //     supabase_migration_seguridad_lanzamiento.sql.
+  for (const t of TABLAS_SECUNDARIAS) {
+    await db.exec(`
+      CREATE TABLE ${t} (id uuid primary key, tenant_id uuid, dato text);
+      ALTER TABLE ${t} ENABLE ROW LEVEL SECURITY;
+      CREATE POLICY tenant_isolation_${t} ON ${t} FOR ALL
+        USING (tenant_id IN (SELECT tenant_id FROM tenant_users WHERE user_id = (select auth.uid())))
+        WITH CHECK (tenant_id IN (SELECT tenant_id FROM tenant_users WHERE user_id = (select auth.uid())));
+    `)
+  }
+
   // 4. Permisos del rol authenticated (en Supabase se otorgan por defecto).
   await db.exec(`
     GRANT USAGE ON SCHEMA auth TO authenticated;
     GRANT EXECUTE ON FUNCTION auth.uid() TO authenticated;
     GRANT SELECT ON tenant_users TO authenticated;
-    GRANT SELECT, INSERT, UPDATE, DELETE ON citas, pacientes, bloqueos, tratamientos TO authenticated;
   `)
+  for (const t of TABLAS) {
+    await db.exec(`GRANT SELECT, INSERT, UPDATE, DELETE ON ${t} TO authenticated;`)
+  }
 
   // 5. Sembrar: 2 clínicas, 2 usuarios (uno por clínica), 1 fila por tabla por clínica.
   await db.exec(`
