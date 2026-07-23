@@ -8,6 +8,9 @@ const TIPO_LABEL: Record<number, { nombre: string; letra: string; cod: string }>
   1: { nombre: 'FACTURA', letra: 'A', cod: '001' },
   6: { nombre: 'FACTURA', letra: 'B', cod: '006' },
   11: { nombre: 'FACTURA', letra: 'C', cod: '011' },
+  3: { nombre: 'NOTA DE CRÉDITO', letra: 'A', cod: '003' },
+  8: { nombre: 'NOTA DE CRÉDITO', letra: 'B', cod: '008' },
+  13: { nombre: 'NOTA DE CRÉDITO', letra: 'C', cod: '013' },
 }
 
 const DOC_TIPO_ARCA: Record<string, number> = {
@@ -45,6 +48,20 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
       supabase.from('arca_config').select('*').eq('tenant_id', factura.tenant_id).maybeSingle(),
       supabase.from('tenants').select('nombre, direccion, telefono').eq('id', factura.tenant_id).maybeSingle(),
     ])
+
+    // Si es nota de crédito, traer el comprobante que anula para citarlo
+    let comprobanteAsociado: string | null = null
+    if (factura.anula_factura_id) {
+      const { data: orig } = await supabase
+        .from('facturas')
+        .select('tipo_comprobante, punto_venta, nro_comprobante')
+        .eq('id', factura.anula_factura_id)
+        .maybeSingle()
+      if (orig) {
+        const l = ({ 1: 'A', 6: 'B', 11: 'C' } as Record<number, string>)[orig.tipo_comprobante] || 'C'
+        comprobanteAsociado = `Factura ${l} N° ${String(orig.punto_venta).padStart(4, '0')}-${String(orig.nro_comprobante).padStart(8, '0')}`
+      }
+    }
 
     const tipo = TIPO_LABEL[factura.tipo_comprobante] || { nombre: 'FACTURA', letra: 'C', cod: '011' }
     const cuitEmisor = config?.cuit || ''
@@ -154,6 +171,12 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
     t('Condición frente al IVA: Consumidor Final', M, y, 9)
     y -= 14
     t('Condición de venta: Contado', M, y, 9)
+
+    // Comprobante asociado (solo en notas de crédito)
+    if (comprobanteAsociado) {
+      y -= 14
+      t('Comprobante asociado: ' + comprobanteAsociado, M, y, 9, bold)
+    }
 
     // ── Tabla de ítems ──
     y -= 22

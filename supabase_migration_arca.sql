@@ -52,6 +52,9 @@ CREATE TABLE IF NOT EXISTS facturas (
 ALTER TABLE facturas ADD COLUMN IF NOT EXISTS punto_venta INTEGER NOT NULL DEFAULT 1;
 ALTER TABLE facturas ADD COLUMN IF NOT EXISTS simulada BOOLEAN NOT NULL DEFAULT false;
 ALTER TABLE facturas ADD COLUMN IF NOT EXISTS concepto TEXT;
+-- Nota de crédito: si esta fila anula a otra factura, apunta a su id.
+-- tipo_comprobante 13/8/3 = Nota de Crédito C/B/A.
+ALTER TABLE facturas ADD COLUMN IF NOT EXISTS anula_factura_id UUID REFERENCES facturas(id) ON DELETE SET NULL;
 
 -- Evita duplicar numeración ante requests concurrentes.
 -- Solo aplica a facturas REALES: las simuladas son pruebas y pueden repetir número.
