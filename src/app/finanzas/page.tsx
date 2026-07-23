@@ -183,8 +183,10 @@ export default function FinanzasPage() {
     const monto = tipo === 'cita' ? getPrecio(item) : item.monto
     const concepto = tipo === 'cita' ? `Tratamiento: ${item.tipo_tratamiento}` : item.concepto
     const pacienteNombre = tipo === 'cita' ? (item.pacientes?.nombre || 'Paciente') : 'Paciente Eventual'
-    const docTipo = tipo === 'cita' ? (item.pacientes?.tipo_documento || 'DNI') : 'DNI'
     const docNro = tipo === 'cita' ? (item.pacientes?.dni_cuit || '') : ''
+    // Si el paciente no tiene documento cargado, por defecto se factura a Consumidor Final
+    // (no es obligatorio identificar por debajo de $10.000.000 — RG 5700/2025).
+    const docTipo = docNro ? (tipo === 'cita' ? (item.pacientes?.tipo_documento || 'DNI') : 'DNI') : 'Sin Identificar'
 
     setFacturandoItem({
       id: item.id,
@@ -784,11 +786,11 @@ export default function FinanzasPage() {
                     value={fDocTipo} 
                     onChange={e => setFDocTipo(e.target.value)}
                   >
+                    <option value="Sin Identificar">Consumidor Final (sin datos)</option>
                     <option value="DNI">DNI</option>
                     <option value="CUIT">CUIT</option>
                     <option value="CUIL">CUIL</option>
                     <option value="Pasaporte">Pasaporte</option>
-                    <option value="Sin Identificar">Sin Identificar</option>
                   </select>
                 </div>
                 <div>
