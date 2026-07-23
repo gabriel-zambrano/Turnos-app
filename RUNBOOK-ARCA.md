@@ -6,6 +6,28 @@ homologación, la **C** activa la emisión real.
 
 ---
 
+## ✅ ESTADO: EN PRODUCCIÓN (23/07/2026)
+
+El módulo está operativo y emitiendo comprobantes reales con validez fiscal
+para el Dr. Benegas (CUIT 20366181831). CAE verificado por QR contra ARCA.
+
+Configuración vigente en producción:
+- **Certificado**: `dentaldesk-prod` (producción, vence 22/07/2028). Misma clave
+  privada que homologación. Cargado en Vercel (`ARCA_CERT`, `ARCA_PRIVATE_KEY`).
+- **Punto de venta**: `4` — modalidad "Factura Electrónica - Monotributo - Web
+  Services" (el 3 es de Comprobantes en Línea y NO sirve para web services).
+- **Vercel**: `ARCA_PRODUCTION=true`, `ARCA_CUIT=20366181831`, `ARCA_SDK_TOKEN` cargado.
+- **AfipSDK**: plan Free (1 CUIT). Desde la 2ª clínica → Pro (USD 25/mes).
+
+Para sumar una clínica nueva: repetir Etapa C (certificado propio de esa clínica
+o delegación) + dar de alta su punto de venta web services + cargar su config
+fiscal en la app. Recordar el límite de 1 CUIT del plan Free de AfipSDK.
+
+Pendientes (próxima iteración): condición de venta configurable, notas de
+crédito (anulaciones), listado/exportación de facturas emitidas.
+
+---
+
 ## Etapa A — Operando en modo simulación (hoy)
 
 **1. Aplicar la migración en Supabase**
