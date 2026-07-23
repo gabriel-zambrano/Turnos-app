@@ -181,10 +181,14 @@ export async function POST(req: Request) {
         // emisor es el de la CLÍNICA (que delegó wsfe a la plataforma en ARCA).
         const cuitClinica = Number(String(arcaConfig.cuit).replace(/-/g, ''))
 
+        // Normaliza \n escapados (cómodos de pegar como variable de entorno) a saltos reales
+        const cert = String(process.env.ARCA_CERT).replace(/\\n/g, '\n')
+        const key = String(process.env.ARCA_PRIVATE_KEY).replace(/\\n/g, '\n')
+
         const afip = new Afip({
           CUIT: cuitClinica,
-          cert: process.env.ARCA_CERT,
-          key: process.env.ARCA_PRIVATE_KEY,
+          cert,
+          key,
           production: process.env.ARCA_PRODUCTION === 'true',
         })
 
