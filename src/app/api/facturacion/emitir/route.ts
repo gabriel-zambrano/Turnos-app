@@ -28,7 +28,11 @@ export async function POST(req: Request) {
       pacienteDocNro,
       pacienteNombre,
       tipoComprobante, // 11=Factura C, 6=Factura B, 1=Factura A
+      condicionVenta,
     } = body
+
+    const CONDICIONES_VENTA = ['Contado', 'Tarjeta de Débito', 'Tarjeta de Crédito', 'Transferencia Bancaria', 'Cuenta Corriente', 'Cheque', 'Otra']
+    const condVenta = CONDICIONES_VENTA.includes(condicionVenta) ? condicionVenta : 'Contado'
 
     if (!tenantId || !pacienteDocTipo || !pacienteNombre || !tipoComprobante) {
       return NextResponse.json({ error: 'Faltan parámetros obligatorios' }, { status: 400 })
@@ -285,6 +289,7 @@ export async function POST(req: Request) {
         paciente_doc_tipo: pacienteDocTipo,
         paciente_doc_nro: pacienteDocNro || '0',
         concepto,
+        condicion_venta: condVenta,
         estado: 'emitida',
         simulada: esSimulada,
       })

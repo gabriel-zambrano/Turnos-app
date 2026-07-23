@@ -203,6 +203,7 @@ export async function POST(req: Request) {
         paciente_doc_tipo: original.paciente_doc_tipo,
         paciente_doc_nro: original.paciente_doc_nro,
         concepto: `Anula comprobante N°${String(original.punto_venta).padStart(4, '0')}-${String(original.nro_comprobante).padStart(8, '0')}`,
+        condicion_venta: original.condicion_venta || 'Contado',
         estado: 'emitida',
         simulada: esSimulada,
         anula_factura_id: original.id,

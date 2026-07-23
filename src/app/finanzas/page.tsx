@@ -64,6 +64,7 @@ export default function FinanzasPage() {
   const [fDocNro, setFDocNro]             = useState('')
   const [fPacienteNombre, setFPacienteNombre] = useState('')
   const [fTipoComprobante, setFTipoComprobante] = useState('11') // Default Factura C (Monotributista)
+  const [fCondicionVenta, setFCondicionVenta] = useState('Contado')
   const [facturando, setFacturando]       = useState(false)
 
   const [modalMeta, setModalMeta]       = useState(false)
@@ -201,6 +202,7 @@ export default function FinanzasPage() {
     setFPacienteNombre(pacienteNombre)
     setFDocTipo(docTipo)
     setFDocNro(docNro)
+    setFCondicionVenta('Contado')
     
     if (arcaConfig?.condicion_iva === 'Monotributista') {
       setFTipoComprobante('11') // Factura C
@@ -230,7 +232,8 @@ export default function FinanzasPage() {
           pacienteDocTipo: fDocTipo,
           pacienteDocNro: fDocNro || '0',
           pacienteNombre: fPacienteNombre,
-          tipoComprobante: Number(fTipoComprobante)
+          tipoComprobante: Number(fTipoComprobante),
+          condicionVenta: fCondicionVenta
         })
       })
 
@@ -821,6 +824,23 @@ export default function FinanzasPage() {
                       <option value="1">Factura A (A Responsable Inscripto)</option>
                     </>
                   )}
+                </select>
+              </div>
+
+              <div>
+                <div style={{ fontSize:12, fontWeight:600, color:'#64748b', marginBottom:4 }}>Condición de venta</div>
+                <select
+                  style={inputSt}
+                  value={fCondicionVenta}
+                  onChange={e => setFCondicionVenta(e.target.value)}
+                >
+                  <option value="Contado">Contado (efectivo)</option>
+                  <option value="Tarjeta de Débito">Tarjeta de Débito</option>
+                  <option value="Tarjeta de Crédito">Tarjeta de Crédito</option>
+                  <option value="Transferencia Bancaria">Transferencia Bancaria</option>
+                  <option value="Cuenta Corriente">Cuenta Corriente</option>
+                  <option value="Cheque">Cheque</option>
+                  <option value="Otra">Otra</option>
                 </select>
               </div>
             </div>

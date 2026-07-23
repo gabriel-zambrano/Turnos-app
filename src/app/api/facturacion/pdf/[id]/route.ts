@@ -170,7 +170,7 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
     y -= 14
     t('Condición frente al IVA: Consumidor Final', M, y, 9)
     y -= 14
-    t('Condición de venta: Contado', M, y, 9)
+    t('Condición de venta: ' + (factura.condicion_venta || 'Contado'), M, y, 9)
 
     // Comprobante asociado (solo en notas de crédito)
     if (comprobanteAsociado) {
