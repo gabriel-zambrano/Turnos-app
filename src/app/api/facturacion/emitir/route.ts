@@ -98,6 +98,7 @@ export async function POST(req: Request) {
 
     // 4. Obtener monto y detalles del servicio a facturar (siempre dentro del tenant)
     let monto = 0
+    let concepto = 'Servicios profesionales odontológicos'
     let pacienteId: string | null = null
 
     if (citaId) {
@@ -113,6 +114,7 @@ export async function POST(req: Request) {
       }
 
       monto = cita.precio_cobrado ?? cita.valor ?? 0
+      concepto = cita.tipo_tratamiento || concepto
       pacienteId = cita.paciente_id
     } else {
       const { data: ingreso } = await supabase
@@ -127,6 +129,7 @@ export async function POST(req: Request) {
       }
 
       monto = ingreso.monto
+      concepto = ingreso.concepto || 'Ingreso de caja'
     }
 
     if (monto <= 0) {
@@ -281,6 +284,7 @@ export async function POST(req: Request) {
         paciente_nombre: pacienteNombre,
         paciente_doc_tipo: pacienteDocTipo,
         paciente_doc_nro: pacienteDocNro || '0',
+        concepto,
         estado: 'emitida',
         simulada: esSimulada,
       })

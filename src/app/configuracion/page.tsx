@@ -39,6 +39,10 @@ export default function Configuracion() {
   const [arcaPuntoVenta, setArcaPuntoVenta] = useState('1')
   const [arcaAlicuotaIva, setArcaAlicuotaIva] = useState('10.5')
   const [arcaActivo, setArcaActivo] = useState(true)
+  const [arcaRazonSocial, setArcaRazonSocial] = useState('')
+  const [arcaDomicilio, setArcaDomicilio] = useState('')
+  const [arcaIngresosBrutos, setArcaIngresosBrutos] = useState('EXENTO')
+  const [arcaInicioActividades, setArcaInicioActividades] = useState('')
 
   useEffect(() => {
     if (tenant) {
@@ -63,6 +67,10 @@ export default function Configuracion() {
             setArcaPuntoVenta(String(data.config.punto_venta || '1'))
             setArcaAlicuotaIva(String(data.config.alicuota_iva ?? '10.5'))
             setArcaActivo(data.config.activo ?? true)
+            setArcaRazonSocial(data.config.razon_social || '')
+            setArcaDomicilio(data.config.domicilio_comercial || '')
+            setArcaIngresosBrutos(data.config.ingresos_brutos || 'EXENTO')
+            setArcaInicioActividades(data.config.inicio_actividades || '')
           }
         } catch (err) {
           console.error('Error al cargar configuración ARCA:', err)
@@ -236,6 +244,10 @@ export default function Configuracion() {
             condicionIva: arcaCondicionIva,
             puntoVenta: Number(arcaPuntoVenta) || 1,
             alicuotaIva: Number(arcaAlicuotaIva),
+            razonSocial: arcaRazonSocial,
+            domicilioComercial: arcaDomicilio,
+            ingresosBrutos: arcaIngresosBrutos,
+            inicioActividades: arcaInicioActividades,
             activo: arcaActivo
           })
         })
@@ -418,6 +430,33 @@ export default function Configuracion() {
                     </div>
                   </div>
                 )}
+
+                <div style={{ borderTop: '1px solid #e8edf2', margin: '0.5rem 0 1.25rem' }} />
+                <p style={{ fontSize: 12, color: '#94a3b8', marginBottom: '1rem' }}>
+                  Datos que se imprimen en el encabezado de la factura (PDF).
+                </p>
+
+                <div style={{ ...grid2Css, gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', marginBottom: '1.25rem' }}>
+                  <div style={groupCss}>
+                    <label style={labelCss}>Razón Social</label>
+                    <input style={inputCss} value={arcaRazonSocial} onChange={e => setArcaRazonSocial(e.target.value)} placeholder="Ej. BENEGAS WALTER EBER" />
+                  </div>
+                  <div style={groupCss}>
+                    <label style={labelCss}>Domicilio Comercial</label>
+                    <input style={inputCss} value={arcaDomicilio} onChange={e => setArcaDomicilio(e.target.value)} placeholder="Ej. Av. Santa Fe 3329 1B" />
+                  </div>
+                </div>
+
+                <div style={{ ...grid2Css, gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', marginBottom: '1.5rem' }}>
+                  <div style={groupCss}>
+                    <label style={labelCss}>Ingresos Brutos</label>
+                    <input style={inputCss} value={arcaIngresosBrutos} onChange={e => setArcaIngresosBrutos(e.target.value)} placeholder="Ej. EXENTO o N° de IIBB" />
+                  </div>
+                  <div style={groupCss}>
+                    <label style={labelCss}>Inicio de Actividades</label>
+                    <input style={inputCss} value={arcaInicioActividades} onChange={e => setArcaInicioActividades(e.target.value)} placeholder="Ej. 01/12/2017" />
+                  </div>
+                </div>
 
                 <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: 12, border: '1px solid #e8edf2', fontSize: 12, color: '#4a6080', lineHeight: 1.5 }}>
                   <strong style={{ color: '#0f1e2b', display: 'block', marginBottom: 4 }}>Pasos para habilitar delegación (Esquema Seguro):</strong>

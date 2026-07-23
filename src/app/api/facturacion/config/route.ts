@@ -51,7 +51,10 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     const body = await req.json()
-    const { tenantId, cuit, condicionIva, puntoVenta, alicuotaIva, activo } = body
+    const {
+      tenantId, cuit, condicionIva, puntoVenta, alicuotaIva, activo,
+      razonSocial, domicilioComercial, ingresosBrutos, inicioActividades,
+    } = body
 
     if (!tenantId || !cuit || !condicionIva || !puntoVenta) {
       return NextResponse.json({ error: 'Faltan parámetros obligatorios' }, { status: 400 })
@@ -101,6 +104,10 @@ export async function POST(req: Request) {
         condicion_iva: condicionIva,
         punto_venta: pv,
         alicuota_iva: alicuota,
+        razon_social: razonSocial || null,
+        domicilio_comercial: domicilioComercial || null,
+        ingresos_brutos: ingresosBrutos || 'EXENTO',
+        inicio_actividades: inicioActividades || null,
         activo: activo ?? true,
         actualizado_en: new Date().toISOString(),
       })

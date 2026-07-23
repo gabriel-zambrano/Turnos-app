@@ -3,11 +3,11 @@ import { createClient } from '@/lib/supabase/server'
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
 import QRCode from 'qrcode'
 
-// Nombre legible del comprobante según su código ARCA
-const TIPO_LABEL: Record<number, { nombre: string; letra: string }> = {
-  1: { nombre: 'FACTURA', letra: 'A' },
-  6: { nombre: 'FACTURA', letra: 'B' },
-  11: { nombre: 'FACTURA', letra: 'C' },
+// Letra y nombre del comprobante según su código ARCA
+const TIPO_LABEL: Record<number, { nombre: string; letra: string; cod: string }> = {
+  1: { nombre: 'FACTURA', letra: 'A', cod: '001' },
+  6: { nombre: 'FACTURA', letra: 'B', cod: '006' },
+  11: { nombre: 'FACTURA', letra: 'C', cod: '011' },
 }
 
 const DOC_TIPO_ARCA: Record<string, number> = {
@@ -31,7 +31,6 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     }
 
-    // RLS limita esta lectura a facturas del tenant del usuario
     const { data: factura } = await supabase
       .from('facturas')
       .select('*')
@@ -47,113 +46,161 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
       supabase.from('tenants').select('nombre, direccion, telefono').eq('id', factura.tenant_id).maybeSingle(),
     ])
 
-    const tipo = TIPO_LABEL[factura.tipo_comprobante] || { nombre: 'COMPROBANTE', letra: 'C' }
+    const tipo = TIPO_LABEL[factura.tipo_comprobante] || { nombre: 'FACTURA', letra: 'C', cod: '011' }
     const cuitEmisor = config?.cuit || ''
+    const razonSocial = config?.razon_social || tenant?.nombre || 'Consultorio'
+    const domicilio = config?.domicilio_comercial || tenant?.direccion || '-'
+    const ingresosBrutos = config?.ingresos_brutos || 'EXENTO'
+    const inicioAct = config?.inicio_actividades || '-'
+    const condIvaEmisor = config?.condicion_iva === 'Monotributista'
+      ? 'Responsable Monotributo'
+      : (config?.condicion_iva || 'Responsable Monotributo')
+
     const ptoVta = String(factura.punto_venta).padStart(5, '0')
     const nroCbte = String(factura.nro_comprobante).padStart(8, '0')
     const fecha = new Date(factura.creada_en)
     const fechaStr = fecha.toLocaleDateString('es-AR')
     const fechaISO = fecha.toISOString().split('T')[0]
 
+    // Receptor
+    const esConsumidorFinal = factura.paciente_doc_tipo === 'Sin Identificar' || !factura.paciente_doc_nro || factura.paciente_doc_nro === '0'
+    const receptorNombre = esConsumidorFinal ? 'CONSUMIDOR FINAL' : factura.paciente_nombre
+    const receptorDocLabel = esConsumidorFinal ? 'Nro. Documento' : factura.paciente_doc_tipo
+    const receptorDocNro = esConsumidorFinal ? '0' : factura.paciente_doc_nro
+
     // ── QR según RG 4892 ──
     const qrPayload = {
-      ver: 1,
-      fecha: fechaISO,
+      ver: 1, fecha: fechaISO,
       cuit: Number(String(cuitEmisor).replace(/\D/g, '')) || 0,
-      ptoVta: factura.punto_venta,
-      tipoCmp: factura.tipo_comprobante,
-      nroCmp: factura.nro_comprobante,
-      importe: Number(factura.monto),
-      moneda: 'PES',
-      ctz: 1,
+      ptoVta: factura.punto_venta, tipoCmp: factura.tipo_comprobante, nroCmp: factura.nro_comprobante,
+      importe: Number(factura.monto), moneda: 'PES', ctz: 1,
       tipoDocRec: DOC_TIPO_ARCA[factura.paciente_doc_tipo] ?? 99,
       nroDocRec: Number(String(factura.paciente_doc_nro).replace(/\D/g, '')) || 0,
-      tipoCodAut: 'E',
-      codAut: Number(String(factura.cae).replace(/\D/g, '')) || 0,
+      tipoCodAut: 'E', codAut: Number(String(factura.cae).replace(/\D/g, '')) || 0,
     }
     const qrUrl = 'https://www.afip.gob.ar/fe/qr/?p=' + Buffer.from(JSON.stringify(qrPayload)).toString('base64')
-    const qrDataUrl = await QRCode.toDataURL(qrUrl, { margin: 1, width: 220 })
-    const qrPngBytes = Buffer.from(qrDataUrl.split(',')[1], 'base64')
+    const qrDataUrl = await QRCode.toDataURL(qrUrl, { margin: 1, width: 240 })
+    const qrPng = await (await PDFDocument.create()).embedPng(Buffer.from(qrDataUrl.split(',')[1], 'base64')).catch(() => null)
 
-    // ── Construcción del PDF ──
+    // ── PDF ──
     const pdf = await PDFDocument.create()
-    const page = pdf.addPage([595.28, 841.89]) // A4 en puntos
+    const page = pdf.addPage([595.28, 841.89]) // A4
     const { width, height } = page.getSize()
     const font = await pdf.embedFont(StandardFonts.Helvetica)
     const bold = await pdf.embedFont(StandardFonts.HelveticaBold)
-    const qrImg = await pdf.embedPng(qrPngBytes)
+    const qrImg = qrPng ? await pdf.embedPng(Buffer.from(qrDataUrl.split(',')[1], 'base64')) : null
 
-    const navy = rgb(0.04, 0.12, 0.24)
-    const gray = rgb(0.4, 0.45, 0.5)
-    const line = rgb(0.8, 0.83, 0.86)
-    const M = 40
+    const ink = rgb(0.1, 0.1, 0.12)
+    const gray = rgb(0.35, 0.4, 0.45)
+    const linec = rgb(0.7, 0.73, 0.77)
+    const M = 34
+    const R = width - M
 
-    const text = (s: string, x: number, y: number, size = 10, f = font, color = navy) =>
-      page.drawText(s, { x, y, size, font: f, color })
+    const t = (s: string, x: number, y: number, size = 9, f = font, color = ink) =>
+      page.drawText(s ?? '', { x, y, size, font: f, color })
+    const hline = (y: number, x1 = M, x2 = R, c = linec, w = 0.7) =>
+      page.drawLine({ start: { x: x1, y }, end: { x: x2, y }, thickness: w, color: c })
+    const vline = (x: number, y1: number, y2: number, c = linec, w = 0.7) =>
+      page.drawLine({ start: { x, y: y1 }, end: { x, y: y2 }, thickness: w, color: c })
 
-    // Marco superior con la letra del comprobante
-    page.drawRectangle({ x: M, y: height - 110, width: width - 2 * M, height: 70, borderColor: line, borderWidth: 1 })
-    page.drawLine({ start: { x: width / 2, y: height - 40 }, end: { x: width / 2, y: height - 110 }, thickness: 1, color: line })
-    page.drawRectangle({ x: width / 2 - 22, y: height - 82, width: 44, height: 44, color: navy })
-    text(tipo.letra, width / 2 - 8, height - 74, 26, bold, rgb(1, 1, 1))
-    text(`COD. ${String(factura.tipo_comprobante).padStart(3, '0')}`, width / 2 - 18, height - 100, 8, font, gray)
+    let y = height - M
 
-    // Emisor (izquierda)
-    text(tenant?.nombre || 'Consultorio', M + 12, height - 58, 15, bold)
-    text(tipo.nombre, M + 12, height - 78, 11, bold, gray)
-    if (tenant?.direccion) text(tenant.direccion, M + 12, height - 94, 8, font, gray)
+    // ── Encabezado con recuadro y letra grande al medio ──
+    t('ORIGINAL', width / 2 - 20, y - 4, 8, font, gray)
+    const boxTop = y - 14
+    const boxH = 74
+    page.drawRectangle({ x: M, y: boxTop - boxH, width: R - M, height: boxH, borderColor: linec, borderWidth: 0.7 })
+    // Caja central con la letra
+    const cx = width / 2
+    vline(cx, boxTop, boxTop - boxH)
+    page.drawRectangle({ x: cx - 24, y: boxTop - 46, width: 48, height: 46, borderColor: linec, borderWidth: 0.7, color: rgb(1, 1, 1) })
+    t(tipo.letra, cx - 9, boxTop - 36, 30, bold)
+    t(`COD. ${tipo.cod}`, cx - 17, boxTop - 60, 8, font, gray)
 
-    // Datos del comprobante (derecha)
-    const rx = width / 2 + 12
-    text(`Punto de Venta: ${ptoVta}`, rx, height - 56, 9)
-    text(`Comp. Nro: ${nroCbte}`, rx, height - 70, 9)
-    text(`Fecha de Emisión: ${fechaStr}`, rx, height - 84, 9)
-    text(`CUIT: ${fmtCuit(cuitEmisor)}`, rx, height - 98, 9)
+    // Lado izquierdo: emisor
+    t(razonSocial, M + 10, boxTop - 22, 15, bold)
+    t(tipo.nombre, M + 10, boxTop - 44, 12, bold, gray)
 
-    // Condición fiscal del emisor
-    let y = height - 130
-    text(`Condición frente al IVA: ${config?.condicion_iva || '-'}`, M, y, 9, font, gray)
+    // Lado derecho: numeración y fecha
+    const rx = cx + 12
+    t('Punto de Venta: ' + ptoVta, rx, boxTop - 16, 9, bold)
+    t('Comp. Nro: ' + nroCbte, rx + 140, boxTop - 16, 9, bold)
+    t('Fecha de Emisión: ' + fechaStr, rx, boxTop - 34, 9)
+    t('CUIT: ' + fmtCuit(cuitEmisor), rx, boxTop - 50, 9)
 
-    // Datos del receptor
-    y -= 24
-    page.drawLine({ start: { x: M, y: y + 8 }, end: { x: width - M, y: y + 8 }, thickness: 0.5, color: line })
-    text('Cliente', M, y - 6, 9, bold)
-    text(`Nombre / Razón Social: ${factura.paciente_nombre}`, M, y - 22, 9)
-    text(`${factura.paciente_doc_tipo}: ${factura.paciente_doc_nro}`, M, y - 36, 9)
+    // ── Datos fiscales del emisor ──
+    y = boxTop - boxH - 16
+    t('Razón Social: ' + razonSocial, M, y, 9)
+    t('Ingresos Brutos: ' + ingresosBrutos, cx + 12, y, 9)
+    y -= 14
+    t('Domicilio Comercial: ' + domicilio, M, y, 9) // fila completa (puede ser largo)
+    y -= 14
+    t('Condición frente al IVA: ' + condIvaEmisor, M, y, 9)
+    t('Fecha de Inicio de Actividades: ' + inicioAct, cx + 12, y, 9)
 
-    // Detalle
-    y -= 70
-    page.drawRectangle({ x: M, y: y, width: width - 2 * M, height: 20, color: rgb(0.95, 0.96, 0.97) })
-    text('Descripción', M + 8, y + 6, 9, bold, gray)
-    text('Importe', width - M - 90, y + 6, 9, bold, gray)
+    // ── Período facturado ──
+    y -= 18
+    hline(y + 8)
+    t(`Período Facturado Desde: ${fechaStr}  Hasta: ${fechaStr}`, M, y - 4, 9)
+    t('Fecha de Vto. para el pago: ' + fechaStr, cx + 12, y - 4, 9)
+    y -= 12
+    hline(y - 2)
+
+    // ── Datos del receptor ──
+    y -= 16
+    t(`${receptorDocLabel}: ${receptorDocNro}`, M, y, 9)
+    t('Apellido y Nombre / Razón Social: ' + receptorNombre, cx - 80, y, 9)
+    y -= 14
+    t('Condición frente al IVA: Consumidor Final', M, y, 9)
+    y -= 14
+    t('Condición de venta: Contado', M, y, 9)
+
+    // ── Tabla de ítems ──
     y -= 22
-    text('Servicios profesionales odontológicos', M + 8, y, 9)
-    text(fmtMoney(factura.monto), width - M - 90, y, 9)
+    const cols = { desc: M + 4, cant: R - 210, punit: R - 150, sub: R - 70 }
+    page.drawRectangle({ x: M, y: y - 4, width: R - M, height: 18, color: rgb(0.93, 0.94, 0.96) })
+    t('Producto / Servicio', cols.desc, y, 8, bold, gray)
+    t('Cantidad', cols.cant, y, 8, bold, gray)
+    t('Precio Unit.', cols.punit, y, 8, bold, gray)
+    t('Subtotal', cols.sub, y, 8, bold, gray)
+    y -= 22
+    t(String(factura.concepto || 'Servicios profesionales odontológicos').slice(0, 60), cols.desc, y, 9)
+    t('1,00', cols.cant, y, 9)
+    t(fmtMoney(factura.monto), cols.punit, y, 9)
+    t(fmtMoney(factura.monto), cols.sub, y, 9)
+    y -= 10
+    hline(y)
 
-    // Totales
-    y -= 40
-    text('Importe Total:', width - M - 200, y, 12, bold)
-    text(fmtMoney(factura.monto), width - M - 90, y, 12, bold)
+    // ── Totales ──
+    y -= 20
+    t('Subtotal:', R - 200, y, 10)
+    t(fmtMoney(factura.monto), R - 90, y, 10)
+    y -= 16
+    t('Importe Otros Tributos:', R - 200, y, 10)
+    t(fmtMoney(0), R - 90, y, 10)
+    y -= 18
+    t('Importe Total:', R - 200, y, 12, bold)
+    t(fmtMoney(factura.monto), R - 90, y, 12, bold)
 
-    // Bloque CAE + QR
-    y -= 70
-    page.drawImage(qrImg, { x: M, y: y - 40, width: 90, height: 90 })
-    text(`CAE N°: ${factura.cae}`, M + 105, y + 30, 10, bold)
-    text(`Fecha de Vto. de CAE: ${new Date(factura.cae_expira).toLocaleDateString('es-AR')}`, M + 105, y + 14, 9)
-    if (factura.simulada) {
-      text('COMPROBANTE SIMULADO — SIN VALIDEZ FISCAL', M + 105, y - 8, 10, bold, rgb(0.7, 0.2, 0.1))
-    }
+    // ── Bloque QR + CAE ──
+    y -= 50
+    if (qrImg) page.drawImage(qrImg, { x: M, y: y - 44, width: 88, height: 88 })
+    t('CAE N°: ' + factura.cae, M + 104, y + 24, 11, bold)
+    t('Fecha de Vto. de CAE: ' + new Date(factura.cae_expira).toLocaleDateString('es-AR'), M + 104, y + 8, 9)
+    t(factura.simulada ? 'COMPROBANTE DE PRUEBA — SIN VALIDEZ FISCAL' : 'Comprobante Autorizado', M + 104, y - 12, 10, bold,
+      factura.simulada ? rgb(0.7, 0.2, 0.1) : rgb(0.1, 0.45, 0.2))
 
-    // Marca de agua diagonal para simuladas
+    // Marca de agua para simuladas
     if (factura.simulada) {
       page.drawText('SIMULADO', {
-        x: 120, y: 420, size: 70, font: bold,
-        color: rgb(0.85, 0.3, 0.2), opacity: 0.12, rotate: { type: 'degrees', angle: 35 } as any,
+        x: 120, y: 430, size: 72, font: bold,
+        color: rgb(0.85, 0.3, 0.2), opacity: 0.1, rotate: { type: 'degrees', angle: 35 } as any,
       })
     }
 
     // Pie
-    text('Documento generado electrónicamente.', M, 40, 8, font, gray)
+    t('Esta Agencia no se responsabiliza por los datos ingresados en el detalle de la operación.', M, 40, 7, font, gray)
+    t('Pág. 1/1', R - 50, 40, 7, font, gray)
 
     const bytes = await pdf.save()
     const nombreArchivo = `Factura_${tipo.letra}_${ptoVta}-${nroCbte}.pdf`

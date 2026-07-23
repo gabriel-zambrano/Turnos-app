@@ -19,6 +19,11 @@ CREATE TABLE IF NOT EXISTS arca_config (
     actualizado_en TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 ALTER TABLE arca_config ADD COLUMN IF NOT EXISTS alicuota_iva NUMERIC(4,1) NOT NULL DEFAULT 10.5;
+-- Datos fiscales de cabecera que aparecen en el PDF del comprobante
+ALTER TABLE arca_config ADD COLUMN IF NOT EXISTS razon_social TEXT;
+ALTER TABLE arca_config ADD COLUMN IF NOT EXISTS domicilio_comercial TEXT;
+ALTER TABLE arca_config ADD COLUMN IF NOT EXISTS ingresos_brutos TEXT DEFAULT 'EXENTO';
+ALTER TABLE arca_config ADD COLUMN IF NOT EXISTS inicio_actividades TEXT;
 
 -- 3. La caché manual de tokens WSAA quedó obsoleta:
 --    @afipsdk/afip.js gestiona la autenticación internamente (no lee ServiceTA).
@@ -46,6 +51,7 @@ CREATE TABLE IF NOT EXISTS facturas (
 );
 ALTER TABLE facturas ADD COLUMN IF NOT EXISTS punto_venta INTEGER NOT NULL DEFAULT 1;
 ALTER TABLE facturas ADD COLUMN IF NOT EXISTS simulada BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE facturas ADD COLUMN IF NOT EXISTS concepto TEXT;
 
 -- Evita duplicar numeración ante requests concurrentes.
 -- Solo aplica a facturas REALES: las simuladas son pruebas y pueden repetir número.
