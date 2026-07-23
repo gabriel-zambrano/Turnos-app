@@ -500,12 +500,15 @@ export default function FinanzasPage() {
                             const fac = facturas.find(f => f.cita_id === c.id);
                             if (fac) {
                               return (
-                                <span
-                                  title={fac.simulada ? 'Factura de prueba, sin validez fiscal' : `CAE: ${fac.cae}`}
-                                  style={{ fontSize: 10, background: fac.simulada ? '#fef3c7' : '#d1fae5', color: fac.simulada ? '#92400e' : '#065f46', padding: '3px 8px', borderRadius: 12, fontWeight: 700, marginRight: 4 }}
+                                <a
+                                  href={`/api/facturacion/pdf/${fac.id}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  title={fac.simulada ? 'Factura de prueba, sin validez fiscal — clic para ver el PDF' : `CAE: ${fac.cae} — clic para ver el PDF`}
+                                  style={{ fontSize: 10, background: fac.simulada ? '#fef3c7' : '#d1fae5', color: fac.simulada ? '#92400e' : '#065f46', padding: '3px 8px', borderRadius: 12, fontWeight: 700, marginRight: 4, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 3 }}
                                 >
-                                  {fac.simulada ? 'Simulada' : 'Facturado'} N°{fac.nro_comprobante}
-                                </span>
+                                  {fac.simulada ? 'Simulada' : 'Facturado'} N°{fac.nro_comprobante} ⬇
+                                </a>
                               )
                             } else if (arcaConfig) {
                               return (
@@ -539,12 +542,15 @@ export default function FinanzasPage() {
                         const fac = facturas.find(f => f.ingreso_manual_id === m.id);
                         if (fac) {
                           return (
-                            <span
-                              title={fac.simulada ? 'Factura de prueba, sin validez fiscal' : `CAE: ${fac.cae}`}
-                              style={{ fontSize: 10, background: fac.simulada ? '#fef3c7' : '#d1fae5', color: fac.simulada ? '#92400e' : '#065f46', padding: '3px 8px', borderRadius: 12, fontWeight: 700 }}
+                            <a
+                              href={`/api/facturacion/pdf/${fac.id}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              title={fac.simulada ? 'Factura de prueba, sin validez fiscal — clic para ver el PDF' : `CAE: ${fac.cae} — clic para ver el PDF`}
+                              style={{ fontSize: 10, background: fac.simulada ? '#fef3c7' : '#d1fae5', color: fac.simulada ? '#92400e' : '#065f46', padding: '3px 8px', borderRadius: 12, fontWeight: 700, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 3 }}
                             >
-                              {fac.simulada ? 'Simulada' : 'Facturado'} N°{fac.nro_comprobante}
-                            </span>
+                              {fac.simulada ? 'Simulada' : 'Facturado'} N°{fac.nro_comprobante} ⬇
+                            </a>
                           )
                         } else if (arcaConfig) {
                           return (
