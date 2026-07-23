@@ -10,3 +10,6 @@ tsconfig.tsbuildinfo
 
 # Sentry Config File
 .env.sentry-build-plugin
+
+# Config local de agentes (Claude/Antigravity)
+.claude/

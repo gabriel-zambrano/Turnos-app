@@ -11,7 +11,7 @@ interface CostoFijo    { id: string; nombre: string; monto: number; activo: bool
 interface MetaMensual  { id: string; mes: number; anio: number; meta_ingresos: number }
 interface IngresoManual { id: string; fecha: string; concepto: string; monto: number }
 interface EgresoManual  { id: string; fecha: string; concepto: string; monto: number }
-interface CitaAsistida { id: string; fecha_hora: string; tipo_tratamiento: string; precio_cobrado: number | null; sena: number | null; valor: number | null; pacientes: { nombre: string; telefono: string } | null }
+interface CitaAsistida { id: string; fecha_hora: string; tipo_tratamiento: string; precio_cobrado: number | null; sena: number | null; valor: number | null; pacientes: { nombre: string; telefono: string; dni_cuit?: string | null; tipo_documento?: string | null } | null }
 
 const inputSt: React.CSSProperties = {
   fontSize: 13, padding: '7px 10px', borderRadius: 8,
@@ -55,6 +55,17 @@ export default function FinanzasPage() {
   const [citasMes, setCitasMes]           = useState<CitaAsistida[]>([])
   const [deudores, setDeudores]           = useState<CitaAsistida[]>([])
 
+  // Estados de facturación ARCA
+  const [facturas, setFacturas]           = useState<any[]>([])
+  const [arcaConfig, setArcaConfig]       = useState<any | null>(null)
+  const [modalFacturar, setModalFacturar] = useState(false)
+  const [facturandoItem, setFacturandoItem] = useState<{ id: string; tipo: 'cita' | 'ingreso'; monto: number; concepto: string; pacienteNombre: string; pacienteDocTipo?: string; pacienteDocNro?: string } | null>(null)
+  const [fDocTipo, setFDocTipo]           = useState('DNI')
+  const [fDocNro, setFDocNro]             = useState('')
+  const [fPacienteNombre, setFPacienteNombre] = useState('')
+  const [fTipoComprobante, setFTipoComprobante] = useState('11') // Default Factura C (Monotributista)
+  const [facturando, setFacturando]       = useState(false)
+
   const [modalMeta, setModalMeta]       = useState(false)
   const [modalCosto, setModalCosto]     = useState(false)
   const [modalIngreso, setModalIngreso] = useState(false)
@@ -92,14 +103,16 @@ export default function FinanzasPage() {
     const inicioFecha = `${anioActual}-${String(mesActual).padStart(2,'0')}-01`
     const finFecha    = `${anioActual}-${String(mesActual).padStart(2,'0')}-${String(totalDias).padStart(2,'0')}`
 
-    const [resTrat, resCostos, resMeta, resManuales, resEgresos, resCitas, resDeudas] = await Promise.all([
+    const [resTrat, resCostos, resMeta, resManuales, resEgresos, resCitas, resDeudas, resFacturas, resArca] = await Promise.all([
       supabase.from('tratamientos').select('id, nombre, precio_base').eq('tenant_id', tenant.id).eq('activo', true),
       supabase.from('costos_fijos').select('*').eq('tenant_id', tenant.id).order('nombre'),
       supabase.from('meta_mensual').select('*').eq('tenant_id', tenant.id).eq('mes', mesActual).eq('anio', anioActual).maybeSingle(),
       supabase.from('ingresos_manuales').select('*').eq('tenant_id', tenant.id).gte('fecha', inicioFecha).lte('fecha', finFecha).order('fecha', { ascending: false }),
       supabase.from('egresos_manuales').select('*').eq('tenant_id', tenant.id).gte('fecha', inicioFecha).lte('fecha', finFecha).order('fecha', { ascending: false }),
-      supabase.from('citas').select('id, fecha_hora, tipo_tratamiento, precio_cobrado, valor, sena, pacientes(nombre, telefono)').eq('tenant_id', tenant.id).in('estado', ['confirmado', 'asistio']).gte('fecha_hora', inicioMes).lte('fecha_hora', finMes).order('fecha_hora', { ascending: false }),
-      supabase.from('citas').select('id, fecha_hora, tipo_tratamiento, precio_cobrado, valor, sena, pacientes(nombre, telefono)').eq('tenant_id', tenant.id).in('estado', ['confirmado', 'asistio']).order('fecha_hora', { ascending: false })
+      supabase.from('citas').select('id, fecha_hora, tipo_tratamiento, precio_cobrado, valor, sena, pacientes(nombre, telefono, dni_cuit, tipo_documento)').eq('tenant_id', tenant.id).in('estado', ['confirmado', 'asistio']).gte('fecha_hora', inicioMes).lte('fecha_hora', finMes).order('fecha_hora', { ascending: false }),
+      supabase.from('citas').select('id, fecha_hora, tipo_tratamiento, precio_cobrado, valor, sena, pacientes(nombre, telefono, dni_cuit, tipo_documento)').eq('tenant_id', tenant.id).in('estado', ['confirmado', 'asistio']).order('fecha_hora', { ascending: false }),
+      supabase.from('facturas').select('*').eq('tenant_id', tenant.id).eq('estado', 'emitida'),
+      supabase.from('arca_config').select('*').eq('tenant_id', tenant.id).eq('activo', true).maybeSingle()
     ])
     
     if (resTrat.data)    setTratamientos(resTrat.data)
@@ -108,6 +121,13 @@ export default function FinanzasPage() {
     if (resManuales.data) setManuales(resManuales.data)
     if (resEgresos.data) setEgresos(resEgresos.data)
     if (resCitas.data)   setCitasMes(resCitas.data as unknown as CitaAsistida[])
+    if (resFacturas.data) setFacturas(resFacturas.data)
+    
+    if (resArca.data) {
+      setArcaConfig(resArca.data)
+    } else {
+      setArcaConfig(null)
+    }
     
     if (resDeudas.data) {
       // Filtrar pacientes con deuda
@@ -159,6 +179,76 @@ export default function FinanzasPage() {
   }, [totalMes, metaIngresos, hasTriggeredConfetti])
 
   // ── Acciones ───────────────────────────────────────────────────────────────
+  function abrirModalFacturar(item: any, tipo: 'cita' | 'ingreso') {
+    const monto = tipo === 'cita' ? getPrecio(item) : item.monto
+    const concepto = tipo === 'cita' ? `Tratamiento: ${item.tipo_tratamiento}` : item.concepto
+    const pacienteNombre = tipo === 'cita' ? (item.pacientes?.nombre || 'Paciente') : 'Paciente Eventual'
+    const docTipo = tipo === 'cita' ? (item.pacientes?.tipo_documento || 'DNI') : 'DNI'
+    const docNro = tipo === 'cita' ? (item.pacientes?.dni_cuit || '') : ''
+
+    setFacturandoItem({
+      id: item.id,
+      tipo,
+      monto,
+      concepto,
+      pacienteNombre,
+      pacienteDocTipo: docTipo,
+      pacienteDocNro: docNro
+    })
+
+    setFPacienteNombre(pacienteNombre)
+    setFDocTipo(docTipo)
+    setFDocNro(docNro)
+    
+    if (arcaConfig?.condicion_iva === 'Monotributista') {
+      setFTipoComprobante('11') // Factura C
+    } else {
+      setFTipoComprobante('6') // Factura B
+    }
+
+    setModalFacturar(true)
+  }
+
+  async function emitirFacturaElectronica() {
+    if (!facturandoItem || !tenant) return
+    if (!fDocNro && fDocTipo !== 'Sin Identificar') {
+      alert('Por favor, ingresá el número de documento.')
+      return
+    }
+
+    setFacturando(true)
+    try {
+      const res = await fetch('/api/facturacion/emitir', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tenantId: tenant.id,
+          citaId: facturandoItem.tipo === 'cita' ? facturandoItem.id : undefined,
+          ingresoManualId: facturandoItem.tipo === 'ingreso' ? facturandoItem.id : undefined,
+          pacienteDocTipo: fDocTipo,
+          pacienteDocNro: fDocNro || '0',
+          pacienteNombre: fPacienteNombre,
+          tipoComprobante: Number(fTipoComprobante)
+        })
+      })
+
+      const data = await res.json()
+      if (!res.ok) {
+        throw new Error(data.error || 'Error al emitir factura')
+      }
+
+      msg(data.simulado
+        ? `Factura SIMULADA Nro ${data.factura.nro_comprobante} (sin validez fiscal — la plataforma aún no tiene credenciales de ARCA)`
+        : `Factura Nro ${data.factura.nro_comprobante} emitida con éxito (CAE: ${data.factura.cae}) ✓`)
+      setModalFacturar(false)
+      load()
+    } catch (err: any) {
+      alert('Error al facturar: ' + err.message)
+    } finally {
+      setFacturando(false)
+    }
+  }
+
   async function guardarPrecioCita(id: string, precio: number) {
     await supabase.from('citas').update({ precio_cobrado: precio }).eq('id', id)
     setEditandoPrecio(null)
@@ -406,6 +496,30 @@ export default function FinanzasPage() {
                         </>
                       ) : (
                         <>
+                          {(() => {
+                            const fac = facturas.find(f => f.cita_id === c.id);
+                            if (fac) {
+                              return (
+                                <span
+                                  title={fac.simulada ? 'Factura de prueba, sin validez fiscal' : `CAE: ${fac.cae}`}
+                                  style={{ fontSize: 10, background: fac.simulada ? '#fef3c7' : '#d1fae5', color: fac.simulada ? '#92400e' : '#065f46', padding: '3px 8px', borderRadius: 12, fontWeight: 700, marginRight: 4 }}
+                                >
+                                  {fac.simulada ? 'Simulada' : 'Facturado'} N°{fac.nro_comprobante}
+                                </span>
+                              )
+                            } else if (arcaConfig) {
+                              return (
+                                <button 
+                                  onClick={() => abrirModalFacturar(c, 'cita')} 
+                                  style={{ fontSize: 10, padding: '3px 7px', borderRadius: 6, border: '1px solid #1D9E75', background: '#ecfdf5', color: '#1D9E75', cursor: 'pointer', fontFamily: 'DM Sans, sans-serif', fontWeight: 600, marginRight: 4 }}
+                                  title="Emitir Factura Electrónica ARCA"
+                                >
+                                  Facturar 📄
+                                </button>
+                              )
+                            }
+                            return null;
+                          })()}
                           <div style={{ fontSize:14, fontWeight:700, color: c.precio_cobrado !== null ? '#378ADD' : '#1D9E75' }}>{fmt(getPrecio(c))}</div>
                           <button onClick={() => { setEditandoPrecio(c.id); setPrecioEdit(getPrecio(c)) }} style={{ fontSize:11, padding:'2px 7px', borderRadius:5, border:'0.5px solid #e2e8f0', background:'#fff', color:'#94a3b8', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>✎</button>
                         </>
@@ -421,6 +535,30 @@ export default function FinanzasPage() {
                       <div style={{ fontSize:11, color:'#aaa' }}>Ingreso Manual</div>
                     </div>
                     <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                      {(() => {
+                        const fac = facturas.find(f => f.ingreso_manual_id === m.id);
+                        if (fac) {
+                          return (
+                            <span
+                              title={fac.simulada ? 'Factura de prueba, sin validez fiscal' : `CAE: ${fac.cae}`}
+                              style={{ fontSize: 10, background: fac.simulada ? '#fef3c7' : '#d1fae5', color: fac.simulada ? '#92400e' : '#065f46', padding: '3px 8px', borderRadius: 12, fontWeight: 700 }}
+                            >
+                              {fac.simulada ? 'Simulada' : 'Facturado'} N°{fac.nro_comprobante}
+                            </span>
+                          )
+                        } else if (arcaConfig) {
+                          return (
+                            <button 
+                              onClick={() => abrirModalFacturar(m, 'ingreso')} 
+                              style={{ fontSize: 10, padding: '3px 7px', borderRadius: 6, border: '1px solid #1D9E75', background: '#ecfdf5', color: '#1D9E75', cursor: 'pointer', fontFamily: 'DM Sans, sans-serif', fontWeight: 600 }}
+                              title="Emitir Factura Electrónica ARCA"
+                            >
+                              Facturar 📄
+                            </button>
+                          )
+                        }
+                        return null;
+                      })()}
                       <div style={{ fontSize:14, fontWeight:700, color:'#378ADD' }}>{fmt(m.monto)}</div>
                       <button onClick={() => eliminarIngreso(m.id)} style={{ fontSize:12, padding:'2px 8px', borderRadius:6, border:'0.5px solid #e2e8f0', background:'#fff', color:'#D85A30', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>×</button>
                     </div>
@@ -598,6 +736,101 @@ export default function FinanzasPage() {
               <button onClick={() => setModalEgreso(false)} style={{ fontSize:13, padding:'7px 16px', borderRadius:8, border:'1px solid #e2e8f0', background:'#fff', color:'#64748b', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>Cancelar</button>
               <button onClick={agregarEgreso} disabled={saving} style={{ fontSize:13, fontWeight:600, padding:'7px 18px', borderRadius:8, border:'none', background: saving ? '#e2e8f0' : '#ef4444', color: saving ? '#94a3b8' : '#fff', cursor: saving ? 'not-allowed' : 'pointer', fontFamily:'DM Sans, sans-serif' }}>
                 {saving ? 'Guardando...' : 'Registrar Gasto'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {modalFacturar && facturandoItem && (
+        <div onClick={() => setModalFacturar(false)} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.4)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:200, padding:'1rem' }}>
+          <div onClick={e => e.stopPropagation()} style={{ background:'#fff', borderRadius:16, padding:'1.5rem', width:'100%', maxWidth:400, boxShadow:'0 8px 32px rgba(0,0,0,0.12)' }}>
+            <div style={{ fontSize:16, fontWeight:700, color:'#0a1e3d', marginBottom:'0.5rem' }}>Emitir Factura Electrónica</div>
+            <p style={{ fontSize:12, color:'#64748b', marginBottom:'1.25rem' }}>
+              Confirmá los datos del paciente para solicitar la autorización del comprobante en ARCA.
+            </p>
+
+            <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+              <div style={{ display:'flex', justifyContent:'space-between', background:'#f8fafc', padding:'8px 12px', borderRadius:8, fontSize:12 }}>
+                <span style={{ color:'#64748b' }}>Concepto:</span>
+                <span style={{ fontWeight:600, color:'#0a1e3d' }}>{facturandoItem.concepto}</span>
+              </div>
+              <div style={{ display:'flex', justifyContent:'space-between', background:'#ecfdf5', padding:'8px 12px', borderRadius:8, fontSize:12, marginBottom:4 }}>
+                <span style={{ color:'#047857' }}>Total a facturar:</span>
+                <span style={{ fontWeight:700, color:'#10b981' }}>{fmt(facturandoItem.monto)}</span>
+              </div>
+
+              <div>
+                <div style={{ fontSize:12, fontWeight:600, color:'#64748b', marginBottom:4 }}>Nombre del Paciente (Razón Social) *</div>
+                <input 
+                  style={inputSt} 
+                  value={fPacienteNombre} 
+                  onChange={e => setFPacienteNombre(e.target.value)} 
+                  placeholder="Ej. Juan Pérez" 
+                />
+              </div>
+
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
+                <div>
+                  <div style={{ fontSize:12, fontWeight:600, color:'#64748b', marginBottom:4 }}>Tipo Doc.</div>
+                  <select 
+                    style={inputSt} 
+                    value={fDocTipo} 
+                    onChange={e => setFDocTipo(e.target.value)}
+                  >
+                    <option value="DNI">DNI</option>
+                    <option value="CUIT">CUIT</option>
+                    <option value="CUIL">CUIL</option>
+                    <option value="Pasaporte">Pasaporte</option>
+                    <option value="Sin Identificar">Sin Identificar</option>
+                  </select>
+                </div>
+                <div>
+                  <div style={{ fontSize:12, fontWeight:600, color:'#64748b', marginBottom:4 }}>Nro Documento</div>
+                  <input 
+                    style={inputSt} 
+                    value={fDocNro} 
+                    onChange={e => setFDocNro(e.target.value)} 
+                    placeholder="Ej. 34567890" 
+                    disabled={fDocTipo === 'Sin Identificar'}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <div style={{ fontSize:12, fontWeight:600, color:'#64748b', marginBottom:4 }}>Tipo de Comprobante *</div>
+                <select 
+                  style={inputSt} 
+                  value={fTipoComprobante} 
+                  onChange={e => setFTipoComprobante(e.target.value)}
+                  disabled={arcaConfig?.condicion_iva === 'Monotributista'}
+                >
+                  {arcaConfig?.condicion_iva === 'Monotributista' ? (
+                    <option value="11">Factura C (Monotributo)</option>
+                  ) : (
+                    <>
+                      <option value="6">Factura B (A Consumidor Final)</option>
+                      <option value="1">Factura A (A Responsable Inscripto)</option>
+                    </>
+                  )}
+                </select>
+              </div>
+            </div>
+
+            <div style={{ display:'flex', gap:8, marginTop:'1.5rem', justifyContent:'flex-end' }}>
+              <button 
+                onClick={() => setModalFacturar(false)} 
+                disabled={facturando}
+                style={{ fontSize:13, padding:'7px 16px', borderRadius:8, border:'1px solid #e2e8f0', background:'#fff', color:'#64748b', cursor: facturando ? 'not-allowed' : 'pointer', fontFamily:'DM Sans, sans-serif' }}
+              >
+                Cancelar
+              </button>
+              <button 
+                onClick={emitirFacturaElectronica} 
+                disabled={facturando} 
+                style={{ fontSize:13, fontWeight:600, padding:'7px 18px', borderRadius:8, border:'none', background: facturando ? '#e2e8f0' : '#1D9E75', color: facturando ? '#94a3b8' : '#fff', cursor: facturando ? 'not-allowed' : 'pointer', fontFamily:'DM Sans, sans-serif' }}
+              >
+                {facturando ? 'Emitiendo CAE...' : 'Emitir Factura'}
               </button>
             </div>
           </div>

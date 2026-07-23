@@ -33,6 +33,13 @@ export default function Configuracion() {
   const [logoUrl, setLogoUrl] = useState('')
   const [uploadingLogo, setUploadingLogo] = useState(false)
 
+  // Estados de configuración de ARCA
+  const [arcaCuit, setArcaCuit] = useState('')
+  const [arcaCondicionIva, setArcaCondicionIva] = useState('Monotributista')
+  const [arcaPuntoVenta, setArcaPuntoVenta] = useState('1')
+  const [arcaAlicuotaIva, setArcaAlicuotaIva] = useState('10.5')
+  const [arcaActivo, setArcaActivo] = useState(true)
+
   useEffect(() => {
     if (tenant) {
       setNombre(tenant.nombre || '')
@@ -43,6 +50,25 @@ export default function Configuracion() {
       setAccentColor(tenant.accentColor || '#138A6B')
       setWhatsappTemplate(tenant.whatsappTemplate || '')
       setLogoUrl(tenant.logoUrl || '')
+
+      const tenantId = tenant.id
+      // Cargar configuración de ARCA
+      const loadArcaConfig = async () => {
+        try {
+          const res = await fetch(`/api/facturacion/config?tenantId=${tenantId}`)
+          const data = await res.json()
+          if (data.config) {
+            setArcaCuit(data.config.cuit || '')
+            setArcaCondicionIva(data.config.condicion_iva || 'Monotributista')
+            setArcaPuntoVenta(String(data.config.punto_venta || '1'))
+            setArcaAlicuotaIva(String(data.config.alicuota_iva ?? '10.5'))
+            setArcaActivo(data.config.activo ?? true)
+          }
+        } catch (err) {
+          console.error('Error al cargar configuración ARCA:', err)
+        }
+      }
+      loadArcaConfig()
     }
   }, [tenant])
 
@@ -175,28 +201,57 @@ export default function Configuracion() {
     if (!tenant?.id) return msg('Error: No se encontró la clínica actual', 'error')
     setSaving(true)
 
-    const updates = {
-      nombre,
-      direccion,
-      telefono,
-      primarycolor: primaryColor,
-      secondarycolor: secondaryColor,
-      accentcolor: accentColor,
-      whatsapptemplate: whatsappTemplate
-    }
+    try {
+      // 1. Guardar configuración de la clínica
+      const updates = {
+        nombre,
+        direccion,
+        telefono,
+        primarycolor: primaryColor,
+        secondarycolor: secondaryColor,
+        accentcolor: accentColor,
+        whatsapptemplate: whatsappTemplate
+      }
 
-    const { error } = await supabase
-      .from('tenants')
-      .update(updates)
-      .eq('id', tenant.id)
+      const { error: tenantError } = await supabase
+        .from('tenants')
+        .update(updates)
+        .eq('id', tenant.id)
 
-    setSaving(false)
-    if (error) {
-      msg('Error al guardar: ' + error.message, 'error')
-    } else {
+      if (tenantError) throw new Error(tenantError.message)
+
+      // 2. Guardar configuración fiscal si hay CUIT
+      if (arcaCuit) {
+        const cleanCuit = arcaCuit.replace(/-/g, '')
+        if (cleanCuit.length !== 11 || isNaN(Number(cleanCuit))) {
+          throw new Error('El CUIT debe contener exactamente 11 dígitos numéricos.')
+        }
+
+        const arcaRes = await fetch('/api/facturacion/config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            tenantId: tenant.id,
+            cuit: cleanCuit,
+            condicionIva: arcaCondicionIva,
+            puntoVenta: Number(arcaPuntoVenta) || 1,
+            alicuotaIva: Number(arcaAlicuotaIva),
+            activo: arcaActivo
+          })
+        })
+
+        if (!arcaRes.ok) {
+          const arcaData = await arcaRes.json()
+          throw new Error(arcaData.error || 'Error al guardar la configuración fiscal')
+        }
+      }
+
       msg('Configuración guardada correctamente ✓')
-      // Note: Idealmente se actualiza el TenantContext o se recarga la página
       setTimeout(() => window.location.reload(), 1000)
+    } catch (err: any) {
+      msg('Error al guardar: ' + err.message, 'error')
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -288,11 +343,97 @@ export default function Configuracion() {
           </div>
 
           {tenant && (
-            <div className="glass-card" style={{ padding: '1.5rem', marginBottom: '2rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-                <h3 style={{ fontSize: 16, color: 'var(--text-dark, #0a1e3d)', fontWeight: 700, margin: 0 }}>
-                  Planes y Suscripción (Facturación)
+            <>
+              {/* Tarjeta de Configuración de Facturación Electrónica ARCA */}
+              <div className="glass-card" style={{ padding: '1.5rem', marginBottom: '2rem' }}>
+                <h3 style={{ fontSize: 16, color: 'var(--text-dark, #0a1e3d)', marginBottom: '0.5rem', fontWeight: 700 }}>
+                  Facturación Electrónica (ARCA / ex AFIP)
                 </h3>
+                <p style={{ fontSize: 13, color: '#64748b', marginBottom: '1.5rem', lineHeight: 1.4 }}>
+                  Configurá los datos fiscales de tu clínica para emitir facturas electrónicas a tus pacientes directamente desde el módulo de Caja Diaria.
+                </p>
+
+                <div style={{ ...grid2Css, gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', marginBottom: '1.25rem' }}>
+                  <div style={groupCss}>
+                    <label style={labelCss}>CUIT de la Clínica / Profesional</label>
+                    <input 
+                      style={inputCss} 
+                      value={arcaCuit} 
+                      onChange={e => setArcaCuit(e.target.value)} 
+                      placeholder="Ej. 20-34567890-9" 
+                    />
+                  </div>
+                  <div style={groupCss}>
+                    <label style={labelCss}>Punto de Venta (registrado en ARCA)</label>
+                    <input 
+                      style={inputCss} 
+                      type="number" 
+                      value={arcaPuntoVenta} 
+                      onChange={e => setArcaPuntoVenta(e.target.value)} 
+                      placeholder="Ej. 2" 
+                    />
+                  </div>
+                </div>
+
+                <div style={{ ...grid2Css, gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', marginBottom: '1.5rem' }}>
+                  <div style={groupCss}>
+                    <label style={labelCss}>Condición frente al IVA</label>
+                    <select 
+                      style={inputCss} 
+                      value={arcaCondicionIva} 
+                      onChange={e => setArcaCondicionIva(e.target.value)}
+                    >
+                      <option value="Monotributista">Responsable Monotributo (Factura C)</option>
+                      <option value="Responsable Inscripto">Responsable Inscripto (Facturas A y B)</option>
+                      <option value="Exento">IVA Exento</option>
+                    </select>
+                  </div>
+                  <div style={{ ...groupCss, justifyContent: 'center' }}>
+                    <label style={{ ...labelCss, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', marginTop: 22 }}>
+                      <input
+                        type="checkbox"
+                        checked={arcaActivo}
+                        onChange={e => setArcaActivo(e.target.checked)}
+                        style={{ width: 16, height: 16 }}
+                      />
+                      Activar módulo de facturación electrónica
+                    </label>
+                  </div>
+                </div>
+
+                {arcaCondicionIva === 'Responsable Inscripto' && (
+                  <div style={{ ...grid2Css, gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', marginBottom: '1.5rem' }}>
+                    <div style={groupCss}>
+                      <label style={labelCss}>Alícuota de IVA (Facturas A y B)</label>
+                      <select
+                        style={inputCss}
+                        value={arcaAlicuotaIva}
+                        onChange={e => setArcaAlicuotaIva(e.target.value)}
+                      >
+                        <option value="10.5">10,5% (servicios de salud)</option>
+                        <option value="21">21%</option>
+                        <option value="0">0% (exento)</option>
+                      </select>
+                      <span style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>Verificá la alícuota que corresponde con tu contador.</span>
+                    </div>
+                  </div>
+                )}
+
+                <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: 12, border: '1px solid #e8edf2', fontSize: 12, color: '#4a6080', lineHeight: 1.5 }}>
+                  <strong style={{ color: '#0f1e2b', display: 'block', marginBottom: 4 }}>Pasos para habilitar delegación (Esquema Seguro):</strong>
+                  1. Ingresá a la web de ARCA/AFIP con tu Clave Fiscal.<br />
+                  2. Buscá el servicio <strong>Administrador de Relaciones de Clave Fiscal</strong>.<br />
+                  3. Seleccioná <strong>Nueva Relación</strong> y luego el servicio <strong>Facturación Electrónica (wsfe)</strong>.<br />
+                  4. Designá como Representante al CUIT de la Plataforma: <strong>{process.env.NEXT_PUBLIC_ARCA_PLATFORM_CUIT || '(a confirmar — consultanos)'}</strong>.<br />
+                  Mientras la plataforma no tenga credenciales de ARCA cargadas, las facturas se emiten en <strong>modo simulación</strong> (sin validez fiscal, marcadas como &quot;Simulada&quot;).
+                </div>
+              </div>
+
+              <div className="glass-card" style={{ padding: '1.5rem', marginBottom: '2rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                  <h3 style={{ fontSize: 16, color: 'var(--text-dark, #0a1e3d)', fontWeight: 700, margin: 0 }}>
+                    Planes y Suscripción (Facturación)
+                  </h3>
                 <span style={{
                   padding: '4px 10px',
                   borderRadius: 20,
@@ -380,7 +521,8 @@ export default function Configuracion() {
                 </div>
               )}
             </div>
-          )}
+          </>
+        )}
 
           <div className="glass-card" style={{ padding: '1.5rem' }}>
             <h3 style={{ fontSize: 16, color: 'var(--text-dark, #0a1e3d)', marginBottom: '1.5rem', fontWeight: 700 }}>
