@@ -190,6 +190,7 @@ export async function POST(req: Request) {
           cert,
           key,
           production: process.env.ARCA_PRODUCTION === 'true',
+          access_token: process.env.ARCA_SDK_TOKEN, // token de la plataforma AfipSDK
         })
 
         // Consultar último comprobante autorizado para esta clínica
