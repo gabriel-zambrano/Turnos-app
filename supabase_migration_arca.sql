@@ -47,10 +47,12 @@ CREATE TABLE IF NOT EXISTS facturas (
 ALTER TABLE facturas ADD COLUMN IF NOT EXISTS punto_venta INTEGER NOT NULL DEFAULT 1;
 ALTER TABLE facturas ADD COLUMN IF NOT EXISTS simulada BOOLEAN NOT NULL DEFAULT false;
 
--- Evita duplicar numeración ante requests concurrentes
+-- Evita duplicar numeración ante requests concurrentes.
+-- Solo aplica a facturas REALES: las simuladas son pruebas y pueden repetir número.
+DROP INDEX IF EXISTS facturas_numeracion_unica;
 CREATE UNIQUE INDEX IF NOT EXISTS facturas_numeracion_unica
     ON facturas (tenant_id, punto_venta, tipo_comprobante, nro_comprobante)
-    WHERE estado = 'emitida';
+    WHERE estado = 'emitida' AND simulada = false;
 
 CREATE INDEX IF NOT EXISTS facturas_tenant_idx ON facturas (tenant_id, creada_en DESC);
 
