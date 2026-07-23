@@ -7,6 +7,7 @@ import { initials } from '@/lib/constants'
 import { createClient } from '@/lib/supabase/client'
 import { storagePathFromUrl, esImagenSoportada, BUCKET_FOTOS } from '@/lib/storage'
 import { useTenantContext } from '@/components/TenantContext'
+import { SignaturePad } from '@/components/SignaturePad'
 import { aprobarAsistenciaAction, canjearPremioAction, ajustarPuntosManualAction, registrarInasistenciaAction } from '@/app/actions/fidelizacion'
 
 interface Paciente {
@@ -209,7 +210,17 @@ export default function PacienteDetalle() {
   const [procesandoAjuste, setProcesandoAjuste] = useState(false)
 
   // Tabs state
-  const [tabActiva, setTabActiva] = useState<'odontograma' | 'turnos' | 'fidelizacion' | 'fotos'>('odontograma')
+  const [tabActiva, setTabActiva] = useState<'odontograma' | 'turnos' | 'fidelizacion' | 'fotos' | 'consentimientos'>('odontograma')
+
+  // Consentimientos
+  const [consentimientos, setConsentimientos] = useState<any[]>([])
+  const [plantillas, setPlantillas] = useState<any[]>([])
+  const [modalConsent, setModalConsent] = useState(false)
+  const [cPlantillaId, setCPlantillaId] = useState('')
+  const [cModo, setCModo] = useState<'presencial' | 'remota'>('presencial')
+  const [cFirma, setCFirma] = useState<string | null>(null)
+  const [cGuardando, setCGuardando] = useState(false)
+  const [linkRemoto, setLinkRemoto] = useState('')
 
   // Appointments state
   const [citas, setCitas] = useState<any[]>([])
@@ -392,6 +403,70 @@ export default function PacienteDetalle() {
   function showMsg(m: string, tipo = 'ok') {
     setToast({ msg: m, tipo })
     setTimeout(() => setToast(null), 3500)
+  }
+
+  const loadConsentimientos = useCallback(async () => {
+    if (!tenant || !id) return
+    try {
+      const [rc, rp] = await Promise.all([
+        fetch(`/api/consentimientos?pacienteId=${id}`).then(r => r.json()),
+        fetch(`/api/consentimientos?plantillas=1&tenantId=${tenant.id}`).then(r => r.json()),
+      ])
+      setConsentimientos(rc.consentimientos || [])
+      setPlantillas(rp.plantillas || [])
+      if (rp.plantillas?.[0] && !cPlantillaId) setCPlantillaId(rp.plantillas[0].id)
+    } catch { /* noop */ }
+  }, [tenant, id, cPlantillaId])
+
+  useEffect(() => { if (tabActiva === 'consentimientos') loadConsentimientos() }, [tabActiva, loadConsentimientos])
+
+  function abrirModalConsent() {
+    setCModo('presencial')
+    setCFirma(null)
+    setLinkRemoto('')
+    if (plantillas[0]) setCPlantillaId(plantillas[0].id)
+    setModalConsent(true)
+  }
+
+  async function guardarConsentimiento() {
+    if (!tenant) return
+    const plantilla = plantillas.find(p => p.id === cPlantillaId)
+    if (!plantilla) return showMsg('Elegí una plantilla de consentimiento', 'error')
+    if (cModo === 'presencial' && !cFirma) return showMsg('Falta la firma del paciente', 'error')
+
+    setCGuardando(true)
+    try {
+      const res = await fetch('/api/consentimientos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tenantId: tenant.id,
+          pacienteId: id,
+          plantillaId: plantilla.id,
+          titulo: plantilla.titulo,
+          contenido: plantilla.contenido,
+          contexto: cModo,
+          firmanteNombre: paciente?.nombre,
+          firmaPng: cModo === 'presencial' ? cFirma : undefined,
+        }),
+      })
+      const d = await res.json()
+      if (!res.ok) throw new Error(d.error || 'Error al guardar')
+
+      if (cModo === 'remota') {
+        const link = `${window.location.origin}/firmar/${d.consentimiento.token_firma}`
+        setLinkRemoto(link)
+        showMsg('Link de firma generado ✓')
+      } else {
+        showMsg('Consentimiento firmado ✓')
+        setModalConsent(false)
+      }
+      loadConsentimientos()
+    } catch (err: any) {
+      showMsg(err.message, 'error')
+    } finally {
+      setCGuardando(false)
+    }
   }
 
   const loadData = useCallback(async () => {
@@ -783,7 +858,8 @@ export default function PacienteDetalle() {
                   { id: 'odontograma', label: '🦷 Odontograma & Tratamientos' },
                   { id: 'turnos', label: `📅 Turnos (${citas.length})` },
                   { id: 'fidelizacion', label: `🪙 Club de Puntos (${paciente.puntos_saldo_cache ?? 0} pts)` },
-                  { id: 'fotos', label: `📷 Evolución Visual (${fotos.length})` }
+                  { id: 'fotos', label: `📷 Evolución Visual (${fotos.length})` },
+                  { id: 'consentimientos', label: '✍️ Consentimientos' }
                 ].map(tab => {
                   const active = tabActiva === tab.id
                   return (
@@ -1345,6 +1421,55 @@ export default function PacienteDetalle() {
                 </div>
               )}
 
+              {/* TAB CONTENT: CONSENTIMIENTOS */}
+              {tabActiva === 'consentimientos' && (
+                <div className="glass-card" style={{ padding: '1.5rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', gap: 8, flexWrap: 'wrap' }}>
+                    <div>
+                      <h3 style={{ fontSize: 15, color: 'var(--text-dark, #0a1e3d)', fontWeight: 700, margin: 0 }}>Consentimientos informados</h3>
+                      <p style={{ fontSize: 12, color: '#8fa3bc', margin: '2px 0 0' }}>Firma digital del paciente, presencial o por link.</p>
+                    </div>
+                    <button onClick={abrirModalConsent} style={{ fontSize: 13, fontWeight: 600, padding: '8px 14px', borderRadius: 8, border: 'none', background: '#1D9E75', color: '#fff', cursor: 'pointer', fontFamily: 'DM Sans, sans-serif' }}>
+                      + Nuevo consentimiento
+                    </button>
+                  </div>
+
+                  {consentimientos.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '2rem 1rem', color: '#8fa3bc', fontSize: 13 }}>
+                      Este paciente todavía no tiene consentimientos.
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      {consentimientos.map(c => (
+                        <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 10, border: '1px solid var(--border-light, rgba(56,138,221,0.12))' }}>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 13, fontWeight: 700, color: '#0a1e3d', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.titulo}</div>
+                            <div style={{ fontSize: 11, color: '#8fa3bc' }}>
+                              {c.estado === 'firmado'
+                                ? `Firmado ${c.firmado_en ? new Date(c.firmado_en).toLocaleDateString('es-AR') : ''} · ${c.contexto === 'remota' ? 'remoto' : 'presencial'}`
+                                : 'Pendiente de firma'}
+                            </div>
+                          </div>
+                          {c.estado === 'firmado' ? (
+                            <span style={{ fontSize: 9.5, background: '#d1fae5', color: '#065f46', padding: '2px 8px', borderRadius: 10, fontWeight: 700 }}>Firmado</span>
+                          ) : (
+                            <button
+                              onClick={() => { const l = `${window.location.origin}/firmar/${c.token_firma}`; navigator.clipboard?.writeText(l); showMsg('Link copiado ✓') }}
+                              style={{ fontSize: 10.5, padding: '4px 9px', borderRadius: 8, border: '1px solid #cbd5e1', background: '#fff', color: '#64748b', cursor: 'pointer', fontFamily: 'DM Sans, sans-serif', fontWeight: 600 }}
+                            >Copiar link</button>
+                          )}
+                          {c.estado === 'firmado' && (
+                            <a href={`/api/consentimientos/pdf/${c.id}`} target="_blank" rel="noopener noreferrer" title="Ver PDF" style={{ width: 32, height: 32, borderRadius: 8, border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#1D9E75', textDecoration: 'none', flexShrink: 0 }}>
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                            </a>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
             </div>
 
             {/* Right Column: Pinned Medical Profile overview & Tooth Details */}
@@ -1766,6 +1891,62 @@ export default function PacienteDetalle() {
 
             <div style={footerCss}>
               <button style={btnLightCss} onClick={() => setModalFoto(false)} disabled={uploadingFoto}>Cancelar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {modalConsent && (
+        <div onClick={() => setModalConsent(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: '1rem' }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 16, padding: '1.5rem', width: '100%', maxWidth: 520, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 8px 32px rgba(0,0,0,0.12)' }}>
+            <div style={{ fontSize: 16, fontWeight: 700, color: '#0a1e3d', marginBottom: '1rem' }}>Nuevo consentimiento</div>
+
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ fontSize: 12, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 4 }}>Plantilla</label>
+              <select value={cPlantillaId} onChange={e => setCPlantillaId(e.target.value)} style={{ ...inputCss, width: '100%' }}>
+                {plantillas.map(p => <option key={p.id} value={p.id}>{p.titulo}</option>)}
+              </select>
+            </div>
+
+            {plantillas.find(p => p.id === cPlantillaId) && (
+              <div style={{ fontSize: 12.5, color: '#475569', lineHeight: 1.5, whiteSpace: 'pre-wrap', background: '#f8fafc', border: '1px solid #e8edf2', borderRadius: 10, padding: '0.9rem', maxHeight: 180, overflowY: 'auto', marginBottom: 16 }}>
+                {plantillas.find(p => p.id === cPlantillaId)?.contenido}
+              </div>
+            )}
+
+            {/* Selector de modo */}
+            <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+              {(['presencial', 'remota'] as const).map(m => (
+                <button key={m} onClick={() => { setCModo(m); setLinkRemoto('') }} style={{ flex: 1, padding: '10px', borderRadius: 10, border: cModo === m ? '1.5px solid #1D9E75' : '1px solid #e2e8f0', background: cModo === m ? '#ecfdf5' : '#fff', color: cModo === m ? '#1D9E75' : '#64748b', fontWeight: 700, fontSize: 12.5, cursor: 'pointer', fontFamily: 'DM Sans, sans-serif' }}>
+                  {m === 'presencial' ? '✍️ Firma presencial' : '🔗 Enviar link'}
+                </button>
+              ))}
+            </div>
+
+            {cModo === 'presencial' ? (
+              <div style={{ marginBottom: 12 }}>
+                <label style={{ fontSize: 12, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 6 }}>Firma del paciente</label>
+                <SignaturePad onChange={setCFirma} />
+              </div>
+            ) : linkRemoto ? (
+              <div style={{ background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: 10, padding: '0.9rem', marginBottom: 12 }}>
+                <div style={{ fontSize: 12, color: '#065f46', fontWeight: 600, marginBottom: 6 }}>Link generado — compartilo con el paciente:</div>
+                <div style={{ fontSize: 11, color: '#0a1e3d', wordBreak: 'break-all', background: '#fff', padding: '8px 10px', borderRadius: 8, border: '1px solid #d1fae5' }}>{linkRemoto}</div>
+                <button onClick={() => { navigator.clipboard?.writeText(linkRemoto); showMsg('Link copiado ✓') }} style={{ marginTop: 8, fontSize: 12, fontWeight: 600, padding: '6px 12px', borderRadius: 8, border: 'none', background: '#1D9E75', color: '#fff', cursor: 'pointer', fontFamily: 'DM Sans, sans-serif' }}>Copiar link</button>
+              </div>
+            ) : (
+              <p style={{ fontSize: 12.5, color: '#64748b', marginBottom: 12, lineHeight: 1.5 }}>
+                Se generará un link seguro para que el paciente firme desde su propio celular.
+              </p>
+            )}
+
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: '1rem' }}>
+              <button onClick={() => setModalConsent(false)} style={{ fontSize: 13, padding: '7px 16px', borderRadius: 8, border: '1px solid #e2e8f0', background: '#fff', color: '#64748b', cursor: 'pointer', fontFamily: 'DM Sans, sans-serif' }}>Cerrar</button>
+              {!linkRemoto && (
+                <button onClick={guardarConsentimiento} disabled={cGuardando} style={{ fontSize: 13, fontWeight: 600, padding: '7px 18px', borderRadius: 8, border: 'none', background: cGuardando ? '#94a3b8' : '#1D9E75', color: '#fff', cursor: cGuardando ? 'not-allowed' : 'pointer', fontFamily: 'DM Sans, sans-serif' }}>
+                  {cGuardando ? 'Guardando…' : cModo === 'presencial' ? 'Registrar firma' : 'Generar link'}
+                </button>
+              )}
             </div>
           </div>
         </div>
