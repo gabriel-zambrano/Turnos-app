@@ -82,6 +82,7 @@ export function CommandPalette() {
     { type: 'nav', label: '🚨 Ver Alertas', href: '/seguimiento' },
     { type: 'nav', label: '📈 Analítica del consultorio', href: '/bi' },
     { type: 'nav', label: '💰 Finanzas y Caja', href: '/finanzas' },
+    { type: 'nav', label: '🧾 Facturas emitidas', href: '/facturas' },
   ]
 
   // Filter actions based on query
