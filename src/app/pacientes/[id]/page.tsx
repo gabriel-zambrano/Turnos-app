@@ -1410,7 +1410,7 @@ export default function PacienteDetalle() {
                           border: '1px solid var(--border-light)',
                           boxShadow: '0 4px 12px rgba(10,30,61,0.02)'
                         }}>
-                          <img src={foto.url} alt={foto.tipo} style={{ width: '100%', aspectRatio: '4/3', objectFit: 'cover', display: 'block' }} />
+                          <img src={foto.url} alt={foto.tipo} loading="lazy" style={{ width: '100%', aspectRatio: '4/3', objectFit: 'cover', display: 'block' }} />
                           <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'rgba(10,30,61,0.75)', color: '#fff', fontSize: 11, padding: '6px 10px', fontWeight: 600, backdropFilter: 'blur(4px)' }}>
                             {foto.tipo}
                           </div>

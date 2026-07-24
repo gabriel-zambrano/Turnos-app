@@ -1,6 +1,7 @@
 'use client'
 import { useState, useMemo } from 'react'
-import * as XLSX from 'xlsx'
+// xlsx se carga dinámicamente (solo al usar el importador) para no inflar el
+// bundle de la página de Pacientes con una librería pesada (~400 KB).
 
 // Campos destino de DentalDesk. 'nombre' es obligatorio.
 const CAMPOS: { key: string; label: string; oblig?: boolean; claves: string[] }[] = [
@@ -40,8 +41,9 @@ export function ImportarPacientesModal({ tenantId, onClose, onDone }: { tenantId
   function leerArchivo(file: File) {
     setError('')
     const reader = new FileReader()
-    reader.onload = e => {
+    reader.onload = async e => {
       try {
+        const XLSX = await import('xlsx')
         const wb = XLSX.read(e.target?.result, { type: 'array' })
         const ws = wb.Sheets[wb.SheetNames[0]]
         const rows = XLSX.utils.sheet_to_json<any[]>(ws, { header: 1, blankrows: false, raw: false })
@@ -94,7 +96,8 @@ export function ImportarPacientesModal({ tenantId, onClose, onDone }: { tenantId
     }
   }
 
-  function descargarPlantilla() {
+  async function descargarPlantilla() {
+    const XLSX = await import('xlsx')
     const ws = XLSX.utils.aoa_to_sheet([
       ['nombre', 'telefono', 'email', 'fecha_nacimiento', 'dni_cuit', 'tipo_documento', 'alergias', 'antecedentes'],
       ['Juan Pérez', '+5491134567890', 'juan@mail.com', '15/03/1985', '30123456', 'DNI', 'Penicilina', 'Hipertenso'],
