@@ -114,7 +114,7 @@ export default function BiPage() {
   const [citas, setCitas] = useState<Cita[]>([])
   const [loading, setLoading] = useState(true)
   const [rango, setRango] = useState<'30' | '90' | '365'>('90')
-  const [tab, setTab] = useState<'overview' | 'tratamientos' | 'financiero' | 'facturacion'>('overview')
+  const [tab, setTab] = useState<'overview' | 'agenda' | 'tratamientos' | 'financiero' | 'facturacion'>('overview')
   const [mesFact, setMesFact] = useState(() => { const d = new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0') })
   const [citasFact, setCitasFact] = useState<CitaFact[]>([])
   const [loadingFact, setLoadingFact] = useState(false)
@@ -265,10 +265,44 @@ export default function BiPage() {
   const ticketPromedio = completadas > 0 ? ingresos / completadas : 0
  
   // ── Ocupación de sillón ──
+  const HORAS_JORNADA = 8 // jornada efectiva asumida por día laboral
   const diasLaborales = Math.round(parseInt(rango) * (5 / 7))
-  const minutosDisponibles = Math.max(1, diasLaborales * 8 * 60)
-  const minutosOcupados = citas.filter(c => c.estado === 'confirmado' || c.estado === 'completado' || c.estado === 'asistio').reduce((s, c) => s + c.duracion_minutos, 0)
+  const minutosDisponibles = Math.max(1, diasLaborales * HORAS_JORNADA * 60)
+  const citasOcupadas = citas.filter(c => c.estado === 'confirmado' || c.estado === 'completado' || c.estado === 'asistio')
+  const minutosOcupados = citasOcupadas.reduce((s, c) => s + c.duracion_minutos, 0)
   const tasaOcupacion = pct(minutosOcupados, minutosDisponibles)
+
+  // ── Ocupación por día de semana y por hora (para detectar huecos) ──
+  const DIAS_SEM = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
+  const ocupMinDia = [0, 0, 0, 0, 0, 0, 0]
+  const capDiasSem = [0, 0, 0, 0, 0, 0, 0]
+  citasOcupadas.forEach(c => { ocupMinDia[new Date(c.fecha_hora).getDay()] += c.duracion_minutos })
+  // Contar cuántos días de cada día-de-semana hay en el rango
+  for (let i = 0; i < parseInt(rango); i++) {
+    const d = new Date(); d.setDate(d.getDate() - i)
+    capDiasSem[d.getDay()]++
+  }
+  // Mostramos Lun→Sáb (el consultorio no suele abrir domingo)
+  const porDiaSemana = [1, 2, 3, 4, 5, 6].map(wd => ({
+    dia: DIAS_SEM[wd],
+    horas: Math.round(ocupMinDia[wd] / 60 * 10) / 10,
+    ocupacion: pct(ocupMinDia[wd], Math.max(1, capDiasSem[wd] * HORAS_JORNADA * 60)),
+  }))
+
+  // Ocupación por hora del día (8 a 19), asignando la duración a la hora de inicio
+  const ocupMinHora: Record<number, number> = {}
+  citasOcupadas.forEach(c => {
+    const h = new Date(c.fecha_hora).getHours()
+    if (h >= 8 && h < 20) ocupMinHora[h] = (ocupMinHora[h] || 0) + c.duracion_minutos
+  })
+  const diasLaboralesReales = Math.max(1, capDiasSem.slice(1, 7).reduce((a, b) => a + b, 0))
+  const porHora = Array.from({ length: 12 }, (_, i) => 8 + i).map(h => ({
+    hora: `${h}h`,
+    ocupacion: pct(ocupMinHora[h] || 0, diasLaboralesReales * 60),
+  }))
+  // Franja más libre (insight accionable)
+  const franjaMasLibre = [...porHora].sort((a, b) => a.ocupacion - b.ocupacion)[0]
+  const diaMasLibre = [...porDiaSemana].sort((a, b) => a.ocupacion - b.ocupacion)[0]
  
   // ── Recurrencia de pacientes ──
   const pacienteCitasCount: Record<string, number> = {}
@@ -360,9 +394,9 @@ export default function BiPage() {
 
         {/* Tabs */}
         <div style={{ display: 'flex', gap: 4, background: '#f1f5f9', borderRadius: 10, padding: 4, marginBottom: '1.5rem', width: '100%' }}>
-          {(['overview', 'tratamientos', 'financiero', 'facturacion'] as const).map(t => (
+          {(['overview', 'agenda', 'tratamientos', 'financiero', 'facturacion'] as const).map(t => (
             <button key={t} onClick={() => setTab(t)} style={{ ...tabBtn(t), flex: 1, minWidth: 0 }}>
-              {t === 'overview' ? 'Resumen' : t === 'tratamientos' ? 'Tratamientos' : t === 'financiero' ? 'Financiero' : 'Facturacion'}
+              {t === 'overview' ? 'Resumen' : t === 'agenda' ? 'Agenda' : t === 'tratamientos' ? 'Tratamientos' : t === 'financiero' ? 'Financiero' : 'Facturacion'}
             </button>
           ))}
         </div>
@@ -431,6 +465,54 @@ export default function BiPage() {
                     </LineChart>
                   </ResponsiveContainer>
                 </Card>
+              </>
+            )}
+
+            {tab === 'agenda' && (
+              <>
+                {/* KPIs de ocupación */}
+                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(3, 1fr)', gap: 14, marginBottom: '1.25rem' }}>
+                  <KPI label="Ocupación general" value={`${tasaOcupacion}%`} sub={`de la capacidad (${HORAS_JORNADA}h/día laboral)`} color={tasaOcupacion >= 70 ? '#10b981' : tasaOcupacion >= 40 ? '#f59e0b' : '#ef4444'} />
+                  <KPI label="Horas ocupadas" value={`${Math.round(minutosOcupados / 60)}h`} sub={`en ${diasLaboralesReales} días laborales`} />
+                  <KPI label="Día más libre" value={diaMasLibre?.dia ?? '—'} sub={`${diaMasLibre?.ocupacion ?? 0}% ocupado`} color="#6366f1" />
+                </div>
+
+                {/* Insight accionable */}
+                <div style={{ background: 'linear-gradient(135deg,#eef2ff,#e0e7ff)', border: '1px solid #c7d2fe', borderRadius: 16, padding: '1rem 1.25rem', marginBottom: '1.25rem', fontSize: 13.5, color: '#3730a3', lineHeight: 1.5 }}>
+                  💡 Tu franja con más huecos es <strong>{diaMasLibre?.dia} a las {franjaMasLibre?.hora}</strong> ({franjaMasLibre?.ocupacion}% ocupado). Ideal para concentrar promociones, controles o sobreturnos y llenar el sillón.
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 14 }}>
+                  <Card title="Ocupación por día de la semana (%)">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={porDiaSemana} margin={{ top: 8, right: 8, left: -18, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                        <XAxis dataKey="dia" tick={{ fontSize: 11, fill: '#94a3b8' }} />
+                        <YAxis tick={{ fontSize: 10, fill: '#94a3b8' }} tickFormatter={v => v + '%'} domain={[0, 100]} />
+                        <Tooltip content={<CustomTooltip />} />
+                        <Bar dataKey="ocupacion" name="Ocupación" radius={[6, 6, 0, 0]}>
+                          {porDiaSemana.map((d, i) => <Cell key={i} fill={d.ocupacion >= 70 ? '#10b981' : d.ocupacion >= 40 ? '#f59e0b' : '#ef4444'} />)}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </Card>
+
+                  <Card title="Ocupación por hora del día (%)">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={porHora} margin={{ top: 8, right: 8, left: -18, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                        <XAxis dataKey="hora" tick={{ fontSize: 9, fill: '#94a3b8' }} interval={0} />
+                        <YAxis tick={{ fontSize: 10, fill: '#94a3b8' }} tickFormatter={v => v + '%'} domain={[0, 100]} />
+                        <Tooltip content={<CustomTooltip />} />
+                        <Bar dataKey="ocupacion" name="Ocupación" fill="#6366f1" radius={[6, 6, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </Card>
+                </div>
+
+                <p style={{ fontSize: 11, color: '#94a3b8', marginTop: 12, lineHeight: 1.5 }}>
+                  La ocupación se calcula sobre una jornada de {HORAS_JORNADA} h por día laboral (lunes a sábado). Es una referencia para detectar huecos, no un valor contable exacto.
+                </p>
               </>
             )}
 
