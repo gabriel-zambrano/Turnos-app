@@ -32,8 +32,11 @@ Ideas y mejoras que surgieron y quedaron para más adelante. Ordenadas por área
 ## CRM (evaluación jul/2026 — diferenciadores vs competencia)
 - **Recall clínico automático.** HECHO (v1): intervalo por tratamiento +
   pestaña "Controles" en CRM. Mejora futura: envío automático (no clic 1×1).
-- **Envío automatizado / campañas** de cumpleaños, reactivación y recall por
-  WhatsApp en lote o programado (apoyarse en send-recordatorios + cron).
+- **Envío automatizado / campañas**: HECHO (infra). Cron diario que envía
+  cumpleaños/recall/reactivación por WhatsApp Cloud API, con on/off por clínica
+  en Configuración y log anti-duplicados. FALTA setup externo de Meta (número,
+  plantillas aprobadas, credenciales WHATSAPP_*) para que empiece a enviar.
+  Mejora futura: panel de historial de envíos y número/plantillas por clínica.
 - **Segmentación y LTV**: clasificar pacientes (VIP, en riesgo, nuevo sin 2ª
   visita) por facturación y frecuencia.
 - **Seguimiento post-tratamiento**: mensaje automático 2-3 días después de
@@ -42,8 +45,9 @@ Ideas y mejoras que surgieron y quedaron para más adelante. Ordenadas por área
   pendientes vs perdidos) y recordar los no cerrados.
 
 ## Analítica / BI (evaluación jul/2026)
-- **Ocupación de agenda**: % horas ocupadas vs disponibles, huecos muertos.
-  (el KPI que más plata mueve; hoy no se mide)
+- **Ocupación de agenda**: HECHO (pestaña Agenda: ocupación general, por día y
+  por hora, con insight de la franja más libre). Mejora futura: config de
+  horarios reales por clínica para que el % sea exacto (hoy asume 8h/día laboral).
 - **Cohortes de retención**: de los nuevos de cada mes, cuántos vuelven a 3/6/12m.
 - **Proyección de ingresos (forecast)** con agenda futura + histórico + saldos.
 - **Predicción de no-show** por turno según historial (ya se guarda `no_show`).

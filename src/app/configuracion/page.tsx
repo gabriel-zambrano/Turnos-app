@@ -44,6 +44,11 @@ export default function Configuracion() {
   const [arcaIngresosBrutos, setArcaIngresosBrutos] = useState('EXENTO')
   const [arcaInicioActividades, setArcaInicioActividades] = useState('')
 
+  // Automatización de CRM (campañas por WhatsApp)
+  const [crmCumples, setCrmCumples] = useState(false)
+  const [crmRecall, setCrmRecall] = useState(false)
+  const [crmReactivacion, setCrmReactivacion] = useState(false)
+
   useEffect(() => {
     if (tenant) {
       setNombre(tenant.nombre || '')
@@ -77,8 +82,31 @@ export default function Configuracion() {
         }
       }
       loadArcaConfig()
+
+      // Cargar config de campañas de CRM
+      supabase.from('crm_campanas').select('*').eq('tenant_id', tenantId).maybeSingle().then(({ data }) => {
+        if (data) {
+          setCrmCumples(!!data.cumples_activo)
+          setCrmRecall(!!data.recall_activo)
+          setCrmReactivacion(!!data.reactivacion_activo)
+        }
+      })
     }
   }, [tenant])
+
+  // Guarda al instante el toggle de una campaña de CRM
+  async function toggleCampana(campo: 'cumples_activo' | 'recall_activo' | 'reactivacion_activo', valor: boolean) {
+    if (!tenant?.id) return
+    const setters = { cumples_activo: setCrmCumples, recall_activo: setCrmRecall, reactivacion_activo: setCrmReactivacion }
+    setters[campo](valor)
+    const { error } = await supabase.from('crm_campanas').upsert({
+      tenant_id: tenant.id,
+      [campo]: valor,
+      actualizado_en: new Date().toISOString(),
+    })
+    if (error) { msg('Error al guardar: ' + error.message, 'error'); setters[campo](!valor) }
+    else msg('Automatización actualizada ✓')
+  }
 
   useEffect(() => {
     async function getSession() {
@@ -466,6 +494,33 @@ export default function Configuracion() {
                   4. Designá como Representante al CUIT de la Plataforma: <strong>{process.env.NEXT_PUBLIC_ARCA_PLATFORM_CUIT || '(a confirmar — consultanos)'}</strong>.<br />
                   Mientras la plataforma no tenga credenciales de ARCA cargadas, las facturas se emiten en <strong>modo simulación</strong> (sin validez fiscal, marcadas como &quot;Simulada&quot;).
                 </div>
+              </div>
+
+              {/* Automatización de CRM (campañas por WhatsApp) */}
+              <div className="glass-card" style={{ padding: '1.5rem', marginBottom: '2rem' }}>
+                <h3 style={{ fontSize: 16, color: 'var(--text-dark, #0a1e3d)', marginBottom: '0.5rem', fontWeight: 700 }}>
+                  Automatización de CRM (WhatsApp)
+                </h3>
+                <p style={{ fontSize: 13, color: '#64748b', marginBottom: '1.25rem', lineHeight: 1.4 }}>
+                  Envío automático de mensajes por WhatsApp. Se procesan una vez por día. Requiere tener conectado WhatsApp Business (si no, no se envía nada).
+                </p>
+                {[
+                  { key: 'cumples_activo' as const, val: crmCumples, titulo: '🎉 Saludo de cumpleaños', desc: 'El día del cumpleaños del paciente.' },
+                  { key: 'recall_activo' as const, val: crmRecall, titulo: '🦷 Recordatorio de control (recall)', desc: 'Cuando vence el control según su último tratamiento.' },
+                  { key: 'reactivacion_activo' as const, val: crmReactivacion, titulo: '⏰ Reactivación de inactivos', desc: 'Pacientes sin visita hace más de 6 meses.' },
+                ].map(c => (
+                  <div key={c.key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '0.9rem 0', borderTop: '1px solid #eef2f6' }}>
+                    <div>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: '#0a1e3d' }}>{c.titulo}</div>
+                      <div style={{ fontSize: 12, color: '#8fa3bc' }}>{c.desc}</div>
+                    </div>
+                    <label style={{ position: 'relative', display: 'inline-block', width: 44, height: 24, flexShrink: 0, cursor: 'pointer' }}>
+                      <input type="checkbox" checked={c.val} onChange={e => toggleCampana(c.key, e.target.checked)} style={{ opacity: 0, width: 0, height: 0 }} />
+                      <span style={{ position: 'absolute', inset: 0, borderRadius: 24, background: c.val ? '#1D9E75' : '#cbd5e1', transition: '0.2s' }} />
+                      <span style={{ position: 'absolute', top: 3, left: c.val ? 23 : 3, width: 18, height: 18, borderRadius: '50%', background: '#fff', transition: '0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
+                    </label>
+                  </div>
+                ))}
               </div>
 
               <div className="glass-card" style={{ padding: '1.5rem', marginBottom: '2rem' }}>
