@@ -10,6 +10,7 @@ interface Tratamiento {
   nombre: string
   precio_base: number | null
   duracion_default: number | null
+  meses_control: number | null
   activo: boolean
 }
 
@@ -69,6 +70,7 @@ export default function TratamientosPage() {
     const { error } = await supabase.from('tratamientos').update({
       precio_base: t.precio_base,
       duracion_default: t.duracion_default,
+      meses_control: t.meses_control,
       activo: t.activo,
     }).eq('id', t.id)
     setSaving(null)
@@ -121,7 +123,7 @@ export default function TratamientosPage() {
                   : tratamientos.map((t, i) => (
                     <div key={t.id} style={{ padding: '1rem', borderBottom: i < tratamientos.length - 1 ? '1px solid #f1f5f9' : 'none' }}>
                       <div style={{ fontWeight: 600, fontSize: 14, color: '#0a1e3d', marginBottom: 10 }}>{t.nombre}</div>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 10 }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 10 }}>
                         <div>
                           <div style={{ fontSize: 11, color: '#8fa3bc', marginBottom: 3 }}>Precio base ($)</div>
                           <input type="number" style={inputSt} value={t.precio_base ?? ''} onChange={e => updateRow(t.id, 'precio_base', e.target.value === '' ? null : Number(e.target.value))} placeholder="0" />
@@ -129,6 +131,10 @@ export default function TratamientosPage() {
                         <div>
                           <div style={{ fontSize: 11, color: '#8fa3bc', marginBottom: 3 }}>Duración (min)</div>
                           <input type="number" style={inputSt} value={t.duracion_default ?? ''} onChange={e => updateRow(t.id, 'duracion_default', e.target.value === '' ? null : Number(e.target.value))} placeholder="30" />
+                        </div>
+                        <div>
+                          <div style={{ fontSize: 11, color: '#8fa3bc', marginBottom: 3 }}>Control (meses)</div>
+                          <input type="number" style={inputSt} value={t.meses_control ?? ''} onChange={e => updateRow(t.id, 'meses_control', e.target.value === '' ? null : Number(e.target.value))} placeholder="—" />
                         </div>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -149,14 +155,14 @@ export default function TratamientosPage() {
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                   <thead>
                     <tr style={{ background: '#f8fafc' }}>
-                      {['Nombre', 'Precio base ($)', 'Duración (min)', 'Activo', ''].map(h => (
+                      {['Nombre', 'Precio base ($)', 'Duración (min)', 'Control (meses)', 'Activo', ''].map(h => (
                         <th key={h} style={{ padding: '0.85rem 1.25rem', textAlign: 'left', fontWeight: 600, color: '#64748b', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
                     {tratamientos.length === 0 ? (
-                      <tr><td colSpan={5} style={{ padding: '2rem', textAlign: 'center', color: '#94a3b8' }}>Sin tratamientos</td></tr>
+                      <tr><td colSpan={6} style={{ padding: '2rem', textAlign: 'center', color: '#94a3b8' }}>Sin tratamientos</td></tr>
                     ) : tratamientos.map((t, i) => (
                       <tr key={t.id} style={{ borderTop: i > 0 ? '1px solid #f1f5f9' : 'none' }}>
                         <td style={{ padding: '0.85rem 1.25rem', fontWeight: 600, color: '#0a1e3d' }}>{t.nombre}</td>
@@ -165,6 +171,9 @@ export default function TratamientosPage() {
                         </td>
                         <td style={{ padding: '0.6rem 1.25rem', minWidth: 130 }}>
                           <input type="number" style={inputSt} value={t.duracion_default ?? ''} onChange={e => updateRow(t.id, 'duracion_default', e.target.value === '' ? null : Number(e.target.value))} placeholder="30" />
+                        </td>
+                        <td style={{ padding: '0.6rem 1.25rem', minWidth: 120 }}>
+                          <input type="number" style={inputSt} value={t.meses_control ?? ''} onChange={e => updateRow(t.id, 'meses_control', e.target.value === '' ? null : Number(e.target.value))} placeholder="—" title="Cada cuántos meses el paciente debe volver a control tras este tratamiento" />
                         </td>
                         <td style={{ padding: '0.6rem 1.25rem' }}>
                           <input type="checkbox" checked={t.activo} onChange={e => updateRow(t.id, 'activo', e.target.checked)} style={{ accentColor: '#138A6B', width: 16, height: 16, cursor: 'pointer' }} />

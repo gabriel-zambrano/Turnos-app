@@ -17,6 +17,14 @@ interface Cita {
   fecha_hora: string
   estado: string
   paciente_id: string
+  tipo_tratamiento: string | null
+}
+
+interface Recall extends Paciente {
+  tratamiento: string
+  ultima: string
+  vence: string
+  mesesControl: number
 }
 
 const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
@@ -28,10 +36,11 @@ export default function CRMPage() {
   const [loading, setLoading] = useState(true)
   const [toast, setToast] = useState<{ msg: string; tipo: string } | null>(null)
   
-  const [tab, setTab] = useState<'cumples' | 'reactivacion'>('cumples')
+  const [tab, setTab] = useState<'controles' | 'cumples' | 'reactivacion'>('controles')
 
   const [cumpleaneros, setCumpleaneros] = useState<Paciente[]>([])
   const [inactivos, setInactivos] = useState<(Paciente & { ultima_visita: string })[]>([])
+  const [recalls, setRecalls] = useState<Recall[]>([])
 
   const now = new Date()
   const mesActual = now.getMonth() + 1 // 1-12
@@ -49,15 +58,17 @@ export default function CRMPage() {
     if (!tenant) return
     setLoading(true)
 
-    // Traemos pacientes y citas
-    const [resPac, resCitas] = await Promise.all([
+    // Traemos pacientes, citas y tratamientos con intervalo de control
+    const [resPac, resCitas, resTrat] = await Promise.all([
       supabase.from('pacientes').select('id, nombre, telefono, fecha_nacimiento').eq('tenant_id', tenant.id),
-      supabase.from('citas').select('id, fecha_hora, estado, paciente_id').eq('tenant_id', tenant.id).order('fecha_hora', { ascending: false })
+      supabase.from('citas').select('id, fecha_hora, estado, paciente_id, tipo_tratamiento').eq('tenant_id', tenant.id).order('fecha_hora', { ascending: false }),
+      supabase.from('tratamientos').select('nombre, meses_control').eq('tenant_id', tenant.id).not('meses_control', 'is', null)
     ])
 
     if (resPac.data) {
       const pacientes = resPac.data as Paciente[]
       const citas = (resCitas.data || []) as Cita[]
+      const tratamientos = (resTrat.data || []) as { nombre: string; meses_control: number }[]
 
       // 1. Cumpleaños del mes actual
       const cumples = pacientes.filter(p => {
@@ -106,6 +117,39 @@ export default function CRMPage() {
       })
 
       setInactivos(listInactivos)
+
+      // 3. Recall clínico: pacientes que necesitan control según el tratamiento
+      // que se hicieron y el intervalo configurado, sin turno futuro agendado.
+      const intervalos = new Map<string, number>()
+      tratamientos.forEach(t => intervalos.set(t.nombre.toLowerCase().trim(), t.meses_control))
+
+      const listRecall: Recall[] = []
+
+      pacientes.forEach(p => {
+        const citasPac = mapCitas.get(p.id) || []
+        const tieneFutura = citasPac.some(c => c.fecha_hora > ahoraIso && ['pendiente', 'confirmado'].includes(c.estado))
+        if (tieneFutura) return // ya tiene turno, no hace falta recall
+
+        // Buscar, por cada tratamiento con recall, la última cita asistida de ese tipo
+        let mejor: Recall | null = null
+        citasPac.forEach(c => {
+          if (!c.tipo_tratamiento) return
+          if (!(c.fecha_hora <= ahoraIso && ['asistio', 'completado'].includes(c.estado))) return
+          const meses = intervalos.get(c.tipo_tratamiento.toLowerCase().trim())
+          if (!meses) return
+          const vence = new Date(c.fecha_hora)
+          vence.setMonth(vence.getMonth() + meses)
+          if (vence > now) return // todavía no vence el control
+          // nos quedamos con el control más vencido (fecha de vencimiento más antigua)
+          if (!mejor || vence < new Date(mejor.vence)) {
+            mejor = { ...p, tratamiento: c.tipo_tratamiento, ultima: c.fecha_hora, vence: vence.toISOString(), mesesControl: meses }
+          }
+        })
+        if (mejor) listRecall.push(mejor)
+      })
+
+      listRecall.sort((a, b) => a.vence.localeCompare(b.vence))
+      setRecalls(listRecall)
     }
 
     setLoading(false)
@@ -136,7 +180,10 @@ export default function CRMPage() {
 
         <div style={{ padding: isMobile ? '1rem' : '1.75rem 2rem', maxWidth:900, margin:'0 auto' }}>
           
-          <div style={{ display: 'flex', gap: 4, background: '#f1f5f9', borderRadius: 10, padding: 4, marginBottom: '1.5rem', width: 'fit-content' }}>
+          <div style={{ display: 'flex', gap: 4, background: '#f1f5f9', borderRadius: 10, padding: 4, marginBottom: '1.5rem', width: 'fit-content', flexWrap: 'wrap' }}>
+            <button onClick={() => setTab('controles')} style={tabBtn('controles')}>
+              🦷 Controles <span style={{background:'#138A6B', color:'#fff', padding:'2px 6px', borderRadius:10, fontSize:10, marginLeft:6}}>{recalls.length}</span>
+            </button>
             <button onClick={() => setTab('cumples')} style={tabBtn('cumples')}>
               🎉 Cumpleaños <span style={{background:'#3b82f6', color:'#fff', padding:'2px 6px', borderRadius:10, fontSize:10, marginLeft:6}}>{cumpleaneros.length}</span>
             </button>
@@ -144,6 +191,50 @@ export default function CRMPage() {
               ⏰ Reactivación <span style={{background:'#ef4444', color:'#fff', padding:'2px 6px', borderRadius:10, fontSize:10, marginLeft:6}}>{inactivos.length}</span>
             </button>
           </div>
+
+          {tab === 'controles' && (
+            <div style={{ background:'#fff', border:'0.5px solid #e8e8e8', borderRadius:16, padding:'1.25rem' }}>
+              <div style={{ fontWeight:700, fontSize:18, color:'#0a1e3d', marginBottom:6 }}>Controles pendientes (Recall clínico)</div>
+              <p style={{ fontSize:13, color:'#64748b', marginBottom:20 }}>
+                Pacientes a los que ya les toca volver según el tratamiento que se hicieron y el intervalo de control que definiste en Precios. No tienen turno agendado. Configurá el intervalo por tratamiento en <strong>Precios</strong>.
+              </p>
+
+              {recalls.length === 0 ? (
+                <div style={{ textAlign:'center', color:'#94a3b8', padding:'3rem 1rem' }}>
+                  <div style={{ fontSize:40, marginBottom:10 }}>🦷</div>
+                  <div style={{ fontSize:15, fontWeight:600, color:'#0f1e2b' }}>Todo al día</div>
+                  <div style={{ fontSize:13 }}>No hay controles vencidos. Definí el intervalo de control en Precios para activar el recall.</div>
+                </div>
+              ) : (
+                <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+                  {recalls.map(p => {
+                    const venceStr = new Date(p.vence).toLocaleDateString('es-AR', { month:'short', year:'numeric' })
+                    const ultimaStr = new Date(p.ultima).toLocaleDateString('es-AR', { month:'short', year:'numeric' })
+                    const mensaje = encodeURIComponent(`¡Hola ${p.nombre}! Te escribimos del consultorio. Ya pasó el tiempo recomendado desde tu ${p.tratamiento.toLowerCase()} (última vez en ${ultimaStr}) y es momento de un control. ¿Te agendamos un turno estos días? 🦷`)
+                    const wpUrl = p.telefono ? `https://wa.me/${p.telefono.replace(/\D/g, '')}?text=${mensaje}` : null
+                    return (
+                      <div key={p.id} style={{ display:'flex', alignItems: isMobile ? 'flex-start' : 'center', justifyContent:'space-between', flexDirection: isMobile ? 'column' : 'row', gap: isMobile ? '0.75rem' : '1rem', padding:'1rem', borderRadius:12, border:'1px solid #e2e8f0', background:'#f8fafc', width:'100%', boxSizing:'border-box' }}>
+                        <div>
+                          <div style={{ fontSize:14, fontWeight:700, color:'#0f1e2b' }}>{p.nombre}</div>
+                          <div style={{ fontSize:12, color:'#64748b' }}>
+                            <span style={{ color:'#138A6B', fontWeight:600 }}>{p.tratamiento}</span> · control cada {p.mesesControl} {p.mesesControl === 1 ? 'mes' : 'meses'} · venció {venceStr}
+                          </div>
+                        </div>
+                        {wpUrl ? (
+                          <a href={wpUrl} target="_blank" rel="noreferrer" style={{ fontSize:12, fontWeight:600, padding:'6px 14px', borderRadius:8, background:'#25D366', color:'#fff', textDecoration:'none', display:'flex', alignItems:'center', gap:6, width: isMobile ? '100%' : 'auto', justifyContent:'center', boxSizing:'border-box' }}>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                            Invitar a control
+                          </a>
+                        ) : (
+                          <span style={{ fontSize:11, color:'#94a3b8' }}>Sin teléfono</span>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          )}
 
           {tab === 'cumples' && (
             <div style={{ background:'#fff', border:'0.5px solid #e8e8e8', borderRadius:16, padding:'1.25rem' }}>
