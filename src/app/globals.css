@@ -1,4 +1,5 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&display=swap');
+/* La fuente DM Sans se carga con preconnect + <link> desde el layout (head),
+   en vez de @import, que era render-blocking y encadenaba descargas. */
 
 :root {
   --bg-app: #f4f7fb;
@@ -424,4 +425,15 @@ input:focus, select:focus, textarea:focus {
   ) !important;
   border: 1px dashed #F59E0B !important;
   color: #fde68a !important;
+}
+
+/* ── Rendimiento del fondo aurora ──
+   El blur(130px) animado es muy costoso de pintar, sobre todo en móvil.
+   Congelamos la animación en móvil y con prefers-reduced-motion: los blobs
+   siguen visibles (mismo look), pero sin re-pintar el blur en cada frame. */
+@media (prefers-reduced-motion: reduce) {
+  .aurora-blob { animation: none !important; }
+}
+@media (max-width: 768px) {
+  .aurora-blob { animation: none; filter: blur(90px); }
 }

@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
 import { updateSession } from './lib/supabase/middleware'
 
 export async function middleware(req: NextRequest) {
-  const hostname = req.headers.get('host') || ''
   const { pathname } = req.nextUrl
 
   // 1. Definir rutas públicas
@@ -17,7 +15,7 @@ export async function middleware(req: NextRequest) {
     '/registro',
     '/legal'
   ]
-  
+
   const isPublic = publicPrefixes.some(prefix => pathname.startsWith(prefix)) || pathname === '/'
 
   // Refrescar sesión de Supabase Auth
@@ -30,37 +28,10 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(loginUrl)
   }
 
-  // 3. Resolver tenant por hostname (instanciando el cliente admin dentro del handler)
-  let tenantId: string | null = null
-
-  const supabaseAdmin = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
-
-  const { data: byCustomDomain } = await supabaseAdmin
-    .from('tenants')
-    .select('id')
-    .eq('custom_domain', hostname)
-    .single()
-
-  if (byCustomDomain) {
-    tenantId = byCustomDomain.id
-  } else {
-    const subdomain = hostname.split('.')[0]
-    const { data: bySubdomain } = await supabaseAdmin
-      .from('tenants')
-      .select('id')
-      .eq('subdominio_generico', subdomain)
-      .single()
-    if (bySubdomain) tenantId = bySubdomain.id
-  }
-
-  // Inyectar tenant en headers
-  if (tenantId) {
-    updatedResponse.headers.set('x-tenant-id', tenantId)
-  }
-
+  // Nota: la resolución de tenant por hostname vive en TenantContext (cliente).
+  // Antes se hacía también acá con 1-2 consultas a Supabase por request, pero el
+  // resultado (header x-tenant-id) no lo leía nadie: era latencia pura en cada
+  // navegación. Eliminado para acelerar el TTFB de toda la app.
   return updatedResponse
 }
 
