@@ -21,7 +21,7 @@ export async function POST(req: Request) {
     const [{ data: paciente }, { data: tratamiento }, { data: tenant }] = await Promise.all([
       supabase.from('pacientes').select('nombre, email').eq('id', pacienteId).eq('tenant_id', tenantId).maybeSingle(),
       supabase.from('tratamientos').select('nombre, cuidados_posteriores').eq('id', tratamientoId).eq('tenant_id', tenantId).maybeSingle(),
-      supabase.from('tenants').select('nombre, direccion, logoUrl, accentColor').eq('id', tenantId).maybeSingle(),
+      supabase.from('tenants').select('nombre, direccion, logourl, accentcolor').eq('id', tenantId).maybeSingle(),
     ])
 
     if (!paciente) return NextResponse.json({ error: 'Paciente no encontrado' }, { status: 404 })
@@ -36,8 +36,8 @@ export async function POST(req: Request) {
     }
 
     const clinica = (tenant as any)?.nombre || 'tu consultorio'
-    const accent = (tenant as any)?.accentColor || '#1D9E75'
-    const logo = (tenant as any)?.logoUrl || (tenant as any)?.logourl || ''
+    const accent = (tenant as any)?.accentcolor || '#1D9E75'
+    const logo = (tenant as any)?.logourl || ''
     const direccion = (tenant as any)?.direccion || ''
 
     // Párrafos del instructivo (respeta saltos de línea del texto cargado)
