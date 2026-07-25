@@ -221,9 +221,10 @@ export default function Configuracion() {
       
       // 3. Actualizar el estado local y la DB
       setLogoUrl(publicUrl)
-      const { error: dbError } = await supabase.from('tenants').update({ logourl: publicUrl }).eq('id', tenant.id)
-      
+      const { data: upd, error: dbError } = await supabase.from('tenants').update({ logourl: publicUrl }).eq('id', tenant.id).select('id')
+
       if (dbError) throw dbError
+      if (!upd || upd.length === 0) throw new Error('No se pudo guardar el logo: no tenés permisos para modificar esta clínica (debés ser dueño o administrador).')
       msg('Logo subido correctamente ✓')
       
     } catch (err: any) {
@@ -249,12 +250,16 @@ export default function Configuracion() {
         whatsapptemplate: whatsappTemplate
       }
 
-      const { error: tenantError } = await supabase
+      const { data: tenantUpd, error: tenantError } = await supabase
         .from('tenants')
         .update(updates)
         .eq('id', tenant.id)
+        .select('id')
 
       if (tenantError) throw new Error(tenantError.message)
+      if (!tenantUpd || tenantUpd.length === 0) {
+        throw new Error('No se pudieron guardar los cambios: no tenés permisos para modificar esta clínica (debés ser dueño o administrador).')
+      }
 
       // 2. Guardar configuración fiscal si hay CUIT
       if (arcaCuit) {
