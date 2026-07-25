@@ -43,30 +43,45 @@ export async function POST(req: Request) {
     // Párrafos del instructivo (respeta saltos de línea del texto cargado)
     const parrafos = tratamiento.cuidados_posteriores
       .split(/\n{2,}/)
-      .map((p: string) => `<p style="color:#333;font-size:15px;line-height:1.6;margin:0 0 14px">${p.replace(/\n/g, '<br/>')}</p>`)
+      .map((p: string, i: number, arr: string[]) =>
+        `<p style="color:#334155;font-size:14.5px;line-height:1.6;margin:${i === 0 ? '14px' : '16px'} 0 ${i === arr.length - 1 ? '14px' : '16px'}">${p.replace(/\n/g, '<br/>')}</p>`)
       .join('')
 
     const resend = new Resend(process.env.RESEND_API_KEY)
     const fromEmail = remitente(clinica, EMAIL_FROM_RECORDATORIOS)
 
+    const html = `
+      <div style="background:#eef2f6;padding:24px 12px;margin:0">
+        <div style="font-family:'Segoe UI',Helvetica,Arial,sans-serif;max-width:560px;margin:0 auto;background:#ffffff;border-radius:18px;overflow:hidden;box-shadow:0 6px 24px rgba(10,30,61,0.08)">
+          <div style="background:${accent};padding:26px 32px;text-align:center">
+            ${logo
+              ? `<img src="${logo}" alt="${clinica}" style="max-height:52px;margin:0 auto 6px;display:block" /><div style="font-size:13px;color:rgba(255,255,255,0.9)">Cuidados posteriores a tu tratamiento</div>`
+              : `<div style="font-size:20px;font-weight:700;color:#ffffff;letter-spacing:-0.2px">${clinica}</div><div style="font-size:13px;color:rgba(255,255,255,0.9);margin-top:2px">Cuidados posteriores a tu tratamiento</div>`}
+          </div>
+          <div style="padding:28px 32px">
+            <div style="display:inline-block;background:${accent}1a;color:${accent};font-size:12px;font-weight:700;padding:5px 12px;border-radius:20px;margin-bottom:16px">🦷 ${tratamiento.nombre}</div>
+            <p style="color:#0a1e3d;font-size:16px;font-weight:600;margin:0 0 4px">Hola ${paciente.nombre},</p>
+            <p style="color:#475569;font-size:14.5px;line-height:1.6;margin:0 0 20px">Gracias por tu visita. Para cuidar el resultado de tu tratamiento, seguí estas indicaciones:</p>
+            <div style="border-left:3px solid ${accent};background:#f8fafc;border-radius:0 12px 12px 0;padding:4px 20px;margin:0 0 8px">
+              ${parrafos}
+            </div>
+            <div style="background:#fffbeb;border-radius:12px;padding:14px 18px;margin:22px 0 4px">
+              <p style="color:#92400e;font-size:13.5px;line-height:1.5;margin:0">¿Dudas o molestias? Escribinos y te ayudamos. 💬</p>
+            </div>
+          </div>
+          <div style="border-top:1px solid #eef2f6;padding:18px 32px;text-align:center">
+            <div style="font-size:13px;font-weight:600;color:#0a1e3d">${clinica}</div>
+            ${direccion ? `<div style="font-size:12px;color:#94a3b8;margin-top:2px">${direccion}</div>` : ''}
+          </div>
+        </div>
+      </div>
+    `
+
     const { data: emailResult, error: emailError } = await resend.emails.send({
       from: fromEmail,
       to: paciente.email,
       subject: `Cuidados posteriores — ${tratamiento.nombre}`,
-      html: `
-        <div style="font-family:sans-serif;max-width:560px;margin:0 auto;padding:32px 24px">
-          ${logo ? `<img src="${logo}" alt="${clinica}" style="max-height:60px;margin-bottom:20px;display:block" />` : ''}
-          <h2 style="color:${accent};margin-bottom:8px">Cuidados posteriores a tu ${tratamiento.nombre.toLowerCase()}</h2>
-          <p style="color:#333;font-size:15px">Hola <strong>${paciente.nombre}</strong>,</p>
-          <p style="color:#333;font-size:15px;margin-bottom:20px">Te dejamos las indicaciones para cuidar el resultado de tu tratamiento:</p>
-          <div style="background:#f4f6f8;border-radius:12px;padding:18px 20px;margin:0 0 20px">
-            ${parrafos}
-          </div>
-          <p style="color:#333;font-size:14px">Ante cualquier duda o molestia, no dudes en escribirnos.</p>
-          <hr style="border:none;border-top:1px solid #eee;margin:24px 0"/>
-          <p style="color:#aaa;font-size:12px;text-align:center">Mensaje enviado por ${clinica}${direccion ? ` — ${direccion}` : ''}.</p>
-        </div>
-      `,
+      html,
     })
 
     if (emailError) return NextResponse.json({ error: `No se pudo enviar: ${emailError.message}` }, { status: 502 })
