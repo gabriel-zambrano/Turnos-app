@@ -39,8 +39,10 @@ Ideas y mejoras que surgieron y quedaron para más adelante. Ordenadas por área
   Mejora futura: panel de historial de envíos y número/plantillas por clínica.
 - **Segmentación y LTV**: clasificar pacientes (VIP, en riesgo, nuevo sin 2ª
   visita) por facturación y frecuencia.
-- **Seguimiento post-tratamiento**: mensaje automático 2-3 días después de
-  extracción/cirugía.
+- **Cuidados posteriores por email**: HECHO. Instructivo por tratamiento
+  (editable en Precios) + botón "Enviar cuidados" en la ficha del paciente.
+  Mejora futura: envío automático al marcar "asistió" y variante por WhatsApp
+  para pacientes sin email.
 - **Embudo de presupuestos**: explotar la tabla `presupuestos` (aceptados vs
   pendientes vs perdidos) y recordar los no cerrados.
 

@@ -222,6 +222,45 @@ export default function PacienteDetalle() {
   const [cGuardando, setCGuardando] = useState(false)
   const [linkRemoto, setLinkRemoto] = useState('')
 
+  // Cuidados posteriores por email
+  const [modalCuidados, setModalCuidados] = useState(false)
+  const [tratamientosCuidados, setTratamientosCuidados] = useState<{ id: string; nombre: string }[]>([])
+  const [cuidTratId, setCuidTratId] = useState('')
+  const [enviandoCuidados, setEnviandoCuidados] = useState(false)
+
+  async function abrirModalCuidados() {
+    if (!tenant) return
+    const { data } = await supabase.from('tratamientos')
+      .select('id, nombre')
+      .eq('tenant_id', tenant.id)
+      .not('cuidados_posteriores', 'is', null)
+      .order('nombre')
+    const lista = (data || []).filter((t: any) => t.nombre)
+    setTratamientosCuidados(lista)
+    setCuidTratId(lista[0]?.id || '')
+    setModalCuidados(true)
+  }
+
+  async function enviarCuidados() {
+    if (!tenant || !cuidTratId) return showMsg('Elegí un tratamiento', 'error')
+    setEnviandoCuidados(true)
+    try {
+      const res = await fetch('/api/cuidados/enviar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tenantId: tenant.id, pacienteId: id, tratamientoId: cuidTratId }),
+      })
+      const d = await res.json()
+      if (!res.ok) throw new Error(d.error || 'Error al enviar')
+      showMsg(`Cuidados enviados a ${d.email} ✓`)
+      setModalCuidados(false)
+    } catch (err: any) {
+      showMsg(err.message, 'error')
+    } finally {
+      setEnviandoCuidados(false)
+    }
+  }
+
   // Appointments state
   const [citas, setCitas] = useState<any[]>([])
 
@@ -778,9 +817,14 @@ export default function PacienteDetalle() {
           title={`Ficha Clínica: ${paciente.nombre}`}
           sub="Historial clínico y Odontograma interactivo"
           right={
-            <button style={btnLightCss} onClick={() => router.push('/pacientes')}>
-              ← Pacientes
-            </button>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button style={btnLightCss} onClick={abrirModalCuidados} title="Enviar cuidados posteriores por email">
+                📧 Enviar cuidados
+              </button>
+              <button style={btnLightCss} onClick={() => router.push('/pacientes')}>
+                ← Pacientes
+              </button>
+            </div>
           }
         />
 
@@ -1947,6 +1991,39 @@ export default function PacienteDetalle() {
                   {cGuardando ? 'Guardando…' : cModo === 'presencial' ? 'Registrar firma' : 'Generar link'}
                 </button>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {modalCuidados && (
+        <div onClick={() => setModalCuidados(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: '1rem' }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 16, padding: '1.5rem', width: '100%', maxWidth: 420, boxShadow: '0 8px 32px rgba(0,0,0,0.12)' }}>
+            <div style={{ fontSize: 16, fontWeight: 700, color: '#0a1e3d', marginBottom: 6 }}>Enviar cuidados posteriores</div>
+            <p style={{ fontSize: 12.5, color: '#64748b', marginBottom: '1rem', lineHeight: 1.5 }}>
+              Se envía por email a <strong>{paciente.nombre}</strong>{paciente.email ? ` (${paciente.email})` : ''} el instructivo del tratamiento elegido.
+            </p>
+            {!paciente.email ? (
+              <div style={{ background: '#fef3c7', color: '#92400e', padding: '10px 12px', borderRadius: 8, fontSize: 12.5, marginBottom: 12 }}>
+                Este paciente no tiene email cargado. Agregá su email en la ficha para poder enviarle los cuidados.
+              </div>
+            ) : tratamientosCuidados.length === 0 ? (
+              <div style={{ background: '#f1f5f9', color: '#64748b', padding: '10px 12px', borderRadius: 8, fontSize: 12.5, marginBottom: 12 }}>
+                Todavía no cargaste cuidados posteriores en ningún tratamiento. Cargalos en <strong>Precios</strong>.
+              </div>
+            ) : (
+              <div style={{ marginBottom: 14 }}>
+                <label style={{ fontSize: 12, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 4 }}>Tratamiento</label>
+                <select value={cuidTratId} onChange={e => setCuidTratId(e.target.value)} style={{ ...inputCss, width: '100%' }}>
+                  {tratamientosCuidados.map(t => <option key={t.id} value={t.id}>{t.nombre}</option>)}
+                </select>
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: '0.5rem' }}>
+              <button onClick={() => setModalCuidados(false)} style={{ fontSize: 13, padding: '7px 16px', borderRadius: 8, border: '1px solid #e2e8f0', background: '#fff', color: '#64748b', cursor: 'pointer', fontFamily: 'DM Sans, sans-serif' }}>Cerrar</button>
+              <button onClick={enviarCuidados} disabled={enviandoCuidados || !paciente.email || tratamientosCuidados.length === 0} style={{ fontSize: 13, fontWeight: 600, padding: '7px 18px', borderRadius: 8, border: 'none', background: (enviandoCuidados || !paciente.email || !tratamientosCuidados.length) ? '#94a3b8' : '#1D9E75', color: '#fff', cursor: enviandoCuidados ? 'wait' : 'pointer', fontFamily: 'DM Sans, sans-serif' }}>
+                {enviandoCuidados ? 'Enviando…' : 'Enviar email'}
+              </button>
             </div>
           </div>
         </div>

@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { Sidebar } from '@/components/Sidebar'
 import { Toast, Spinner } from '@/components/UI'
 import { createClient } from '@/lib/supabase/client'
@@ -11,6 +11,7 @@ interface Tratamiento {
   precio_base: number | null
   duracion_default: number | null
   meses_control: number | null
+  cuidados_posteriores: string | null
   activo: boolean
 }
 
@@ -71,6 +72,7 @@ export default function TratamientosPage() {
       precio_base: t.precio_base,
       duracion_default: t.duracion_default,
       meses_control: t.meses_control,
+      cuidados_posteriores: t.cuidados_posteriores,
       activo: t.activo,
     }).eq('id', t.id)
     setSaving(null)
@@ -137,6 +139,10 @@ export default function TratamientosPage() {
                           <input type="number" style={inputSt} value={t.meses_control ?? ''} onChange={e => updateRow(t.id, 'meses_control', e.target.value === '' ? null : Number(e.target.value))} placeholder="—" />
                         </div>
                       </div>
+                      <div style={{ marginBottom: 10 }}>
+                        <div style={{ fontSize: 11, color: '#8fa3bc', marginBottom: 3 }}>Cuidados posteriores (se envían por email)</div>
+                        <textarea style={{ ...inputSt, minHeight: 60, resize: 'vertical' }} value={t.cuidados_posteriores ?? ''} onChange={e => updateRow(t.id, 'cuidados_posteriores', e.target.value)} placeholder="Ej. Evitá alimentos con colorantes 48hs…" />
+                      </div>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                         <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#0a1e3d', cursor: 'pointer' }}>
                           <input type="checkbox" checked={t.activo} onChange={e => updateRow(t.id, 'activo', e.target.checked)} style={{ accentColor: '#138A6B', width: 15, height: 15 }} />
@@ -164,7 +170,8 @@ export default function TratamientosPage() {
                     {tratamientos.length === 0 ? (
                       <tr><td colSpan={6} style={{ padding: '2rem', textAlign: 'center', color: '#94a3b8' }}>Sin tratamientos</td></tr>
                     ) : tratamientos.map((t, i) => (
-                      <tr key={t.id} style={{ borderTop: i > 0 ? '1px solid #f1f5f9' : 'none' }}>
+                      <React.Fragment key={t.id}>
+                      <tr style={{ borderTop: i > 0 ? '1px solid #f1f5f9' : 'none' }}>
                         <td style={{ padding: '0.85rem 1.25rem', fontWeight: 600, color: '#0a1e3d' }}>{t.nombre}</td>
                         <td style={{ padding: '0.6rem 1.25rem', minWidth: 150 }}>
                           <input type="number" style={inputSt} value={t.precio_base ?? ''} onChange={e => updateRow(t.id, 'precio_base', e.target.value === '' ? null : Number(e.target.value))} placeholder="0" />
@@ -184,6 +191,13 @@ export default function TratamientosPage() {
                           </button>
                         </td>
                       </tr>
+                      <tr style={{ background: '#fbfdff' }}>
+                        <td colSpan={6} style={{ padding: '0 1.25rem 0.85rem' }}>
+                          <div style={{ fontSize: 11, color: '#8fa3bc', margin: '2px 0 4px' }}>Cuidados posteriores (se envían por email al paciente)</div>
+                          <textarea style={{ ...inputSt, minHeight: 52, resize: 'vertical' }} value={t.cuidados_posteriores ?? ''} onChange={e => updateRow(t.id, 'cuidados_posteriores', e.target.value)} placeholder="Ej. Evitá alimentos con colorantes las primeras 48hs…" />
+                        </td>
+                      </tr>
+                      </React.Fragment>
                     ))}
                   </tbody>
                 </table>
