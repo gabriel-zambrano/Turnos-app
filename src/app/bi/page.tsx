@@ -225,7 +225,7 @@ export default function BiPage() {
               </ul>
             </div>
             <button
-              onClick={() => window.open('mailto:soporte@dentaldesk.app?subject=Upgrade Plan Pro BI', '_blank')}
+              onClick={() => { window.location.href = '/precios' }}
               style={{
                 width: '100%',
                 background: '#0f1e2b',
@@ -242,7 +242,7 @@ export default function BiPage() {
               onMouseEnter={(e) => e.currentTarget.style.background = '#1e293b'}
               onMouseLeave={(e) => e.currentTarget.style.background = '#0f1e2b'}
             >
-              Mejorar mi plan
+              Ver plan Business
             </button>
           </div>
         </main>

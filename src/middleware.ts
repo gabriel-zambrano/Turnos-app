@@ -13,7 +13,8 @@ export async function middleware(req: NextRequest) {
     '/auth',
     '/login',
     '/registro',
-    '/legal'
+    '/legal',
+    '/precios'
   ]
 
   const isPublic = publicPrefixes.some(prefix => pathname.startsWith(prefix)) || pathname === '/'

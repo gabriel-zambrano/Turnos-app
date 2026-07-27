@@ -4,6 +4,7 @@ import { Sidebar } from '@/components/Sidebar'
 import { PageHeader, Badge, Spinner } from '@/components/UI'
 import { createClient } from '@/lib/supabase/client'
 import { useTenantContext } from '@/components/TenantContext'
+import { PlanGate } from '@/components/PlanGate'
 import { normalizarTelefono } from '@/lib/constants'
 
 interface LogDB { 
@@ -127,6 +128,30 @@ export default function Recordatorios() {
   const primaryColor = tenant?.primaryColor || '#0a1e3d'
   const secondaryColor = tenant?.secondaryColor || '#185FA5'
   const accentColor = tenant?.accentColor || '#138A6B'
+
+  // Los recordatorios son el diferencial del plan Pro: son los que bajan el
+  // ausentismo, o sea los que le generan plata al consultorio.
+  if (!tenantLoading && tenant && !tenant.feature_recordatorios) {
+    return (
+      <div style={{ display: 'flex', minHeight: '100vh', fontFamily: 'DM Sans, sans-serif' }}>
+        <Sidebar />
+        <main style={{ marginLeft: isMobile ? 0 : 'var(--sidebar-width, 240px)', flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: isMobile ? '1rem' : '2rem', minWidth: 0 }}>
+          <PlanGate
+            emoji="🔔"
+            titulo="Recordatorios & Reactivación"
+            descripcion="Los recordatorios automáticos de turno no están incluidos en tu plan actual."
+            incluye={[
+              'Recordatorio automático por email antes de cada turno.',
+              'Confirmación del paciente con un clic, sin llamados.',
+              'Mensajes de WhatsApp con la plantilla de tu consultorio.',
+              'Detección de pacientes inactivos para reactivar.',
+            ]}
+            planSugerido="Pro"
+          />
+        </main>
+      </div>
+    )
+  }
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', fontFamily: 'DM Sans, sans-serif' }}>

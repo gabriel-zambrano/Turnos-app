@@ -1,12 +1,18 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { esPlanValido, precioDelPlan, precioFormateado, type Plan } from '@/lib/planes'
 
 export async function POST(req: Request) {
   try {
-    const { tenantId, email } = await req.json()
+    const { tenantId, email, plan: planPedido, fundador } = await req.json()
     if (!tenantId || !email) {
       return NextResponse.json({ error: 'Faltan parámetros' }, { status: 400 })
     }
+
+    // Sin plan explícito se asume Pro, que es el plan ancla de la grilla.
+    const plan: Plan = esPlanValido(planPedido) ? (planPedido.toLowerCase() as Plan) : 'pro'
+    const esFundador = fundador === true
+    const monto = precioDelPlan(plan, esFundador)
 
     // ── Autorización: el usuario debe estar logueado y pertenecer al tenant ──
     const supabase = createClient()
@@ -36,7 +42,9 @@ export async function POST(req: Request) {
       }
       console.warn('MERCADOPAGO_ACCESS_TOKEN no configurado. Modo simulado.')
       return NextResponse.json({
-        checkoutUrl: `${appUrl}/configuracion?billing=success-mock&preapproval_id=mock-preapp-${tenantId}`
+        checkoutUrl: `${appUrl}/configuracion?billing=success-mock&preapproval_id=mock-preapp-${tenantId}`,
+        plan,
+        monto
       })
     }
 
@@ -47,13 +55,16 @@ export async function POST(req: Request) {
         'Authorization': `Bearer ${mpAccessToken}`
       },
       body: JSON.stringify({
-        reason: 'DentalDesk Pro - Facturación Mensual',
-        external_reference: tenantId,
+        reason: `DentalDesk ${plan.charAt(0).toUpperCase()}${plan.slice(1)} — ${precioFormateado(monto)}/mes`,
+        // El plan viaja en la referencia externa porque MercadoPago no la
+        // devuelve de otra forma: el webhook la parsea para saber qué plan
+        // activar. Formato: "<tenantId>|<plan>".
+        external_reference: `${tenantId}|${plan}`,
         payer_email: email,
         auto_recurring: {
           frequency: 1,
           frequency_type: 'months',
-          transaction_amount: 3500,
+          transaction_amount: monto,
           currency_id: 'ARS'
         },
         back_url: `${appUrl}/configuracion?billing=success`,
@@ -66,7 +77,7 @@ export async function POST(req: Request) {
       throw new Error(data.message || 'Error al conectar con MercadoPago')
     }
 
-    return NextResponse.json({ checkoutUrl: data.init_point })
+    return NextResponse.json({ checkoutUrl: data.init_point, plan, monto })
   } catch (err: any) {
     console.error('Error in MercadoPago Checkout:', err?.message || err)
     return NextResponse.json({ error: 'Error al iniciar el pago' }, { status: 500 })

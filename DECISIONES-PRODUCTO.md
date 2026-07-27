@@ -30,6 +30,47 @@ estándar del rubro y no toca la suscripción.
 
 ---
 
+## 1 bis. Grilla de precios y features por plan — DECIDIDO (27/07/2026)
+
+Definida en `src/lib/planes.ts`, única fuente de verdad para el checkout, el
+webhook, la página `/precios` y los gates de la app.
+
+| Plan | Fundador | Regular | Usuarios | Recordatorios | WhatsApp/CRM | BI |
+|---|---|---|---|---|---|---|
+| starter | $12.900 | $16.900 | 1 | ❌ | ❌ | ❌ |
+| pro | $24.900 | $29.900 | 3 | ✅ | ✅ | ❌ |
+| business | $39.900 | $49.900 | ilimitado | ✅ | ✅ | ✅ |
+
+**Anclaje del precio:** una consulta particular ronda los $40.000. Todos los
+planes quedan por debajo, para sostener el argumento "cuesta menos que una
+consulta; si te evita un solo ausente, ya se pagó". Hay un test que falla si
+algún plan se pasa de ese techo.
+
+**Por qué los recordatorios van en Pro y no en Starter:** son el feature que
+baja el ausentismo, o sea el que le genera plata al odontólogo. Regalarlo en
+Starter elimina el motivo para subir de plan.
+
+**Trial:** los 14 días habilitan todo, sin importar el plan asignado.
+
+**Columnas `feature_*` de `tenants`:** dejaron de ser el interruptor real. Ahora
+son **concesiones manuales que solo suman** (panel de admin, grandfathering). Lo
+que la clínica puede usar se calcula al leer, con `featureHabilitada(plan,
+concesión, enTrial)`. Así un cambio de grilla nunca le quita a un cliente algo
+que ya venía usando.
+
+**Plan contratado ↔ MercadoPago:** viaja en `external_reference` con formato
+`"<tenantId>|<plan>"`, porque MP no devuelve metadata propia. Las suscripciones
+viejas (sin separador) caen a `pro`, que es como se comportaban antes.
+
+**⚠️ A resolver:** los Términos y Condiciones describen a Starter como *plan
+gratuito*. O se corrige el texto legal, o se define un Starter gratis con menos
+funciones y la grilla arranca en Pro.
+
+**⚠️ Inflación:** revisar la grilla cada 3 meses. El Precio Fundador se congela
+solo para quienes ya entraron; los nuevos pagan el precio actualizado.
+
+---
+
 ## 2. Alta de clínicas: dos caminos distintos — PENDIENTE DE DEFINIR
 
 Hoy conviven dos formas de crear una clínica, y hacen cosas diferentes:

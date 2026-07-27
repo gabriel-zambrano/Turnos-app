@@ -83,7 +83,10 @@ export async function POST(req: NextRequest) {
       plan: 'pro',
       subscription_status: 'trial',
       next_payment_date: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
-      feature_bi: true,
+      // Las features NO se escriben acá: durante el trial se habilitan todas por
+      // el estado 'trial' (ver featuresDelPlan), y al terminar quedan las que
+      // correspondan al plan que contrate. Las columnas feature_* quedan
+      // reservadas para concesiones manuales desde el panel de admin.
       activo: true
     }
 

@@ -6,9 +6,14 @@ contra el repo real, no contra lo que decían los documentos.
 
 **Marcador: 15 hechos · 3 parciales · 8 abiertos.**
 
-> **Actualización 27/07 — Tanda 1 aplicada.** Puntos unificados contra el ledger,
-> búsqueda por teléfono en el Command Palette, y el auto-login del wizard
-> verificado (ya estaba hecho). Typecheck 0 errores, 142 tests en verde.
+> **Actualización 27/07 — Tandas 1 y 2 aplicadas.** Puntos unificados contra el
+> ledger, búsqueda por teléfono, precios reales por plan en el checkout, feature
+> flags derivados del plan y página `/precios` pública. Typecheck 0 errores,
+> 157 tests en verde.
+>
+> ⚠️ **Inconsistencia a resolver:** los Términos y Condiciones dicen que Starter
+> es un *plan gratuito*, pero la grilla lo cobra a $16.900. Hay que decidir cuál
+> vale y corregir el otro antes de publicar precios.
 
 ---
 
@@ -18,8 +23,8 @@ contra el repo real, no contra lo que decían los documentos.
 
 | # | Mejora | Estado | Evidencia |
 |---|---|---|---|
-| 1 | MercadoPago Subscriptions | 🟡 Parcial | `api/billing/checkout` + `webhooks/mercadopago` + `SubscriptionGate` funcionan, pero **`transaction_amount: 3500` sigue hardcodeado** (checkout:56). Todos los planes cobran lo mismo. |
-| 2 | Feature flags atados al plan | 🟡 Parcial | Solo `feature_bi` se aplica de verdad (`bi/page.tsx:177`). `feature_whatsapp` y `feature_recordatorios` siguen siendo decorativos. `api/registro:86` da `feature_bi: true` a todo el que se registra. `planes.ts` solo modela cupos de usuarios, no features. |
+| 1 | MercadoPago Subscriptions | ✅ Hecho | El checkout cobra el precio del plan elegido (`precioDelPlan`) y el plan viaja al webhook en `external_reference` como `"<tenantId>\|<plan>"`. |
+| 2 | Feature flags atados al plan | ✅ Hecho | `featuresDelPlan` / `featureHabilitada` en `planes.ts`. Las columnas `feature_*` pasaron a ser **concesiones manuales que solo suman**, para no revocarle nada a una clínica que ya lo usaba. |
 | 3 | Términos y Privacidad con contenido real | ✅ Hecho | 68 y 96 líneas de contenido, ya no placeholders. |
 | 4 | Landing pública en `/` | ❌ Abierto | `src/app/page.tsx` son 5 líneas: `redirect('/dashboard')`. La landing de Naxad vive en otro repo. |
 
@@ -51,7 +56,7 @@ contra el repo real, no contra lo que decían los documentos.
 | 16 | Botón "💰 Cobrar" al marcar asistencia | ✅ Hecho | `agenda/page.tsx:1443` |
 | 17 | Subida de fotos en la ficha | ✅ Hecho | `pacientes/[id]:695` con Supabase Storage |
 | 18 | Ver feedback post-visita | ✅ Hecho | `/seguimiento` con filtro dedicado |
-| 19 | Búsqueda por teléfono en Command Palette | ❌ Abierto | `CommandPalette:62` trae `telefono` pero filtra con `.ilike('nombre', ...)`. **Fix de una línea.** |
+| 19 | Búsqueda por teléfono en Command Palette | ✅ Hecho | Filtra por nombre o teléfono (solo dígitos). |
 
 ### ⚙️ Deuda técnica
 
@@ -66,7 +71,7 @@ contra el repo real, no contra lo que decían los documentos.
 
 | # | Mejora | Estado |
 |---|---|---|
-| 24 | Página `/precios` pública | ❌ Abierto |
+| 24 | Página `/precios` pública | ✅ Hecho — grilla, FAQ y CTA de prueba, leyendo de `planes.ts` |
 | 25 | Trial de 14 días automático | ✅ Hecho — `subscription_status: 'trial'` en el alta |
 | 26 | Facturación AFIP/ARCA | ✅ Hecho — en producción con validez fiscal |
 
@@ -107,20 +112,24 @@ en el modal de edición, lo que puede desincronizar el ledger.
 
 ## C. Plan de retome propuesto
 
-**Tanda 1 — chico y de alto impacto (≈2 h)**
+**Tanda 1 — ✅ aplicada (commit `24e4a13`)**
 
-1. Unificar el saldo de puntos: la API del portal devuelve `puntos_saldo_cache`
-   y el portal lo muestra tal cual, sin recalcular. Sacar la edición de la
-   columna legacy.
-2. Búsqueda por teléfono en el Command Palette (`.or('nombre.ilike…,telefono.ilike…')`).
-3. Auto-login al terminar el wizard → dashboard.
+1. ~~Unificar el saldo de puntos contra el ledger.~~
+2. ~~Búsqueda por teléfono en el Command Palette.~~
+3. ~~Auto-login del wizard~~ (ya estaba hecho).
 
-**Tanda 2 — desbloquea el cobro por plan (≈1 día)**
+**Tanda 2 — ✅ aplicada**
 
-4. Precios reales por plan en el checkout (según la grilla: Starter $16.900 /
-   Pro $29.900 / Business $49.900, con Precio Fundador para las primeras 20).
-5. Feature flags derivados del plan contratado, no hardcodeados.
-6. Página `/precios` pública.
+4. ~~Precios reales por plan en el checkout.~~ Starter $16.900 / Pro $29.900 /
+   Business $49.900, con Precio Fundador ($12.900 / $24.900 / $39.900) para las
+   primeras 20 clínicas.
+5. ~~Feature flags derivados del plan.~~ Recordatorios y WhatsApp desde Pro, BI
+   en Business, todo habilitado durante el trial.
+6. ~~Página `/precios` pública.~~
+
+**Pendiente para cobrar de verdad:** probar el checkout end-to-end con
+credenciales reales de MercadoPago, y resolver la contradicción del Starter
+gratis en los Términos.
 
 **Tanda 3 — el gap comercial (≈1 semana)**
 

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import crypto from 'crypto'
+import { esPlanValido, type Plan } from '@/lib/planes'
 
 /**
  * Verifica la firma x-signature de MercadoPago.
@@ -56,6 +57,8 @@ export async function POST(req: Request) {
     let tenantId = ''
     let status = 'inactive'
     let nextPaymentDate: string | null = null
+    // Plan contratado. Viene en la referencia externa como "<tenantId>|<plan>".
+    let planContratado: Plan = 'pro'
 
     // ── Ruta de simulación: SOLO en entornos que NO son producción ──
     const isMock = preapprovalId.startsWith('mock-preapp-')
@@ -88,22 +91,33 @@ export async function POST(req: Request) {
       }
 
       const preapproval = await mpRes.json()
-      tenantId = preapproval.external_reference
+      // "<tenantId>|<plan>". Las suscripciones viejas traen solo el tenantId,
+      // así que sin separador se mantiene el plan por defecto (pro).
+      const [refTenantId, refPlan] = String(preapproval.external_reference || '').split('|')
+      tenantId = refTenantId
+      if (esPlanValido(refPlan)) planContratado = refPlan.toLowerCase() as Plan
       status = preapproval.status
       nextPaymentDate = preapproval.next_payment_date || null
     }
 
     if (tenantId) {
       const isAuthorized = status === 'authorized'
+      // Al autorizarse queda el plan que efectivamente contrató; si el pago no
+      // prospera, cae a starter.
+      //
+      // Las columnas feature_* NO se tocan acá: pasaron a ser concesiones
+      // manuales del panel de admin. Lo que la clínica puede usar se deriva del
+      // plan en tiempo de lectura (featureHabilitada), así un cambio de plan no
+      // le revoca de golpe algo que se le había otorgado a mano.
+      const planFinal: Plan = isAuthorized ? planContratado : 'starter'
 
       const { error } = await supabaseAdmin
         .from('tenants')
         .update({
-          plan: isAuthorized ? 'pro' : 'starter',
+          plan: planFinal,
           subscription_status: status,
           next_payment_date: nextPaymentDate,
-          mp_preapproval_id: preapprovalId,
-          feature_bi: isAuthorized
+          mp_preapproval_id: preapprovalId
         })
         .eq('id', tenantId)
 

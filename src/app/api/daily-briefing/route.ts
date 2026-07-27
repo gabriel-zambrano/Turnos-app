@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { Resend } from 'resend'
+import { featureHabilitada } from '@/lib/planes'
 
 function fmt(n: number) {
   return '$' + Math.round(n).toLocaleString('es-AR')
@@ -34,17 +35,23 @@ export async function GET(req: NextRequest) {
     const hace7 = new Date(hoy)
     hace7.setDate(hace7.getDate() - 7)
 
-    const { data: tenants } = await supabase
+    // El briefing es parte de la analítica: lo reciben las clínicas cuyo plan
+    // incluye BI, más las que lo tengan concedido a mano. El filtro se hace acá
+    // y no en la query porque la regla vive en planes.ts (una sola fuente).
+    const { data: tenantsActivos } = await supabase
       .from('tenants')
-      .select('id, nombre, feature_bi')
+      .select('id, nombre, plan, feature_bi, subscription_status')
       .eq('activo', true)
-      .eq('feature_bi', true)
+
+    const tenants = (tenantsActivos || []).filter(t =>
+      featureHabilitada('bi', t.plan, t.feature_bi, t.subscription_status === 'trial')
+    )
 
     const { data: doctores } = await supabase
       .from('perfil_doctor')
       .select('tenant_id, nombre, clinica')
 
-    if (!tenants) {
+    if (tenants.length === 0) {
       return NextResponse.json({ error: 'No tenants active for BI' }, { status: 200 })
     }
 

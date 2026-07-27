@@ -1,6 +1,7 @@
 'use client'
 import React, { createContext, useContext, useEffect, useState, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { featureHabilitada, FEATURES_TRIAL } from '@/lib/planes'
 
 export interface TenantBranding {
   id: string
@@ -34,11 +35,12 @@ const defaultBranding = (id: string, name: string): TenantBranding => {
     secondaryColor: '#185FA5',
     accentColor: '#138A6B',
     whatsappTemplate: `Hola {nombre_paciente},\n\nTe recordamos tu turno en *{nombre_clinica}*:\n\n{dia_semana} {fecha} a las *{hora}hs*\n{tratamiento}\n📍 Dirección: {direccion}\n\nConfirma o cancela tu turno acá:\n{link}`,
+    // Fallback de desarrollo: se comporta como un trial, con todo habilitado.
     plan: 'starter',
-    feature_bi: true,
-    feature_whatsapp: true,
-    feature_recordatorios: true,
-    subscriptionStatus: 'inactive',
+    feature_bi: FEATURES_TRIAL.bi,
+    feature_whatsapp: FEATURES_TRIAL.whatsapp,
+    feature_recordatorios: FEATURES_TRIAL.recordatorios,
+    subscriptionStatus: 'trial',
     nextPaymentDate: null
   }
 }
@@ -124,6 +126,11 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
 
         if (tenantData) {
           const data = tenantData
+          // Lo que la clínica puede usar sale del plan contratado. Las columnas
+          // feature_* son concesiones manuales del panel de admin: solo suman.
+          // Durante el trial se habilita todo, para que vea el producto entero.
+          const plan = data.plan || 'starter'
+          const enTrial = (data.subscription_status || '') === 'trial'
           setTenant({
             id: data.id,
             nombre: data.nombre,
@@ -134,10 +141,10 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
             secondaryColor: data.secondarycolor || '#185FA5',
             accentColor: data.accentcolor || '#138A6B',
             whatsappTemplate: data.whatsapptemplate || `Hola {nombre_paciente},\n\nTe recordamos tu turno en *{nombre_clinica}*:\n\n{dia_semana} {fecha} a las *{hora}hs*\n{tratamiento}\n📍 Dirección: {direccion}\n\nConfirma o cancela tu turno acá:\n{link}`,
-            plan: data.plan || 'starter',
-            feature_bi: data.feature_bi ?? false,
-            feature_whatsapp: data.feature_whatsapp ?? false,
-            feature_recordatorios: data.feature_recordatorios ?? false,
+            plan,
+            feature_bi: featureHabilitada('bi', plan, data.feature_bi, enTrial),
+            feature_whatsapp: featureHabilitada('whatsapp', plan, data.feature_whatsapp, enTrial),
+            feature_recordatorios: featureHabilitada('recordatorios', plan, data.feature_recordatorios, enTrial),
             subscriptionStatus: data.subscription_status || 'inactive',
             nextPaymentDate: data.next_payment_date || null
           })
