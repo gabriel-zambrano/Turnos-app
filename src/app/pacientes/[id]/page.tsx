@@ -9,6 +9,7 @@ import { storagePathFromUrl, esImagenSoportada, BUCKET_FOTOS } from '@/lib/stora
 import { useTenantContext } from '@/components/TenantContext'
 import { SignaturePad } from '@/components/SignaturePad'
 import { aprobarAsistenciaAction, canjearPremioAction, ajustarPuntosManualAction, registrarInasistenciaAction } from '@/app/actions/fidelizacion'
+import { registrarConsentimiento, tieneConsentimientoVigente } from '@/lib/consentimiento-datos'
 
 interface Paciente {
   id: string
@@ -23,6 +24,8 @@ interface Paciente {
   progreso_plan_porcentaje: number | null
   puntos: number | null
   puntos_saldo_cache: number
+  consentimiento_datos_en: string | null
+  consentimiento_datos_ver: string | null
   visitas_consecutivas_sin_faltar: number
   total_visitas_asistidas: number
   recomendaciones: string | null
@@ -190,6 +193,7 @@ export default function PacienteDetalle() {
   // (ajustarPuntosManualAction), que deja asiento y mantiene el cache al día.
   const [editRecomendaciones, setEditRecomendaciones] = useState('')
   const [guardandoFicha, setGuardandoFicha] = useState(false)
+  const [guardandoConsentimiento, setGuardandoConsentimiento] = useState(false)
   const [attendedVisitsCount, setAttendedVisitsCount] = useState(0)
 
   // Loyalty & Points states
@@ -775,6 +779,21 @@ export default function PacienteDetalle() {
     return `${edad} años`
   }
 
+  // Registra el consentimiento de un paciente cargado antes de que existiera
+  // el checkbox. Solo lo toca el consultorio, con el paciente presente.
+  async function registrarConsentimientoPaciente() {
+    if (!paciente) return
+    setGuardandoConsentimiento(true)
+    const { error } = await supabase
+      .from('pacientes')
+      .update(registrarConsentimiento(true, 'consultorio')!)
+      .eq('id', paciente.id)
+    setGuardandoConsentimiento(false)
+    if (error) return showMsg('Error al registrar el consentimiento: ' + error.message, 'error')
+    showMsg('Consentimiento registrado ✓')
+    loadData()
+  }
+
   if (tenantLoading || loading) {
     return (
       <div style={{ display: 'flex', minHeight: '100vh', fontFamily: 'DM Sans, sans-serif' }}>
@@ -844,7 +863,32 @@ export default function PacienteDetalle() {
         />
 
         <div style={{ padding: isMobile ? '1rem' : '1.5rem 2rem', display: 'flex', flexDirection: 'column', gap: 20, maxWidth: 1200 }}>
-          
+
+          {/* Pacientes cargados antes de que existiera el consentimiento de
+              datos. No se les puede dar por prestado: hay que pedírselo en la
+              próxima visita y registrarlo desde acá. */}
+          {!tieneConsentimientoVigente(paciente as any) && (
+            <div style={{ background: '#FFF3CD', border: '1px solid #ffe08a', borderRadius: 12, padding: '14px 16px', display: 'flex', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 18, lineHeight: 1 }}>⚠️</span>
+              <div style={{ flex: 1, minWidth: 220 }}>
+                <div style={{ fontSize: 13.5, fontWeight: 700, color: '#633806', marginBottom: 3 }}>
+                  Falta el consentimiento de datos
+                </div>
+                <div style={{ fontSize: 12.5, color: '#856404', lineHeight: 1.5 }}>
+                  Este paciente se cargó antes de que se pidiera el consentimiento para el
+                  tratamiento de sus datos de salud. Pedíselo en la próxima visita y registralo acá.
+                </div>
+              </div>
+              <button
+                onClick={registrarConsentimientoPaciente}
+                disabled={guardandoConsentimiento}
+                style={{ ...btnDarkCss, opacity: guardandoConsentimiento ? 0.6 : 1, whiteSpace: 'nowrap' }}
+              >
+                {guardandoConsentimiento ? 'Guardando…' : 'El paciente ya lo prestó'}
+              </button>
+            </div>
+          )}
+
           {/* Ficha General del Paciente */}
           <div className="glass-card" style={{ padding: '1.25rem 1.5rem', display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 20, alignItems: 'center' }}>
             <div style={{

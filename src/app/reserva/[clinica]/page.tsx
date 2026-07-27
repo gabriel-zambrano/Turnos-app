@@ -70,6 +70,8 @@ export default function ReservaPublica() {
   const [telefono, setTelefono] = useState('')
   const [email, setEmail] = useState('')
   const [notas, setNotas] = useState('')
+  // Consentimiento de datos de salud (Ley 25.326). Nunca tildado por defecto.
+  const [consentimiento, setConsentimiento] = useState(false)
 
   const [enviando, setEnviando] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -114,7 +116,7 @@ export default function ReservaPublica() {
       const r = await fetch('/api/reserva/crear', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ clinica: clinicaSlug, nombre, telefono, email, tratamiento, fecha, hora, notas }),
+        body: JSON.stringify({ clinica: clinicaSlug, nombre, telefono, email, tratamiento, fecha, hora, notas, consentimiento }),
       })
       const d = await r.json()
       if (!r.ok) {
@@ -170,7 +172,7 @@ export default function ReservaPublica() {
     )
   }
 
-  const puedeEnviar = fecha && hora && nombre.trim().length >= 3 && telefono.replace(/\D/g, '').length >= 8 && !enviando
+  const puedeEnviar = fecha && hora && nombre.trim().length >= 3 && telefono.replace(/\D/g, '').length >= 8 && consentimiento && !enviando
 
   return (
     <Marco>
@@ -256,6 +258,20 @@ export default function ReservaPublica() {
         <input style={inputSt} placeholder="Email (opcional, para la confirmación)" inputMode="email" value={email} onChange={e => setEmail(e.target.value)} />
         <textarea style={{ ...inputSt, minHeight: 76, resize: 'vertical' }} placeholder="¿Algo que el odontólogo deba saber? (opcional)" value={notas} onChange={e => setNotas(e.target.value)} />
       </div>
+
+      <label style={{ display: 'flex', gap: 11, alignItems: 'flex-start', cursor: 'pointer', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 12, padding: 14, marginBottom: 20 }}>
+        <input
+          type="checkbox"
+          checked={consentimiento}
+          onChange={e => setConsentimiento(e.target.checked)}
+          style={{ marginTop: 2, width: 18, height: 18, flexShrink: 0, cursor: 'pointer' }}
+        />
+        <span style={{ fontSize: 12.5, color: '#475569', lineHeight: 1.5 }}>
+          Autorizo a <strong>{clinica.nombre}</strong> a registrar y tratar mis datos
+          personales y de salud para brindarme atención odontológica y gestionar mis
+          turnos. Puedo pedir acceder a ellos, corregirlos o eliminarlos cuando quiera.
+        </span>
+      </label>
 
       {error && (
         <div style={{ background: '#FAECE7', color: '#712B13', padding: '12px 14px', borderRadius: 12, fontSize: 14, marginBottom: 16 }}>

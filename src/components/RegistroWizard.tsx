@@ -7,6 +7,7 @@ export function RegistroWizard() {
   const [step, setStep] = useState(1)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [esperandoConfirmacion, setEsperandoConfirmacion] = useState(false)
   
   const [formData, setFormData] = useState({
     nombreProfesional: '',
@@ -38,8 +39,16 @@ export function RegistroWizard() {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Error al registrar')
-      
-      // Iniciar sesión automáticamente
+
+      // La cuenta se crea sin confirmar: hasta que no valide el email no puede
+      // entrar. Mostramos la pantalla que le dice que revise el correo, en vez
+      // de intentar un login que sabemos que va a fallar.
+      if (data.requiereVerificacion) {
+        setEsperandoConfirmacion(true)
+        return
+      }
+
+      // Camino heredado, por si el backend deja de exigir confirmación.
       const supabase = createClient()
       const { error: loginError } = await supabase.auth.signInWithPassword({
         email: formData.email,
@@ -57,6 +66,32 @@ export function RegistroWizard() {
     } finally {
       setLoading(false)
     }
+  }
+
+  if (esperandoConfirmacion) {
+    return (
+      <div style={{ background: '#fff', borderRadius: 20, boxShadow: '0 10px 40px rgba(10,30,61,0.08)', padding: '48px 32px', textAlign: 'center' }}>
+        <div style={{ fontSize: 44, marginBottom: 18 }}>📬</div>
+        <h2 style={{ fontSize: 22, fontWeight: 800, color: '#0a1e3d', margin: '0 0 12px' }}>
+          Revisá tu correo
+        </h2>
+        <p style={{ fontSize: 15, color: '#4a6080', lineHeight: 1.6, margin: '0 0 8px' }}>
+          Le mandamos un mail a <strong>{formData.email}</strong> con un link para
+          confirmar que la casilla es tuya.
+        </p>
+        <p style={{ fontSize: 15, color: '#4a6080', lineHeight: 1.6, margin: '0 0 28px' }}>
+          Tu consultorio ya está creado y el trial de 14 días arrancó. Apretá el
+          link y entrás directo.
+        </p>
+        <div style={{ background: '#f4f7fb', borderRadius: 12, padding: '16px', fontSize: 13, color: '#4a6080', lineHeight: 1.6, textAlign: 'left' }}>
+          ¿No te llegó? Fijate en spam o promociones. El mail puede tardar un par
+          de minutos.
+        </div>
+        <a href="/login" style={{ display: 'inline-block', marginTop: 24, color: '#185FA5', fontSize: 14, fontWeight: 700, textDecoration: 'none' }}>
+          Ya lo confirmé, ir a ingresar
+        </a>
+      </div>
+    )
   }
 
   return (

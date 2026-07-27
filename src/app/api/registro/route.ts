@@ -38,11 +38,17 @@ export async function POST(req: NextRequest) {
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     )
 
-    // 1. Create User in Auth
+    // 1. Crear el usuario en Auth, SIN confirmar.
+    //
+    // Antes se creaba con `email_confirm: true`, es decir que cualquiera podía
+    // registrarse con un email inventado y entrar igual. En un sistema que
+    // guarda historias clínicas eso no va: el email es el único dato con el que
+    // después se recupera la cuenta y se notifica al profesional, así que tiene
+    // que estar probado. El acceso queda habilitado recién cuando confirma.
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email,
       password,
-      email_confirm: true, // Auto-confirm for this flow, or send email if preferred
+      email_confirm: false,
       user_metadata: { name: nombreProfesional }
     })
 
@@ -143,14 +149,33 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Error vinculando usuario: ' + linkError.message }, { status: 500 })
     }
 
-    // 4. Enviar email de bienvenida (no bloqueante)
+    // 4. Link de confirmación del email.
+    //
+    // Se genera con la API de admin en vez de dejar que Supabase mande su propio
+    // mail, para que el mensaje salga con la marca del producto y desde el
+    // dominio verificado en Resend (mejor entregabilidad y menos spam).
+    let linkConfirmacion = `${APP_URL}/login`
+    try {
+      const { data: linkData, error: errLink } = await supabaseAdmin.auth.admin.generateLink({
+        type: 'signup',
+        email,
+        password,
+        options: { redirectTo: `${APP_URL}/auth/callback?next=/dashboard` },
+      })
+      if (errLink) console.error('Error generando link de confirmación:', errLink.message)
+      else if (linkData?.properties?.action_link) linkConfirmacion = linkData.properties.action_link
+    } catch (linkErr) {
+      console.error('Error generando link de confirmación:', linkErr)
+    }
+
+    // 5. Enviar email de bienvenida con la confirmación (no bloqueante)
     if (email && process.env.RESEND_API_KEY) {
       try {
         const resendClient = new Resend(process.env.RESEND_API_KEY)
         await resendClient.emails.send({
           from: remitente(APP_NAME),
           to: email,
-          subject: '👋 ¡Bienvenido a DentalDesk! Tu consultorio está listo',
+          subject: 'Confirmá tu email para activar tu consultorio',
           html: `
             <div style="font-family: Arial, sans-serif; max-width: 520px; margin: 0 auto; background: #f4f7fb; padding: 32px 16px;">
               <div style="background: #fff; border-radius: 16px; padding: 32px; border: 1px solid #e8edf2;">
@@ -161,9 +186,19 @@ export async function POST(req: NextRequest) {
                 </div>
                 
                 <p style="font-size: 14px; color: #4a6080; line-height: 1.5;">
-                  Tu consultorio <strong>${nombreConsultorio}</strong> ha sido creado exitosamente. Hemos activado un <strong>Trial Pro de 14 días gratis</strong> para que pruebes todas las características sin límites.
+                  Tu consultorio <strong>${nombreConsultorio}</strong> ya está creado, con un <strong>Trial Pro de 14 días gratis</strong> y todas las funciones habilitadas.
                 </p>
-                
+
+                <p style="font-size: 14px; color: #4a6080; line-height: 1.5;">
+                  Solo falta un paso: <strong>confirmá que este email es tuyo</strong>. Es el correo con el que vas a recuperar la cuenta si perdés la contraseña, así que necesitamos verificarlo antes de darte acceso.
+                </p>
+
+                <div style="text-align: center; margin: 24px 0;">
+                  <a href="${linkConfirmacion}" style="display: inline-block; background: #138A6B; color: #fff; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: 700; font-size: 15px;">
+                    Confirmar mi email
+                  </a>
+                </div>
+
                 <div style="background: #f4f7fb; border-radius: 12px; padding: 20px; margin: 24px 0;">
                   <h3 style="font-size: 13px; font-weight: 700; color: #0a1e3d; margin-top: 0; margin-bottom: 10px;">Tus primeros pasos:</h3>
                   <ul style="margin: 0; padding-left: 20px; font-size: 13px; color: #4a6080; display: flex; flex-direction: column; gap: 8px;">
@@ -173,14 +208,9 @@ export async function POST(req: NextRequest) {
                   </ul>
                 </div>
 
-                <div style="text-align: center; margin: 24px 0;">
-                  <a href="${APP_URL}/login" style="display: inline-block; background: #185FA5; color: #fff; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 14px;">
-                    Ingresar al Panel
-                  </a>
-                </div>
-
                 <p style="font-size: 12px; color: #94a3b8; text-align: center; margin: 0;">
-                  Si tenés alguna duda o necesitas ayuda para configurar tu cuenta, respondé a este email.
+                  Si no creaste esta cuenta, ignorá este mensaje: sin confirmar, nadie puede entrar.
+                  Cualquier duda, respondé este email.
                 </p>
               </div>
             </div>
@@ -191,7 +221,9 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    return NextResponse.json({ ok: true, tenantId })
+    // `requiereVerificacion` le dice al wizard que no intente auto-login: hasta
+    // que no confirme el email, Supabase va a rechazar el ingreso.
+    return NextResponse.json({ ok: true, tenantId, requiereVerificacion: true, email })
 
   } catch (error: any) {
     return NextResponse.json({ error: error.message || 'Error interno' }, { status: 500 })

@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import { Resend } from 'resend'
 import { rateLimit, getClientIp } from '@/lib/rate-limit'
 import { normalizarTelefono, duracionPorDefecto } from '@/lib/constants'
+import { registrarConsentimiento } from '@/lib/consentimiento-datos'
 import { APP_URL, remitente } from '@/lib/config'
 import {
   validarReserva,
@@ -64,6 +65,14 @@ export async function POST(req: NextRequest) {
     }
     if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
       return NextResponse.json({ error: 'El email no parece válido.' }, { status: 400 })
+    }
+    // Pedir turno implica dejar datos de salud, así que el consentimiento se
+    // presta acá mismo. Sin tildar, no se crea nada.
+    if (body.consentimiento !== true) {
+      return NextResponse.json(
+        { error: 'Necesitamos tu consentimiento para registrar tus datos.' },
+        { status: 400 }
+      )
     }
 
     const { data: tenant } = await supabaseAdmin
@@ -132,6 +141,7 @@ export async function POST(req: NextRequest) {
           email: email || null,
           ultimo_tratamiento: tratamiento,
           token,
+          ...registrarConsentimiento(true, 'paciente', ip),
         })
         .select('id, token')
         .single()
