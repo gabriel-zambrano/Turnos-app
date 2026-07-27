@@ -14,6 +14,9 @@ export default function Configuracion() {
   const [isMobile, setIsMobile] = useState(false)
   const [email, setEmail] = useState('')
   const [checkingOut, setCheckingOut] = useState(false)
+  // Link público de reserva de turnos, para que el consultorio lo comparta.
+  const [slugReserva, setSlugReserva] = useState('')
+  const [linkCopiado, setLinkCopiado] = useState(false)
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768)
@@ -82,6 +85,11 @@ export default function Configuracion() {
         }
       }
       loadArcaConfig()
+
+      // Slug para el link público de reserva
+      supabase.from('tenants').select('subdominio_generico, subdominio').eq('id', tenantId).maybeSingle().then(({ data }) => {
+        if (data) setSlugReserva(data.subdominio_generico || data.subdominio || '')
+      })
 
       // Cargar config de campañas de CRM
       supabase.from('crm_campanas').select('*').eq('tenant_id', tenantId).maybeSingle().then(({ data }) => {
@@ -317,6 +325,45 @@ export default function Configuracion() {
         />
         
         <div style={{ padding: isMobile ? '1rem' : '2rem', maxWidth: 800 }}>
+
+          {slugReserva && (
+            <div className="glass-card" style={{ padding: '1.5rem', marginBottom: '2rem' }}>
+              <h3 style={{ fontSize: 16, color: 'var(--text-dark, #0a1e3d)', marginBottom: 6, fontWeight: 700 }}>
+                Link para que tus pacientes pidan turno
+              </h3>
+              <p style={{ fontSize: 13, color: '#64748b', margin: '0 0 1rem', lineHeight: 1.5 }}>
+                Compartilo en Instagram, WhatsApp o Google. El paciente elige día y horario entre
+                los que tenés libres, y el turno te llega como pendiente para que lo confirmes.
+              </p>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <input
+                  readOnly
+                  style={{ ...inputCss, flex: 1, minWidth: 220, fontFamily: 'monospace', fontSize: 13 }}
+                  value={`${typeof window !== 'undefined' ? window.location.origin : ''}/reserva/${slugReserva}`}
+                  onFocus={e => e.currentTarget.select()}
+                />
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(`${window.location.origin}/reserva/${slugReserva}`)
+                    setLinkCopiado(true)
+                    setTimeout(() => setLinkCopiado(false), 2000)
+                  }}
+                  style={{ background: '#0f1e2b', color: '#fff', border: 'none', padding: '0 20px', borderRadius: 10, fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}
+                >
+                  {linkCopiado ? 'Copiado ✓' : 'Copiar'}
+                </button>
+                <a
+                  href={`/reserva/${slugReserva}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{ display: 'flex', alignItems: 'center', padding: '0 16px', borderRadius: 10, border: '1px solid #e2e8f0', color: '#0f1e2b', fontWeight: 700, fontSize: 13, textDecoration: 'none' }}
+                >
+                  Ver
+                </a>
+              </div>
+            </div>
+          )}
+
           <div className="glass-card" style={{ padding: '1.5rem', marginBottom: '2rem' }}>
             <h3 style={{ fontSize: 16, color: 'var(--text-dark, #0a1e3d)', marginBottom: '1.5rem', fontWeight: 700 }}>
               Información General

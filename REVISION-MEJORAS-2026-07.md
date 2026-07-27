@@ -4,12 +4,15 @@ Retomo dos hilos que habían quedado inconclusos: la **auditoría de 26 mejoras*
 del SaaS y el **spec del módulo de fidelización**. Cada punto está verificado
 contra el repo real, no contra lo que decían los documentos.
 
-**Marcador: 15 hechos · 3 parciales · 8 abiertos.**
+**Marcador: 19 hechos · 1 parcial · 6 abiertos.**
 
-> **Actualización 27/07 — Tandas 1 y 2 aplicadas.** Puntos unificados contra el
-> ledger, búsqueda por teléfono, precios reales por plan en el checkout, feature
-> flags derivados del plan y página `/precios` pública. Typecheck 0 errores,
-> 157 tests en verde.
+> **Actualización 27/07 — Tandas 1, 2 y 3 aplicadas.** Puntos unificados contra
+> el ledger, búsqueda por teléfono, precios reales por plan, feature flags
+> derivados del plan, `/precios` pública y agendamiento online del paciente.
+> Typecheck 0 errores, 174 tests en verde.
+>
+> El `next build` completo no se pudo correr en el entorno de trabajo (se corta
+> por memoria), así que **el primer build real es el de Vercel al pushear**.
 >
 > ⚠️ **Inconsistencia a resolver:** los Términos y Condiciones dicen que Starter
 > es un *plan gratuito*, pero la grilla lo cobra a $16.900. Hay que decidir cuál
@@ -51,7 +54,7 @@ contra el repo real, no contra lo que decían los documentos.
 
 | # | Mejora | Estado | Detalle |
 |---|---|---|---|
-| 14 | Agendamiento online del paciente | ❌ Abierto | No existe `/reserva/[tenant]`. **Es el gap más caro comercialmente**: lo tienen Dentalink, AgendaPro y Doctocliq. |
+| 14 | Agendamiento online del paciente | ✅ Hecho | `/reserva/[clinica]` pública + APIs de disponibilidad y alta. El turno entra como `pendiente` para que lo confirme el consultorio. |
 | 15 | WhatsApp automático | 🟡 Parcial | Infra + cron + on/off por clínica listos. Falta el setup externo de Meta (número, plantillas, credenciales `WHATSAPP_*`). |
 | 16 | Botón "💰 Cobrar" al marcar asistencia | ✅ Hecho | `agenda/page.tsx:1443` |
 | 17 | Subida de fotos en la ficha | ✅ Hecho | `pacientes/[id]:695` con Supabase Storage |
@@ -131,9 +134,17 @@ en el modal de edición, lo que puede desincronizar el ledger.
 credenciales reales de MercadoPago, y resolver la contradicción del Starter
 gratis en los Términos.
 
-**Tanda 3 — el gap comercial (≈1 semana)**
+**Tanda 3 — ✅ aplicada**
 
-7. Agendamiento online del paciente en `/reserva/[tenant]`.
+7. ~~Agendamiento online del paciente.~~ Página pública `/reserva/[clinica]`, con
+   los horarios libres calculados de verdad (un turno de 60 min bloquea los tres
+   slots que pisa) y revalidación en el servidor al confirmar, por si el horario
+   se ocupó mientras el paciente completaba el formulario. El link para
+   compartir aparece en Configuración.
+
+   **Reglas aplicadas** (en `lib/reserva.ts`, con 17 tests): atención de 8:00 a
+   20:00 en slots de 20 min, domingos cerrado, mínimo 2 horas de anticipación,
+   máximo 60 días a futuro, 5 pedidos por hora por IP.
 
 **Tanda 4 — pulido (≈3 días)**
 

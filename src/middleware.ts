@@ -14,7 +14,8 @@ export async function middleware(req: NextRequest) {
     '/login',
     '/registro',
     '/legal',
-    '/precios'
+    '/precios',
+    '/reserva'
   ]
 
   const isPublic = publicPrefixes.some(prefix => pathname.startsWith(prefix)) || pathname === '/'
