@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { rateLimit, getClientIp } from '@/lib/rate-limit'
 import { duracionPorDefecto } from '@/lib/constants'
-import { slotsLibres, esFechaValida, MINUTOS_POR_SLOT, OFFSET_AR, type Ocupacion } from '@/lib/reserva'
+import { slotsLibres, estadoDeSlots, esFechaValida, MINUTOS_POR_SLOT, OFFSET_AR, type Ocupacion } from '@/lib/reserva'
 
 // ─────────────────────────────────────────────────────────────
 // Datos públicos para la página de reserva: qué consultorio es, qué
@@ -110,6 +110,9 @@ export async function GET(req: NextRequest, { params }: { params: { clinica: str
     tratamientos: tratamientosPublicos,
     fecha,
     libres: slotsLibres(fecha, ocupados, duracion),
+    // Grilla completa con el estado de cada horario, para poder mostrar los
+    // ocupados en gris en vez de esconderlos.
+    slots: estadoDeSlots(fecha, ocupados, duracion),
     // Cuántos turnos se tuvieron en cuenta. No expone datos de nadie y sirve
     // para detectar al toque si la consulta no está viendo la agenda real.
     ocupados: ocupados.length,

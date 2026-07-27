@@ -115,6 +115,50 @@ export function slotsLibres(
   })
 }
 
+export type EstadoSlot = 'libre' | 'ocupado' | 'pasado' | 'cierra'
+
+export interface Slot {
+  hora: string
+  estado: EstadoSlot
+}
+
+/**
+ * Todos los horarios del día con su estado, no solo los libres.
+ *
+ * Mostrar la grilla completa con los turnos tomados a la vista es mejor que
+ * esconderlos: el paciente entiende que el consultorio tiene actividad y elige
+ * más rápido, y el consultorio puede verificar de un vistazo que la reserva
+ * online está leyendo bien su agenda.
+ */
+export function estadoDeSlots(
+  fecha: string,
+  ocupados: Ocupacion[],
+  duracionPedidaMinutos: number,
+  ahora: Date = new Date()
+): Slot[] {
+  if (!esFechaValida(fecha) || !esDiaHabil(fecha)) return []
+
+  const minimo = ahora.getTime() + ANTICIPACION_MINIMA_HORAS * 60 * 60 * 1000
+  const cierre = fechaHoraAR(fecha, '00:00').getTime() + HORA_CIERRE * 60 * 60 * 1000
+
+  const rangos = ocupados.map(o => {
+    const inicio = new Date(o.fechaHora).getTime()
+    const dur = o.duracionMinutos > 0 ? o.duracionMinutos : MINUTOS_POR_SLOT
+    return [inicio, inicio + dur * 60 * 1000] as const
+  })
+
+  return slotsDelDia().map(hora => {
+    const inicio = fechaHoraAR(fecha, hora).getTime()
+    const fin = inicio + duracionPedidaMinutos * 60 * 1000
+
+    // El orden importa: si un horario ya pasó, da igual si además está tomado.
+    if (inicio < minimo) return { hora, estado: 'pasado' as const }
+    if (rangos.some(([oi, of_]) => inicio < of_ && fin > oi)) return { hora, estado: 'ocupado' as const }
+    if (fin > cierre) return { hora, estado: 'cierra' as const }
+    return { hora, estado: 'libre' as const }
+  })
+}
+
 export type MotivoRechazo =
   | 'fecha_invalida'
   | 'hora_invalida'

@@ -10,6 +10,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useParams } from 'next/navigation'
+import type { Slot } from '@/lib/reserva'
 
 interface ClinicaPublica {
   nombre: string
@@ -63,8 +64,11 @@ export default function ReservaPublica() {
   const [fecha, setFecha] = useState<string>('')
   const [tratamiento, setTratamiento] = useState<string>('Consulta')
   const [hora, setHora] = useState<string>('')
-  const [libres, setLibres] = useState<string[]>([])
+  const [slots, setSlots] = useState<Slot[]>([])
   const [cargandoSlots, setCargandoSlots] = useState(false)
+  // Cuántos turnos ve el sistema ese día. Se muestra al pie como control:
+  // si el consultorio tiene la agenda llena y acá dice 0, algo no cierra.
+  const [ocupadosDelDia, setOcupadosDelDia] = useState(0)
 
   const [nombre, setNombre] = useState('')
   const [telefono, setTelefono] = useState('')
@@ -100,9 +104,11 @@ export default function ReservaPublica() {
     try {
       const r = await fetch(`/api/reserva/${clinicaSlug}?fecha=${fecha}&duracion=${duracion}`)
       const d = await r.json()
-      setLibres(d.libres || [])
+      setSlots(d.slots || [])
+      setOcupadosDelDia(d.ocupados ?? 0)
     } catch {
-      setLibres([])
+      setSlots([])
+      setOcupadosDelDia(0)
     }
     setCargandoSlots(false)
   }, [fecha, clinicaSlug, duracion])
@@ -149,6 +155,7 @@ export default function ReservaPublica() {
   }
 
   const acento = clinica.secondaryColor
+  const hayLibres = slots.some(s => s.estado === 'libre')
 
   if (listo) {
     return (
@@ -222,32 +229,50 @@ export default function ReservaPublica() {
 
       {fecha && (
         <div style={{ marginBottom: 28 }}>
-          {cargandoSlots
-            ? <p style={{ fontSize: 14, color: '#64748b', margin: 0 }}>Buscando horarios…</p>
-            : libres.length === 0
-              ? <p style={{ fontSize: 14, color: '#64748b', margin: 0, background: '#f8fafc', padding: 14, borderRadius: 12 }}>
-                  No quedan horarios ese día. Probá con otra fecha.
-                </p>
-              : <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(76px, 1fr))', gap: 8 }}>
-                  {libres.map(h => {
-                    const sel = hora === h
-                    return (
-                      <button
-                        key={h}
-                        onClick={() => setHora(h)}
-                        style={{
-                          padding: '11px 0', borderRadius: 10, cursor: 'pointer', fontSize: 14, fontWeight: 700,
-                          border: sel ? `2px solid ${acento}` : '1px solid #e2e8f0',
-                          background: sel ? acento : '#fff',
-                          color: sel ? '#fff' : '#0f1e2b',
-                          fontFamily: 'inherit',
-                        }}
-                      >
-                        {h}
-                      </button>
-                    )
-                  })}
-                </div>}
+          {cargandoSlots ? (
+            <p style={{ fontSize: 14, color: '#64748b', margin: 0 }}>Buscando horarios…</p>
+          ) : hayLibres ? (
+            <>
+              {/* Se muestra la grilla completa: los horarios tomados quedan a la
+                  vista, en gris. Esconderlos daba la impresión de que el
+                  consultorio estaba vacío y no dejaba verificar nada. */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(76px, 1fr))', gap: 8 }}>
+                {slots.map(s => {
+                  const sel = hora === s.hora
+                  const disponible = s.estado === 'libre'
+                  const ocupado = s.estado === 'ocupado'
+                  return (
+                    <button
+                      key={s.hora}
+                      onClick={() => disponible && setHora(s.hora)}
+                      disabled={!disponible}
+                      title={ocupado ? 'Ese horario ya está reservado' : s.estado === 'pasado' ? 'Ya pasó' : undefined}
+                      style={{
+                        padding: '11px 0', borderRadius: 10, fontSize: 14, fontWeight: 700,
+                        cursor: disponible ? 'pointer' : 'not-allowed',
+                        border: sel ? `2px solid ${acento}` : '1px solid #e2e8f0',
+                        background: sel ? acento : disponible ? '#fff' : '#f1f5f9',
+                        color: sel ? '#fff' : disponible ? '#0f1e2b' : '#94a3b8',
+                        textDecoration: ocupado ? 'line-through' : 'none',
+                        fontFamily: 'inherit',
+                      }}
+                    >
+                      {s.hora}
+                    </button>
+                  )
+                })}
+              </div>
+              <div style={{ display: 'flex', gap: 16, marginTop: 10, fontSize: 11.5, color: '#94a3b8', flexWrap: 'wrap' }}>
+                <span><span style={{ display: 'inline-block', width: 9, height: 9, borderRadius: 3, border: '1px solid #e2e8f0', background: '#fff', marginRight: 5 }} />Disponible</span>
+                <span><span style={{ display: 'inline-block', width: 9, height: 9, borderRadius: 3, background: '#f1f5f9', border: '1px solid #e2e8f0', marginRight: 5 }} />Ocupado</span>
+                {ocupadosDelDia > 0 && <span>· {ocupadosDelDia} {ocupadosDelDia === 1 ? 'turno tomado' : 'turnos tomados'} ese día</span>}
+              </div>
+            </>
+          ) : (
+            <p style={{ fontSize: 14, color: '#64748b', margin: 0, background: '#f8fafc', padding: 14, borderRadius: 12 }}>
+              No quedan horarios ese día. Probá con otra fecha.
+            </p>
+          )}
         </div>
       )}
 

@@ -8,6 +8,7 @@ import {
   esHoraValida,
   fechaHoraISO,
   MINUTOS_POR_SLOT,
+  estadoDeSlots,
 } from './reserva'
 
 // Referencia fija para que los tests no dependan de cuándo se corren.
@@ -245,5 +246,46 @@ describe('turnos guardados en UTC (como los devuelve Supabase)', () => {
     expect(libres).not.toContain('10:00')
     expect(libres).not.toContain('10:20')
     expect(libres).toContain('10:40')
+  })
+})
+
+describe('estadoDeSlots (grilla completa con los ocupados a la vista)', () => {
+  // La agenda real del martes 28: 6 turnos, uno de 40 minutos a las 17:00.
+  const AGENDA_REAL = [
+    { fechaHora: '2026-07-28T13:00:00+00:00', duracionMinutos: 20 }, // 10:00
+    { fechaHora: '2026-07-28T13:40:00+00:00', duracionMinutos: 20 }, // 10:40
+    { fechaHora: '2026-07-28T19:20:00+00:00', duracionMinutos: 20 }, // 16:20
+    { fechaHora: '2026-07-28T19:40:00+00:00', duracionMinutos: 20 }, // 16:40
+    { fechaHora: '2026-07-28T20:00:00+00:00', duracionMinutos: 40 }, // 17:00
+    { fechaHora: '2026-07-28T20:20:00+00:00', duracionMinutos: 20 }, // 17:20
+  ]
+  // Nos paramos la noche anterior para que ningún horario quede "pasado".
+  const NOCHE_ANTERIOR = new Date('2026-07-27T22:00:00-03:00')
+
+  it('marca como ocupados exactamente los horarios de la agenda', () => {
+    const slots = estadoDeSlots(MARTES, AGENDA_REAL, 20, NOCHE_ANTERIOR)
+    const ocupados = slots.filter(s => s.estado === 'ocupado').map(s => s.hora)
+    // 17:40 queda LIBRE: el turno de las 17:00 dura 40 minutos y termina justo
+    // ahí, así que no lo pisa. El límite es exclusivo a propósito.
+    expect(ocupados).toEqual(['10:00', '10:40', '16:20', '16:40', '17:00', '17:20'])
+  })
+
+  it('devuelve la grilla entera, no solo los libres', () => {
+    const slots = estadoDeSlots(MARTES, AGENDA_REAL, 20, NOCHE_ANTERIOR)
+    expect(slots).toHaveLength(slotsDelDia().length)
+    expect(slots[0]).toEqual({ hora: '08:00', estado: 'libre' })
+  })
+
+  it('los horarios que ya pasaron se distinguen de los ocupados', () => {
+    const alMediodia = new Date('2026-07-28T12:00:00-03:00')
+    const slots = estadoDeSlots(MARTES, AGENDA_REAL, 20, alMediodia)
+    expect(slots.find(s => s.hora === '10:00')?.estado).toBe('pasado')
+    expect(slots.find(s => s.hora === '16:20')?.estado).toBe('ocupado')
+  })
+
+  it('coincide con slotsLibres: lo que no está libre acá, no está allá', () => {
+    const slots = estadoDeSlots(MARTES, AGENDA_REAL, 20, NOCHE_ANTERIOR)
+    const libres = slotsLibres(MARTES, AGENDA_REAL, 20, NOCHE_ANTERIOR)
+    expect(slots.filter(s => s.estado === 'libre').map(s => s.hora)).toEqual(libres)
   })
 })
