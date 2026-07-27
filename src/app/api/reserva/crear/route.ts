@@ -10,6 +10,7 @@ import {
   fechaHoraISO,
   MENSAJE_RECHAZO,
   MINUTOS_POR_SLOT,
+  OFFSET_AR,
   type Ocupacion,
 } from '@/lib/reserva'
 
@@ -97,18 +98,26 @@ export async function POST(req: NextRequest) {
     // defecto del sistema (ej: Blanqueamiento 80 min, porque va con limpieza).
     const duracion = trat?.duracion_default || duracionPorDefecto(tratamiento)
 
-    const { data: citasDelDia } = await supabaseAdmin
+    // Mismo criterio que la consulta de disponibilidad: huso de Argentina
+    // explícito y los cancelados se descartan acá, no en la query.
+    const { data: citasDelDia, error: errCitas } = await supabaseAdmin
       .from('citas')
-      .select('fecha_hora, duracion_minutos')
+      .select('fecha_hora, duracion_minutos, estado')
       .eq('tenant_id', tenant.id)
-      .gte('fecha_hora', `${fecha}T00:00:00`)
-      .lte('fecha_hora', `${fecha}T23:59:59`)
-      .not('estado', 'eq', 'cancelado')
+      .gte('fecha_hora', `${fecha}T00:00:00${OFFSET_AR}`)
+      .lte('fecha_hora', `${fecha}T23:59:59${OFFSET_AR}`)
 
-    const ocupados: Ocupacion[] = (citasDelDia || []).map(c => ({
-      fechaHora: c.fecha_hora,
-      duracionMinutos: c.duracion_minutos || MINUTOS_POR_SLOT,
-    }))
+    if (errCitas) {
+      console.error('Error consultando la agenda al reservar:', errCitas.message)
+      return NextResponse.json({ error: 'No pudimos verificar la disponibilidad. Probá de nuevo.' }, { status: 503 })
+    }
+
+    const ocupados: Ocupacion[] = (citasDelDia || [])
+      .filter(c => (c.estado || '').toLowerCase() !== 'cancelado')
+      .map(c => ({
+        fechaHora: c.fecha_hora,
+        duracionMinutos: c.duracion_minutos || MINUTOS_POR_SLOT,
+      }))
 
     const rechazo = validarReserva(fecha, hora, duracion, ocupados)
     if (rechazo) {

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { rateLimit, getClientIp } from '@/lib/rate-limit'
 import { duracionPorDefecto } from '@/lib/constants'
-import { slotsLibres, esFechaValida, MINUTOS_POR_SLOT, type Ocupacion } from '@/lib/reserva'
+import { slotsLibres, esFechaValida, MINUTOS_POR_SLOT, OFFSET_AR, type Ocupacion } from '@/lib/reserva'
 
 // ─────────────────────────────────────────────────────────────
 // Datos públicos para la página de reserva: qué consultorio es, qué
@@ -77,23 +77,41 @@ export async function GET(req: NextRequest, { params }: { params: { clinica: str
 
   const duracion = Number(req.nextUrl.searchParams.get('duracion')) || MINUTOS_POR_SLOT
 
-  const { data: citas } = await supabaseAdmin
+  // La ventana del día se pide con el huso de Argentina explícito. Sin el
+  // offset, Postgres interpreta el texto en el huso de la sesión (UTC), y el
+  // rango se corre 3 horas: turnos reales quedaban fuera de la consulta y el
+  // horario aparecía libre.
+  const { data: citas, error: errCitas } = await supabaseAdmin
     .from('citas')
-    .select('fecha_hora, duracion_minutos')
+    .select('fecha_hora, duracion_minutos, estado')
     .eq('tenant_id', tenant.id)
-    .gte('fecha_hora', `${fecha}T00:00:00`)
-    .lte('fecha_hora', `${fecha}T23:59:59`)
-    .not('estado', 'eq', 'cancelado')
+    .gte('fecha_hora', `${fecha}T00:00:00${OFFSET_AR}`)
+    .lte('fecha_hora', `${fecha}T23:59:59${OFFSET_AR}`)
 
-  const ocupados: Ocupacion[] = (citas || []).map(c => ({
-    fechaHora: c.fecha_hora,
-    duracionMinutos: c.duracion_minutos || MINUTOS_POR_SLOT,
-  }))
+  if (errCitas) {
+    // Si no podemos saber qué está ocupado, no ofrecemos nada: es preferible
+    // que el paciente llame por teléfono antes que darle un turno pisado.
+    console.error('Error consultando disponibilidad:', errCitas.message)
+    return NextResponse.json({ error: 'No pudimos consultar la disponibilidad.' }, { status: 503 })
+  }
+
+  // Un turno cancelado libera el horario; el resto de los estados lo ocupan.
+  // El filtro se hace acá y no en la query porque `estado=not.eq.cancelado`
+  // descarta también las filas con estado nulo, que sí ocupan la agenda.
+  const ocupados: Ocupacion[] = (citas || [])
+    .filter(c => (c.estado || '').toLowerCase() !== 'cancelado')
+    .map(c => ({
+      fechaHora: c.fecha_hora,
+      duracionMinutos: c.duracion_minutos || MINUTOS_POR_SLOT,
+    }))
 
   return NextResponse.json({
     clinica: clinicaPublica,
     tratamientos: tratamientosPublicos,
     fecha,
     libres: slotsLibres(fecha, ocupados, duracion),
+    // Cuántos turnos se tuvieron en cuenta. No expone datos de nadie y sirve
+    // para detectar al toque si la consulta no está viendo la agenda real.
+    ocupados: ocupados.length,
   })
 }

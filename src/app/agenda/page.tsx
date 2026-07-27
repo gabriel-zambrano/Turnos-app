@@ -503,9 +503,11 @@ export default function Agenda() {
  async function saveNueva(forzar = false){
     if(!fPac) return msg('Seleccioná un paciente','error')
 
-    const resHoras = await fetch(`/api/horas-ocupadas?fecha=${fFecha}`)
+    // El endpoint exige tenant_id: sin él devolvía 400 y `ocupadas` quedaba
+    // undefined, así que el chequeo de sobreturno explotaba y no guardaba nada.
+    const resHoras = await fetch(`/api/horas-ocupadas?fecha=${fFecha}&tenant_id=${tenant?.id ?? ''}`)
     const { ocupadas } = await resHoras.json()
-    if(ocupadas.includes(fHora) && !forzar){
+    if(Array.isArray(ocupadas) && ocupadas.includes(fHora) && !forzar){
       setSobreturnoAgenda(fHora)
       return
     }

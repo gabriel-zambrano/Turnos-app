@@ -204,3 +204,46 @@ describe('horario del consultorio', () => {
     expect(libres[libres.length - 1]).toBe('19:40')
   })
 })
+
+describe('turnos guardados en UTC (como los devuelve Supabase)', () => {
+  // Postgres normaliza timestamptz a UTC: las 10:00 de Argentina vuelven como
+  // 13:00Z. Si la comparación no respeta el huso, el turno "desaparece" y el
+  // horario se ofrece como libre.
+  it('un turno de las 10:00 AR bloquea el slot de las 10:00, no otro', () => {
+    const libres = slotsLibres(
+      MIERCOLES,
+      [{ fechaHora: '2026-07-29T13:00:00+00:00', duracionMinutos: 20 }],
+      20,
+      AHORA
+    )
+    expect(libres).not.toContain('10:00')
+    expect(libres).toContain('09:40')
+    expect(libres).toContain('10:20')
+  })
+
+  it('el primer y el último turno del día también se bloquean', () => {
+    const libres = slotsLibres(
+      MIERCOLES,
+      [
+        { fechaHora: '2026-07-29T11:00:00+00:00', duracionMinutos: 20 }, // 08:00 AR
+        { fechaHora: '2026-07-29T22:40:00+00:00', duracionMinutos: 20 }, // 19:40 AR
+      ],
+      20,
+      AHORA
+    )
+    expect(libres).not.toContain('08:00')
+    expect(libres).not.toContain('19:40')
+  })
+
+  it('la duración por defecto de la base (30 min) bloquea dos slots', () => {
+    const libres = slotsLibres(
+      MIERCOLES,
+      [{ fechaHora: '2026-07-29T13:00:00+00:00', duracionMinutos: 30 }],
+      20,
+      AHORA
+    )
+    expect(libres).not.toContain('10:00')
+    expect(libres).not.toContain('10:20')
+    expect(libres).toContain('10:40')
+  })
+})
