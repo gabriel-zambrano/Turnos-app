@@ -16,6 +16,11 @@ export default function Configuracion() {
   const [checkingOut, setCheckingOut] = useState(false)
   // Link público de reserva de turnos, para que el consultorio lo comparta.
   const [slugReserva, setSlugReserva] = useState('')
+  // Seña que se le pide al paciente para reservar por el link público.
+  const [senaReserva, setSenaReserva] = useState<number>(0)
+  const [senaDatosPago, setSenaDatosPago] = useState('')
+  const [emailAvisos, setEmailAvisos] = useState('')
+  const [guardandoReserva, setGuardandoReserva] = useState(false)
   const [linkCopiado, setLinkCopiado] = useState(false)
 
   useEffect(() => {
@@ -87,9 +92,15 @@ export default function Configuracion() {
       loadArcaConfig()
 
       // Slug para el link público de reserva
-      supabase.from('tenants').select('subdominio_generico, subdominio').eq('id', tenantId).maybeSingle().then(({ data }) => {
-        if (data) setSlugReserva(data.subdominio_generico || data.subdominio || '')
-      })
+      supabase.from('tenants')
+        .select('subdominio_generico, subdominio, sena_reserva, sena_datos_pago, email_avisos')
+        .eq('id', tenantId).maybeSingle().then(({ data }) => {
+          if (!data) return
+          setSlugReserva(data.subdominio_generico || data.subdominio || '')
+          setSenaReserva(Number(data.sena_reserva) || 0)
+          setSenaDatosPago(data.sena_datos_pago || '')
+          setEmailAvisos(data.email_avisos || '')
+        })
 
       // Cargar config de campañas de CRM
       supabase.from('crm_campanas').select('*').eq('tenant_id', tenantId).maybeSingle().then(({ data }) => {
@@ -101,6 +112,20 @@ export default function Configuracion() {
       })
     }
   }, [tenant])
+
+  // Guarda la configuración de la reserva online (seña y avisos).
+  async function guardarReservaOnline() {
+    if (!tenant?.id) return
+    setGuardandoReserva(true)
+    const { error } = await supabase.from('tenants').update({
+      sena_reserva: senaReserva || 0,
+      sena_datos_pago: senaDatosPago.trim() || null,
+      email_avisos: emailAvisos.trim() || null,
+    }).eq('id', tenant.id)
+    setGuardandoReserva(false)
+    if (error) return msg('Error al guardar: ' + error.message, 'error')
+    msg('Reserva online actualizada ✓')
+  }
 
   // Guarda al instante el toggle de una campaña de CRM
   async function toggleCampana(campo: 'cumples_activo' | 'recall_activo' | 'reactivacion_activo', valor: boolean) {
@@ -360,6 +385,49 @@ export default function Configuracion() {
                 >
                   Ver
                 </a>
+              </div>
+
+              <div style={{ marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: '1px solid #e8edf2' }}>
+                <div style={{ ...grid2Css, gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr' }}>
+                  <div style={groupCss}>
+                    <label style={labelCss}>Seña para reservar (pesos)</label>
+                    <input
+                      type="number" min="0" step="500" style={inputCss}
+                      value={senaReserva || ''}
+                      onChange={e => setSenaReserva(Number(e.target.value) || 0)}
+                      placeholder="0"
+                    />
+                    <span style={{ fontSize: 11, color: '#94a3b8', marginTop: 3, display: 'block' }}>
+                      0 = no se pide seña. Con un monto cargado, el paciente lo ve antes de pedir el turno.
+                    </span>
+                  </div>
+                  <div style={groupCss}>
+                    <label style={labelCss}>Email donde recibir los avisos</label>
+                    <input
+                      type="email" style={inputCss}
+                      value={emailAvisos}
+                      onChange={e => setEmailAvisos(e.target.value)}
+                      placeholder={email || 'tu@email.com'}
+                    />
+                    <span style={{ fontSize: 11, color: '#94a3b8', marginTop: 3, display: 'block' }}>
+                      Si lo dejás vacío, se usa el email con el que iniciás sesión.
+                    </span>
+                  </div>
+                </div>
+
+                <div style={groupCss}>
+                  <label style={labelCss}>Cómo abonar la seña (se le muestra al paciente)</label>
+                  <textarea
+                    style={{ ...textareaCss, minHeight: 70 }}
+                    value={senaDatosPago}
+                    onChange={e => setSenaDatosPago(e.target.value)}
+                    placeholder={'Ej: Transferí a\nAlias: consultorio.benegas\nCBU: 0000003100000000000000\nMandanos el comprobante por WhatsApp.'}
+                  />
+                </div>
+
+                <BtnPrimary onClick={guardarReservaOnline} disabled={guardandoReserva}>
+                  {guardandoReserva ? 'Guardando...' : 'Guardar reserva online'}
+                </BtnPrimary>
               </div>
             </div>
           )}

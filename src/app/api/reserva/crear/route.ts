@@ -4,6 +4,8 @@ import { Resend } from 'resend'
 import { rateLimit, getClientIp } from '@/lib/rate-limit'
 import { normalizarTelefono, duracionPorDefecto } from '@/lib/constants'
 import { registrarConsentimiento } from '@/lib/consentimiento-datos'
+import { enviarWhatsAppTexto } from '@/lib/whatsapp'
+import { asuntoAviso, htmlAviso, textoAviso, type DatosAviso } from '@/lib/aviso-reserva'
 import { APP_URL, remitente } from '@/lib/config'
 import {
   validarReserva,
@@ -78,7 +80,7 @@ export async function POST(req: NextRequest) {
 
     const { data: tenant } = await supabaseAdmin
       .from('tenants')
-      .select('id, nombre, direccion, activo')
+      .select('id, nombre, direccion, telefono, activo, sena_reserva, sena_datos_pago, email_avisos')
       .or(`subdominio_generico.eq.${clinica},subdominio.eq.${clinica}`)
       .maybeSingle()
 
@@ -163,6 +165,8 @@ export async function POST(req: NextRequest) {
       pacienteToken = nuevo.token
     }
 
+    const senaReserva = Number(tenant.sena_reserva) || 0
+
     const { error: errCita } = await supabaseAdmin.from('citas').insert({
       tenant_id: tenant.id,
       paciente_id: pacienteId,
@@ -170,6 +174,9 @@ export async function POST(req: NextRequest) {
       fecha_hora: fechaHoraISO(fecha, hora),
       estado: 'pendiente',
       duracion_minutos: duracion,
+      // `origen` es lo que permite contarlos y avisarlos; las notas son para leer.
+      origen: 'online',
+      sena: senaReserva > 0 ? senaReserva : null,
       notas: notas ? `Pedido online: ${notas}` : 'Pedido online por el paciente',
     })
 
@@ -178,13 +185,70 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'No pudimos guardar el turno. Probá de nuevo.' }, { status: 500 })
     }
 
-    // Confirmación por email, sin bloquear la respuesta si falla.
+    const fechaLinda = new Date(fechaHoraISO(fecha, hora)).toLocaleDateString('es-AR', {
+      weekday: 'long', day: 'numeric', month: 'long',
+      timeZone: 'America/Argentina/Buenos_Aires',
+    })
+
+    // ── Aviso al consultorio ──
+    // Va después de guardar y nunca bloquea la respuesta: si el turno quedó
+    // registrado, el paciente tiene que recibir su confirmación aunque el
+    // aviso falle. Los errores se loguean para poder detectarlos.
+    const datosAviso: DatosAviso = {
+      clinica: tenant.nombre,
+      paciente: nombre,
+      telefono: telefonoRaw,
+      emailPaciente: email || null,
+      tratamiento,
+      fechaLinda,
+      hora,
+      notas: notas || null,
+      sena: senaReserva || null,
+      urlAgenda: `${APP_URL}/agenda?fecha=${fecha}`,
+    }
+
+    // Canal 1: email a la casilla de avisos, o a la del dueño de la clínica.
+    if (process.env.RESEND_API_KEY) {
+      try {
+        let destino = tenant.email_avisos as string | null
+        if (!destino) {
+          const { data: emailDueno } = await supabaseAdmin.rpc('get_tenant_admin_email', { tid: tenant.id })
+          destino = emailDueno as string | null
+        }
+        if (destino) {
+          const resendAviso = new Resend(process.env.RESEND_API_KEY)
+          await resendAviso.emails.send({
+            from: remitente(tenant.nombre),
+            to: destino,
+            subject: asuntoAviso(datosAviso),
+            html: htmlAviso(datosAviso),
+            text: textoAviso(datosAviso),
+          })
+        } else {
+          console.warn('Reserva online sin destinatario de aviso para el tenant', tenant.id)
+        }
+      } catch (avisoErr) {
+        console.error('Error avisando la reserva al consultorio:', avisoErr)
+      }
+    }
+
+    // Canal 2: WhatsApp al teléfono del consultorio. Solo sale si el setup de
+    // Meta está hecho; si no, `enviarWhatsAppTexto` devuelve el motivo y sigue.
+    if (tenant.telefono) {
+      try {
+        const res = await enviarWhatsAppTexto(tenant.telefono, textoAviso(datosAviso))
+        if (!res.ok) console.warn('Aviso por WhatsApp no enviado:', res.error)
+      } catch (waErr) {
+        console.error('Error avisando por WhatsApp:', waErr)
+      }
+    }
+
+    // Canal 3: el contador dentro de la app no necesita envío — se calcula
+    // leyendo los turnos con origen 'online' y estado 'pendiente'.
+
+    // Confirmación por email al paciente, sin bloquear la respuesta si falla.
     if (email && process.env.RESEND_API_KEY) {
       try {
-        const fechaLinda = new Date(fechaHoraISO(fecha, hora)).toLocaleDateString('es-AR', {
-          weekday: 'long', day: 'numeric', month: 'long',
-          timeZone: 'America/Argentina/Buenos_Aires',
-        })
         const resend = new Resend(process.env.RESEND_API_KEY)
         await resend.emails.send({
           from: remitente(tenant.nombre),
@@ -203,6 +267,14 @@ export async function POST(req: NextRequest) {
                 ${tenant.direccion ? `<div style="color:#475569;margin-top:4px">📍 ${tenant.direccion}</div>` : ''}
               </div>
               ${pacienteToken ? `<p style="margin:0 0 8px"><a href="${APP_URL}/paciente/${pacienteToken}" style="color:#185FA5">Ver mi portal de paciente</a></p>` : ''}
+              ${senaReserva > 0 ? `
+              <div style="background:#FFF3CD;border:1px solid #ffe08a;border-radius:12px;padding:16px;margin-bottom:20px">
+                <div style="font-weight:700;color:#633806;margin-bottom:6px">Para confirmar el turno</div>
+                <div style="color:#856404;font-size:14px;line-height:1.6">
+                  Tenés que abonar una seña de <strong>$${senaReserva.toLocaleString('es-AR')}</strong>.
+                  ${tenant.sena_datos_pago ? `<br><br>${String(tenant.sena_datos_pago).replace(/\n/g, '<br>')}` : 'El consultorio te va a pasar los datos para abonarla.'}
+                </div>
+              </div>` : ''}
               <p style="color:#94a3b8;font-size:12px;margin-top:24px">
                 Este turno todavía no está confirmado. Si necesitás cambiarlo, respondé este email o llamá al consultorio.
               </p>
@@ -216,7 +288,11 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       ok: true,
-      mensaje: 'Recibimos tu pedido. El consultorio te confirma a la brevedad.',
+      mensaje: senaReserva > 0
+        ? `Recibimos tu pedido. El turno queda reservado cuando abones la seña de $${senaReserva.toLocaleString('es-AR')}.`
+        : 'Recibimos tu pedido. El consultorio te confirma a la brevedad.',
+      sena: senaReserva || null,
+      datosPago: tenant.sena_datos_pago || null,
       portalUrl: pacienteToken ? `${APP_URL}/paciente/${pacienteToken}` : null,
     })
   } catch (err: any) {

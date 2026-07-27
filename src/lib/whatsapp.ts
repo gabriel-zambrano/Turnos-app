@@ -82,3 +82,43 @@ export async function enviarWhatsApp({ telefono, plantilla, idioma = 'es_AR', va
     return { ok: false, error: err?.message || 'Error de red' }
   }
 }
+
+/**
+ * Mensaje de texto libre (no plantilla).
+ *
+ * Meta solo permite texto libre dentro de la ventana de 24 horas desde el
+ * último mensaje del destinatario. Sirve para avisarle al propio consultorio
+ * —que suele tener conversación abierta— pero NO para escribirle en frío a un
+ * paciente: para eso hay que usar `enviarWhatsApp` con una plantilla aprobada.
+ */
+export async function enviarWhatsAppTexto(telefono: string, texto: string): Promise<ResultadoEnvio> {
+  if (!whatsappConfigurado()) {
+    return { ok: false, error: 'WhatsApp no configurado (faltan WHATSAPP_TOKEN / WHATSAPP_PHONE_ID)' }
+  }
+  const to = normalizarTelefonoWA(telefono)
+  if (!to) return { ok: false, error: 'Teléfono inválido' }
+
+  const version = process.env.WHATSAPP_API_VERSION || 'v21.0'
+  const url = `https://graph.facebook.com/${version}/${process.env.WHATSAPP_PHONE_ID}/messages`
+
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${process.env.WHATSAPP_TOKEN}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        messaging_product: 'whatsapp',
+        to,
+        type: 'text',
+        text: { body: texto, preview_url: false },
+      }),
+    })
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) return { ok: false, error: data?.error?.message || `HTTP ${res.status}` }
+    return { ok: true, id: data?.messages?.[0]?.id }
+  } catch (err: any) {
+    return { ok: false, error: err?.message || 'Error de red' }
+  }
+}

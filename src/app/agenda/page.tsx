@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { Sidebar } from '@/components/Sidebar'
+import { AvisoPedidosOnline } from '@/components/AvisoPedidosOnline'
 import { Badge, Toast, PageHeader, BtnPrimary, BtnSm, SkeletonLista, overlayCss, modalCss, modalTitleCss, footerCss, groupCss, labelCss, grid2Css, btnDarkCss, btnLightCss, btnRedCss, selectCss, textareaCss, inputCss } from '@/components/UI'
 import { TRAT_STYLE, ESTADO_STYLE, TRATAMIENTOS, ESTADOS, DURACIONES, horasDisponibles, hoyISO, normalizarTelefono } from '@/lib/constants'
 import { createClient } from '@/lib/supabase/client'
@@ -861,6 +862,10 @@ export default function Agenda() {
                 </div>
               }/>
         }
+
+        <div style={{padding: isMobile ? '0.75rem' : '1.5rem 2rem 0'}}>
+          <AvisoPedidosOnline />
+        </div>
 
         <div style={{padding: isMobile ? 0 : '1.5rem 2rem'}}>
           {tenantLoading || loading ? (

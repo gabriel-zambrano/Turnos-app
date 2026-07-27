@@ -35,7 +35,7 @@ export async function GET(req: NextRequest, { params }: { params: { clinica: str
 
   const { data: tenant } = await supabaseAdmin
     .from('tenants')
-    .select('id, nombre, direccion, telefono, logourl, primarycolor, secondarycolor, accentcolor, activo')
+    .select('id, nombre, direccion, telefono, logourl, primarycolor, secondarycolor, accentcolor, activo, sena_reserva, sena_datos_pago')
     .or(`subdominio_generico.eq.${clinica},subdominio.eq.${clinica}`)
     .maybeSingle()
 
@@ -58,6 +58,10 @@ export async function GET(req: NextRequest, { params }: { params: { clinica: str
     primaryColor: tenant.primarycolor || '#0a1e3d',
     secondaryColor: tenant.secondarycolor || '#185FA5',
     accentColor: tenant.accentcolor || '#138A6B',
+    // Seña que el paciente debe abonar para que el turno quede confirmado.
+    // 0 = la clínica no pide seña y no se muestra ningún cartel.
+    sena: Number(tenant.sena_reserva) || 0,
+    datosPago: tenant.sena_datos_pago || null,
   }
 
   const tratamientosPublicos = (tratamientos || []).map(t => ({

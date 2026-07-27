@@ -20,6 +20,8 @@ interface ClinicaPublica {
   primaryColor: string
   secondaryColor: string
   accentColor: string
+  sena: number
+  datosPago: string | null
 }
 
 interface TratamientoPublico {
@@ -298,6 +300,19 @@ export default function ReservaPublica() {
         </span>
       </label>
 
+      {clinica.sena > 0 && (
+        <div style={{ background: '#FFF3CD', border: '1px solid #ffe08a', borderRadius: 12, padding: '14px 16px', marginBottom: 18 }}>
+          <div style={{ fontSize: 13.5, fontWeight: 800, color: '#633806', marginBottom: 4 }}>
+            Seña de {'$'}{clinica.sena.toLocaleString('es-AR')} para reservar
+          </div>
+          <div style={{ fontSize: 12.5, color: '#856404', lineHeight: 1.55, whiteSpace: 'pre-line' }}>
+            El turno queda agendado cuando abones la seña. {clinica.datosPago
+              ? clinica.datosPago
+              : 'El consultorio se comunica con vos para pasarte los datos de pago.'}
+          </div>
+        </div>
+      )}
+
       {error && (
         <div style={{ background: '#FAECE7', color: '#712B13', padding: '12px 14px', borderRadius: 12, fontSize: 14, marginBottom: 16 }}>
           {error}
@@ -315,11 +330,13 @@ export default function ReservaPublica() {
           cursor: puedeEnviar ? 'pointer' : 'not-allowed',
         }}
       >
-        {enviando ? 'Enviando…' : 'Pedir turno'}
+        {enviando ? 'Enviando…' : clinica.sena > 0 ? 'Pedir turno y abonar seña' : 'Pedir turno'}
       </button>
 
       <p style={{ fontSize: 12, color: '#94a3b8', textAlign: 'center', marginTop: 14, lineHeight: 1.5 }}>
-        El turno queda pendiente hasta que el consultorio lo confirme.
+        {clinica.sena > 0
+          ? 'El turno queda pendiente hasta que abones la seña y el consultorio lo confirme.'
+          : 'El turno queda pendiente hasta que el consultorio lo confirme.'}
         {clinica.telefono && <> ¿Urgente? Llamá al {clinica.telefono}.</>}
       </p>
     </Marco>
