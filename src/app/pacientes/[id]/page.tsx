@@ -186,7 +186,8 @@ export default function PacienteDetalle() {
   const [editAlergias, setEditAlergias] = useState('')
   const [editAntecedentes, setEditAntecedentes] = useState('')
   const [editProgreso, setEditProgreso] = useState<number>(0)
-  const [editPuntos, setEditPuntos] = useState<number>(0)
+  // Los puntos no se editan acá: el saldo lo maneja el ledger de fidelización
+  // (ajustarPuntosManualAction), que deja asiento y mantiene el cache al día.
   const [editRecomendaciones, setEditRecomendaciones] = useState('')
   const [guardandoFicha, setGuardandoFicha] = useState(false)
   const [attendedVisitsCount, setAttendedVisitsCount] = useState(0)
@@ -1532,7 +1533,6 @@ export default function PacienteDetalle() {
                       setEditAlergias(paciente.alergias || '')
                       setEditAntecedentes(paciente.antecedentes || '')
                       setEditProgreso(paciente.progreso_plan_porcentaje || 0)
-                      setEditPuntos(paciente.puntos || 0)
                       setEditRecomendaciones(paciente.recomendaciones || '')
                       setModalFicha(true)
                     }}

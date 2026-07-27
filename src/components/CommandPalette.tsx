@@ -57,13 +57,22 @@ export function CommandPalette() {
     }
     setLoading(true)
     const timeout = setTimeout(async () => {
+      // Muchos odontólogos buscan al paciente por celular, no por nombre. Se
+      // busca por ambos campos: el nombre con el texto tal cual, y el teléfono
+      // solo con los dígitos, para que "11 5555-4444" encuentre "1155554444".
+      // Los caracteres `,()` se quitan porque rompen la sintaxis de .or().
+      const termino = query.trim().replace(/[,()]/g, '')
+      const digitos = termino.replace(/\D/g, '')
+      const filtros = [`nombre.ilike.%${termino}%`]
+      if (digitos.length >= 2) filtros.push(`telefono.ilike.%${digitos}%`)
+
       const { data } = await supabase
         .from('pacientes')
         .select('id,nombre,telefono')
         .eq('tenant_id', tenant.id)
-        .ilike('nombre', `%${query}%`)
+        .or(filtros.join(','))
         .limit(5)
-      
+
       if (data) {
         setResults(data)
       }

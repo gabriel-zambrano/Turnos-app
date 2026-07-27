@@ -605,11 +605,7 @@ export default function PacientePage() {
                   <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--portal-text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Puntos acumulados</div>
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 2 }}>
                     <span style={{ fontSize: 24, fontWeight: 900, color: 'var(--portal-text-primary)', letterSpacing: '-0.02em' }}>
-                      {(() => {
-                        const pastNonCanceled = pastTurnos.filter(pt => pt.estado !== 'cancelado')
-                        const quantityAsistio = pastNonCanceled.filter(pt => pt.estado === 'asistio' || pt.estado === 'completado').length
-                        return (paciente.puntos || 0) + (quantityAsistio * 100)
-                      })()}
+                      {paciente.puntos ?? 0}
                     </span>
                     <span style={{ fontSize: 12, fontWeight: 800, color: '#EAB308', textTransform: 'uppercase', letterSpacing: '0.02em' }}>puntos vip</span>
                   </div>

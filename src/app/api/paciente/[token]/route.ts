@@ -35,7 +35,7 @@ export async function GET(
   const pacRes = await supabaseAdmin
     .from('pacientes')
     // token_expira: añadir la columna con la migración incluida en los fixes.
-    .select('id, nombre, telefono, tenant_id, alergias, antecedentes, progreso_plan_porcentaje, puntos, recomendaciones, token_expira')
+    .select('id, nombre, telefono, tenant_id, alergias, antecedentes, progreso_plan_porcentaje, puntos_saldo_cache, recomendaciones, token_expira')
     .eq('token', token)
     .single()
 
@@ -54,7 +54,7 @@ export async function GET(
       alergias: null,
       antecedentes: null,
       progreso_plan_porcentaje: 0,
-      puntos: 0,
+      puntos_saldo_cache: 0,
       recomendaciones: null,
       token_expira: null
     }
@@ -190,7 +190,10 @@ export async function GET(
       alergias: pac.alergias || null,
       antecedentes: pac.antecedentes || null,
       progreso_plan_porcentaje: pac.progreso_plan_porcentaje || 0,
-      puntos: pac.puntos || 0,
+      // Saldo del ledger de fidelización (única fuente de verdad). El portal lo
+      // muestra tal cual: no debe recalcularse a partir de las asistencias, o el
+      // paciente vería un número distinto al de la ficha del odontólogo.
+      puntos: pac.puntos_saldo_cache || 0,
       recomendaciones: pac.recomendaciones || null
     },
     turnos: citas || [],
