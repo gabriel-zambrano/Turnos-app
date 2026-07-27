@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { Sidebar } from '@/components/Sidebar'
-import { Badge, Toast, PageHeader, BtnPrimary, BtnSm, Spinner, inputCss, selectCss, textareaCss, overlayCss, modalCss, modalTitleCss, footerCss, groupCss, labelCss, grid2Css, btnDarkCss, btnLightCss, btnRedCss } from '@/components/UI'
+import { Badge, Toast, PageHeader, BtnPrimary, BtnSm, SkeletonBox, SkeletonLista, inputCss, selectCss, textareaCss, overlayCss, modalCss, modalTitleCss, footerCss, groupCss, labelCss, grid2Css, btnDarkCss, btnLightCss, btnRedCss } from '@/components/UI'
 import { initials } from '@/lib/constants'
 import { createClient } from '@/lib/supabase/client'
 import { storagePathFromUrl, esImagenSoportada, BUCKET_FOTOS } from '@/lib/storage'
@@ -779,8 +779,22 @@ export default function PacienteDetalle() {
     return (
       <div style={{ display: 'flex', minHeight: '100vh', fontFamily: 'DM Sans, sans-serif' }}>
         <Sidebar />
-        <main style={{ marginLeft: isMobile ? 0 : 'var(--sidebar-width, 240px)', flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <Spinner />
+        <main style={{ marginLeft: isMobile ? 0 : 'var(--sidebar-width, 240px)', flex: 1, minWidth: 0 }}>
+          <div style={{ padding: isMobile ? '1rem' : '1.75rem 2rem', maxWidth: 1100 }}>
+            {/* Cabecera del paciente: avatar, nombre y datos de contacto. */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 28 }}>
+              <SkeletonBox w={64} h={64} r={32} />
+              <div style={{ flex: 1 }}>
+                <SkeletonBox w="38%" h={22} mb={10} />
+                <SkeletonBox w="24%" h={12} />
+              </div>
+            </div>
+            {/* Solapas */}
+            <div style={{ display: 'flex', gap: 10, marginBottom: 24 }}>
+              {[110, 90, 140, 80].map((w, i) => <SkeletonBox key={i} w={w} h={32} r={16} />)}
+            </div>
+            <SkeletonLista filas={5} conAvatar={false} />
+          </div>
         </main>
       </div>
     )

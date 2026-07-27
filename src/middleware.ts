@@ -8,6 +8,12 @@ export async function middleware(req: NextRequest) {
   const publicPrefixes = [
     '/_next/',
     '/favicon',
+    // Archivos de la PWA: si el middleware los mandara al login, el navegador
+    // no podría instalar la app ni registrar el service worker.
+    '/manifest.json',
+    '/sw.js',
+    '/offline.html',
+    '/icons/',
     '/api/',
     '/paciente',
     '/auth',

@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { Sidebar } from '@/components/Sidebar'
-import { Badge, Toast, PageHeader, BtnPrimary, BtnSm, Spinner, overlayCss, modalCss, modalTitleCss, footerCss, groupCss, labelCss, grid2Css, btnDarkCss, btnLightCss, btnRedCss, selectCss, textareaCss, inputCss } from '@/components/UI'
+import { Badge, Toast, PageHeader, BtnPrimary, BtnSm, SkeletonLista, overlayCss, modalCss, modalTitleCss, footerCss, groupCss, labelCss, grid2Css, btnDarkCss, btnLightCss, btnRedCss, selectCss, textareaCss, inputCss } from '@/components/UI'
 import { TRAT_STYLE, ESTADO_STYLE, TRATAMIENTOS, ESTADOS, DURACIONES, horasDisponibles, hoyISO, normalizarTelefono } from '@/lib/constants'
 import { createClient } from '@/lib/supabase/client'
 import type { EstadoCita, TipoTratamiento } from '@/types'
@@ -861,7 +861,9 @@ export default function Agenda() {
         }
 
         <div style={{padding: isMobile ? 0 : '1.5rem 2rem'}}>
-          {tenantLoading || loading ? <Spinner/> : (
+          {tenantLoading || loading ? (
+            <div style={{ padding: isMobile ? '1rem' : 0 }}><SkeletonLista filas={7}/></div>
+          ) : (
             <div 
               onTouchStart={handleTouchStart}
               onTouchMove={handleTouchMove}

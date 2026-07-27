@@ -305,6 +305,16 @@ input:focus, select:focus, textarea:focus {
   to { transform: rotate(360deg); }
 }
 
+/* Pulso de los skeletons: suave, para que no distraiga mientras carga. */
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.45; }
+}
+/* Quien pidió menos movimiento ve el bloque quieto, sin animación. */
+@media (prefers-reduced-motion: reduce) {
+  [style*="skeleton-pulse"] { animation: none !important; }
+}
+
 /* Floating Capsule Navbar for Mobile */
 .mobile-nav-floating {
   position: fixed;

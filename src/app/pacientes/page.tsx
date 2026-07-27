@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { Sidebar } from '@/components/Sidebar'
-import { Badge, Toast, PageHeader, BtnPrimary, BtnSm, DataTable, TR, TD, Spinner, MetricCard, inputCss, selectCss, overlayCss, modalCss, modalTitleCss, footerCss, groupCss, labelCss, grid2Css, btnDarkCss, btnLightCss, btnRedCss } from '@/components/UI'
+import { Badge, Toast, PageHeader, BtnPrimary, BtnSm, DataTable, TR, TD, SkeletonLista, MetricCard, inputCss, selectCss, overlayCss, modalCss, modalTitleCss, footerCss, groupCss, labelCss, grid2Css, btnDarkCss, btnLightCss, btnRedCss } from '@/components/UI'
 import { TRAT_STYLE, AVATAR_COLORS, TRATAMIENTOS, calcEdad, initials, normalizarTelefono } from '@/lib/constants'
 import { createClient } from '@/lib/supabase/client'
 import { useTenantContext } from '@/components/TenantContext'
@@ -169,7 +169,7 @@ export default function Pacientes() {
             <MetricCard label="Total pacientes" value={loading?'…':rows.length} accent="#1D9E75"/>
             <MetricCard label="Resultado búsqueda" value={loading?'…':filtrados.length} accent="#378ADD"/>
           </div>
-          {tenantLoading || loading?<Spinner/>:isMobile?(
+          {tenantLoading || loading?<SkeletonLista filas={6}/>:isMobile?(
             <div style={{display:'flex',flexDirection:'column',gap:10}}>
               {filtrados.map((p,i)=>{
                 const color=AVATAR_COLORS[i%AVATAR_COLORS.length]

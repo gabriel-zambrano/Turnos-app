@@ -51,6 +51,65 @@ export function Toast({ msg, tipo, isMobile }: { msg: string; tipo: string; isMo
   return <div style={{ position: 'fixed', bottom: isMobile ? 80 : 24, left: '50%', transform: 'translateX(-50%)', padding: '10px 22px', borderRadius: 10, fontSize: 13, fontWeight: 500, zIndex: 2000, background: tipo === 'ok' ? 'linear-gradient(135deg,#0a1e3d,#185FA5)' : '#D85A30', color: '#fff', whiteSpace: 'nowrap', boxShadow: '0 4px 24px rgba(24,95,165,0.25)' }}>{msg}</div>
 }
 
+// ─────────────────────────────────────────────────────────────
+// Skeletons
+//
+// Un spinner centrado deja la pantalla vacía y hace sentir la espera más larga
+// de lo que es. El skeleton mantiene la forma de lo que se está por ver, así
+// que la página no "salta" cuando llegan los datos.
+// ─────────────────────────────────────────────────────────────
+
+/** Bloque gris con pulso. Sirve para armar cualquier skeleton. */
+export function SkeletonBox({ w = '100%', h = 16, r = 8, mb = 0 }: { w?: number | string; h?: number; r?: number; mb?: number }) {
+  return (
+    <div
+      aria-hidden
+      style={{
+        width: w,
+        height: h,
+        borderRadius: r,
+        marginBottom: mb,
+        background: 'var(--border-light, #e6ecf4)',
+        animation: 'skeleton-pulse 1.4s ease-in-out infinite',
+      }}
+    />
+  )
+}
+
+/** Skeleton de una grilla de tarjetas de métricas (KPIs del dashboard). */
+export function SkeletonKPIs({ cantidad = 4 }: { cantidad?: number }) {
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem' }}>
+      {Array.from({ length: cantidad }).map((_, i) => (
+        <div key={i} className="glass-card" style={{ padding: '1.25rem' }}>
+          <SkeletonBox w="55%" h={11} mb={14} />
+          <SkeletonBox w="70%" h={26} r={10} mb={10} />
+          <SkeletonBox w="40%" h={10} />
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/** Skeleton de un listado (turnos del día, pacientes, facturas). */
+export function SkeletonLista({ filas = 5, conAvatar = true }: { filas?: number; conAvatar?: boolean }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      {Array.from({ length: filas }).map((_, i) => (
+        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 4px' }}>
+          {conAvatar && <SkeletonBox w={38} h={38} r={19} />}
+          <div style={{ flex: 1 }}>
+            {/* Ancho variable para que no parezca una tabla de Excel. */}
+            <SkeletonBox w={`${52 + ((i * 13) % 26)}%`} h={13} mb={9} />
+            <SkeletonBox w={`${30 + ((i * 9) % 18)}%`} h={10} />
+          </div>
+          <SkeletonBox w={64} h={22} r={11} />
+        </div>
+      ))}
+    </div>
+  )
+}
+
 export function Spinner() {
   return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '3rem', color: '#8fa3bc', fontSize: 14 }}>

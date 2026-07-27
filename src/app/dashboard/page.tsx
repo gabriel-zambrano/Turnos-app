@@ -1,8 +1,7 @@
 'use client'
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { Sidebar } from '@/components/Sidebar'
-import Link from 'next/link'
-import { Badge, Toast, PageHeader, FilterBar, Spinner, MetricCard, inputCss, selectCss, overlayCss, modalCss, modalTitleCss, footerCss, groupCss, labelCss, grid2Css, btnDarkCss, btnLightCss } from '@/components/UI'
+import { Badge, Toast, PageHeader, FilterBar, SkeletonLista, SkeletonKPIs, MetricCard, inputCss, selectCss, overlayCss, modalCss, modalTitleCss, footerCss, groupCss, labelCss, grid2Css, btnDarkCss, btnLightCss } from '@/components/UI'
 import { TRAT_STYLE, ESTADO_STYLE, hoyISO, normalizarTelefono, TRATAMIENTOS } from '@/lib/constants'
 import { createClient } from '@/lib/supabase/client'
 import { useTenantContext } from '@/components/TenantContext'
@@ -10,6 +9,9 @@ import type { EstadoCita } from '@/types'
 import dynamic from 'next/dynamic'
 import { triggerConfetti } from '@/lib/confetti'
 import { registrarInasistenciaAction, aprobarAsistenciaAction } from '@/app/actions/fidelizacion'
+import { HeatmapSemanal } from './components/HeatmapSemanal'
+import { AccionesRapidas } from './components/AccionesRapidas'
+import { PreparacionManana } from './components/PreparacionManana'
 
 // Lazy-load: el modal solo se descarga cuando el usuario lo abre, no en la carga inicial.
 const NuevaCitaModal = dynamic(() => import('@/components/NuevaCitaModal').then(m => m.NuevaCitaModal), { ssr: false })
@@ -548,252 +550,55 @@ export default function Dashboard() {
               )}
             </div>
 
-            {/* Preparación para Mañana */}
-            <div className="glass-container" style={{ padding: '1.25rem 1.4rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', background: `linear-gradient(135deg, ${primaryColor}, ${secondaryColor})`, color: '#fff', borderRadius: 16 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>
-                Preparación para mañana
-              </div>
-              
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 1, justifyContent: 'center' }}>
-                <div style={{ fontSize: 32, fontWeight: 800, lineHeight: 1 }}>{citasMañana.length}</div>
-                <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.9)', lineHeight: 1.4 }}>
-                  {citasMañana.length === 1 ? 'turno agendado' : 'turnos agendados'} para el próximo día.
-                </div>
-              </div>
-              
-              <button 
-                onClick={enviarEmailsMañana} 
-                disabled={enviandoEmail || citasMañana.length === 0}
-                className="btn-premium" 
-                style={{ 
-                  marginTop: 12, width: '100%', padding: '0.75rem', borderRadius: 10, border: 'none', 
-                  background: enviandoEmail || citasMañana.length === 0 ? 'rgba(255,255,255,0.2)' : '#fff', 
-                  color: enviandoEmail || citasMañana.length === 0 ? 'rgba(255,255,255,0.5)' : primaryColor, 
-                  fontWeight: 700, fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: enviandoEmail || citasMañana.length === 0 ? 'not-allowed' : 'pointer', fontFamily: 'DM Sans, sans-serif' 
-                }}>
-                {enviandoEmail
-                  ? <><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{animation:'spin 1s linear infinite'}}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>Enviando...</>
-                  : <>📧 Enviar recordatorios</>
-                }
-              </button>
-            </div>
+            <PreparacionManana
+              cantidadTurnos={citasMañana.length}
+              enviando={enviandoEmail}
+              onEnviarRecordatorios={enviarEmailsMañana}
+              primaryColor={primaryColor}
+              secondaryColor={secondaryColor}
+            />
 
-            {/* Quick Actions Card */}
-            <div className="glass-container" style={{ padding: '1.25rem 1.4rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: '#7a8f9d', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>
-                Acciones Rápidas
-              </div>
-              
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, flex: 1 }}>
-                
-                {/* Agendar Turno */}
-                <button onClick={() => setModalNuevaCita(true)} style={{ textDecoration: 'none', background: 'none', border: 'none', padding: 0, width: '100%', cursor: 'pointer' }}>
-                  <div className="quick-action-btn" style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    padding: '8px 4px',
-                    borderRadius: 12,
-                    background: `${secondaryColor}10`,
-                    border: `1px solid ${secondaryColor}25`,
-                    color: secondaryColor,
-                    cursor: 'pointer',
-                    height: '100%',
-                    boxSizing: 'border-box',
-                    textAlign: 'center',
-                    gap: 6
-                  }}>
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-                      <line x1="16" y1="2" x2="16" y2="6" />
-                      <line x1="8" y1="2" x2="8" y2="6" />
-                      <line x1="3" y1="10" x2="21" y2="10" />
-                      <line x1="12" y1="14" x2="12" y2="20" />
-                      <line x1="9" y1="17" x2="15" y2="17" />
-                    </svg>
-                    <span style={{ fontSize: 10.5, fontWeight: 700 }}>Agendar Turno</span>
-                  </div>
-                </button>
-
-                {/* Nuevo Paciente */}
-                <div onClick={() => {
-                  setPacNombre('')
-                  setPacTelefono('+54911')
-                  setPacEmail('')
-                  setPacNacimiento('')
-                  setPacTratamiento('Consulta')
-                  setModalPaciente(true)
-                }} className="quick-action-btn" style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  padding: '8px 4px',
-                  borderRadius: 12,
-                  background: `${primaryColor}10`,
-                  border: `1px solid ${primaryColor}25`,
-                  color: primaryColor,
-                  cursor: 'pointer',
-                  height: '100%',
-                  boxSizing: 'border-box',
-                  textAlign: 'center',
-                  gap: 6
-                }}>
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-                    <circle cx="9" cy="7" r="4" />
-                    <line x1="19" y1="8" x2="19" y2="14" />
-                    <line x1="16" y1="11" x2="22" y2="11" />
-                  </svg>
-                  <span style={{ fontSize: 10.5, fontWeight: 700 }}>Nuevo Paciente</span>
-                </div>
-
-                {/* Registrar Cobro */}
-                <div onClick={() => {
-                  setCobConcepto('')
-                  setCobMonto('')
-                  setCobFecha(new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }))
-                  setModalCobro(true)
-                }} className="quick-action-btn" style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  padding: '8px 4px',
-                  borderRadius: 12,
-                  background: `${accentColor}10`,
-                  border: `1px solid ${accentColor}25`,
-                  color: accentColor,
-                  cursor: 'pointer',
-                  height: '100%',
-                  boxSizing: 'border-box',
-                  textAlign: 'center',
-                  gap: 6
-                }}>
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <line x1="12" y1="1" x2="12" y2="23" />
-                    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-                  </svg>
-                  <span style={{ fontSize: 10.5, fontWeight: 700 }}>Registrar Cobro</span>
-                </div>
-
-                {/* Ver Agenda */}
-                <Link href="/agenda" style={{ textDecoration: 'none' }}>
-                  <div className="quick-action-btn" style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    padding: '8px 4px',
-                    borderRadius: 12,
-                    background: '#f0f4f8',
-                    border: '1px solid #dde5ef',
-                    color: '#687e96',
-                    cursor: 'pointer',
-                    height: '100%',
-                    boxSizing: 'border-box',
-                    textAlign: 'center',
-                    gap: 6
-                  }}>
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-                      <line x1="16" y1="2" x2="16" y2="6" />
-                      <line x1="8" y1="2" x2="8" y2="6" />
-                      <line x1="3" y1="10" x2="21" y2="10" />
-                    </svg>
-                    <span style={{ fontSize: 10.5, fontWeight: 700 }}>Ver Agenda</span>
-                  </div>
-                </Link>
-
-              </div>
-            </div>
+            <AccionesRapidas
+              primaryColor={primaryColor}
+              secondaryColor={secondaryColor}
+              accentColor={accentColor}
+              onAgendarTurno={() => setModalNuevaCita(true)}
+              onNuevoPaciente={() => {
+                setPacNombre('')
+                setPacTelefono('+54911')
+                setPacEmail('')
+                setPacNacimiento('')
+                setPacTratamiento('Consulta')
+                setModalPaciente(true)
+              }}
+              onRegistrarCobro={() => {
+                setCobConcepto('')
+                setCobMonto('')
+                setCobFecha(new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }))
+                setModalCobro(true)
+              }}
+            />
           </div>
 
-          {/* 7-Day Heatmap (Workload Density Calendar Selector) */}
-          <div className="glass-container" style={{ padding: '1rem 1.25rem', marginBottom: '1.5rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-              <span style={{ fontSize: 13, fontWeight: 700, color: primaryColor }}>Carga de Turnos (Próximos 7 días)</span>
-              <span style={{ fontSize: 11, color: '#8fa3bc' }}>Haz clic para ver la agenda de ese día</span>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 8 }}>
-              {heatmapData.map(d => {
-                const isSelected = selectedDate === d.dateStr
-                const isToday = hoyISO() === d.dateStr
-                
-                // Color density scale
-                let bg = 'transparent'
-                let border = '1px solid var(--border-light, #dde5ef)'
-                let text = 'var(--text-dark, #0a1e3d)'
-                
-                if (d.count > 0) {
-                  if (d.count <= 2) {
-                    bg = `${secondaryColor}15`
-                    border = `1px solid ${secondaryColor}30`
-                    text = secondaryColor
-                  } else if (d.count <= 5) {
-                    bg = `${secondaryColor}35`
-                    border = `1px solid ${secondaryColor}60`
-                    text = primaryColor
-                  } else {
-                    bg = secondaryColor
-                    border = `1px solid ${secondaryColor}`
-                    text = '#fff'
-                  }
-                }
-                
-                if (isSelected) {
-                  border = `2.5px solid ${accentColor}`
-                }
+          {/* Carga de turnos de la semana; también elige el día que se muestra abajo. */}
+          <HeatmapSemanal
+            dias={heatmapData}
+            fechaSeleccionada={selectedDate}
+            onSeleccionar={setSelectedDate}
+            primaryColor={primaryColor}
+            secondaryColor={secondaryColor}
+            accentColor={accentColor}
+          />
 
-                return (
-                  <button
-                    key={d.dateStr}
-                    onClick={() => setSelectedDate(d.dateStr)}
-                    style={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      gap: 4,
-                      padding: '8px 4px',
-                      borderRadius: 12,
-                      background: bg,
-                      border: border,
-                      color: text,
-                      cursor: 'pointer',
-                      transition: 'all 0.2s ease',
-                      position: 'relative'
-                    }}
-                  >
-                    <span style={{ fontSize: 9.5, fontWeight: 700, textTransform: 'uppercase', opacity: d.count > 5 ? 0.9 : 0.6 }}>{d.dayName}</span>
-                    <span style={{ fontSize: 16, fontWeight: 800 }}>{d.dayNum}</span>
-                    {d.count > 0 && (
-                      <span style={{ 
-                        fontSize: 9, 
-                        fontWeight: 700, 
-                        background: d.count > 5 ? '#fff' : secondaryColor, 
-                        color: d.count > 5 ? secondaryColor : '#fff',
-                        padding: '1px 5px', 
-                        borderRadius: 8,
-                        marginTop: 2
-                      }}>
-                        {d.count}
-                      </span>
-                    )}
-                    {isToday && !isSelected && (
-                      <span style={{ position: 'absolute', bottom: 3, width: 4, height: 4, borderRadius: '50%', background: accentColor }} />
-                    )}
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-
-          <div style={{display:'grid',gridTemplateColumns:isMobile?'repeat(2,1fr)':'repeat(4,1fr)',gap:12,marginBottom:'1.5rem'}}>
-            <MetricCard label="Citas del día" value={loading?'…':citas.length} sub={`Confirmadas: ${conf}`} accent={primaryColor}/>
-            <MetricCard label="Revenue estimado sem" value={loading?'…':`$${weeklyRevenue.toLocaleString('es-AR')}`} sub="Esta semana (Lun-Dom)" accent={accentColor}/>
-            <MetricCard label="Cancelaciones sem" value={loading?'…':weeklyCancellations} sub="Esta semana" accent={secondaryColor}/>
-            <MetricCard label="Variación tasa sem" value={loading?'…':(confirmationRateChange >= 0 ? `+${confirmationRateChange}%` : `${confirmationRateChange}%`)} sub="vs semana anterior" accent={confirmationRateChange>=0?accentColor:'#D85A30'}/>
+          <div style={{marginBottom:'1.5rem'}}>
+            {loading ? <SkeletonKPIs cantidad={4}/> : (
+              <div style={{display:'grid',gridTemplateColumns:isMobile?'repeat(2,1fr)':'repeat(4,1fr)',gap:12}}>
+                <MetricCard label="Citas del día" value={citas.length} sub={`Confirmadas: ${conf}`} accent={primaryColor}/>
+                <MetricCard label="Revenue estimado sem" value={`$${weeklyRevenue.toLocaleString('es-AR')}`} sub="Esta semana (Lun-Dom)" accent={accentColor}/>
+                <MetricCard label="Cancelaciones sem" value={weeklyCancellations} sub="Esta semana" accent={secondaryColor}/>
+                <MetricCard label="Variación tasa sem" value={confirmationRateChange >= 0 ? `+${confirmationRateChange}%` : `${confirmationRateChange}%`} sub="vs semana anterior" accent={confirmationRateChange>=0?accentColor:'#D85A30'}/>
+              </div>
+            )}
           </div>
 
           {/* Next Up Patient Alert */}
@@ -854,7 +659,7 @@ export default function Dashboard() {
                 </span>
                 <FilterBar options={FILTROS} active={filtro} onChange={setFiltro}/>
               </div>
-              {loading?<Spinner/>:(
+              {loading?<SkeletonLista filas={4}/>:(
                 <div style={{display:'flex',flexDirection:'column',gap:8}}>
                   {lista.map(c=>{
                     const tc=TRAT_STYLE[c.tratamiento]||TRAT_STYLE.Consulta

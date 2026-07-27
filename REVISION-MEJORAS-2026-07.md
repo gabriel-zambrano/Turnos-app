@@ -4,12 +4,13 @@ Retomo dos hilos que habían quedado inconclusos: la **auditoría de 26 mejoras*
 del SaaS y el **spec del módulo de fidelización**. Cada punto está verificado
 contra el repo real, no contra lo que decían los documentos.
 
-**Marcador: 19 hechos · 1 parcial · 6 abiertos.**
+**Marcador: 22 hechos · 2 parciales · 2 abiertos.**
 
-> **Actualización 27/07 — Tandas 1, 2 y 3 aplicadas.** Puntos unificados contra
-> el ledger, búsqueda por teléfono, precios reales por plan, feature flags
-> derivados del plan, `/precios` pública y agendamiento online del paciente.
-> Typecheck 0 errores, 174 tests en verde.
+> **Actualización 27/07 — Tandas 1 a 4 aplicadas.** Puntos unificados contra el
+> ledger, búsqueda por teléfono, precios reales por plan, feature flags
+> derivados del plan, `/precios` pública, agendamiento online del paciente, PWA,
+> skeleton loaders, README y arranque del refactor del dashboard.
+> Typecheck 0 errores, 179 tests en verde.
 >
 > El `next build` completo no se pudo correr en el entorno de trabajo (se corta
 > por memoria), así que **el primer build real es el de Vercel al pushear**.
@@ -65,10 +66,10 @@ contra el repo real, no contra lo que decían los documentos.
 
 | # | Mejora | Estado | Detalle |
 |---|---|---|---|
-| 20 | Refactor del dashboard | ❌ Abierto | Pasó de 1033 → **1091 líneas**. Empeoró. |
-| 21 | Skeleton loaders | ❌ Abierto | Cero ocurrencias en todo `src` |
-| 22 | PWA | ❌ Abierto | Sin `manifest.json` ni carpeta `public/` |
-| 23 | README | ❌ Abierto | 10 líneas |
+| 20 | Refactor del dashboard | 🟡 Parcial | De 1095 → **896 líneas**. Extraídos `HeatmapSemanal`, `AccionesRapidas` y `PreparacionManana`. Quedan por sacar los dos modales y el listado de citas. |
+| 21 | Skeleton loaders | ✅ Hecho | `SkeletonBox`, `SkeletonKPIs` y `SkeletonLista` en dashboard, agenda, pacientes y ficha |
+| 22 | PWA | ✅ Hecho | Manifest, iconos, service worker y pantalla de offline |
+| 23 | README | ✅ Hecho | Setup, arquitectura, migraciones, jobs y deploy |
 
 ### 💈 Monetización
 
@@ -155,10 +156,20 @@ gratis en los Términos.
    atienda sábados o en turnos partidos, hay que pasarlo a configuración por
    tenant (tabla `horarios_atencion`).
 
-**Tanda 4 — pulido (≈3 días)**
+**Tanda 4 — ✅ aplicada**
 
-8. Skeleton loaders, PWA (`manifest.json` + service worker), README, refactor
-   del dashboard en 5 sub-componentes.
+8. ~~Skeleton loaders~~ (`SkeletonBox` / `SkeletonKPIs` / `SkeletonLista`, con
+   respeto por `prefers-reduced-motion`).
+9. ~~PWA~~: manifest, iconos, service worker y pantalla de offline. El SW
+   **no cachea `/api/`, `/paciente/` ni `/firmar/`**, porque son rutas con datos
+   de salud.
+10. ~~README~~ con setup, arquitectura, migraciones, jobs y deploy.
+11. Refactor del dashboard: **parcial**. De 1095 a 896 líneas, con
+    `HeatmapSemanal`, `AccionesRapidas` y `PreparacionManana` extraídos. Faltan
+    los dos modales (nuevo paciente, registrar cobro) y el listado de citas.
+
+**Lo que queda abierto de toda la auditoría:** la landing pública en `/` (vive
+en otro repo) y el setup externo de Meta para WhatsApp.
 
 ---
 
