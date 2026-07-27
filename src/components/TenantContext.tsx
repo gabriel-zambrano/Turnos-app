@@ -67,7 +67,10 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     async function loadTenant() {
       try {
-        const hostname = window.location.hostname
+        // Se saca el www: la clínica tiene cargado el dominio sin él, y si no
+        // lo quitáramos, `hostname.split('.')[0]` daría "www" y no resolvería
+        // ninguna clínica.
+        const hostname = window.location.hostname.replace(/^www\./, '')
 
         // 1. Intentar resolver por usuario autenticado (para el dashboard)
         const { data: { session } } = await supabase.auth.getSession()

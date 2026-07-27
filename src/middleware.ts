@@ -4,6 +4,20 @@ import { updateSession } from './lib/supabase/middleware'
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl
 
+  // 0. Unificar el dominio en la versión sin www.
+  //
+  // La gente comparte links con y sin www indistintamente, y los que se pegan
+  // en redes sociales suelen llevarlo. Si las dos versiones responden, además,
+  // se rompen las sesiones (la cookie de una no sirve en la otra) y Google ve
+  // contenido duplicado. Con esto, cualquier link con www termina en el mismo
+  // lugar, conservando la ruta y los parámetros de campaña.
+  const host = req.headers.get('host') || ''
+  if (host.startsWith('www.')) {
+    const destino = req.nextUrl.clone()
+    destino.host = host.slice(4)
+    return NextResponse.redirect(destino, 308)
+  }
+
   // 1. Definir rutas públicas
   const publicPrefixes = [
     '/_next/',
