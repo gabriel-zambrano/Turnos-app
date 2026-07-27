@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { rateLimit, getClientIp } from '@/lib/rate-limit'
+import { duracionPorDefecto } from '@/lib/constants'
 import { slotsLibres, esFechaValida, MINUTOS_POR_SLOT, type Ocupacion } from '@/lib/reserva'
 
 // ─────────────────────────────────────────────────────────────
@@ -61,7 +62,7 @@ export async function GET(req: NextRequest, { params }: { params: { clinica: str
 
   const tratamientosPublicos = (tratamientos || []).map(t => ({
     nombre: t.nombre,
-    duracion: t.duracion_default || MINUTOS_POR_SLOT,
+    duracion: t.duracion_default || duracionPorDefecto(t.nombre),
   }))
 
   // Sin fecha, solo devolvemos los datos del consultorio.

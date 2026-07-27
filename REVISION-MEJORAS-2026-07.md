@@ -142,9 +142,18 @@ gratis en los Términos.
    se ocupó mientras el paciente completaba el formulario. El link para
    compartir aparece en Configuración.
 
-   **Reglas aplicadas** (en `lib/reserva.ts`, con 17 tests): atención de 8:00 a
-   20:00 en slots de 20 min, domingos cerrado, mínimo 2 horas de anticipación,
-   máximo 60 días a futuro, 5 pedidos por hora por IP.
+   **Reglas aplicadas** (en `lib/reserva.ts`, con 22 tests): **lunes a viernes
+   de 8:00 a 20:00** en slots de 20 min, mínimo 2 horas de anticipación, máximo
+   60 días a futuro, 5 pedidos por hora por IP.
+
+   **Blanqueamiento = 80 min** (va con limpieza dental), así que el último
+   horario que se ofrece para ese tratamiento es 18:40. Hay que correr
+   `supabase_migration_duracion_blanqueamiento.sql` para que la tabla
+   `tratamientos` coincida con el valor por defecto del sistema.
+
+   ⚠️ El horario está fijo para toda la plataforma. Cuando entre una clínica que
+   atienda sábados o en turnos partidos, hay que pasarlo a configuración por
+   tenant (tabla `horarios_atencion`).
 
 **Tanda 4 — pulido (≈3 días)**
 
@@ -156,7 +165,8 @@ gratis en los Términos.
 ## D. Pendientes ajenos a estos dos hilos (recordatorio)
 
 - Correr en Supabase: `supabase_migration_recall.sql`,
-  `supabase_migration_crm_automatizacion.sql`, `supabase_migration_cuidados.sql`.
+  `supabase_migration_crm_automatizacion.sql`, `supabase_migration_cuidados.sql`,
+  `supabase_migration_duracion_blanqueamiento.sql`.
 - 3 decisiones marcadas **PENDIENTE** en `DECISIONES-PRODUCTO.md`: alta de
   clínicas por dos caminos, acceso del operador a datos de pacientes, tokens
   del portal sin expiración.

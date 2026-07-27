@@ -26,16 +26,18 @@ interface TratamientoPublico {
   duracion: number
 }
 
-const DIAS_A_MOSTRAR = 21
+// Tres semanas hábiles de lunes a viernes.
+const DIAS_A_MOSTRAR = 15
 
-/** Próximos días hábiles, en formato ISO, arrancando mañana. */
+/** Próximos días hábiles (lunes a viernes), en formato ISO, arrancando mañana. */
 function proximosDias(): { iso: string; dia: string; num: string; mes: string }[] {
   const out: { iso: string; dia: string; num: string; mes: string }[] = []
   const cursor = new Date()
   cursor.setDate(cursor.getDate() + 1)
 
   while (out.length < DIAS_A_MOSTRAR) {
-    if (cursor.getDay() !== 0) {
+    const dia = cursor.getDay()
+    if (dia !== 0 && dia !== 6) {
       const iso = cursor.toISOString().split('T')[0]
       out.push({
         iso,

@@ -15,7 +15,11 @@ import {
 const AHORA = new Date('2026-07-28T09:00:00-03:00')
 const MARTES = '2026-07-28'
 const MIERCOLES = '2026-07-29'
+const SABADO = '2026-08-01'
 const DOMINGO = '2026-08-02'
+
+/** Blanqueamiento: 1 h 20, porque va acompañado de una limpieza dental. */
+const BLANQUEAMIENTO = 80
 
 describe('slotsDelDia', () => {
   it('arranca a las 08:00 y el último slot es 19:40', () => {
@@ -31,13 +35,17 @@ describe('slotsDelDia', () => {
 })
 
 describe('esDiaHabil', () => {
-  it('los domingos no se atiende', () => {
-    expect(esDiaHabil(DOMINGO)).toBe(false)
+  it('se atiende de lunes a viernes', () => {
+    expect(esDiaHabil('2026-07-27')).toBe(true) // lunes
+    expect(esDiaHabil(MARTES)).toBe(true)
+    expect(esDiaHabil(MIERCOLES)).toBe(true)
+    expect(esDiaHabil('2026-07-30')).toBe(true) // jueves
+    expect(esDiaHabil('2026-07-31')).toBe(true) // viernes
   })
 
-  it('el resto de los días sí', () => {
-    expect(esDiaHabil(MARTES)).toBe(true)
-    expect(esDiaHabil('2026-08-01')).toBe(true) // sábado
+  it('los fines de semana no', () => {
+    expect(esDiaHabil(SABADO)).toBe(false)
+    expect(esDiaHabil(DOMINGO)).toBe(false)
   })
 })
 
@@ -105,7 +113,8 @@ describe('slotsLibres', () => {
     expect(libres).toContain('11:00')
   })
 
-  it('los domingos no hay nada disponible', () => {
+  it('los fines de semana no hay nada disponible', () => {
+    expect(slotsLibres(SABADO, [], 20, AHORA)).toEqual([])
     expect(slotsLibres(DOMINGO, [], 20, AHORA)).toEqual([])
   })
 
@@ -148,5 +157,50 @@ describe('validarReserva', () => {
       AHORA
     )
     expect(motivo).toBe('ocupado')
+  })
+})
+
+describe('blanqueamiento (80 min, va con limpieza dental)', () => {
+  it('bloquea los cuatro slots que ocupa', () => {
+    const libres = slotsLibres(
+      MIERCOLES,
+      [{ fechaHora: fechaHoraISO(MIERCOLES, '10:00'), duracionMinutos: BLANQUEAMIENTO }],
+      20,
+      AHORA
+    )
+    expect(libres).not.toContain('10:00')
+    expect(libres).not.toContain('10:20')
+    expect(libres).not.toContain('10:40')
+    expect(libres).not.toContain('11:00')
+    expect(libres).toContain('11:20')
+  })
+
+  it('el último horario posible es 18:40, para terminar a las 20:00', () => {
+    const libres = slotsLibres(MIERCOLES, [], BLANQUEAMIENTO, AHORA)
+    expect(libres).toContain('18:40')
+    expect(libres).not.toContain('19:00')
+  })
+
+  it('no entra si deja menos de 80 minutos libres antes de otro turno', () => {
+    const ocupados = [{ fechaHora: fechaHoraISO(MIERCOLES, '11:00'), duracionMinutos: 20 }]
+    const libres = slotsLibres(MIERCOLES, ocupados, BLANQUEAMIENTO, AHORA)
+    // Arrancar 10:00 terminaría 11:20 y pisaría el turno de las 11:00.
+    expect(libres).not.toContain('10:00')
+    expect(libres).not.toContain('10:20')
+    // 09:40 termina exactamente a las 11:00: entra justo.
+    expect(libres).toContain('09:40')
+  })
+
+  it('validarReserva rechaza un blanqueamiento que se pasa del cierre', () => {
+    expect(validarReserva(MIERCOLES, '19:00', BLANQUEAMIENTO, [], AHORA)).toBe('ocupado')
+    expect(validarReserva(MIERCOLES, '18:40', BLANQUEAMIENTO, [], AHORA)).toBeNull()
+  })
+})
+
+describe('horario del consultorio', () => {
+  it('atiende de 8 a 20', () => {
+    const libres = slotsLibres(MIERCOLES, [], 20, AHORA)
+    expect(libres[0]).toBe('08:00')
+    expect(libres[libres.length - 1]).toBe('19:40')
   })
 })

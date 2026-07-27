@@ -2,20 +2,14 @@
 import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useTenantContext } from '@/components/TenantContext'
+import { DURACION_POR_TRATAMIENTO } from '@/lib/constants'
 
 const supabase = createClient()
 
 // Local fallbacks
-const DEFAULT_TRAT_DURACION: Record<string, number> = {
-  'Consulta': 20,
-  'Ortodoncia': 60,
-  'Blanqueamiento': 60,
-  'Limpieza': 40,
-  'Extracción': 40,
-  'Caries': 40,
-  'Implante': 80,
-  'Otro': 20,
-}
+// Las duraciones por defecto viven en constants.ts, compartidas con la reserva
+// online, para que el paciente y el consultorio reserven el mismo bloque.
+const DEFAULT_TRAT_DURACION = DURACION_POR_TRATAMIENTO
 
 const DEFAULT_TRATAMIENTOS = Object.keys(DEFAULT_TRAT_DURACION)
 

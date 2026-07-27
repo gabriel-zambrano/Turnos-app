@@ -54,12 +54,19 @@ export function esHoraValida(hora: string): boolean {
   return slotsDelDia().includes(hora)
 }
 
-/** Domingo no se atiende. */
+/**
+ * Días que atiende el consultorio: lunes a viernes.
+ *
+ * ⚠️ Hoy es fijo para toda la plataforma. Cuando haya clínicas con otros
+ * horarios (sábados, turnos partidos), esto tiene que pasar a ser configuración
+ * por tenant: una tabla `horarios_atencion` con día, apertura y cierre.
+ */
 export function esDiaHabil(fecha: string): boolean {
   const d = new Date(`${fecha}T12:00:00${OFFSET_AR}`)
   // getUTCDay sobre el mediodía AR devuelve el día correcto sin importar dónde
-  // corra el servidor.
-  return d.getUTCDay() !== 0
+  // corra el servidor. 0 = domingo, 6 = sábado.
+  const dia = d.getUTCDay()
+  return dia !== 0 && dia !== 6
 }
 
 export interface Ocupacion {
@@ -146,7 +153,7 @@ export function validarReserva(
 export const MENSAJE_RECHAZO: Record<MotivoRechazo, string> = {
   fecha_invalida: 'La fecha no es válida.',
   hora_invalida: 'Ese horario no está dentro de la atención del consultorio.',
-  dia_no_habil: 'Los domingos el consultorio no atiende.',
+  dia_no_habil: 'El consultorio atiende de lunes a viernes.',
   muy_pronto: `Los turnos se piden con al menos ${ANTICIPACION_MINIMA_HORAS} horas de anticipación.`,
   muy_lejos: `Solo se puede reservar hasta ${DIAS_MAXIMOS_A_FUTURO} días para adelante.`,
   ocupado: 'Ese horario se acaba de ocupar. Elegí otro, por favor.',

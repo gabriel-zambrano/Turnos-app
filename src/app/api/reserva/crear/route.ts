@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { Resend } from 'resend'
 import { rateLimit, getClientIp } from '@/lib/rate-limit'
-import { normalizarTelefono } from '@/lib/constants'
+import { normalizarTelefono, duracionPorDefecto } from '@/lib/constants'
 import { APP_URL, remitente } from '@/lib/config'
 import {
   validarReserva,
@@ -84,7 +84,9 @@ export async function POST(req: NextRequest) {
       .eq('nombre', tratamiento)
       .maybeSingle()
 
-    const duracion = trat?.duracion_default || MINUTOS_POR_SLOT
+    // Si la clínica no le cargó duración al tratamiento, cae al valor por
+    // defecto del sistema (ej: Blanqueamiento 80 min, porque va con limpieza).
+    const duracion = trat?.duracion_default || duracionPorDefecto(tratamiento)
 
     const { data: citasDelDia } = await supabaseAdmin
       .from('citas')

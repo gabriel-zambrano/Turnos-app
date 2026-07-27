@@ -1,4 +1,28 @@
 export const TRATAMIENTOS = ['Limpieza','Ortodoncia','Implante','Cirugia','Endodoncia','Blanqueamiento','Consulta','Otro']
+
+/**
+ * Duración por defecto de cada tratamiento, en minutos.
+ *
+ * Es solo el respaldo: si la clínica cargó el tratamiento en la tabla
+ * `tratamientos` con su `duracion_default`, manda ese valor. Este mapa se usa
+ * cuando todavía no lo configuró.
+ *
+ * Blanqueamiento son 80 minutos porque va acompañado de una limpieza dental.
+ */
+export const DURACION_POR_TRATAMIENTO: Record<string, number> = {
+  'Consulta': 20,
+  'Ortodoncia': 60,
+  'Blanqueamiento': 80,
+  'Limpieza': 40,
+  'Extracción': 40,
+  'Caries': 40,
+  'Implante': 80,
+  'Otro': 20,
+}
+
+export function duracionPorDefecto(tratamiento: string): number {
+  return DURACION_POR_TRATAMIENTO[tratamiento] ?? 20
+}
 export const ESTADOS      = ['pendiente','confirmado','asistio','cancelado','completado','ausente']
 export const DURACIONES   = [20,40,60,80,120]
 export const AVATAR_COLORS = ['#1D9E75','#7F77DD','#378ADD','#EF9F27','#D85A30','#E24B4A']
