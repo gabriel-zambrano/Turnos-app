@@ -5,6 +5,7 @@ import { Sidebar } from '@/components/Sidebar'
 import { Badge, Toast, PageHeader, BtnPrimary, BtnSm, SkeletonBox, SkeletonLista, inputCss, selectCss, textareaCss, overlayCss, modalCss, modalTitleCss, footerCss, groupCss, labelCss, grid2Css, btnDarkCss, btnLightCss, btnRedCss } from '@/components/UI'
 import { initials } from '@/lib/constants'
 import { createClient } from '@/lib/supabase/client'
+import { urlPublicaDeClinica } from '@/lib/config'
 import { storagePathFromUrl, esImagenSoportada, BUCKET_FOTOS } from '@/lib/storage'
 import { useTenantContext } from '@/components/TenantContext'
 import { SignaturePad } from '@/components/SignaturePad'
@@ -498,7 +499,7 @@ export default function PacienteDetalle() {
       if (!res.ok) throw new Error(d.error || 'Error al guardar')
 
       if (cModo === 'remota') {
-        const link = `${window.location.origin}/firmar/${d.consentimiento.token_firma}`
+        const link = `${urlPublicaDeClinica(tenant)}/firmar/${d.consentimiento.token_firma}`
         setLinkRemoto(link)
         showMsg('Link de firma generado ✓')
       } else {
@@ -1557,7 +1558,7 @@ export default function PacienteDetalle() {
                             <span style={{ fontSize: 9.5, background: '#d1fae5', color: '#065f46', padding: '2px 8px', borderRadius: 10, fontWeight: 700 }}>Firmado</span>
                           ) : (
                             <button
-                              onClick={() => { const l = `${window.location.origin}/firmar/${c.token_firma}`; navigator.clipboard?.writeText(l); showMsg('Link copiado ✓') }}
+                              onClick={() => { const l = `${urlPublicaDeClinica(tenant)}/firmar/${c.token_firma}`; navigator.clipboard?.writeText(l); showMsg('Link copiado ✓') }}
                               style={{ fontSize: 10.5, padding: '4px 9px', borderRadius: 8, border: '1px solid #cbd5e1', background: '#fff', color: '#64748b', cursor: 'pointer', fontFamily: 'DM Sans, sans-serif', fontWeight: 600 }}
                             >Copiar link</button>
                           )}

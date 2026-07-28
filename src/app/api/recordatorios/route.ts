@@ -2,7 +2,7 @@ import { Resend } from 'resend'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { createClient as createSupabaseServerClient } from '@/lib/supabase/server'
-import { APP_NAME, APP_URL, remitente } from '@/lib/config'
+import { APP_NAME, remitente, urlDeClinica } from '@/lib/config'
 
 
 const resend = new Resend(process.env.RESEND_API_KEY)
@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
   }
   
   if (tid) {
-    const { data: dbTenant } = await supabaseAdmin.from('tenants').select('nombre, direccion, telefono').eq('id', tid).single()
+    const { data: dbTenant } = await supabaseAdmin.from('tenants').select('nombre, direccion, telefono, custom_domain').eq('id', tid).single()
     if (dbTenant) {
       registry = { ...registry, ...dbTenant }
     }
@@ -88,7 +88,9 @@ export async function POST(req: NextRequest) {
       timeZone: 'America/Argentina/Buenos_Aires'
     })
 
-    const appUrl = APP_URL
+    // El dominio del consultorio, no el de la plataforma: el paciente tiene
+    // que aterrizar en el sitio de su clínica.
+    const appUrl = urlDeClinica(registry as any)
 
     const linkConfirmar = paciente.token
       ? `<div style="text-align:center;margin:24px 0">

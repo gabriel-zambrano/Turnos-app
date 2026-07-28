@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { urlPublicaDeClinica } from '@/lib/config'
 import { Sidebar } from '@/components/Sidebar'
 import { PageHeader } from '@/components/UI'
 import { AVATAR_COLORS, initials, normalizarTelefono } from '@/lib/constants'
@@ -145,7 +146,7 @@ export default function SeguimientoPage() {
   }
 
   function mensajeWA(p: PacienteAlerta) {
-    const link = p.token ? `${window.location.origin}/paciente/${p.token}` : ''
+    const link = p.token ? `${urlPublicaDeClinica(tenant)}/paciente/${p.token}` : ''
     // Los datos salen del tenant activo: cada clínica firma con lo suyo.
     const clinica = tenant?.nombre || 'nuestro consultorio'
     const pieDatos = [tenant?.nombre, tenant?.direccion].filter(Boolean).join(' - ')

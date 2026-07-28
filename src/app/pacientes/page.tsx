@@ -5,6 +5,7 @@ import { Sidebar } from '@/components/Sidebar'
 import { Badge, Toast, PageHeader, BtnPrimary, BtnSm, DataTable, TR, TD, SkeletonLista, MetricCard, inputCss, selectCss, overlayCss, modalCss, modalTitleCss, footerCss, groupCss, labelCss, grid2Css, btnDarkCss, btnLightCss, btnRedCss } from '@/components/UI'
 import { TRAT_STYLE, AVATAR_COLORS, TRATAMIENTOS, calcEdad, initials, normalizarTelefono } from '@/lib/constants'
 import { createClient } from '@/lib/supabase/client'
+import { urlPublicaDeClinica } from '@/lib/config'
 import { useTenantContext } from '@/components/TenantContext'
 import { ImportarPacientesModal } from '@/components/ImportarPacientesModal'
 import { registrarConsentimiento, TEXTO_CONSENTIMIENTO_DATOS } from '@/lib/consentimiento-datos'
@@ -201,7 +202,7 @@ export default function Pacientes() {
                       <BtnSm variant="edit" onClick={()=>openEditar(p)}>Editar</BtnSm>
                       <BtnSm variant="delete" onClick={()=>{setSel(p);setModal('borrar')}}>Eliminar</BtnSm>
                       {p.token
-                        ?<BtnSm variant="edit" onClick={()=>{const url=`${window.location.origin}/paciente/${p.token}`;const txt=encodeURIComponent(`Hola ${p.nombre},\n\nTe compartimos el link para ver y gestionar tu turno con *${tenant?.nombre || 'DentalDesk'}*:\n${url}\n\n_${tenant?.nombre || 'DentalDesk'} - ${tenant?.direccion || ''}_`);window.open(`https://wa.me/${normalizarTelefono(p.telefono??'')}?text=${txt}`,'_blank')}}>WhatsApp</BtnSm>
+                        ?<BtnSm variant="edit" onClick={()=>{const url=`${urlPublicaDeClinica(tenant)}/paciente/${p.token}`;const txt=encodeURIComponent(`Hola ${p.nombre},\n\nTe compartimos el link para ver y gestionar tu turno con *${tenant?.nombre || 'DentalDesk'}*:\n${url}\n\n_${tenant?.nombre || 'DentalDesk'} - ${tenant?.direccion || ''}_`);window.open(`https://wa.me/${normalizarTelefono(p.telefono??'')}?text=${txt}`,'_blank')}}>WhatsApp</BtnSm>
                         :<BtnSm variant="edit" onClick={async()=>{if(!tenant)return;const tok=crypto.randomUUID();await supabase.from('pacientes').update({token:tok}).eq('id',p.id);msg('Link generado ✓');load()}}>Generar link</BtnSm>
                       }
                     </div>
@@ -241,7 +242,7 @@ export default function Pacientes() {
                       <BtnSm variant="edit" onClick={()=>openEditar(p)}>Editar</BtnSm>
                       <BtnSm variant="delete" onClick={()=>{setSel(p);setModal('borrar')}}>Eliminar</BtnSm>
                       {p.token
-                        ?<BtnSm variant="edit" onClick={()=>{const url=`${window.location.origin}/paciente/${p.token}`;const txt=encodeURIComponent(`Hola ${p.nombre},\n\nTe compartimos el link para ver y gestionar tu turno con *${tenant?.nombre || 'DentalDesk'}*:\n${url}\n\n_${tenant?.nombre || 'DentalDesk'} - ${tenant?.direccion || ''}_`);window.open(`https://wa.me/${normalizarTelefono(p.telefono??'')}?text=${txt}`,'_blank')}}>WhatsApp</BtnSm>
+                        ?<BtnSm variant="edit" onClick={()=>{const url=`${urlPublicaDeClinica(tenant)}/paciente/${p.token}`;const txt=encodeURIComponent(`Hola ${p.nombre},\n\nTe compartimos el link para ver y gestionar tu turno con *${tenant?.nombre || 'DentalDesk'}*:\n${url}\n\n_${tenant?.nombre || 'DentalDesk'} - ${tenant?.direccion || ''}_`);window.open(`https://wa.me/${normalizarTelefono(p.telefono??'')}?text=${txt}`,'_blank')}}>WhatsApp</BtnSm>
                         :<BtnSm variant="edit" onClick={async()=>{if(!tenant)return;const tok=crypto.randomUUID();await supabase.from('pacientes').update({token:tok}).eq('id',p.id);msg('Link generado ✓');load()}}>Generar link</BtnSm>
                       }
                     </div></TD>

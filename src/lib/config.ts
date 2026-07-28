@@ -55,3 +55,18 @@ export function urlDeClinica(clinica: { custom_domain?: string | null } | null |
   if (!dominio) return APP_URL
   return `https://${dominio.replace(/^https?:\/\//, '').replace(/\/+$/, '')}`
 }
+
+/**
+ * Base para los links que el consultorio le comparte a un paciente desde el
+ * navegador (WhatsApp, copiar link).
+ *
+ * Usa el dominio propio de la clínica si lo tiene. El origen actual es solo el
+ * respaldo: hoy coincide, pero cuando la plataforma tenga su dominio, el
+ * odontólogo va a estar navegando en el de DentalDesk y sus links tienen que
+ * seguir saliendo por el suyo.
+ */
+export function urlPublicaDeClinica(clinica: { customDomain?: string | null } | null | undefined): string {
+  const dominio = clinica?.customDomain?.trim()
+  if (dominio) return `https://${dominio.replace(/^https?:\/\//, '').replace(/\/+$/, '')}`
+  return typeof window !== 'undefined' ? window.location.origin : APP_URL
+}

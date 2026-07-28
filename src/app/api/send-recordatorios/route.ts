@@ -2,7 +2,7 @@ import { Resend } from 'resend'
 import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient as createSupabaseServerClient } from '@/lib/supabase/server'
-import { remitente, EMAIL_FROM_RECORDATORIOS } from '@/lib/config'
+import { remitente, EMAIL_FROM_RECORDATORIOS , urlDeClinica } from '@/lib/config'
 
 
 export const dynamic = 'force-dynamic'
@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
     // Si viene en el body, procesamos solo ese tenant
     const { data: tenantData } = await supabase
       .from('tenants')
-      .select('id, nombre, direccion, telefono, logoUrl, primaryColor, secondaryColor, accentColor, whatsappTemplate')
+      .select('id, nombre, direccion, telefono, custom_domain, logoUrl, primaryColor, secondaryColor, accentColor, whatsappTemplate')
       .eq('id', bodyTenantId)
       .single()
 
@@ -77,7 +77,7 @@ export async function POST(req: NextRequest) {
     // Si es una invocación global (cron), buscamos todos los tenants activos
       const { data: activeTenants } = await supabase
         .from('tenants')
-        .select('id, nombre, direccion, telefono, logoUrl, primaryColor, secondaryColor, accentColor, whatsappTemplate')
+        .select('id, nombre, direccion, telefono, custom_domain, logoUrl, primaryColor, secondaryColor, accentColor, whatsappTemplate')
       .eq('activo', true)
 
     if (activeTenants && activeTenants.length > 0) {
@@ -101,6 +101,11 @@ export async function POST(req: NextRequest) {
   // 3. Procesar citas aisladas para cada tenant
   for (const tenant of tenantsToProcess) {
     // Obtener branding estático o crear un fallback
+    // Los links del recordatorio salen por el dominio del consultorio. Antes
+    // usaban NEXT_PUBLIC_APP_URL, que es el de la plataforma: el paciente
+    // terminaba en el sitio de otra clínica, con su token de portal a cuestas.
+    const urlClinica = urlDeClinica(tenant as any)
+
     const branding = {
       id: tenant.id,
       nombre: tenant.nombre || 'Consultorio Dental',
@@ -162,8 +167,8 @@ export async function POST(req: NextRequest) {
               </div>
               ${paciente.token ? `
               <div style="text-align:center;margin:24px 0;display:flex;gap:12px;justify-content:center">
-                <a href="${process.env.NEXT_PUBLIC_APP_URL}/paciente/${paciente.token}" style="display:inline-block;background:${branding.accentColor || '#1D9E75'};color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px">✓ Confirmar turno</a>
-                <a href="${process.env.NEXT_PUBLIC_APP_URL}/paciente/${paciente.token}" style="display:inline-block;background:#f4f6f8;color:#555;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px">Ver mi turno</a>
+                <a href="${urlClinica}/paciente/${paciente.token}" style="display:inline-block;background:${branding.accentColor || '#1D9E75'};color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px">✓ Confirmar turno</a>
+                <a href="${urlClinica}/paciente/${paciente.token}" style="display:inline-block;background:#f4f6f8;color:#555;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px">Ver mi turno</a>
               </div>` : ''}
               <p style="color:#888;font-size:13px">Si necesitás cancelar o reprogramar, podés hacerlo desde el link de arriba.</p>
               <hr style="border:none;border-top:1px solid #eee;margin:24px 0"/>

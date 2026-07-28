@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { urlDeClinica, APP_URL, remitente } from './config'
+import { urlDeClinica, urlPublicaDeClinica, APP_URL, remitente } from './config'
 
 describe('urlDeClinica', () => {
   it('usa el dominio propio de la clínica cuando lo tiene', () => {
@@ -29,5 +29,26 @@ describe('remitente', () => {
 
   it('limpia los signos que romperían la cabecera del email', () => {
     expect(remitente('Clínica <hack>')).not.toContain('<hack>')
+  })
+})
+
+describe('urlPublicaDeClinica', () => {
+  it('prioriza el dominio propio de la clínica', () => {
+    expect(urlPublicaDeClinica({ customDomain: 'turnos.walterbenegas.com.ar' }))
+      .toBe('https://turnos.walterbenegas.com.ar')
+  })
+
+  it('sin dominio propio cae al origen actual o a la plataforma', () => {
+    // En Node no hay window, así que devuelve APP_URL.
+    expect(urlPublicaDeClinica({ customDomain: null })).toBe(APP_URL)
+    expect(urlPublicaDeClinica(null)).toBe(APP_URL)
+  })
+
+  it('no le importa desde qué dominio esté navegando el odontólogo', () => {
+    // Este es el punto: cuando DentalDesk tenga su propio dominio, el doctor va
+    // a estar logueado ahí, pero el link del paciente tiene que salir por el
+    // dominio de su consultorio igual.
+    expect(urlPublicaDeClinica({ customDomain: 'turnos.walterbenegas.com.ar' }))
+      .not.toContain('dentaldesk')
   })
 })

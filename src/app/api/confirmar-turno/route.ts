@@ -2,7 +2,7 @@ import { Resend } from 'resend'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { createClient as createSupabaseServerClient } from '@/lib/supabase/server'
-import { APP_NAME, APP_URL, remitente } from '@/lib/config'
+import { APP_NAME, remitente, urlDeClinica } from '@/lib/config'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
@@ -38,21 +38,24 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const baseUrl = APP_URL
-
   // Resolver branding del tenant
   const tid = tenantId || process.env.NEXT_PUBLIC_DEFAULT_TENANT_ID || ''
-  let registry = {
+  let registry: { nombre: string; direccion: string; telefono: string; custom_domain?: string | null } = {
     nombre: APP_NAME,
     direccion: '',
     telefono: '',
   }
   if (tid) {
-    const { data: dbTenant } = await supabaseAdmin.from('tenants').select('nombre, direccion, telefono').eq('id', tid).single()
+    const { data: dbTenant } = await supabaseAdmin.from('tenants').select('nombre, direccion, telefono, custom_domain').eq('id', tid).single()
     if (dbTenant) {
       registry = { ...registry, ...dbTenant }
     }
   }
+
+  // Los links que recibe el paciente salen por el dominio de SU consultorio.
+  // Con APP_URL —el dominio de la plataforma— terminaba en el sitio de otra
+  // clínica, y encima llevando su token de portal.
+  const baseUrl = urlDeClinica(registry)
 
   // Google Calendar
   const fechaInicio = `${fecha.replace(/-/g, '')}T${hora.replace(':', '')}00-0300`

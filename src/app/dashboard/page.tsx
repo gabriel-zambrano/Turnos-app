@@ -4,6 +4,7 @@ import { Sidebar } from '@/components/Sidebar'
 import { Badge, Toast, PageHeader, FilterBar, SkeletonLista, SkeletonKPIs, MetricCard, inputCss, selectCss, overlayCss, modalCss, modalTitleCss, footerCss, groupCss, labelCss, grid2Css, btnDarkCss, btnLightCss } from '@/components/UI'
 import { TRAT_STYLE, ESTADO_STYLE, hoyISO, normalizarTelefono, TRATAMIENTOS } from '@/lib/constants'
 import { createClient } from '@/lib/supabase/client'
+import { urlPublicaDeClinica } from '@/lib/config'
 import { useTenantContext } from '@/components/TenantContext'
 import type { EstadoCita } from '@/types'
 import dynamic from 'next/dynamic'
@@ -410,7 +411,7 @@ export default function Dashboard() {
       fecha = dt.getDate() + ' de ' + meses[dt.getMonth()]
     }
 
-    const appUrl = window.location.origin
+    const appUrl = urlPublicaDeClinica(tenant)
     const link = cita.token ? `${appUrl}/paciente/${cita.token}` : ''
     
     const msgText = rawTemplate
