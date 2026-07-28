@@ -22,6 +22,10 @@ export function generateMetadata(): Metadata {
       apple: '/icons/apple-touch-icon.png',
     },
     other: {
+      // `appleWebApp.capable` emite el meta viejo de Apple, que Chrome marca
+      // como obsoleto. El estándar actual es este, y hay que declarar los dos:
+      // iOS todavía lee el de Apple.
+      'mobile-web-app-capable': 'yes',
       ...Sentry.getTraceData()
     }
   }
