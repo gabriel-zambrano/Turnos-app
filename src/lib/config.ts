@@ -41,3 +41,17 @@ export function remitente(nombreClinica: string | undefined | null, casilla = EM
   const nombre = (nombreClinica || APP_NAME).replace(/[<>]/g, '').trim()
   return `${nombre} <${casilla}>`
 }
+
+/**
+ * URL pública de una clínica concreta.
+ *
+ * `APP_URL` es el dominio de la **plataforma**, no el del consultorio. Usarlo
+ * en los mails que se le mandan a un paciente lo lleva al sitio equivocado:
+ * el paciente del Dr. X termina en el dominio de otra clínica. Cuando el
+ * consultorio tiene dominio propio, los links tienen que salir por ahí.
+ */
+export function urlDeClinica(clinica: { custom_domain?: string | null } | null | undefined): string {
+  const dominio = clinica?.custom_domain?.trim()
+  if (!dominio) return APP_URL
+  return `https://${dominio.replace(/^https?:\/\//, '').replace(/\/+$/, '')}`
+}

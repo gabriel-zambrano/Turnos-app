@@ -6,7 +6,7 @@ import { normalizarTelefono, duracionPorDefecto } from '@/lib/constants'
 import { registrarConsentimiento } from '@/lib/consentimiento-datos'
 import { enviarWhatsAppTexto } from '@/lib/whatsapp'
 import { asuntoAviso, htmlAviso, textoAviso, type DatosAviso } from '@/lib/aviso-reserva'
-import { APP_URL, remitente } from '@/lib/config'
+import { remitente, urlDeClinica } from '@/lib/config'
 import {
   validarReserva,
   fechaHoraISO,
@@ -80,7 +80,7 @@ export async function POST(req: NextRequest) {
 
     const { data: tenant } = await supabaseAdmin
       .from('tenants')
-      .select('id, nombre, direccion, telefono, activo, sena_reserva, sena_datos_pago, email_avisos')
+      .select('id, nombre, direccion, telefono, activo, custom_domain, sena_reserva, sena_datos_pago, email_avisos')
       .or(`subdominio_generico.eq.${clinica},subdominio.eq.${clinica}`)
       .maybeSingle()
 
@@ -166,6 +166,9 @@ export async function POST(req: NextRequest) {
     }
 
     const senaReserva = Number(tenant.sena_reserva) || 0
+    // Los links del mail tienen que apuntar al dominio del consultorio, no al
+    // de la plataforma: si no, el paciente termina en el sitio de otra clínica.
+    const urlClinica = urlDeClinica(tenant)
 
     const { error: errCita } = await supabaseAdmin.from('citas').insert({
       tenant_id: tenant.id,
@@ -204,7 +207,7 @@ export async function POST(req: NextRequest) {
       hora,
       notas: notas || null,
       sena: senaReserva || null,
-      urlAgenda: `${APP_URL}/agenda?fecha=${fecha}`,
+      urlAgenda: `${urlClinica}/agenda?fecha=${fecha}`,
     }
 
     // Canal 1: email a la casilla de avisos, o a la del dueño de la clínica.
@@ -266,7 +269,7 @@ export async function POST(req: NextRequest) {
                 <div style="color:#475569;margin-top:4px">${tratamiento}</div>
                 ${tenant.direccion ? `<div style="color:#475569;margin-top:4px">📍 ${tenant.direccion}</div>` : ''}
               </div>
-              ${pacienteToken ? `<p style="margin:0 0 8px"><a href="${APP_URL}/paciente/${pacienteToken}" style="color:#185FA5">Ver mi portal de paciente</a></p>` : ''}
+              ${pacienteToken ? `<p style="margin:0 0 8px"><a href="${urlClinica}/paciente/${pacienteToken}" style="color:#185FA5">Ver mi portal de paciente</a></p>` : ''}
               ${senaReserva > 0 ? `
               <div style="background:#FFF3CD;border:1px solid #ffe08a;border-radius:12px;padding:16px;margin-bottom:20px">
                 <div style="font-weight:700;color:#633806;margin-bottom:6px">Para confirmar el turno</div>
@@ -293,7 +296,7 @@ export async function POST(req: NextRequest) {
         : 'Recibimos tu pedido. El consultorio te confirma a la brevedad.',
       sena: senaReserva || null,
       datosPago: tenant.sena_datos_pago || null,
-      portalUrl: pacienteToken ? `${APP_URL}/paciente/${pacienteToken}` : null,
+      portalUrl: pacienteToken ? `${urlClinica}/paciente/${pacienteToken}` : null,
     })
   } catch (err: any) {
     console.error('Error en reserva online:', err?.message || err)
