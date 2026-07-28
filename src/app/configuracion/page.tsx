@@ -22,6 +22,8 @@ export default function Configuracion() {
   const [senaDatosPago, setSenaDatosPago] = useState('')
   const [emailAvisos, setEmailAvisos] = useState('')
   const [guardandoReserva, setGuardandoReserva] = useState(false)
+  const [confirmandoBaja, setConfirmandoBaja] = useState(false)
+  const [dandoBaja, setDandoBaja] = useState(false)
   const [linkCopiado, setLinkCopiado] = useState(false)
 
   useEffect(() => {
@@ -113,6 +115,30 @@ export default function Configuracion() {
       })
     }
   }, [tenant])
+
+  // Baja de la suscripción: corta el débito, no borra datos.
+  async function cancelarSuscripcion() {
+    if (!tenant?.id) return
+    setDandoBaja(true)
+    try {
+      const res = await fetch('/api/billing/cancelar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tenantId: tenant.id }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        msg(data.error || 'No pudimos procesar la baja', 'error')
+      } else {
+        setConfirmandoBaja(false)
+        msg(data.mensaje || 'Suscripción dada de baja')
+        setTimeout(() => window.location.reload(), 1500)
+      }
+    } catch {
+      msg('No pudimos conectar. Intentá de nuevo.', 'error')
+    }
+    setDandoBaja(false)
+  }
 
   // Guarda la configuración de la reserva online (seña y avisos).
   async function guardarReservaOnline() {
@@ -734,8 +760,43 @@ export default function Configuracion() {
                     </div>
                   </div>
 
-                  <div style={{ marginTop: '1.5rem', fontSize: 11, color: '#8fa3bc', textAlign: 'center' }}>
-                    Suscripción gestionada de forma segura mediante MercadoPago. Si necesitás cancelar o modificar tu método de pago, ponete en contacto con nuestro equipo de soporte.
+                  <div style={{ marginTop: '1.5rem', paddingTop: '1.25rem', borderTop: '1px solid #e8edf2' }}>
+                    {tenant?.subscriptionStatus === 'cancelled' ? (
+                      <div style={{ fontSize: 12.5, color: '#856404', background: '#FFF3CD', border: '1px solid #ffe08a', borderRadius: 10, padding: '12px 14px', lineHeight: 1.55 }}>
+                        Tu suscripción está dada de baja: no se te va a cobrar de nuevo.
+                        Conservás el acceso hasta el final del período que ya abonaste, y
+                        tus datos siguen guardados. Podés reactivarla cuando quieras.
+                      </div>
+                    ) : confirmandoBaja ? (
+                      <div style={{ fontSize: 12.5, color: '#4a6080', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 10, padding: '14px', lineHeight: 1.55 }}>
+                        <strong style={{ color: '#0a1e3d' }}>¿Damos de baja la suscripción?</strong>
+                        <div style={{ marginTop: 6 }}>
+                          Se corta el débito automático. Seguís usando el sistema hasta el
+                          final del período que ya pagaste, y <strong>no se borra nada</strong>:
+                          las historias clínicas, los turnos y los comprobantes quedan donde están.
+                        </div>
+                        <div style={{ display: 'flex', gap: 8, marginTop: 14, flexWrap: 'wrap' }}>
+                          <button onClick={cancelarSuscripcion} disabled={dandoBaja}
+                            style={{ background: '#D85A30', color: '#fff', border: 'none', padding: '10px 16px', borderRadius: 9, fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit', opacity: dandoBaja ? 0.6 : 1 }}>
+                            {dandoBaja ? 'Procesando...' : 'Sí, dar de baja'}
+                          </button>
+                          <button onClick={() => setConfirmandoBaja(false)} disabled={dandoBaja}
+                            style={{ background: '#fff', color: '#4a6080', border: '1px solid #e2e8f0', padding: '10px 16px', borderRadius: 9, fontWeight: 600, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>
+                            No, volver
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div style={{ textAlign: 'center' }}>
+                        <div style={{ fontSize: 11, color: '#8fa3bc', marginBottom: 10 }}>
+                          Suscripción gestionada de forma segura mediante MercadoPago.
+                        </div>
+                        <button onClick={() => setConfirmandoBaja(true)}
+                          style={{ background: 'none', border: 'none', color: '#8fa3bc', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', textDecoration: 'underline' }}>
+                          Dar de baja la suscripción
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
