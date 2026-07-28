@@ -14,6 +14,7 @@ import { HeatmapSemanal } from './components/HeatmapSemanal'
 import { AccionesRapidas } from './components/AccionesRapidas'
 import { PreparacionManana } from './components/PreparacionManana'
 import { AvisoPedidosOnline } from '@/components/AvisoPedidosOnline'
+import { ChecklistBienvenida } from '@/components/ChecklistBienvenida'
 
 // Lazy-load: el modal solo se descarga cuando el usuario lo abre, no en la carga inicial.
 const NuevaCitaModal = dynamic(() => import('@/components/NuevaCitaModal').then(m => m.NuevaCitaModal), { ssr: false })
@@ -496,6 +497,7 @@ export default function Dashboard() {
         />
         <div style={{padding:isMobile?'1rem':'1.75rem 2rem',maxWidth:1100}}>
           
+          <ChecklistBienvenida />
           <AvisoPedidosOnline />
 
           {/* Welcome Banner, Workload Distribution and Quick Actions */}

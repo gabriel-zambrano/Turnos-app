@@ -16,6 +16,8 @@ export interface TenantBranding {
   plan: string
   /** Dominio propio de la clínica, si tiene. Los links del paciente salen de acá. */
   customDomain?: string | null
+  /** Identificador de la clínica en las URLs públicas: /reserva/<slug>. */
+  slug?: string | null
   feature_bi: boolean
   feature_whatsapp: boolean
   feature_recordatorios: boolean
@@ -40,6 +42,7 @@ const defaultBranding = (id: string, name: string): TenantBranding => {
     // Fallback de desarrollo: se comporta como un trial, con todo habilitado.
     plan: 'starter',
     customDomain: null,
+    slug: null,
     feature_bi: FEATURES_TRIAL.bi,
     feature_whatsapp: FEATURES_TRIAL.whatsapp,
     feature_recordatorios: FEATURES_TRIAL.recordatorios,
@@ -174,6 +177,7 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
             whatsappTemplate: data.whatsapptemplate || `Hola {nombre_paciente},\n\nTe recordamos tu turno en *{nombre_clinica}*:\n\n{dia_semana} {fecha} a las *{hora}hs*\n{tratamiento}\n📍 Dirección: {direccion}\n\nConfirma o cancela tu turno acá:\n{link}`,
             plan,
             customDomain: data.custom_domain || null,
+            slug: data.subdominio_generico || data.subdominio || null,
             feature_bi: featureHabilitada('bi', plan, data.feature_bi, enTrial),
             feature_whatsapp: featureHabilitada('whatsapp', plan, data.feature_whatsapp, enTrial),
             feature_recordatorios: featureHabilitada('recordatorios', plan, data.feature_recordatorios, enTrial),
