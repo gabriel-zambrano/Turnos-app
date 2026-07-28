@@ -4,24 +4,13 @@ import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { useTenantContext } from './TenantContext'
 import { isSubscriptionActive } from '@/lib/subscription'
+import { esRutaSinSuscripcion } from '@/lib/rutas-publicas'
 
-// Rutas que NO requieren suscripción activa:
-// - públicas (login, registro, auth, recuperar, portal de paciente, legal)
-// - configuración: el usuario con suscripción vencida DEBE poder entrar a pagar.
-const EXEMPT_PREFIXES = [
-  '/login',
-  '/registro',
-  '/auth',
-  '/recuperar-password',
-  '/paciente',
-  '/legal',
-  '/configuracion',
-]
-
-function isExemptPath(pathname: string): boolean {
-  if (pathname === '/') return true // solo redirige a /dashboard
-  return EXEMPT_PREFIXES.some((p) => pathname === p || pathname.startsWith(p + '/') || pathname.startsWith(p))
-}
+// La lista de rutas exentas vivía acá, duplicada de la del middleware, y las
+// dos se desincronizaron: /reserva era pública para el middleware pero no para
+// este gate, así que un paciente que entraba por el link de Instagram veía
+// "Tu suscripción está vencida" en vez de poder pedir turno. Ahora sale de
+// lib/rutas-publicas.ts, que es la única lista.
 
 /**
  * Gate de suscripción en un único punto (montado en el layout raíz).
@@ -38,7 +27,7 @@ export function SubscriptionGate({ children }: { children: React.ReactNode }) {
 
   // No bloqueamos en rutas exentas, durante la carga, ni si no hay tenant
   // resuelto (las páginas ya muestran su propio spinner mientras carga).
-  if (isExemptPath(pathname) || loading || !tenant) {
+  if (esRutaSinSuscripcion(pathname) || loading || !tenant) {
     return <>{children}</>
   }
 

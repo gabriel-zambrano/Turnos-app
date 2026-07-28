@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { updateSession } from './lib/supabase/middleware'
+import { esRutaPublica } from './lib/rutas-publicas'
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl
@@ -18,27 +19,7 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(destino, 308)
   }
 
-  // 1. Definir rutas públicas
-  const publicPrefixes = [
-    '/_next/',
-    '/favicon',
-    // Archivos de la PWA: si el middleware los mandara al login, el navegador
-    // no podría instalar la app ni registrar el service worker.
-    '/manifest.json',
-    '/sw.js',
-    '/offline.html',
-    '/icons/',
-    '/api/',
-    '/paciente',
-    '/auth',
-    '/login',
-    '/registro',
-    '/legal',
-    '/precios',
-    '/reserva'
-  ]
-
-  const isPublic = publicPrefixes.some(prefix => pathname.startsWith(prefix)) || pathname === '/'
+  const isPublic = esRutaPublica(pathname)
 
   // Refrescar sesión de Supabase Auth
   const response = NextResponse.next()
