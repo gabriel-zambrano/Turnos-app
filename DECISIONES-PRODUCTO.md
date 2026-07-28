@@ -49,6 +49,43 @@ para lo que pertenece al producto (registro, precios, panel de admin).
 que identifica a la plataforma y sale de variables de entorno, así que la
 migración no debería requerir tocar código. Si aparece algo hardcodeado, va ahí.
 
+### Qué clínica es real y cuáles son de prueba (27/07/2026)
+
+En producción conviven tres filas en `tenants`. **Solo una tiene pacientes
+reales.**
+
+| Clínica | `custom_domain` | Qué es |
+|---|---|---|
+| Consultorio Dr. Walter Benegas | `turnos.walterbenegas.com.ar` | **Real, en producción.** Pacientes, turnos y facturación con validez fiscal |
+| SMILE DESK | — | Prueba |
+| Dra. Tamara Suju | — | Prueba |
+
+Los links que recibe un paciente salen del `custom_domain` de su clínica, así
+que **Benegas responde por `turnos.`**, no por `www.`. Ese subdominio tiene que
+estar configurado en Vercel: es el que reciben todos sus pacientes.
+
+**Antes de abrir a clientes reales, dar de baja las de prueba:**
+
+```sql
+UPDATE tenants SET activo = false
+WHERE subdominio_generico IN ('smile-desk', 'dratamysuju');
+```
+
+Por qué conviene, y no es sólo prolijidad:
+
+- **Los crons las recorren.** El briefing diario y las campañas de CRM iteran
+  sobre las clínicas activas. Si alguna quedó con un email asociado, le empiezan
+  a llegar mails a alguien que no los pidió.
+- **Ensucian las métricas** del panel de admin: contar clientes da tres.
+- **"Dra. Tamara Suju" arrastra el problema de la sección 2**: se creó desde el
+  perfil del Dr. Benegas, así que él figura como `owner` y accede a sus
+  historias clínicas. Siendo de prueba da igual; importaría si esa fila se
+  reutilizara para un cliente real en vez de crearse desde cero. **No
+  reutilizarla.**
+
+Si SMILE DESK se usa para probar la marca propia, dejarla activa y bajar solo
+la de Tamara.
+
 ---
 
 ## 1. Equipo y cobro por usuarios — DECIDIDO (22/07/2026)
