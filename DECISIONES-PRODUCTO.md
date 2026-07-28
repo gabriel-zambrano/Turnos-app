@@ -150,9 +150,12 @@ que ya venía usando.
 `"<tenantId>|<plan>"`, porque MP no devuelve metadata propia. Las suscripciones
 viejas (sin separador) caen a `pro`, que es como se comportaban antes.
 
-**⚠️ A resolver:** los Términos y Condiciones describen a Starter como *plan
-gratuito*. O se corrige el texto legal, o se define un Starter gratis con menos
-funciones y la grilla arranca en Pro.
+**Starter es pago — RESUELTO (27/07/2026).** Los Términos lo describían como
+*plan gratuito*, contradiciendo la grilla. Se corrigió el texto legal: los tres
+planes son pagos y lo gratis es el trial de 14 días. Al vencer el trial sin
+contratar, el acceso queda suspendido —no se degrada a un plan gratis— y **los
+datos se conservan**, que es lo que hay que poder afirmar sin ambigüedad cuando
+se trata de historias clínicas.
 
 **⚠️ Inflación:** revisar la grilla cada 3 meses. El Precio Fundador se congela
 solo para quienes ya entraron; los nuevos pagan el precio actualizado.

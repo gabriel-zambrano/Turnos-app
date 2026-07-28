@@ -11,7 +11,7 @@ export default function Terminos() {
         </Link>
 
         <h1 style={{ fontSize: 32, fontWeight: 800, color: '#fff', marginBottom: 8, letterSpacing: '-0.8px' }}>Términos y Condiciones</h1>
-        <p style={{ fontSize: 13, color: '#64748b', marginBottom: 32 }}>Última actualización: 17 de Junio, 2026</p>
+        <p style={{ fontSize: 13, color: '#64748b', marginBottom: 32 }}>Última actualización: 27 de Julio, 2026</p>
 
         <p style={{ fontSize: 15, lineHeight: 1.6, marginBottom: 24 }}>
           Al registrarse, acceder o utilizar la plataforma web <strong>DentalDesk</strong> (en adelante, "el Servicio"), el odontólogo o representante de la clínica dental (en adelante, "el Usuario") acepta y se compromete a cumplir con los siguientes Términos y Condiciones.
@@ -24,12 +24,12 @@ export default function Terminos() {
 
         <h2 style={{ fontSize: 20, color: '#fff', fontWeight: 700, marginTop: 32, marginBottom: 12 }}>2. Suscripciones y Pagos (MercadoPago)</h2>
         <p style={{ fontSize: 14, lineHeight: 1.6, marginBottom: 20 }}>
-          El Servicio dispone de un plan gratuito (Starter) y un plan de pago (Plan Pro). En Argentina, las suscripciones mensuales del Plan Pro son cobradas en pesos argentinos (ARS) mediante la plataforma de pagos segura de <strong>MercadoPago</strong>. Para usuarios de Venezuela u otros países, los medios de pago y precios aplicables se informan durante el proceso de contratación.
+          El Servicio se ofrece bajo suscripción mensual paga, en tres planes (<strong>Starter</strong>, <strong>Pro</strong> y <strong>Business</strong>) que se diferencian por la cantidad de usuarios incluidos y las funciones habilitadas. Los precios vigentes de cada plan se publican en la página de precios del sitio. En Argentina las suscripciones se cobran en pesos argentinos (ARS) mediante la plataforma de pagos <strong>MercadoPago</strong>. Para usuarios de otros países, los medios de pago y precios aplicables se informan durante el proceso de contratación.
         </p>
         <ul style={{ paddingLeft: 20, fontSize: 14, lineHeight: 1.6, display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
-          <li><strong>Suscripción Recurrente:</strong> Al activar el Plan Pro, el Usuario autoriza el débito automático mensual por el valor vigente.</li>
-          <li><strong>Periodo de Prueba (Trial):</strong> Los nuevos registros disfrutan de un periodo de prueba gratis de 14 días con acceso completo a las funciones Pro. Cumplidos los 14 días, la cuenta se convertirá en Starter si no se asocia un método de pago.</li>
-          <li><strong>Falta de Pago:</strong> En caso de que MercadoPago reporte el rechazo de un pago mensual, la cuenta se degradará automáticamente al Plan Starter, restringiendo el acceso al módulo de BI hasta que se regularice la deuda.</li>
+          <li><strong>Suscripción Recurrente:</strong> Al contratar un plan, el Usuario autoriza el débito automático mensual por el valor vigente de ese plan.</li>
+          <li><strong>Periodo de Prueba (Trial):</strong> Los nuevos registros disponen de 14 días de prueba sin cargo, con todas las funciones habilitadas y sin necesidad de cargar un medio de pago. Cumplidos los 14 días, para seguir usando el Servicio hay que contratar alguno de los planes; de lo contrario el acceso queda suspendido. Los datos cargados durante la prueba se conservan y se recuperan al contratar.</li>
+          <li><strong>Falta de Pago:</strong> Si MercadoPago reporta el rechazo de un pago, el Usuario dispone de un periodo de gracia de 2 días para regularizarlo. Vencido ese plazo, el acceso al Servicio queda suspendido hasta que se confirme el pago. <strong>La suspensión no implica la pérdida de los datos:</strong> las historias clínicas, turnos y comprobantes se conservan y vuelven a estar disponibles al regularizar.</li>
         </ul>
 
         <h2 style={{ fontSize: 20, color: '#fff', fontWeight: 700, marginTop: 32, marginBottom: 12 }}>3. Responsabilidad sobre Fichas Dentales y Diagnósticos</h2>

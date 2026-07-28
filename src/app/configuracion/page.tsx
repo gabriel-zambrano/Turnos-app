@@ -4,6 +4,7 @@ import { Sidebar } from '@/components/Sidebar'
 import { PageHeader, BtnPrimary, groupCss, labelCss, inputCss, textareaCss, Toast, grid2Css, Spinner } from '@/components/UI'
 import { createClient } from '@/lib/supabase/client'
 import { useTenantContext } from '@/components/TenantContext'
+import { urlPublicaDeClinica } from '@/lib/config'
 
 export default function Configuracion() {
   const supabase = useMemo(() => createClient(), [])
@@ -333,6 +334,10 @@ export default function Configuracion() {
     }
   }
 
+  // El link que el consultorio comparte tiene que salir por SU dominio, no por
+  // el de la plataforma ni por el que el odontólogo tenga abierto.
+  const linkReserva = `${urlPublicaDeClinica(tenant)}/reserva/${slugReserva}`
+
   if (tenantLoading) return <Spinner />
 
   return (
@@ -364,12 +369,12 @@ export default function Configuracion() {
                 <input
                   readOnly
                   style={{ ...inputCss, flex: 1, minWidth: 220, fontFamily: 'monospace', fontSize: 13 }}
-                  value={`${typeof window !== 'undefined' ? window.location.origin : ''}/reserva/${slugReserva}`}
+                  value={linkReserva}
                   onFocus={e => e.currentTarget.select()}
                 />
                 <button
                   onClick={() => {
-                    navigator.clipboard.writeText(`${window.location.origin}/reserva/${slugReserva}`)
+                    navigator.clipboard.writeText(linkReserva)
                     setLinkCopiado(true)
                     setTimeout(() => setLinkCopiado(false), 2000)
                   }}
@@ -378,7 +383,7 @@ export default function Configuracion() {
                   {linkCopiado ? 'Copiado ✓' : 'Copiar'}
                 </button>
                 <a
-                  href={`/reserva/${slugReserva}`}
+                  href={linkReserva}
                   target="_blank"
                   rel="noreferrer"
                   style={{ display: 'flex', alignItems: 'center', padding: '0 16px', borderRadius: 10, border: '1px solid #e2e8f0', color: '#0f1e2b', fontWeight: 700, fontSize: 13, textDecoration: 'none' }}

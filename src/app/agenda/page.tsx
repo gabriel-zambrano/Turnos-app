@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { Sidebar } from '@/components/Sidebar'
+import { urlPublicaDeClinica } from '@/lib/config'
 import { AvisoPedidosOnline } from '@/components/AvisoPedidosOnline'
 import { Badge, Toast, PageHeader, BtnPrimary, BtnSm, SkeletonLista, overlayCss, modalCss, modalTitleCss, footerCss, groupCss, labelCss, grid2Css, btnDarkCss, btnLightCss, btnRedCss, selectCss, textareaCss, inputCss } from '@/components/UI'
 import { TRAT_STYLE, ESTADO_STYLE, TRATAMIENTOS, ESTADOS, DURACIONES, horasDisponibles, hoyISO, normalizarTelefono } from '@/lib/constants'
@@ -1551,7 +1552,7 @@ export default function Agenda() {
                       .replace(/{fecha}/g, d.toLocaleDateString('es-AR',{day:'numeric',month:'long'}))
                       .replace(/{hora}/g, sel.hora)
                       .replace(/{tratamiento}/g, sel.tratamiento)
-                      .replace(/{link}/g, `${window.location.origin}/paciente/${token}`)
+                      .replace(/{link}/g, `${urlPublicaDeClinica(tenant)}/paciente/${token}`)
                       .replace(/{direccion}/g, tenant?.direccion || '')
                     const txt = encodeURIComponent(msgText)
                     window.open(`https://wa.me/${num}?text=${txt}`,'_blank')
