@@ -6,6 +6,51 @@ pagos reales.
 
 ---
 
+## 0. Etapa actual: el producto vive sobre el dominio del Dr. Benegas — TRANSITORIO
+
+**Situación (27/07/2026).** DentalDesk todavía no tiene infraestructura propia.
+La plataforma corre sobre `walterbenegas.com.ar`, el dominio del primer
+consultorio, que hace de banco de pruebas mientras se pulen las funciones.
+
+**A dónde va.** DentalDesk pasa a tener su **dominio y su marca propios**, y el
+consultorio del Dr. Benegas queda como un cliente más, con su dominio apuntando
+a su clínica. Es una migración planificada, no un accidente a corregir.
+
+**Por qué importa registrarlo.** Mientras dure esta etapa, "el dominio de la
+plataforma" y "el dominio de la clínica" son el mismo, y eso **esconde bugs de
+multi-tenant**: código que mezcla los dos conceptos funciona igual, y el error
+recién aparece con la segunda clínica. En esta sesión salieron dos casos:
+
+- Los mails de la reserva online armaban los links con `APP_URL` (el dominio de
+  la plataforma) en vez del de la clínica. El paciente del Dr. Benegas recibió
+  un mail que lo llevaba a otro consultorio, **con su token de portal viajando
+  por un dominio ajeno**. Resuelto con `urlDeClinica()`.
+- La resolución de clínica por hostname no contemplaba el `www`.
+
+**Regla de trabajo mientras tanto:** ante cualquier URL que se le muestre a un
+paciente, preguntarse *¿esto es de la plataforma o de la clínica?*. Si es algo
+que ve un paciente, sale del `custom_domain` de su clínica. `APP_URL` es solo
+para lo que pertenece al producto (registro, precios, panel de admin).
+
+### Checklist para el día de la migración
+
+| Qué | Dónde | Nota |
+|---|---|---|
+| `NEXT_PUBLIC_APP_URL` | Vercel | Al dominio nuevo de DentalDesk |
+| `NEXT_PUBLIC_APP_NAME` | Vercel | Ya sale de variable, no está hardcodeado |
+| `EMAIL_DOMAIN` y casillas `EMAIL_FROM_*` | Vercel + Resend | El dominio nuevo hay que **verificarlo en Resend** antes de cortar, o dejan de salir todos los mails |
+| `custom_domain` del tenant Benegas | Supabase | Que quede con `walterbenegas.com.ar`, para que sus links sigan saliendo por lo suyo |
+| Dominios del proyecto | Vercel | Sumar el nuevo y mantener el del doctor apuntando al mismo proyecto |
+| Cuenta de MercadoPago | MercadoPago | Los cobros de suscripción son de DentalDesk, no del consultorio |
+| Facturación ARCA | — | **No se toca**: el CUIT y el certificado son del Dr. Benegas y siguen siendo suyos |
+| Links ya compartidos | — | Los de reserva y portal que circulan por WhatsApp e Instagram tienen que seguir funcionando: **no dar de baja el dominio viejo**, redirigirlo |
+
+**Lo que ya está preparado para esto:** `src/lib/config.ts` concentra todo lo
+que identifica a la plataforma y sale de variables de entorno, así que la
+migración no debería requerir tocar código. Si aparece algo hardcodeado, va ahí.
+
+---
+
 ## 1. Equipo y cobro por usuarios — DECIDIDO (22/07/2026)
 
 **Modelo elegido: cupos por plan.** Cada plan incluye una cantidad de usuarios;

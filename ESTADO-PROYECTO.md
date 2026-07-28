@@ -7,6 +7,18 @@ commiteado. Documentación complementaria en el repo: `RUNBOOK-ARCA.md`,
 **Stack:** Next.js 14 (App Router) + Supabase (Postgres + Auth) + Vercel.
 Carpeta del proyecto: `Turnos-app`. SaaS multi-tenant de gestión odontológica.
 
+## Etapa actual
+
+**El producto corre sobre el dominio del Dr. Benegas** (`walterbenegas.com.ar`)
+mientras se pule con un consultorio real. DentalDesk va a migrar a su propio
+dominio y marca; el consultorio queda después como un cliente más.
+
+Consecuencia práctica: hoy "dominio de la plataforma" y "dominio de la clínica"
+coinciden, y eso tapa bugs de multi-tenant que solo aparecen con la segunda
+clínica. Ante cualquier URL que vea un paciente, va el dominio de **su** clínica
+(`urlDeClinica()`), nunca `APP_URL`. Checklist de migración en
+`DECISIONES-PRODUCTO.md`, sección 0.
+
 ## Hecho y funcionando
 
 - **Facturación electrónica ARCA — EN PRODUCCIÓN** (validez fiscal real).
