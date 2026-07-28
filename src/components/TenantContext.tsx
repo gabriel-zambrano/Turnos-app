@@ -177,7 +177,17 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
             feature_bi: featureHabilitada('bi', plan, data.feature_bi, enTrial),
             feature_whatsapp: featureHabilitada('whatsapp', plan, data.feature_whatsapp, enTrial),
             feature_recordatorios: featureHabilitada('recordatorios', plan, data.feature_recordatorios, enTrial),
-            subscriptionStatus: data.subscription_status || 'inactive',
+            // Sin dato, se deja indefinido a propósito, NO 'inactive'.
+            //
+            // Un visitante anónimo resuelve la clínica por la vista
+            // `tenants_public`, que expone solo branding y no trae el estado de
+            // suscripción. Al convertir ese hueco en 'inactive' —un estado que
+            // el gate considera cortado— la página pública de reserva mostraba
+            // "Tu suscripción está vencida" a los pacientes de una clínica que
+            // estaba al día. `isSubscriptionActive` ya trata la ausencia de
+            // datos como activo, que es el criterio correcto: no cortarle el
+            // acceso a nadie por falta de información.
+            subscriptionStatus: data.subscription_status ?? undefined,
             nextPaymentDate: data.next_payment_date || null
           })
         } else if (DEFAULT_TENANT_ID) {

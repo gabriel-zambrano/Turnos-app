@@ -106,3 +106,22 @@ describe('diasRestantes', () => {
     expect(diasRestantes('no-es-fecha', AHORA)).toBeNull()
   })
 })
+
+describe('datos incompletos: nunca cortar por no saber', () => {
+  it('sin estado ni fecha, se considera activa', () => {
+    // Es el caso de un visitante anónimo: la vista pública no expone el estado
+    // de suscripción. Tratar ese hueco como "cortado" le mostraba al paciente
+    // la pantalla de facturación de una clínica que estaba al día.
+    expect(isSubscriptionActive(undefined, undefined)).toBe(true)
+    expect(isSubscriptionActive(null, null)).toBe(true)
+  })
+
+  it("'authorized' sin fecha de próximo pago sigue activa", () => {
+    expect(isSubscriptionActive('authorized', null)).toBe(true)
+  })
+
+  it("pero 'inactive' explícito sí corta", () => {
+    // Por eso importa no rellenar el hueco con 'inactive'.
+    expect(isSubscriptionActive('inactive', null)).toBe(false)
+  })
+})
