@@ -51,24 +51,33 @@ migración no debería requerir tocar código. Si aparece algo hardcodeado, va a
 
 ### Qué clínica es real y cuáles son de prueba (27/07/2026)
 
-En producción conviven tres filas en `tenants`. **Solo una tiene pacientes
-reales.**
+En producción quedan dos filas en `tenants`. **Solo una tiene pacientes reales.**
 
 | Clínica | `custom_domain` | Qué es |
 |---|---|---|
 | Consultorio Dr. Walter Benegas | `turnos.walterbenegas.com.ar` | **Real, en producción.** Pacientes, turnos y facturación con validez fiscal |
-| SMILE DESK | — | Prueba |
 | Dra. Tamara Suju | — | Prueba |
+
+**SMILE DESK: eliminada el 27/07/2026.** Se borró con sus datos de prueba (un
+paciente y una cita cargados a mano). Motivo: al pertenecer el operador a varias
+clínicas, aparecía como clínica activa y confundía —el dashboard saludaba con su
+nombre entrando por el dominio del doctor, y el link de reserva de Configuración
+salía con su slug—. La marca propia va a tener su tenant nuevo cuando llegue la
+migración; no se reutiliza este.
+
+> El borrado hay que hacerlo tabla por tabla: solo 8 de las 21 tablas con
+> `tenant_id` tienen `ON DELETE CASCADE`, así que un `DELETE FROM tenants`
+> directo falla por clave foránea.
 
 Los links que recibe un paciente salen del `custom_domain` de su clínica, así
 que **Benegas responde por `turnos.`**, no por `www.`. Ese subdominio tiene que
 estar configurado en Vercel: es el que reciben todos sus pacientes.
 
-**Antes de abrir a clientes reales, dar de baja las de prueba:**
+**Antes de abrir a clientes reales, dar de baja la que queda de prueba:**
 
 ```sql
 UPDATE tenants SET activo = false
-WHERE subdominio_generico IN ('smile-desk', 'dratamysuju');
+WHERE subdominio_generico = 'dratamysuju';
 ```
 
 Por qué conviene, y no es sólo prolijidad:
@@ -82,9 +91,6 @@ Por qué conviene, y no es sólo prolijidad:
   historias clínicas. Siendo de prueba da igual; importaría si esa fila se
   reutilizara para un cliente real en vez de crearse desde cero. **No
   reutilizarla.**
-
-Si SMILE DESK se usa para probar la marca propia, dejarla activa y bajar solo
-la de Tamara.
 
 ---
 
