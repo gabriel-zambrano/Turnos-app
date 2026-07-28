@@ -99,12 +99,37 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
           setClinics(misClinicas)
 
           if (tuList && tuList.length > 0) {
-            let activeId = localStorage.getItem('active_tenant_id') || ''
-            const isValidActive = activeId ? tuList.some(item => item.tenant_id === activeId) : false
+            const misIds = tuList.map(item => item.tenant_id)
 
-            if (!activeId || !isValidActive) {
-              activeId = tuList[0].tenant_id
+            // El dominio manda por encima de la clínica guardada.
+            //
+            // Antes esto miraba solo `active_tenant_id` del localStorage, así
+            // que entrando a turnos.walterbenegas.com.ar se podía cargar otra
+            // clínica —la última que se hubiera elegido en ese dispositivo— con
+            // su agenda vacía y su nombre en el saludo. Si el host corresponde a
+            // una clínica del usuario, esa gana: es lo que el usuario pidió al
+            // escribir esa dirección.
+            let activeId = ''
+            const { data: porDominio } = await supabase
+              .from('tenants')
+              .select('id')
+              .or(`custom_domain.eq.${hostname},subdominio_generico.eq.${hostname.split('.')[0]}`)
+              .limit(1)
+              .maybeSingle()
+
+            if (porDominio?.id && misIds.includes(porDominio.id)) {
+              activeId = porDominio.id
               localStorage.setItem('active_tenant_id', activeId)
+            }
+
+            // Sin coincidencia por dominio (dominio de la plataforma, localhost),
+            // vale la última clínica elegida.
+            if (!activeId) {
+              activeId = localStorage.getItem('active_tenant_id') || ''
+              if (!activeId || !misIds.includes(activeId)) {
+                activeId = tuList[0].tenant_id
+                localStorage.setItem('active_tenant_id', activeId)
+              }
             }
 
             const { data: tData } = await supabase
