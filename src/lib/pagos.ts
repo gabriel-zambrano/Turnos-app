@@ -160,6 +160,79 @@ export function condicionVentaDominante(pagos: PagoLinea[]): string {
   return FORMA_PAGO_A_CONDICION_VENTA[ganadora as FormaPago] ?? 'Contado'
 }
 
+/**
+ * Medios de pago que se facturan por defecto: los que dejan rastro bancario.
+ * Cada clínica lo ajusta en `arca_config.formas_pago_facturables`.
+ */
+export const FORMAS_PAGO_FACTURABLES_DEFAULT: string[] = ['Transferencia', 'Tarjeta de Crédito']
+
+export interface DesgloseFacturable {
+  /** Total cobrado, sin importar el medio. */
+  total: number
+  /** Porción cobrada con medios que la clínica factura. */
+  facturable: number
+  /** Porción cobrada con medios que la clínica NO factura. */
+  noFacturable: number
+  /** Formas de pago presentes que no se facturan (para avisarle al usuario). */
+  formasNoFacturables: string[]
+  /** true si hay algo facturable y algo que no: se factura solo una parte. */
+  esParcial: boolean
+  /** true si no hay nada facturable con el criterio de la clínica. */
+  nadaFacturable: boolean
+}
+
+/**
+ * Separa un cobro entre lo que la clínica factura y lo que no.
+ *
+ * Un array de formas facturables vacío significa "facturar todo": es la
+ * salida para las clínicas que no quieren este filtro.
+ */
+export function desglosarFacturable(
+  pagos: PagoLinea[],
+  formasFacturables: string[] = FORMAS_PAGO_FACTURABLES_DEFAULT
+): DesgloseFacturable {
+  const total = sumarMontos(pagos.map(p => p.monto))
+
+  // Sin criterio configurado no hay filtro: se factura todo.
+  if (!formasFacturables || formasFacturables.length === 0) {
+    return {
+      total, facturable: total, noFacturable: 0,
+      formasNoFacturables: [], esParcial: false, nadaFacturable: total <= 0,
+    }
+  }
+
+  const permitidas = new Set(formasFacturables)
+  const siFactura = pagos.filter(p => permitidas.has(p.forma_pago))
+  const noFactura = pagos.filter(p => !permitidas.has(p.forma_pago))
+
+  const facturable = sumarMontos(siFactura.map(p => p.monto))
+  const noFacturable = sumarMontos(noFactura.map(p => p.monto))
+
+  const formasNoFacturables: string[] = []
+  for (const p of noFactura) {
+    if (!formasNoFacturables.includes(p.forma_pago)) formasNoFacturables.push(p.forma_pago)
+  }
+
+  return {
+    total,
+    facturable,
+    noFacturable,
+    formasNoFacturables,
+    esParcial: facturable > 0 && noFacturable > 0,
+    nadaFacturable: facturable <= 0,
+  }
+}
+
+/** Los pagos que sí se facturan, para derivar de ahí la condición de venta. */
+export function pagosFacturables(
+  pagos: PagoLinea[],
+  formasFacturables: string[] = FORMAS_PAGO_FACTURABLES_DEFAULT
+): PagoLinea[] {
+  if (!formasFacturables || formasFacturables.length === 0) return pagos
+  const permitidas = new Set(formasFacturables)
+  return pagos.filter(p => permitidas.has(p.forma_pago))
+}
+
 /** Agrupa los pagos por forma para el bloque informativo del PDF. */
 export function agruparPagos(pagos: PagoLinea[]): PagoLinea[] {
   const porForma = new Map<string, number>()

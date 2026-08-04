@@ -5,6 +5,7 @@ import { Toast, Spinner, PageHeader } from '@/components/UI'
 import { createClient } from '@/lib/supabase/client'
 import { useTenantContext } from '@/components/TenantContext'
 import { triggerConfetti } from '@/lib/confetti'
+import { desglosarFacturable, FORMAS_PAGO_FACTURABLES_DEFAULT } from '@/lib/pagos'
 
 interface Tratamiento  { id: string; nombre: string; precio_base: number | null }
 interface CostoFijo    { id: string; nombre: string; monto: number; activo: boolean }
@@ -58,6 +59,9 @@ export default function FinanzasPage() {
   // Estados de facturación ARCA
   const [facturas, setFacturas]           = useState<any[]>([])
   const [arcaConfig, setArcaConfig]       = useState<any | null>(null)
+  // Pagos por cita, para saber qué parte del cobro entra en el criterio
+  // de medios facturables de la clínica.
+  const [pagosPorCita, setPagosPorCita]   = useState<Record<string, { forma_pago: string; monto: number }[]>>({})
   const [modalFacturar, setModalFacturar] = useState(false)
   const [facturandoItem, setFacturandoItem] = useState<{ id: string; tipo: 'cita' | 'ingreso'; monto: number; concepto: string; pacienteNombre: string; pacienteDocTipo?: string; pacienteDocNro?: string } | null>(null)
   const [fDocTipo, setFDocTipo]           = useState('DNI')
@@ -104,7 +108,7 @@ export default function FinanzasPage() {
     const inicioFecha = `${anioActual}-${String(mesActual).padStart(2,'0')}-01`
     const finFecha    = `${anioActual}-${String(mesActual).padStart(2,'0')}-${String(totalDias).padStart(2,'0')}`
 
-    const [resTrat, resCostos, resMeta, resManuales, resEgresos, resCitas, resDeudas, resFacturas, resArca] = await Promise.all([
+    const [resTrat, resCostos, resMeta, resManuales, resEgresos, resCitas, resDeudas, resFacturas, resArca, resPagos] = await Promise.all([
       supabase.from('tratamientos').select('id, nombre, precio_base').eq('tenant_id', tenant.id).eq('activo', true),
       supabase.from('costos_fijos').select('*').eq('tenant_id', tenant.id).order('nombre'),
       supabase.from('meta_mensual').select('*').eq('tenant_id', tenant.id).eq('mes', mesActual).eq('anio', anioActual).maybeSingle(),
@@ -113,8 +117,18 @@ export default function FinanzasPage() {
       supabase.from('citas').select('id, fecha_hora, tipo_tratamiento, precio_cobrado, valor, sena, pacientes(nombre, telefono, dni_cuit, tipo_documento)').eq('tenant_id', tenant.id).in('estado', ['confirmado', 'asistio']).gte('fecha_hora', inicioMes).lte('fecha_hora', finMes).order('fecha_hora', { ascending: false }),
       supabase.from('citas').select('id, fecha_hora, tipo_tratamiento, precio_cobrado, valor, sena, pacientes(nombre, telefono, dni_cuit, tipo_documento)').eq('tenant_id', tenant.id).in('estado', ['confirmado', 'asistio']).order('fecha_hora', { ascending: false }),
       supabase.from('facturas').select('*').eq('tenant_id', tenant.id).eq('estado', 'emitida'),
-      supabase.from('arca_config').select('*').eq('tenant_id', tenant.id).eq('activo', true).maybeSingle()
+      supabase.from('arca_config').select('*').eq('tenant_id', tenant.id).eq('activo', true).maybeSingle(),
+      supabase.from('pagos').select('cita_id, forma_pago, monto').eq('tenant_id', tenant.id)
     ])
+
+    // Agrupa los pagos por cita. Si la tabla todavía no existe (migración sin
+    // aplicar), queda vacío y la pantalla se comporta como antes.
+    const mapaPagos: Record<string, { forma_pago: string; monto: number }[]> = {}
+    for (const p of (resPagos.data ?? [])) {
+      if (!p.cita_id) continue
+      ;(mapaPagos[p.cita_id] ||= []).push({ forma_pago: p.forma_pago, monto: Number(p.monto) })
+    }
+    setPagosPorCita(mapaPagos)
     
     if (resTrat.data)    setTratamientos(resTrat.data)
     if (resCostos.data)  setCostos(resCostos.data)
@@ -179,6 +193,18 @@ export default function FinanzasPage() {
     }
   }, [totalMes, metaIngresos, hasTriggeredConfetti])
 
+  /**
+   * Qué parte del cobro de una cita entra en el criterio de medios
+   * facturables de la clínica. Devuelve null si no hay pagos cargados
+   * (cita vieja o migración sin aplicar): ahí no se filtra nada.
+   */
+  const desgloseDeCita = useCallback((citaId: string) => {
+    const pagos = pagosPorCita[citaId]
+    if (!pagos || pagos.length === 0) return null
+    const formasOk: string[] = arcaConfig?.formas_pago_facturables ?? FORMAS_PAGO_FACTURABLES_DEFAULT
+    return desglosarFacturable(pagos, formasOk)
+  }, [pagosPorCita, arcaConfig])
+
   // ── Acciones ───────────────────────────────────────────────────────────────
   function abrirModalFacturar(item: any, tipo: 'cita' | 'ingreso') {
     const monto = tipo === 'cita' ? getPrecio(item) : item.monto
@@ -213,7 +239,7 @@ export default function FinanzasPage() {
     setModalFacturar(true)
   }
 
-  async function emitirFacturaElectronica() {
+  async function emitirFacturaElectronica(forzarNoFacturable = false) {
     if (!facturandoItem || !tenant) return
     if (!fDocNro && fDocTipo !== 'Sin Identificar') {
       alert('Por favor, ingresá el número de documento.')
@@ -233,11 +259,23 @@ export default function FinanzasPage() {
           pacienteDocNro: fDocNro || '0',
           pacienteNombre: fPacienteNombre,
           tipoComprobante: Number(fTipoComprobante),
-          condicionVenta: fCondicionVenta
+          condicionVenta: fCondicionVenta,
+          forzarNoFacturable
         })
       })
 
       const data = await res.json()
+
+      // 409: el cobro no entra en el criterio de medios facturables.
+      // Se pide confirmación explícita en vez de bloquear.
+      if (res.status === 409 && data.requiereConfirmacion) {
+        setFacturando(false)
+        if (confirm(`${data.error}\n\n¿Emitir la factura igual por ${fmt(data.desglose?.total ?? 0)}?`)) {
+          return emitirFacturaElectronica(true)
+        }
+        return
+      }
+
       if (!res.ok) {
         throw new Error(data.error || 'Error al emitir factura')
       }
@@ -516,13 +554,26 @@ export default function FinanzasPage() {
                                 </a>
                               )
                             } else if (arcaConfig) {
+                              // Se avisa, no se bloquea: puede haber un paciente
+                              // que pagó en efectivo y necesita el comprobante.
+                              const d = desgloseDeCita(c.id)
+                              const atenuado = d?.nadaFacturable
+                              const parcial  = d?.esParcial
+                              const aviso = atenuado
+                                ? `Cobrado con ${d!.formasNoFacturables.join(' y ')}, que no facturás. Podés emitirla igual confirmando.`
+                                : parcial
+                                  ? `Cobro mixto: se factura solo ${fmt(d!.facturable)} de ${fmt(d!.total)}`
+                                  : 'Emitir Factura Electrónica ARCA'
                               return (
-                                <button 
-                                  onClick={() => abrirModalFacturar(c, 'cita')} 
-                                  style={{ fontSize: 10, padding: '3px 7px', borderRadius: 6, border: '1px solid #1D9E75', background: '#ecfdf5', color: '#1D9E75', cursor: 'pointer', fontFamily: 'DM Sans, sans-serif', fontWeight: 600, marginRight: 4 }}
-                                  title="Emitir Factura Electrónica ARCA"
+                                <button
+                                  onClick={() => abrirModalFacturar(c, 'cita')}
+                                  style={{ fontSize: 10, padding: '3px 7px', borderRadius: 6, marginRight: 4, cursor: 'pointer', fontFamily: 'DM Sans, sans-serif', fontWeight: 600,
+                                    border: `1px solid ${atenuado ? '#cbd5e1' : parcial ? '#EF9F27' : '#1D9E75'}`,
+                                    background: atenuado ? '#f8fafc' : parcial ? '#fffbeb' : '#ecfdf5',
+                                    color: atenuado ? '#94a3b8' : parcial ? '#92400e' : '#1D9E75' }}
+                                  title={aviso}
                                 >
-                                  Facturar 📄
+                                  {atenuado ? 'Facturar ⚠' : parcial ? 'Facturar parcial 📄' : 'Facturar 📄'}
                                 </button>
                               )
                             }
@@ -766,10 +817,42 @@ export default function FinanzasPage() {
                 <span style={{ color:'#64748b' }}>Concepto:</span>
                 <span style={{ fontWeight:600, color:'#0a1e3d' }}>{facturandoItem.concepto}</span>
               </div>
-              <div style={{ display:'flex', justifyContent:'space-between', background:'#ecfdf5', padding:'8px 12px', borderRadius:8, fontSize:12, marginBottom:4 }}>
-                <span style={{ color:'#047857' }}>Total a facturar:</span>
-                <span style={{ fontWeight:700, color:'#10b981' }}>{fmt(facturandoItem.monto)}</span>
-              </div>
+              {(() => {
+                const d = facturandoItem.tipo === 'cita' ? desgloseDeCita(facturandoItem.id) : null
+
+                // Sin pagos cargados se factura el total, como siempre.
+                if (!d || (!d.esParcial && !d.nadaFacturable)) {
+                  return (
+                    <div style={{ display:'flex', justifyContent:'space-between', background:'#ecfdf5', padding:'8px 12px', borderRadius:8, fontSize:12, marginBottom:4 }}>
+                      <span style={{ color:'#047857' }}>Total a facturar:</span>
+                      <span style={{ fontWeight:700, color:'#10b981' }}>{fmt(facturandoItem.monto)}</span>
+                    </div>
+                  )
+                }
+
+                // Cobro mixto o íntegramente no facturable: se muestra el
+                // desglose para que no haya sorpresas después de emitir.
+                return (
+                  <div style={{ background:'#fffbeb', border:'1px solid #fde68a', padding:'10px 12px', borderRadius:8, fontSize:12, marginBottom:4 }}>
+                    <div style={{ display:'flex', justifyContent:'space-between', color:'#92400e', marginBottom:4 }}>
+                      <span>Cobrado en total:</span><span>{fmt(d.total)}</span>
+                    </div>
+                    <div style={{ display:'flex', justifyContent:'space-between', color:'#92400e', marginBottom:6 }}>
+                      <span>Cobrado con {d.formasNoFacturables.join(' / ')}:</span>
+                      <span>− {fmt(d.noFacturable)}</span>
+                    </div>
+                    <div style={{ display:'flex', justifyContent:'space-between', fontWeight:700,
+                      color: d.nadaFacturable ? '#b45309' : '#047857', borderTop:'1px solid #fde68a', paddingTop:6 }}>
+                      <span>Se factura:</span><span>{fmt(d.facturable)}</span>
+                    </div>
+                    <p style={{ fontSize:11, color:'#92400e', margin:'8px 0 0', lineHeight:1.4 }}>
+                      {d.nadaFacturable
+                        ? 'Esta clínica no factura estos medios de pago. Si seguís, se te va a pedir confirmación.'
+                        : 'Al facturar solo una parte, el comprobante lleva un renglón único de pago parcial en vez del detalle por tratamiento.'}
+                    </p>
+                  </div>
+                )
+              })()}
 
               <div>
                 <div style={{ fontSize:12, fontWeight:600, color:'#64748b', marginBottom:4 }}>Nombre del Paciente (Razón Social) *</div>
@@ -854,7 +937,7 @@ export default function FinanzasPage() {
                 Cancelar
               </button>
               <button 
-                onClick={emitirFacturaElectronica} 
+                onClick={() => emitirFacturaElectronica()}
                 disabled={facturando} 
                 style={{ fontSize:13, fontWeight:600, padding:'7px 18px', borderRadius:8, border:'none', background: facturando ? '#e2e8f0' : '#1D9E75', color: facturando ? '#94a3b8' : '#fff', cursor: facturando ? 'not-allowed' : 'pointer', fontFamily:'DM Sans, sans-serif' }}
               >

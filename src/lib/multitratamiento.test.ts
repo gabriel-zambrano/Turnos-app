@@ -47,8 +47,15 @@ async function agregarPago(forma: string, monto: number) {
     VALUES ('${TENANT}', '${PACIENTE}', '${CITA}', '${forma}', ${monto});`)
 }
 
-beforeAll(async () => {
-  db = new PGlite()
+/**
+ * Levanta un Postgres con el esquema previo, datos preexistentes y la
+ * migración real ya aplicada.
+ *
+ * Cada bloque de tests que muta datos usa su propia instancia: compartir una
+ * sola hacía que el orden de ejecución cambiara los resultados.
+ */
+async function crearBaseMigrada(): Promise<PGlite> {
+  const db = new PGlite()
 
   // Esquema mínimo con las columnas que la migración necesita tocar.
   // `saldo` se declara GENERATED igual que en producción: si el trigger
@@ -65,6 +72,7 @@ beforeAll(async () => {
     CREATE TABLE pacientes         (id uuid PRIMARY KEY, tenant_id uuid);
     CREATE TABLE tratamientos      (id uuid PRIMARY KEY, tenant_id uuid, nombre text);
     CREATE TABLE ingresos_manuales (id uuid PRIMARY KEY, tenant_id uuid);
+    CREATE TABLE arca_config       (tenant_id uuid PRIMARY KEY, cuit text, activo boolean DEFAULT true);
     CREATE TABLE citas (
       id uuid PRIMARY KEY, tenant_id uuid, paciente_id uuid, tipo_tratamiento text,
       valor numeric(10,2) DEFAULT 0, sena numeric(10,2) DEFAULT 0,
@@ -84,20 +92,83 @@ beforeAll(async () => {
   // Datos previos a la migración: una cita "vieja" con valor plano y un
   // medio de pago escrito a mano, para probar el backfill.
   await db.exec(`
-    INSERT INTO tenants   VALUES ('${TENANT}');
-    INSERT INTO pacientes VALUES ('${PACIENTE}', '${TENANT}');
+    INSERT INTO tenants     VALUES ('${TENANT}');
+    INSERT INTO pacientes   VALUES ('${PACIENTE}', '${TENANT}');
+    INSERT INTO arca_config (tenant_id, cuit) VALUES ('${TENANT}', '20111222333');
     INSERT INTO citas (id, tenant_id, paciente_id, tipo_tratamiento, valor, sena, medio_pago)
       VALUES ('${CITA}', '${TENANT}', '${PACIENTE}', 'Limpieza', 20000, 5000, 'EFECTIVO');
   `)
 
-  const migracion = readFileSync(
+  await db.exec(leerMigracion())
+  return db
+}
+
+/** La migración real, tal cual se va a aplicar en producción. */
+function leerMigracion(): string {
+  return readFileSync(
     path.resolve(process.cwd(), 'supabase/migrations/20260804120000_pagos_y_multitratamiento.sql'),
     'utf-8'
   )
-  await db.exec(migracion)
-})
+}
+
+beforeAll(async () => { db = await crearBaseMigrada() })
 
 afterAll(async () => { await db?.close() })
+
+describe('Migración: la guarda del paso 9 detecta descuadres', () => {
+  /** Extrae el bloque DO de auto-verificación de la migración real. */
+  function guardaDeVerificacion(): string {
+    const bloques = leerMigracion().match(/DO \$\$[\s\S]*?END \$\$;/g) || []
+    const guarda = bloques[bloques.length - 1]
+    expect(guarda, 'no se encontró el bloque DO de verificación').toBeTruthy()
+    return guarda
+  }
+
+  it('pasa cuando los renglones cuadran contra citas.valor', async () => {
+    const propia = await crearBaseMigrada()
+    await expect(propia.exec(guardaDeVerificacion())).resolves.toBeTruthy()
+    await propia.close()
+  })
+
+  it('aborta si citas.valor no coincide con la suma de sus renglones', async () => {
+    const propia = await crearBaseMigrada()
+    // Se desactiva el trigger para provocar exactamente el escenario temido:
+    // el detalle cambia y citas.valor queda viejo. Las vistas de BI seguirían
+    // mostrando el número anterior sin dar ningún error.
+    await propia.exec(`ALTER TABLE tratamiento_items DISABLE TRIGGER trg_sync_valor_cita;`)
+    await propia.exec(`UPDATE tratamiento_items SET precio_unitario = precio_unitario + 1;`)
+
+    await expect(propia.exec(guardaDeVerificacion())).rejects.toThrow(/Migración abortada/)
+    await propia.close()
+  })
+
+  it('aborta si una cita con importe quedó sin renglón de detalle', async () => {
+    const propia = await crearBaseMigrada()
+    await propia.exec(`ALTER TABLE tratamiento_items DISABLE TRIGGER trg_sync_valor_cita;`)
+    await propia.exec(`DELETE FROM tratamiento_items;`)
+
+    await expect(propia.exec(guardaDeVerificacion())).rejects.toThrow(/sin rengl[oó]n/i)
+    await propia.close()
+  })
+})
+
+describe('Migración: criterio de medios facturables', () => {
+  it('deja el default de la clínica en transferencia y tarjeta de crédito', async () => {
+    const r = await db.query<{ formas_pago_facturables: string[] }>(
+      `SELECT formas_pago_facturables FROM arca_config WHERE tenant_id = '${TENANT}'`
+    )
+    expect(r.rows[0].formas_pago_facturables).toEqual(['Transferencia', 'Tarjeta de Crédito'])
+  })
+
+  it('cada clínica puede cambiar su criterio', async () => {
+    await db.exec(`UPDATE arca_config SET formas_pago_facturables = ARRAY['Efectivo']::TEXT[] WHERE tenant_id = '${TENANT}';`)
+    const r = await db.query<{ formas_pago_facturables: string[] }>(
+      `SELECT formas_pago_facturables FROM arca_config WHERE tenant_id = '${TENANT}'`
+    )
+    expect(r.rows[0].formas_pago_facturables).toEqual(['Efectivo'])
+    await db.exec(`UPDATE arca_config SET formas_pago_facturables = DEFAULT WHERE tenant_id = '${TENANT}';`)
+  })
+})
 
 describe('Migración: backfill de datos existentes', () => {
   it('normaliza el medio de pago escrito a mano', async () => {

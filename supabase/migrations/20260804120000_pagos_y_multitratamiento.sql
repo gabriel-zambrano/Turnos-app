@@ -120,6 +120,20 @@ CREATE TRIGGER trg_sync_cobrado_cita
     FOR EACH ROW EXECUTE FUNCTION sync_cobrado_cita();
 
 -- ─────────────────────────────────────────────────────────────
+-- 3b. Qué medios de pago factura cada clínica
+-- ─────────────────────────────────────────────────────────────
+-- Configurable por tenant, no fijo en el código: cada clínica define su
+-- criterio con su contador. El default son los medios con trazabilidad
+-- bancaria, que es el criterio más habitual.
+ALTER TABLE arca_config ADD COLUMN IF NOT EXISTS formas_pago_facturables TEXT[]
+    NOT NULL DEFAULT ARRAY['Transferencia', 'Tarjeta de Crédito']::TEXT[];
+
+COMMENT ON COLUMN arca_config.formas_pago_facturables IS
+    'Medios de pago que la clínica factura. Si un cobro fue mixto, solo se '
+    'factura la porción cobrada con estos medios. Un array vacío significa '
+    '"facturar todo", sin importar el medio.';
+
+-- ─────────────────────────────────────────────────────────────
 -- 4. Detalle de la factura (snapshot inmutable)
 -- ─────────────────────────────────────────────────────────────
 -- Copia, no FK viva: si mañana cambia el precio del tratamiento, la factura
@@ -284,6 +298,50 @@ SELECT c.tenant_id, c.paciente_id, c.id, COALESCE(c.tipo_tratamiento, 'Consulta'
 FROM citas c
 WHERE c.valor IS NOT NULL AND c.valor > 0
   AND NOT EXISTS (SELECT 1 FROM tratamiento_items ti WHERE ti.cita_id = c.id);
+
+-- ─────────────────────────────────────────────────────────────
+-- 9. Auto-verificación: si algo no cuadra, aborta y revierte todo
+-- ─────────────────────────────────────────────────────────────
+-- El CLI corre cada migración dentro de una transacción, así que un
+-- RAISE EXCEPTION acá deshace TODA la migración (tablas, triggers y backfill).
+-- Es preferible que falle ruidosamente antes que dejar la base a medio migrar.
+DO $$
+DECLARE
+    v_descuadres INTEGER;
+    v_sin_migrar INTEGER;
+    v_detalle    TEXT;
+BEGIN
+    -- 9.1 La invariante que sostiene el BI: citas.valor == suma de sus renglones.
+    SELECT count(*), string_agg(t.id::text, ', ') INTO v_descuadres, v_detalle
+    FROM (
+        SELECT c.id
+        FROM citas c
+        JOIN tratamiento_items ti ON ti.cita_id = c.id
+        GROUP BY c.id, c.valor
+        HAVING c.valor IS DISTINCT FROM SUM(ti.subtotal)
+        LIMIT 20
+    ) t;
+
+    IF v_descuadres > 0 THEN
+        RAISE EXCEPTION
+            'Migración abortada: % cita(s) con valor distinto a la suma de sus renglones. Ids: %',
+            v_descuadres, v_detalle;
+    END IF;
+
+    -- 9.2 Toda cita con importe tiene que haber quedado con su renglón.
+    SELECT count(*) INTO v_sin_migrar
+    FROM citas c
+    WHERE c.valor IS NOT NULL AND c.valor > 0
+      AND NOT EXISTS (SELECT 1 FROM tratamiento_items ti WHERE ti.cita_id = c.id);
+
+    IF v_sin_migrar > 0 THEN
+        RAISE EXCEPTION
+            'Migración abortada: % cita(s) con valor quedaron sin renglón de detalle.', v_sin_migrar;
+    END IF;
+
+    RAISE NOTICE 'Verificación OK: % cita(s) con detalle, todas cuadradas.',
+        (SELECT count(DISTINCT cita_id) FROM tratamiento_items);
+END $$;
 
 -- ── Rollback ──
 -- DROP FUNCTION IF EXISTS emitir_factura_con_detalle;

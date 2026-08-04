@@ -3,8 +3,10 @@ import { readFileSync } from 'fs'
 import path from 'path'
 import {
   FORMAS_PAGO, CONDICIONES_VENTA, FORMA_PAGO_A_CONDICION_VENTA,
+  FORMAS_PAGO_FACTURABLES_DEFAULT,
   sumarMontos, subtotalItem, calcularTotales, desagregarIva,
   condicionVentaDominante, agruparPagos, esFormaPagoValida,
+  desglosarFacturable, pagosFacturables,
 } from './pagos'
 
 describe('Aritmética de dinero', () => {
@@ -128,5 +130,98 @@ describe('Pago dividido → condición de venta única', () => {
     ])
     expect(g).toHaveLength(2)
     expect(g.find(p => p.forma_pago === 'Efectivo')!.monto).toBe(15000.75)
+  })
+})
+
+describe('Qué medios de pago se facturan', () => {
+  const OK = FORMAS_PAGO_FACTURABLES_DEFAULT // Transferencia + Tarjeta de Crédito
+
+  it('por defecto factura transferencia y tarjeta de crédito', () => {
+    expect(OK).toContain('Transferencia')
+    expect(OK).toContain('Tarjeta de Crédito')
+    expect(OK).not.toContain('Efectivo')
+    expect(OK).not.toContain('Mercado Pago')
+  })
+
+  it('con todo el cobro facturable, se factura el total', () => {
+    const d = desglosarFacturable([{ forma_pago: 'Transferencia', monto: 50000 }], OK)
+    expect(d.facturable).toBe(50000)
+    expect(d.noFacturable).toBe(0)
+    expect(d.esParcial).toBe(false)
+    expect(d.nadaFacturable).toBe(false)
+  })
+
+  it('con cobro mixto separa la porción facturable', () => {
+    const d = desglosarFacturable([
+      { forma_pago: 'Efectivo', monto: 30000 },
+      { forma_pago: 'Transferencia', monto: 20000 },
+    ], OK)
+    expect(d.total).toBe(50000)
+    expect(d.facturable).toBe(20000)   // solo la transferencia
+    expect(d.noFacturable).toBe(30000)
+    expect(d.esParcial).toBe(true)
+    expect(d.formasNoFacturables).toEqual(['Efectivo'])
+  })
+
+  it('marca como no facturable un cobro 100% en efectivo o Mercado Pago', () => {
+    const d = desglosarFacturable([
+      { forma_pago: 'Efectivo', monto: 20000 },
+      { forma_pago: 'Mercado Pago', monto: 15000 },
+    ], OK)
+    expect(d.facturable).toBe(0)
+    expect(d.nadaFacturable).toBe(true)
+    expect(d.esParcial).toBe(false) // no es parcial: no hay nada que facturar
+    expect(d.formasNoFacturables).toEqual(['Efectivo', 'Mercado Pago'])
+  })
+
+  it('no repite una forma de pago en el aviso aunque haya varios pagos', () => {
+    const d = desglosarFacturable([
+      { forma_pago: 'Efectivo', monto: 1000 },
+      { forma_pago: 'Efectivo', monto: 2000 },
+    ], OK)
+    expect(d.formasNoFacturables).toEqual(['Efectivo'])
+  })
+
+  it('una lista vacía significa "facturar todo" (clínica sin filtro)', () => {
+    const d = desglosarFacturable([{ forma_pago: 'Efectivo', monto: 40000 }], [])
+    expect(d.facturable).toBe(40000)
+    expect(d.nadaFacturable).toBe(false)
+    expect(d.esParcial).toBe(false)
+  })
+
+  it('cada clínica puede definir su propio criterio', () => {
+    // Una clínica que también factura Mercado Pago
+    const d = desglosarFacturable([
+      { forma_pago: 'Mercado Pago', monto: 25000 },
+      { forma_pago: 'Efectivo', monto: 5000 },
+    ], ['Transferencia', 'Tarjeta de Crédito', 'Mercado Pago'])
+    expect(d.facturable).toBe(25000)
+    expect(d.esParcial).toBe(true)
+  })
+
+  it('suma en centavos: la porción facturable no pierde decimales', () => {
+    const d = desglosarFacturable([
+      { forma_pago: 'Transferencia', monto: 10000.33 },
+      { forma_pago: 'Tarjeta de Crédito', monto: 5000.71 },
+      { forma_pago: 'Efectivo', monto: 999.99 },
+    ], OK)
+    expect(d.facturable).toBe(15001.04)
+    expect(sumarMontos([d.facturable, d.noFacturable])).toBe(d.total)
+  })
+
+  it('la condición de venta sale solo de los pagos que se facturan', () => {
+    // Aunque el efectivo sea el monto mayor, el comprobante no puede
+    // declarar "Contado" si se emitió por la transferencia.
+    const pagos = [
+      { forma_pago: 'Efectivo', monto: 90000 },
+      { forma_pago: 'Transferencia', monto: 10000 },
+    ]
+    expect(condicionVentaDominante(pagos)).toBe('Contado')
+    expect(condicionVentaDominante(pagosFacturables(pagos, OK))).toBe('Transferencia Bancaria')
+  })
+
+  it('sin criterio configurado, pagosFacturables devuelve todos', () => {
+    const pagos = [{ forma_pago: 'Efectivo', monto: 100 }]
+    expect(pagosFacturables(pagos, [])).toEqual(pagos)
   })
 })

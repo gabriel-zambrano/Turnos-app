@@ -3,6 +3,7 @@ import { createClient as createServerClient } from '@/lib/supabase/server'
 import {
   CONDICIONES_VENTA, sumarMontos, desagregarIva,
   condicionVentaDominante, agruparPagos,
+  desglosarFacturable, pagosFacturables, FORMAS_PAGO_FACTURABLES_DEFAULT,
 } from '@/lib/pagos'
 
 // Códigos de tipo de documento según ARCA
@@ -33,6 +34,10 @@ export async function POST(req: Request) {
       pacienteNombre,
       tipoComprobante, // 11=Factura C, 6=Factura B, 1=Factura A
       condicionVenta,
+      // El usuario confirmó facturar aunque el cobro no entre en el criterio
+      // de medios facturables de la clínica (ej: paciente que pagó en efectivo
+      // pero necesita el comprobante para el reintegro de la obra social).
+      forzarNoFacturable,
     } = body
 
     // Condición de venta elegida a mano. Si la cita tiene pagos cargados,
@@ -166,7 +171,36 @@ export async function POST(req: Request) {
         .eq('tenant_id', tenantId)
 
       if (pagos && pagos.length > 0) {
-        pagosFactura = agruparPagos(pagos.map(p => ({ forma_pago: p.forma_pago, monto: Number(p.monto) })))
+        const todos = pagos.map(p => ({ forma_pago: p.forma_pago, monto: Number(p.monto) }))
+
+        // Criterio de la clínica sobre qué medios de pago factura.
+        const formasOk: string[] = arcaConfig.formas_pago_facturables ?? FORMAS_PAGO_FACTURABLES_DEFAULT
+        const desglose = desglosarFacturable(todos, formasOk)
+
+        if (desglose.nadaFacturable && !forzarNoFacturable) {
+          return NextResponse.json({
+            error: `Este cobro se hizo con ${desglose.formasNoFacturables.join(' y ')}, que esta clínica no factura. Confirmá si querés emitirla igual.`,
+            requiereConfirmacion: true,
+            desglose,
+          }, { status: 409 })
+        }
+
+        if (desglose.esParcial && !forzarNoFacturable) {
+          // Se factura solo la porción facturable. El detalle por tratamiento
+          // no puede mantenerse: los renglones suman el total del turno y
+          // dejarían un comprobante cuyos ítems no cuadran contra el importe.
+          // Se reemplaza por un renglón único de pago parcial.
+          monto = desglose.facturable
+          const tratamientos = itemsFactura.map(i => i.descripcion).join(' + ')
+          concepto = `Pago parcial — ${tratamientos}`
+          itemsFactura = [{ orden: 0, descripcion: concepto, cantidad: 1, precio_unitario: monto, subtotal: monto }]
+        }
+
+        // El desglose impreso y la condición de venta salen SOLO de los pagos
+        // que se están facturando: el comprobante no puede declarar un medio
+        // de pago por el que no se emitió.
+        const facturados = forzarNoFacturable ? todos : pagosFacturables(todos, formasOk)
+        pagosFactura = agruparPagos(facturados.length > 0 ? facturados : todos)
         condVenta = condicionVentaDominante(pagosFactura)
       }
     } else {
