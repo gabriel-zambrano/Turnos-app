@@ -44,10 +44,28 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
       return NextResponse.json({ error: 'Factura no encontrada' }, { status: 404 })
     }
 
-    const [{ data: config }, { data: tenant }] = await Promise.all([
+    const [{ data: config }, { data: tenant }, { data: items }, { data: pagos }] = await Promise.all([
       supabase.from('arca_config').select('*').eq('tenant_id', factura.tenant_id).maybeSingle(),
       supabase.from('tenants').select('nombre, direccion, telefono').eq('id', factura.tenant_id).maybeSingle(),
+      supabase.from('factura_items').select('*').eq('factura_id', params.id).order('orden', { ascending: true }),
+      supabase.from('factura_pagos').select('*').eq('factura_id', params.id),
     ])
+
+    // Facturas emitidas antes de esta funcionalidad no tienen detalle:
+    // se dibujan como un único renglón, igual que siempre.
+    const renglones = (items && items.length > 0)
+      ? items.map(i => ({
+          descripcion: String(i.descripcion || ''),
+          cantidad: Number(i.cantidad ?? 1),
+          precio_unitario: Number(i.precio_unitario ?? 0),
+          subtotal: Number(i.subtotal ?? 0),
+        }))
+      : [{
+          descripcion: String(factura.concepto || 'Servicios profesionales odontológicos'),
+          cantidad: 1,
+          precio_unitario: Number(factura.monto),
+          subtotal: Number(factura.monto),
+        }]
 
     // Si es nota de crédito, traer el comprobante que anula para citarlo
     let comprobanteAsociado: string | null = null
@@ -101,7 +119,9 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
 
     // ── PDF ──
     const pdf = await PDFDocument.create()
-    const page = pdf.addPage([595.28, 841.89]) // A4
+    // `let` y no `const`: con muchos renglones el detalle se corta en páginas
+    // y los helpers de dibujo tienen que escribir en la página actual.
+    let page = pdf.addPage([595.28, 841.89]) // A4
     const { width, height } = page.getSize()
     const font = await pdf.embedFont(StandardFonts.Helvetica)
     const bold = await pdf.embedFont(StandardFonts.HelveticaBold)
@@ -179,22 +199,42 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
     }
 
     // ── Tabla de ítems ──
-    y -= 22
     const cols = { desc: M + 4, cant: R - 210, punit: R - 150, sub: R - 70 }
-    page.drawRectangle({ x: M, y: y - 4, width: R - M, height: 18, color: rgb(0.93, 0.94, 0.96) })
-    t('Producto / Servicio', cols.desc, y, 8, bold, gray)
-    t('Cantidad', cols.cant, y, 8, bold, gray)
-    t('Precio Unit.', cols.punit, y, 8, bold, gray)
-    t('Subtotal', cols.sub, y, 8, bold, gray)
+
+    const cabeceraTabla = () => {
+      page.drawRectangle({ x: M, y: y - 4, width: R - M, height: 18, color: rgb(0.93, 0.94, 0.96) })
+      t('Producto / Servicio', cols.desc, y, 8, bold, gray)
+      t('Cantidad', cols.cant, y, 8, bold, gray)
+      t('Precio Unit.', cols.punit, y, 8, bold, gray)
+      t('Subtotal', cols.sub, y, 8, bold, gray)
+      y -= 22
+    }
+
+    /** Reserva espacio; si no entra, abre una página nueva y repite la cabecera. */
+    const asegurarEspacio = (alto: number, conCabecera = false) => {
+      if (y - alto > 110) return
+      page = pdf.addPage([595.28, 841.89])
+      y = height - M - 20
+      if (conCabecera) cabeceraTabla()
+    }
+
     y -= 22
-    t(String(factura.concepto || 'Servicios profesionales odontológicos').slice(0, 60), cols.desc, y, 9)
-    t('1,00', cols.cant, y, 9)
-    t(fmtMoney(factura.monto), cols.punit, y, 9)
-    t(fmtMoney(factura.monto), cols.sub, y, 9)
-    y -= 10
+    cabeceraTabla()
+
+    for (const r of renglones) {
+      asegurarEspacio(18, true)
+      // 58 caracteres es lo que entra antes de pisar la columna Cantidad
+      t(r.descripcion.slice(0, 58), cols.desc, y, 9)
+      t(r.cantidad.toLocaleString('es-AR', { minimumFractionDigits: 2 }), cols.cant, y, 9)
+      t(fmtMoney(r.precio_unitario), cols.punit, y, 9)
+      t(fmtMoney(r.subtotal), cols.sub, y, 9)
+      y -= 16
+    }
+    y += 6
     hline(y)
 
     // ── Totales ──
+    asegurarEspacio(70)
     y -= 20
     t('Subtotal:', R - 200, y, 10)
     t(fmtMoney(factura.monto), R - 90, y, 10)
@@ -205,7 +245,25 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
     t('Importe Total:', R - 200, y, 12, bold)
     t(fmtMoney(factura.monto), R - 90, y, 12, bold)
 
+    // ── Desglose de formas de pago (INFORMATIVO, no fiscal) ──
+    // La condición de venta declarada ante ARCA es una sola (arriba). Esto es
+    // el detalle real de cómo se cobró, para el paciente y para la caja.
+    if (pagos && pagos.length > 1) {
+      asegurarEspacio(30 + pagos.length * 14)
+      y -= 26
+      t('Detalle de formas de pago', M, y, 9, bold, gray)
+      y -= 6
+      hline(y, M, M + 240)
+      for (const p of pagos) {
+        y -= 14
+        t(String(p.forma_pago), M + 4, y, 9)
+        t(fmtMoney(Number(p.monto)), M + 160, y, 9)
+      }
+      y -= 6
+    }
+
     // ── Bloque QR + CAE ──
+    asegurarEspacio(70)
     y -= 50
     if (qrImg) page.drawImage(qrImg, { x: M, y: y - 44, width: 88, height: 88 })
     t('CAE N°: ' + factura.cae, M + 104, y + 24, 11, bold)
@@ -221,9 +279,13 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
       })
     }
 
-    // Pie
-    t('Esta Agencia no se responsabiliza por los datos ingresados en el detalle de la operación.', M, 40, 7, font, gray)
-    t('Pág. 1/1', R - 50, 40, 7, font, gray)
+    // Pie en todas las páginas (el detalle largo puede ocupar más de una)
+    const paginas = pdf.getPages()
+    paginas.forEach((p, i) => {
+      p.drawText('Esta Agencia no se responsabiliza por los datos ingresados en el detalle de la operación.',
+        { x: M, y: 40, size: 7, font, color: gray })
+      p.drawText(`Pág. ${i + 1}/${paginas.length}`, { x: R - 50, y: 40, size: 7, font, color: gray })
+    })
 
     const bytes = await pdf.save()
     const nombreArchivo = `Factura_${tipo.letra}_${ptoVta}-${nroCbte}.pdf`

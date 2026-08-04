@@ -31,8 +31,8 @@ const TABLAS_NUCLEO = ['citas', 'pacientes', 'bloqueos', 'tratamientos'] as cons
 const TABLAS_SECUNDARIAS = [
   'config_fidelizacion', 'costos_fijos', 'egresos_manuales', 'historial_dental',
   'historial_puntos', 'ingresos_manuales', 'logs_envios', 'meta_mensual',
-  'paciente_fotos', 'perfil_doctor', 'premios', 'presupuestos',
-  'recordatorios_log', 'whatsapp_contactos',
+  'paciente_fotos', 'pagos', 'perfil_doctor', 'premios', 'presupuestos',
+  'recordatorios_log', 'tratamiento_items', 'whatsapp_contactos',
 ] as const
 
 const TABLAS = [...TABLAS_NUCLEO, ...TABLAS_SECUNDARIAS] as const

@@ -1,5 +1,9 @@
 import { NextResponse } from 'next/server'
 import { createClient as createServerClient } from '@/lib/supabase/server'
+import {
+  CONDICIONES_VENTA, sumarMontos, desagregarIva,
+  condicionVentaDominante, agruparPagos,
+} from '@/lib/pagos'
 
 // Códigos de tipo de documento según ARCA
 const DOC_TIPO_ARCA: Record<string, number> = {
@@ -31,8 +35,9 @@ export async function POST(req: Request) {
       condicionVenta,
     } = body
 
-    const CONDICIONES_VENTA = ['Contado', 'Tarjeta de Débito', 'Tarjeta de Crédito', 'Transferencia Bancaria', 'Cuenta Corriente', 'Cheque', 'Otra']
-    const condVenta = CONDICIONES_VENTA.includes(condicionVenta) ? condicionVenta : 'Contado'
+    // Condición de venta elegida a mano. Si la cita tiene pagos cargados,
+    // más abajo la sobreescribe la condición dominante de esos pagos.
+    let condVenta = (CONDICIONES_VENTA as readonly string[]).includes(condicionVenta) ? condicionVenta : 'Contado'
 
     if (!tenantId || !pacienteDocTipo || !pacienteNombre || !tipoComprobante) {
       return NextResponse.json({ error: 'Faltan parámetros obligatorios' }, { status: 400 })
@@ -101,9 +106,14 @@ export async function POST(req: Request) {
     }
 
     // 4. Obtener monto y detalles del servicio a facturar (siempre dentro del tenant)
+    //
+    // El monto SIEMPRE se recalcula acá desde la base. Nunca se toma del body:
+    // el cliente no puede inflar ni desinflar el importe de un comprobante fiscal.
     let monto = 0
     let concepto = 'Servicios profesionales odontológicos'
     let pacienteId: string | null = null
+    let itemsFactura: { orden: number; descripcion: string; cantidad: number; precio_unitario: number; subtotal: number }[] = []
+    let pagosFactura: { forma_pago: string; monto: number }[] = []
 
     if (citaId) {
       const { data: cita } = await supabase
@@ -117,9 +127,48 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: 'Cita no encontrada' }, { status: 404 })
       }
 
-      monto = cita.precio_cobrado ?? cita.valor ?? 0
-      concepto = cita.tipo_tratamiento || concepto
       pacienteId = cita.paciente_id
+
+      // Renglones de tratamiento de esta cita (caries + ortodoncia + limpieza…)
+      const { data: items } = await supabase
+        .from('tratamiento_items')
+        .select('orden, descripcion, cantidad, precio_unitario, subtotal')
+        .eq('cita_id', citaId)
+        .eq('tenant_id', tenantId)
+        .order('orden', { ascending: true })
+
+      if (items && items.length > 0) {
+        itemsFactura = items.map((i, idx) => ({
+          orden: i.orden ?? idx,
+          descripcion: i.descripcion,
+          cantidad: Number(i.cantidad),
+          precio_unitario: Number(i.precio_unitario),
+          // `subtotal` es una columna GENERATED: ya viene calculada y redondeada por Postgres.
+          subtotal: Number(i.subtotal),
+        }))
+        // Suma en centavos enteros: el total tiene que cuadrar exacto contra
+        // la columna de subtotales del PDF y contra ImpNeto + ImpIVA de ARCA.
+        monto = sumarMontos(itemsFactura.map(i => i.subtotal))
+        concepto = itemsFactura.map(i => i.descripcion).join(' + ')
+      } else {
+        // Cita vieja sin detalle cargado: se comporta igual que antes.
+        monto = cita.precio_cobrado ?? cita.valor ?? 0
+        concepto = cita.tipo_tratamiento || concepto
+        itemsFactura = [{ orden: 0, descripcion: concepto, cantidad: 1, precio_unitario: monto, subtotal: monto }]
+      }
+
+      // Desglose real de formas de pago (informativo; ARCA acepta una sola
+      // condición de venta, que se deriva del medio con el que más se pagó).
+      const { data: pagos } = await supabase
+        .from('pagos')
+        .select('forma_pago, monto')
+        .eq('cita_id', citaId)
+        .eq('tenant_id', tenantId)
+
+      if (pagos && pagos.length > 0) {
+        pagosFactura = agruparPagos(pagos.map(p => ({ forma_pago: p.forma_pago, monto: Number(p.monto) })))
+        condVenta = condicionVentaDominante(pagosFactura)
+      }
     } else {
       const { data: ingreso } = await supabase
         .from('ingresos_manuales')
@@ -132,8 +181,9 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: 'Ingreso manual no encontrado' }, { status: 404 })
       }
 
-      monto = ingreso.monto
+      monto = Number(ingreso.monto)
       concepto = ingreso.concepto || 'Ingreso de caja'
+      itemsFactura = [{ orden: 0, descripcion: concepto, cantidad: 1, precio_unitario: monto, subtotal: monto }]
     }
 
     if (monto <= 0) {
@@ -217,11 +267,10 @@ export async function POST(req: Request) {
         const alicuotaId = ALICUOTA_ID[alicuota] ?? 4
         const desagregaIva = cbteTipo !== 11 && alicuota !== '0'
 
-        const impTotal = Math.round(monto * 100) / 100
-        const impNeto = desagregaIva
-          ? Math.round((impTotal / (1 + Number(alicuota) / 100)) * 100) / 100
-          : impTotal
-        const impIva = Math.round((impTotal - impNeto) * 100) / 100 // cuadra exacto contra el total
+        // Se desagrega en centavos enteros y el IVA sale por diferencia:
+        // garantiza ImpTotal == ImpNeto + ImpIVA al centavo (ARCA error 10048).
+        const { neto: impNeto, iva: impIva, total: impTotal } =
+          desagregarIva(monto, desagregaIva ? Number(alicuota) : 0)
 
         const hoy = new Date().toISOString().split('T')[0].replace(/-/g, '') // AAAAMMDD
 
@@ -272,28 +321,31 @@ export async function POST(req: Request) {
       }
     }
 
-    // 7. Registrar la factura
+    // 7. Registrar la factura junto con su detalle, en UNA transacción.
+    //
+    // Va por RPC y no por tres INSERT sueltos: si el segundo fallara quedaría
+    // una factura con CAE autorizado por ARCA y sin renglones, y `facturas`
+    // no tiene política de UPDATE para poder repararla después.
     const { data: factura, error: insertError } = await supabase
-      .from('facturas')
-      .insert({
-        tenant_id: tenantId,
-        cita_id: citaId || null,
-        ingreso_manual_id: ingresoManualId || null,
-        tipo_comprobante: cbteTipo,
-        punto_venta: puntoVenta,
-        nro_comprobante: nroComprobante,
-        cae,
-        cae_expira: caeExpira,
-        monto,
-        paciente_nombre: pacienteNombre,
-        paciente_doc_tipo: pacienteDocTipo,
-        paciente_doc_nro: pacienteDocNro || '0',
-        concepto,
-        condicion_venta: condVenta,
-        estado: 'emitida',
-        simulada: esSimulada,
+      .rpc('emitir_factura_con_detalle', {
+        p_tenant_id: tenantId,
+        p_cita_id: citaId || null,
+        p_ingreso_manual_id: ingresoManualId || null,
+        p_tipo_comprobante: cbteTipo,
+        p_punto_venta: puntoVenta,
+        p_nro_comprobante: nroComprobante,
+        p_cae: cae,
+        p_cae_expira: caeExpira,
+        p_monto: monto,
+        p_paciente_nombre: pacienteNombre,
+        p_paciente_doc_tipo: pacienteDocTipo,
+        p_paciente_doc_nro: pacienteDocNro || '0',
+        p_concepto: concepto.slice(0, 500),
+        p_condicion_venta: condVenta,
+        p_simulada: esSimulada,
+        p_items: itemsFactura,
+        p_pagos: pagosFactura,
       })
-      .select()
       .single()
 
     if (insertError) {
