@@ -419,7 +419,7 @@ export default function Configuracion() {
               </div>
 
               <div style={{ marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: '1px solid #e8edf2' }}>
-                <div style={{ ...grid2Css, gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr' }}>
+                <div style={grid2Css}>
                   <div style={groupCss}>
                     <label style={labelCss}>Seña para reservar (pesos)</label>
                     <input
@@ -467,7 +467,7 @@ export default function Configuracion() {
             <h3 style={{ fontSize: 16, color: 'var(--text-dark, #0a1e3d)', marginBottom: '1.5rem', fontWeight: 700 }}>
               Información General
             </h3>
-            <div style={{ ...grid2Css, gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr' }}>
+            <div style={grid2Css}>
               <div style={groupCss}>
                 <label style={labelCss}>Nombre del Consultorio</label>
                 <input style={inputCss} value={nombre} onChange={e => setNombre(e.target.value)} placeholder="Ej. DentalCare Palermo" />
@@ -544,7 +544,7 @@ export default function Configuracion() {
                   Configurá los datos fiscales de tu clínica para emitir facturas electrónicas a tus pacientes directamente desde el módulo de Caja Diaria.
                 </p>
 
-                <div style={{ ...grid2Css, gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', marginBottom: '1.25rem' }}>
+                <div style={{ ...grid2Css, marginBottom: '1.25rem' }}>
                   <div style={groupCss}>
                     <label style={labelCss}>CUIT de la Clínica / Profesional</label>
                     <input 
@@ -566,7 +566,7 @@ export default function Configuracion() {
                   </div>
                 </div>
 
-                <div style={{ ...grid2Css, gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', marginBottom: '1.5rem' }}>
+                <div style={{ ...grid2Css, marginBottom: '1.5rem' }}>
                   <div style={groupCss}>
                     <label style={labelCss}>Condición frente al IVA</label>
                     <select 
@@ -593,7 +593,7 @@ export default function Configuracion() {
                 </div>
 
                 {arcaCondicionIva === 'Responsable Inscripto' && (
-                  <div style={{ ...grid2Css, gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', marginBottom: '1.5rem' }}>
+                  <div style={{ ...grid2Css, marginBottom: '1.5rem' }}>
                     <div style={groupCss}>
                       <label style={labelCss}>Alícuota de IVA (Facturas A y B)</label>
                       <select
@@ -615,7 +615,7 @@ export default function Configuracion() {
                   Datos que se imprimen en el encabezado de la factura (PDF).
                 </p>
 
-                <div style={{ ...grid2Css, gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', marginBottom: '1.25rem' }}>
+                <div style={{ ...grid2Css, marginBottom: '1.25rem' }}>
                   <div style={groupCss}>
                     <label style={labelCss}>Razón Social</label>
                     <input style={inputCss} value={arcaRazonSocial} onChange={e => setArcaRazonSocial(e.target.value)} placeholder="Ej. BENEGAS WALTER EBER" />
@@ -626,7 +626,7 @@ export default function Configuracion() {
                   </div>
                 </div>
 
-                <div style={{ ...grid2Css, gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', marginBottom: '1.5rem' }}>
+                <div style={{ ...grid2Css, marginBottom: '1.5rem' }}>
                   <div style={groupCss}>
                     <label style={labelCss}>Ingresos Brutos</label>
                     <input style={inputCss} value={arcaIngresosBrutos} onChange={e => setArcaIngresosBrutos(e.target.value)} placeholder="Ej. EXENTO o N° de IIBB" />
@@ -698,7 +698,7 @@ export default function Configuracion() {
                     Tu consultorio se encuentra en el <strong>Plan Starter</strong>. Actualizá al <strong>Plan Pro</strong> para desbloquear las herramientas de Business Intelligence, analítica financiera avanzada, exportación de reportes y potenciar tu clínica dental.
                   </p>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
+                  <div style={{ ...grid2Css, marginBottom: '1.5rem' }}>
                     <div style={{ padding: '1rem', border: '1px solid #e8edf2', borderRadius: 12, background: '#f8fafc' }}>
                       <div style={{ fontSize: 13, fontWeight: 700, color: '#64748b', marginBottom: '0.5rem' }}>Plan Starter</div>
                       <ul style={{ paddingLeft: '1.2rem', margin: 0, fontSize: 12, color: '#64748b', display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -742,7 +742,7 @@ export default function Configuracion() {
                     </div>
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '1rem', fontSize: 13, color: '#4a6080' }}>
+                  <div style={{ ...grid2Css, fontSize: 13, color: '#4a6080' }}>
                     <div style={{ padding: '0.75rem 1rem', border: '1px solid #e8edf2', borderRadius: 10 }}>
                       <span style={{ fontSize: 11, color: '#8fa3bc', display: 'block', marginBottom: 2, fontWeight: 600 }}>ESTADO DE FACTURACIÓN</span>
                       <strong>

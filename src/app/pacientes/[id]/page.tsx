@@ -769,6 +769,9 @@ export default function PacienteDetalle() {
           cursor: 'pointer',
           transition: 'all 0.2s ease',
           minWidth: 50,
+          // Dentro de la hilera con scroll, las piezas no se comprimen:
+          // sin esto flex las achicaría hasta volverlas ilegibles.
+          flexShrink: 0,
           boxShadow: isSelected ? '0 4px 12px rgba(24,95,165,0.15)' : 'none',
         }}
         className="interactive-item"
@@ -1033,10 +1036,18 @@ export default function PacienteDetalle() {
                     {/* Arcada Superior */}
                     <div>
                       <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 8, textAlign: 'center' }}>Arcada Superior (Maxilar)</div>
+                      {/* Una sola hilera con scroll táctil, no una grilla que
+                          se parte en varias filas.
+                          Las 16 piezas con ancho mínimo de 48px necesitan unos
+                          890px: en un teléfono la arcada se rompía en tres
+                          filas y el 18 terminaba debajo del 24. Eso destruye
+                          la correspondencia anatómica con la boca del paciente,
+                          que es el estándar con el que se lee un odontograma. */}
                       <div style={{
-                        display: 'grid',
-                        gridTemplateColumns: 'repeat(auto-fit, minmax(48px, 1fr))',
+                        display: 'flex',
                         gap: 8,
+                        overflowX: 'auto',
+                        WebkitOverflowScrolling: 'touch',
                         background: 'var(--bg-input)',
                         padding: 10,
                         borderRadius: 14,
@@ -1049,10 +1060,18 @@ export default function PacienteDetalle() {
                     {/* Arcada Inferior */}
                     <div>
                       <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 8, textAlign: 'center' }}>Arcada Inferior (Mandíbula)</div>
+                      {/* Una sola hilera con scroll táctil, no una grilla que
+                          se parte en varias filas.
+                          Las 16 piezas con ancho mínimo de 48px necesitan unos
+                          890px: en un teléfono la arcada se rompía en tres
+                          filas y el 18 terminaba debajo del 24. Eso destruye
+                          la correspondencia anatómica con la boca del paciente,
+                          que es el estándar con el que se lee un odontograma. */}
                       <div style={{
-                        display: 'grid',
-                        gridTemplateColumns: 'repeat(auto-fit, minmax(48px, 1fr))',
+                        display: 'flex',
                         gap: 8,
+                        overflowX: 'auto',
+                        WebkitOverflowScrolling: 'touch',
                         background: 'var(--bg-input)',
                         padding: 10,
                         borderRadius: 14,

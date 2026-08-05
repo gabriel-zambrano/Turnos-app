@@ -38,10 +38,56 @@ export const modalTitleCss: React.CSSProperties = { fontSize: 17, fontWeight: 60
 export const footerCss: React.CSSProperties = { display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '1.25rem' }
 export const groupCss: React.CSSProperties = { marginBottom: '0.85rem' }
 export const labelCss: React.CSSProperties = { fontSize: 12, fontWeight: 500, color: 'var(--text-muted-darker, #4a6080)', display: 'block', marginBottom: 5 }
-export const grid2Css: React.CSSProperties = { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }
+/**
+ * Grilla de dos columnas para formularios.
+ *
+ * `--grid-2` la define globals.css: dos columnas en escritorio, una sola
+ * debajo de 768px. Va por variable CSS y no por JS para que la resuelva el
+ * navegador, sin listener de `resize` ni parpadeo de hidratación.
+ * El fallback `1fr 1fr` cubre el caso de que la variable no esté cargada.
+ */
+export const grid2Css: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'var(--grid-2, 1fr 1fr)', gap: '1rem' }
 export const btnDarkCss: React.CSSProperties = { minHeight: 44, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '0.55rem 1.1rem', borderRadius: 9, fontSize: 13.5, fontWeight: 600, cursor: 'pointer', border: 'none', background: 'linear-gradient(135deg, #0a1e3d, #185FA5)', color: '#fff', fontFamily: 'DM Sans, sans-serif' }
 export const btnLightCss: React.CSSProperties = { minHeight: 44, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '0.55rem 1.1rem', borderRadius: 9, fontSize: 13.5, fontWeight: 500, cursor: 'pointer', border: '1px solid var(--border-color, #dde5ef)', background: 'var(--bg-input, rgba(255,255,255,0.8))', color: 'var(--text-muted-darker, #4a6080)', fontFamily: 'DM Sans, sans-serif' }
 export const btnRedCss: React.CSSProperties = { minHeight: 44, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '0.55rem 1.1rem', borderRadius: 9, fontSize: 13.5, fontWeight: 500, cursor: 'pointer', border: 'none', background: '#D85A30', color: '#fff', fontFamily: 'DM Sans, sans-serif' }
+
+/**
+ * Bloquea el scroll del fondo mientras hay un modal abierto.
+ *
+ * En el celular, al deslizar sobre un modal el fondo se movía por detrás y
+ * se perdía la posición de la lista al cerrarlo.
+ *
+ * No alcanza con `overflow: hidden` en el body: Safari en iOS lo ignora.
+ * Hay que fijar el body con `position: fixed` compensando el scroll actual
+ * en `top`, y restaurar la posición al cerrar — si no, cerrar un modal te
+ * manda al principio de la página.
+ */
+export function useBloqueoScroll(activo: boolean) {
+  React.useEffect(() => {
+    if (!activo) return
+
+    const y = window.scrollY
+    const previo = {
+      overflow: document.body.style.overflow,
+      position: document.body.style.position,
+      top: document.body.style.top,
+      width: document.body.style.width,
+    }
+
+    document.body.style.overflow = 'hidden'
+    document.body.style.position = 'fixed'
+    document.body.style.top = `-${y}px`
+    document.body.style.width = '100%'
+
+    return () => {
+      document.body.style.overflow = previo.overflow
+      document.body.style.position = previo.position
+      document.body.style.top = previo.top
+      document.body.style.width = previo.width
+      window.scrollTo(0, y)
+    }
+  }, [activo])
+}
 
 export function Badge({ bg, color, children }: { bg: string; color: string; children: React.ReactNode }) {
   return <span style={{ display: 'inline-flex', alignItems: 'center', fontSize: 11, fontWeight: 500, padding: '3px 9px', borderRadius: 6, background: bg, color, whiteSpace: 'nowrap' }}>{children}</span>

@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { Sidebar } from '@/components/Sidebar'
-import { Badge, Toast, PageHeader, FilterBar, SkeletonLista, SkeletonKPIs, MetricCard, inputCss, selectCss, overlayCss, modalCss, modalTitleCss, footerCss, groupCss, labelCss, grid2Css, btnDarkCss, btnLightCss } from '@/components/UI'
+import { Badge, Toast, PageHeader, FilterBar, SkeletonLista, SkeletonKPIs, MetricCard, useBloqueoScroll, inputCss, selectCss, overlayCss, modalCss, modalTitleCss, footerCss, groupCss, labelCss, grid2Css, btnDarkCss, btnLightCss } from '@/components/UI'
 import { TRAT_STYLE, ESTADO_STYLE, hoyISO, normalizarTelefono, TRATAMIENTOS } from '@/lib/constants'
 import { createClient } from '@/lib/supabase/client'
 import { urlPublicaDeClinica } from '@/lib/config'
@@ -57,6 +57,8 @@ export default function Dashboard() {
   const [modalCobro, setModalCobro] = useState(false)
 
   const [modalNuevaCita, setModalNuevaCita] = useState(false)
+  // Con un modal abierto, el fondo no se mueve al deslizar en el celular
+  useBloqueoScroll(modalPaciente || modalCobro || modalNuevaCita)
 
   // Nuevo Paciente States
   const [pacNombre, setPacNombre] = useState('')

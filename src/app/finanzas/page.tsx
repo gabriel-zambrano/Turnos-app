@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { Sidebar } from '@/components/Sidebar'
-import { Toast, Spinner, PageHeader } from '@/components/UI'
+import { Toast, Spinner, PageHeader, useBloqueoScroll } from '@/components/UI'
 import { createClient } from '@/lib/supabase/client'
 import { useTenantContext } from '@/components/TenantContext'
 import { triggerConfetti } from '@/lib/confetti'
@@ -87,6 +87,8 @@ export default function FinanzasPage() {
   const [modalCosto, setModalCosto]     = useState(false)
   const [modalIngreso, setModalIngreso] = useState(false)
   const [modalEgreso, setModalEgreso]   = useState(false)
+  // Con un modal abierto, el fondo no se mueve al deslizar en el celular
+  useBloqueoScroll(modalSaldar || modalFacturar || modalMeta || modalCosto || modalIngreso || modalEgreso)
   
   const [fMeta, setFMeta]               = useState<number | ''>('')
   const [fCostoNombre, setFCostoNombre] = useState('')

@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { Sidebar } from '@/components/Sidebar'
 import { urlPublicaDeClinica } from '@/lib/config'
 import { AvisoPedidosOnline } from '@/components/AvisoPedidosOnline'
-import { Badge, Toast, PageHeader, BtnPrimary, BtnSm, SkeletonLista, overlayCss, modalCss, modalTitleCss, footerCss, groupCss, labelCss, grid2Css, btnDarkCss, btnLightCss, btnRedCss, selectCss, textareaCss, inputCss } from '@/components/UI'
+import { Badge, Toast, PageHeader, BtnPrimary, BtnSm, SkeletonLista, useBloqueoScroll, overlayCss, modalCss, modalTitleCss, footerCss, groupCss, labelCss, grid2Css, btnDarkCss, btnLightCss, btnRedCss, selectCss, textareaCss, inputCss } from '@/components/UI'
 import { TRAT_STYLE, ESTADO_STYLE, TRATAMIENTOS, ESTADOS, DURACIONES, horasDisponibles, hoyISO, normalizarTelefono } from '@/lib/constants'
 import { createClient } from '@/lib/supabase/client'
 import type { EstadoCita, TipoTratamiento } from '@/types'
@@ -321,6 +321,8 @@ export default function Agenda() {
   const [saving,  setSaving]  = useState(false)
   const [sobreturnoAgenda, setSobreturnoAgenda] = useState<string|null>(null)
   const [modal,   setModal]   = useState<'nueva'|'editar'|'borrar'|'detalle'|'bloqueo'|'menu'|'cobrar'|null>(null)
+  // Con un modal abierto, el fondo no se mueve al deslizar en el celular
+  useBloqueoScroll(modal !== null)
   const [sel,     setSel]     = useState<Cita|null>(null)
   const [enviandoWA, setEnviandoWA] = useState(false)
   const [fecha,   setFecha]   = useState(hoyISO())

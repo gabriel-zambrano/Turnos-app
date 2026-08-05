@@ -17,6 +17,14 @@
   --border-light: rgba(56, 138, 221, 0.12);
   --border-lighter: rgba(56, 138, 221, 0.06);
   --table-header-bg: linear-gradient(135deg, rgba(232, 240, 252, 0.8), rgba(219, 238, 255, 0.6));
+
+  /* Grilla de formularios de dos columnas.
+     Se define como variable para que el navegador la resuelva de forma
+     nativa: los componentes la usan en estilos inline y no necesitan
+     escuchar `resize` en JS. Eso además evita el parpadeo de hidratación,
+     donde el servidor pinta la versión de escritorio y el cliente salta a
+     la de móvil en la primera pintura. */
+  --grid-2: 1fr 1fr;
   --scrollbar-thumb: #c5d4e8;
 
   /* Treatments Light Mode */
@@ -387,6 +395,13 @@ input:focus, select:focus, textarea:focus {
 }
 
 @media (max-width: 767px) {
+  /* En un teléfono de 360px, dos columnas dejan cada campo en ~140px:
+     las etiquetas se cortan y el texto no se lee mientras se tipea.
+     Los formularios pasan a una sola columna a ancho completo. */
+  :root {
+    --grid-2: 1fr;
+  }
+
   div[style*="inset: 0"][style*="rgba(15, 30, 43"] {
     align-items: flex-end !important;
     padding: 0 !important;
