@@ -100,15 +100,13 @@ async function crearBaseMigrada(): Promise<PGlite> {
   `)
 
   await db.exec(leerMigracion())
+  await db.exec(leerMigracion('20260805120000_sembrar_renglon_en_cita_nueva.sql'))
   return db
 }
 
-/** La migración real, tal cual se va a aplicar en producción. */
-function leerMigracion(): string {
-  return readFileSync(
-    path.resolve(process.cwd(), 'supabase/migrations/20260804120000_pagos_y_multitratamiento.sql'),
-    'utf-8'
-  )
+/** Una migración real, tal cual se va a aplicar en producción. */
+function leerMigracion(archivo = '20260804120000_pagos_y_multitratamiento.sql'): string {
+  return readFileSync(path.resolve(process.cwd(), 'supabase/migrations', archivo), 'utf-8')
 }
 
 beforeAll(async () => { db = await crearBaseMigrada() })
@@ -149,6 +147,54 @@ describe('Migración: la guarda del paso 9 detecta descuadres', () => {
 
     await expect(propia.exec(guardaDeVerificacion())).rejects.toThrow(/sin rengl[oó]n/i)
     await propia.close()
+  })
+})
+
+describe('Cita nueva con valor: se le siembra el renglón sola', () => {
+  const CITA_NUEVA = '55555555-5555-5555-5555-555555555555'
+  const CITA_SIN_VALOR = '66666666-6666-6666-6666-666666666666'
+
+  it('la cita que nace con importe queda con su renglón', async () => {
+    // Simula lo que hace la reserva online: inserta con valor, sin detalle.
+    await db.exec(`INSERT INTO citas (id, tenant_id, paciente_id, tipo_tratamiento, valor)
+      VALUES ('${CITA_NUEVA}', '${TENANT}', '${PACIENTE}', 'Ortodoncia', 45000);`)
+
+    const items = await db.query<{ descripcion: string; subtotal: string }>(
+      `SELECT descripcion, subtotal FROM tratamiento_items WHERE cita_id = '${CITA_NUEVA}'`
+    )
+    expect(items.rows).toHaveLength(1)
+    expect(items.rows[0].descripcion).toBe('Ortodoncia')
+    expect(Number(items.rows[0].subtotal)).toBe(45000)
+  })
+
+  it('agregar un segundo tratamiento SUMA en vez de reemplazar', async () => {
+    // Este es el bug que la migración evita: sin el renglón sembrado, el
+    // trigger recalculaba el total desde cero y el valor original se perdía.
+    await db.exec(`INSERT INTO tratamiento_items (tenant_id, paciente_id, cita_id, descripcion, cantidad, precio_unitario)
+      VALUES ('${TENANT}', '${PACIENTE}', '${CITA_NUEVA}', 'Limpieza', 1, 20000);`)
+
+    const r = await db.query<{ valor: string }>(`SELECT valor FROM citas WHERE id = '${CITA_NUEVA}'`)
+    expect(Number(r.rows[0].valor)).toBe(65000) // 45.000 + 20.000, no 20.000
+  })
+
+  it('la cita sin importe no genera renglón', async () => {
+    // Un turno agendado sin cobrar todavía no tiene nada que detallar.
+    await db.exec(`INSERT INTO citas (id, tenant_id, paciente_id, tipo_tratamiento)
+      VALUES ('${CITA_SIN_VALOR}', '${TENANT}', '${PACIENTE}', 'Consulta');`)
+
+    const items = await db.query(`SELECT 1 FROM tratamiento_items WHERE cita_id = '${CITA_SIN_VALOR}'`)
+    expect(items.rows).toHaveLength(0)
+  })
+
+  it('usa "Consulta" si el tratamiento viene vacío', async () => {
+    const id = '77777777-7777-7777-7777-777777777777'
+    await db.exec(`INSERT INTO citas (id, tenant_id, paciente_id, tipo_tratamiento, valor)
+      VALUES ('${id}', '${TENANT}', '${PACIENTE}', '   ', 5000);`)
+
+    const items = await db.query<{ descripcion: string }>(
+      `SELECT descripcion FROM tratamiento_items WHERE cita_id = '${id}'`
+    )
+    expect(items.rows[0].descripcion).toBe('Consulta')
   })
 })
 

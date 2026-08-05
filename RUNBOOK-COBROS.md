@@ -121,6 +121,32 @@ CI corre `typecheck` + `test` (286 tests) y Vercel despliega solo.
 
 ---
 
+## Migración complementaria: `20260805120000_sembrar_renglon_en_cita_nueva`
+
+Se aplica igual, con `npx supabase db push`, y **es independiente del código**:
+no rompe nada si se aplica antes o después del deploy.
+
+Qué resuelve: las citas que entran por reserva online o por el modal rápido
+nacen con `valor` cargado pero sin renglones. Si después alguien les agregaba
+un tratamiento, el trigger recalculaba el total desde los renglones y el valor
+original desaparecía — el monto **bajaba** en vez de sumar.
+
+Ahora un trigger sobre `INSERT` de `citas` le crea el renglón equivalente. Va
+en la base y no en la app porque hay cuatro caminos que crean citas y así
+quedan cubiertos todos sin tener que acordarse en cada uno.
+
+Verificación:
+
+```sql
+-- Crear un turno con valor desde la app y confirmar que quedó con su renglón
+SELECT c.id, c.valor, count(ti.id) AS renglones
+FROM citas c LEFT JOIN tratamiento_items ti ON ti.cita_id = c.id
+WHERE c.valor > 0 GROUP BY c.id, c.valor HAVING count(ti.id) = 0;
+-- Tiene que devolver 0 filas
+```
+
+---
+
 ## Pendiente de decisión con el contador
 
 Dos criterios que el sistema aplica y conviene validar:
