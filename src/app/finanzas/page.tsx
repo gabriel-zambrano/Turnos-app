@@ -5,14 +5,15 @@ import { Toast, Spinner, PageHeader } from '@/components/UI'
 import { createClient } from '@/lib/supabase/client'
 import { useTenantContext } from '@/components/TenantContext'
 import { triggerConfetti } from '@/lib/confetti'
-import { desglosarFacturable, FORMAS_PAGO_FACTURABLES_DEFAULT } from '@/lib/pagos'
+import { desglosarFacturable, FORMAS_PAGO, FORMAS_PAGO_FACTURABLES_DEFAULT, sugerirRequiereFactura } from '@/lib/pagos'
+import { registrarPago, formasFacturablesDe } from '@/lib/registrar-pago'
 
 interface Tratamiento  { id: string; nombre: string; precio_base: number | null }
 interface CostoFijo    { id: string; nombre: string; monto: number; activo: boolean }
 interface MetaMensual  { id: string; mes: number; anio: number; meta_ingresos: number }
 interface IngresoManual { id: string; fecha: string; concepto: string; monto: number }
 interface EgresoManual  { id: string; fecha: string; concepto: string; monto: number }
-interface CitaAsistida { id: string; fecha_hora: string; tipo_tratamiento: string; precio_cobrado: number | null; sena: number | null; valor: number | null; pacientes: { nombre: string; telefono: string; dni_cuit?: string | null; tipo_documento?: string | null } | null }
+interface CitaAsistida { id: string; paciente_id: string; fecha_hora: string; tipo_tratamiento: string; precio_cobrado: number | null; sena: number | null; valor: number | null; pacientes: { nombre: string; telefono: string; dni_cuit?: string | null; tipo_documento?: string | null } | null }
 
 const inputSt: React.CSSProperties = {
   fontSize: 13, padding: '7px 10px', borderRadius: 8,
@@ -61,7 +62,18 @@ export default function FinanzasPage() {
   const [arcaConfig, setArcaConfig]       = useState<any | null>(null)
   // Pagos por cita, para saber qué parte del cobro entra en el criterio
   // de medios facturables de la clínica.
-  const [pagosPorCita, setPagosPorCita]   = useState<Record<string, { forma_pago: string; monto: number }[]>>({})
+  const [pagosPorCita, setPagosPorCita]   = useState<Record<string, { forma_pago: string; monto: number; requiere_factura: boolean | null }[]>>({})
+  const [formasFacturables, setFormasFacturables] = useState<string[]>(FORMAS_PAGO_FACTURABLES_DEFAULT)
+
+  // Modal para saldar una deuda registrando cómo se cobró
+  const [modalSaldar, setModalSaldar]   = useState(false)
+  const [saldarCita, setSaldarCita]     = useState<CitaAsistida | null>(null)
+  const [saldarMonto, setSaldarMonto]   = useState<number | ''>('')
+  const [saldarForma, setSaldarForma]   = useState<string>(FORMAS_PAGO[0])
+  const [saldarFactura, setSaldarFactura] = useState(false)
+  // Ingreso manual: forma de pago e intención de facturar
+  const [fIngForma, setFIngForma]     = useState<string>(FORMAS_PAGO[0])
+  const [fIngFactura, setFIngFactura] = useState(false)
   const [modalFacturar, setModalFacturar] = useState(false)
   const [facturandoItem, setFacturandoItem] = useState<{ id: string; tipo: 'cita' | 'ingreso'; monto: number; concepto: string; pacienteNombre: string; pacienteDocTipo?: string; pacienteDocNro?: string } | null>(null)
   const [fDocTipo, setFDocTipo]           = useState('DNI')
@@ -114,22 +126,24 @@ export default function FinanzasPage() {
       supabase.from('meta_mensual').select('*').eq('tenant_id', tenant.id).eq('mes', mesActual).eq('anio', anioActual).maybeSingle(),
       supabase.from('ingresos_manuales').select('*').eq('tenant_id', tenant.id).gte('fecha', inicioFecha).lte('fecha', finFecha).order('fecha', { ascending: false }),
       supabase.from('egresos_manuales').select('*').eq('tenant_id', tenant.id).gte('fecha', inicioFecha).lte('fecha', finFecha).order('fecha', { ascending: false }),
-      supabase.from('citas').select('id, fecha_hora, tipo_tratamiento, precio_cobrado, valor, sena, pacientes(nombre, telefono, dni_cuit, tipo_documento)').eq('tenant_id', tenant.id).in('estado', ['confirmado', 'asistio']).gte('fecha_hora', inicioMes).lte('fecha_hora', finMes).order('fecha_hora', { ascending: false }),
-      supabase.from('citas').select('id, fecha_hora, tipo_tratamiento, precio_cobrado, valor, sena, pacientes(nombre, telefono, dni_cuit, tipo_documento)').eq('tenant_id', tenant.id).in('estado', ['confirmado', 'asistio']).order('fecha_hora', { ascending: false }),
+      supabase.from('citas').select('id, paciente_id, fecha_hora, tipo_tratamiento, precio_cobrado, valor, sena, pacientes(nombre, telefono, dni_cuit, tipo_documento)').eq('tenant_id', tenant.id).in('estado', ['confirmado', 'asistio']).gte('fecha_hora', inicioMes).lte('fecha_hora', finMes).order('fecha_hora', { ascending: false }),
+      supabase.from('citas').select('id, paciente_id, fecha_hora, tipo_tratamiento, precio_cobrado, valor, sena, pacientes(nombre, telefono, dni_cuit, tipo_documento)').eq('tenant_id', tenant.id).in('estado', ['confirmado', 'asistio']).order('fecha_hora', { ascending: false }),
       supabase.from('facturas').select('*').eq('tenant_id', tenant.id).eq('estado', 'emitida'),
       supabase.from('arca_config').select('*').eq('tenant_id', tenant.id).eq('activo', true).maybeSingle(),
-      supabase.from('pagos').select('cita_id, forma_pago, monto').eq('tenant_id', tenant.id)
+      supabase.from('pagos').select('cita_id, forma_pago, monto, requiere_factura').eq('tenant_id', tenant.id)
     ])
 
     // Agrupa los pagos por cita. Si la tabla todavía no existe (migración sin
     // aplicar), queda vacío y la pantalla se comporta como antes.
-    const mapaPagos: Record<string, { forma_pago: string; monto: number }[]> = {}
+    const mapaPagos: Record<string, { forma_pago: string; monto: number; requiere_factura: boolean | null }[]> = {}
     for (const p of (resPagos.data ?? [])) {
       if (!p.cita_id) continue
-      ;(mapaPagos[p.cita_id] ||= []).push({ forma_pago: p.forma_pago, monto: Number(p.monto) })
+      ;(mapaPagos[p.cita_id] ||= []).push({ forma_pago: p.forma_pago, monto: Number(p.monto), requiere_factura: p.requiere_factura })
     }
     setPagosPorCita(mapaPagos)
     
+    setFormasFacturables(resArca.data?.formas_pago_facturables ?? FORMAS_PAGO_FACTURABLES_DEFAULT)
+
     if (resTrat.data)    setTratamientos(resTrat.data)
     if (resCostos.data)  setCostos(resCostos.data)
     if (resMeta.data)    setMeta(resMeta.data)
@@ -292,20 +306,69 @@ export default function FinanzasPage() {
     }
   }
 
-  async function guardarPrecioCita(id: string, precio: number) {
-    await supabase.from('citas').update({ precio_cobrado: precio }).eq('id', id)
+  /**
+   * Edita el precio del tratamiento de la cita.
+   *
+   * Ya no escribe `citas.precio_cobrado`: esa columna pasó a ser derivada de
+   * los pagos. Este campo ahora edita el renglón de tratamiento, y el trigger
+   * recalcula `citas.valor`. Si la cita tiene varios tratamientos, un solo
+   * número no alcanza para representarlos y se manda al detalle.
+   */
+  async function guardarPrecioCita(c: CitaAsistida, precio: number) {
+    if (!tenant) return
+    const { data: items } = await supabase
+      .from('tratamiento_items').select('id').eq('cita_id', c.id).eq('tenant_id', tenant.id)
+
+    if (items && items.length > 1) {
+      setEditandoPrecio(null)
+      return msg('Esta cita tiene varios tratamientos: editalos desde la cita', 'error')
+    }
+
+    const { error } = items && items.length === 1
+      ? await supabase.from('tratamiento_items')
+          .update({ precio_unitario: precio, cantidad: 1, descuento_pct: 0 }).eq('id', items[0].id)
+      : await supabase.from('tratamiento_items').insert({
+          tenant_id: tenant.id, paciente_id: c.paciente_id, cita_id: c.id,
+          descripcion: c.tipo_tratamiento || 'Consulta', cantidad: 1, precio_unitario: precio, orden: 0,
+        })
+
     setEditandoPrecio(null)
+    if (error) return msg('Error al actualizar: ' + error.message, 'error')
     msg('Precio actualizado ✓')
     load()
   }
 
-  async function saldarDeuda(c: CitaAsistida) {
-    if (!confirm(`¿Saldar la deuda de ${fmt(getDeuda(c))}?`)) return;
-    const v = c.valor ?? 0;
-    const s = c.sena ?? 0;
-    const nuevoCobrado = v - s; // El cobrado pasa a ser el total menos la seña
-    await supabase.from('citas').update({ precio_cobrado: nuevoCobrado }).eq('id', c.id)
-    msg('Deuda saldada ✓')
+  /** Abre el modal para saldar: hace falta saber CÓMO se cobró. */
+  function abrirSaldar(c: CitaAsistida) {
+    const deuda = getDeuda(c)
+    if (deuda <= 0) return
+    setSaldarCita(c)
+    setSaldarMonto(deuda)
+    setSaldarForma(FORMAS_PAGO[0])
+    setSaldarFactura(sugerirRequiereFactura(FORMAS_PAGO[0], formasFacturables))
+    setModalSaldar(true)
+  }
+
+  async function confirmarSaldar() {
+    if (!saldarCita || !tenant) return
+    if (!(Number(saldarMonto) > 0)) return msg('El monto tiene que ser mayor a cero', 'error')
+    setSaving(true)
+    // El pago entra por `pagos`; el trigger actualiza citas.precio_cobrado.
+    // Antes se escribía esa columna a mano y el cobro quedaba sin medio de
+    // pago, así que esquivaba el criterio de facturación.
+    const { error } = await registrarPago(supabase, {
+      tenantId: tenant.id,
+      pacienteId: saldarCita.paciente_id,
+      citaId: saldarCita.id,
+      formaPago: saldarForma,
+      monto: Number(saldarMonto),
+      requiereFactura: saldarFactura,
+      origen: 'saldar_deuda',
+    })
+    setSaving(false)
+    if (error) return msg('Error al saldar: ' + error, 'error')
+    setModalSaldar(false)
+    msg('Cobro registrado ✓')
     load()
   }
 
@@ -339,7 +402,12 @@ export default function FinanzasPage() {
     if (!fConcepto.trim() || fMonto === '' || Number(fMonto) <= 0) return msg('Completá concepto y monto', 'error')
     if (!tenant) return
     setSaving(true)
-    await supabase.from('ingresos_manuales').insert({ fecha: fFecha, concepto: fConcepto.trim(), monto: fMonto, tenant_id: tenant.id })
+    // Con forma de pago: antes un ingreso suelto se facturaba siempre, sin
+    // importar cómo había entrado la plata.
+    await supabase.from('ingresos_manuales').insert({
+      fecha: fFecha, concepto: fConcepto.trim(), monto: fMonto, tenant_id: tenant.id,
+      forma_pago: fIngForma, requiere_factura: fIngFactura,
+    })
     setSaving(false); setModalIngreso(false); setFConcepto(''); setFMonto(''); setFFecha(hoyAR()); msg('Ingreso registrado ✓'); load()
   }
   async function eliminarIngreso(id: string) {
@@ -534,7 +602,7 @@ export default function FinanzasPage() {
                       {editandoPrecio === c.id ? (
                         <>
                           <input type="number" autoFocus defaultValue={getPrecio(c)} onChange={e => setPrecioEdit(e.target.value === '' ? '' : Number(e.target.value))} style={{ width:90, fontSize:13, padding:'4px 8px', borderRadius:7, border:'1px solid #1D9E75', fontFamily:'DM Sans, sans-serif', textAlign:'right' }} />
-                          <button onClick={() => precioEdit !== '' && guardarPrecioCita(c.id, precioEdit as number)} style={{ fontSize:11, padding:'4px 8px', borderRadius:6, border:'none', background:'#1D9E75', color:'#fff', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>✓</button>
+                          <button onClick={() => precioEdit !== '' && guardarPrecioCita(c, precioEdit as number)} style={{ fontSize:11, padding:'4px 8px', borderRadius:6, border:'none', background:'#1D9E75', color:'#fff', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>✓</button>
                           <button onClick={() => setEditandoPrecio(null)} style={{ fontSize:11, padding:'4px 8px', borderRadius:6, border:'0.5px solid #e2e8f0', background:'#fff', color:'#888', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>×</button>
                         </>
                       ) : (
@@ -691,7 +759,7 @@ export default function FinanzasPage() {
                                 Reclamar
                               </a>
                             )}
-                            <button onClick={() => saldarDeuda(c)} style={{ fontSize:12, fontWeight:600, padding:'6px 12px', borderRadius:8, border:'1px solid #e2e8f0', background:'#fff', color:'#0f1e2b', cursor:'pointer' }}>
+                            <button onClick={() => abrirSaldar(c)} style={{ fontSize:12, fontWeight:600, padding:'6px 12px', borderRadius:8, border:'1px solid #e2e8f0', background:'#fff', color:'#0f1e2b', cursor:'pointer' }}>
                               Saldar Deuda
                             </button>
                           </div>
@@ -765,6 +833,20 @@ export default function FinanzasPage() {
                 <div style={{ fontSize:12, fontWeight:600, color:'#64748b', marginBottom:4 }}>Fecha</div>
                 <input type="date" style={inputSt} value={fFecha} onChange={e => setFFecha(e.target.value)} />
               </div>
+              <div>
+                <div style={{ fontSize:12, fontWeight:600, color:'#64748b', marginBottom:4 }}>Forma de pago</div>
+                <select style={inputSt} value={fIngForma}
+                  onChange={e => { setFIngForma(e.target.value); setFIngFactura(sugerirRequiereFactura(e.target.value, formasFacturables)) }}>
+                  {FORMAS_PAGO.map(f => <option key={f} value={f}>{f}</option>)}
+                </select>
+              </div>
+              <label style={{ display:'flex', alignItems:'center', gap:9, cursor:'pointer', padding:'10px 12px', borderRadius:9,
+                background: fIngFactura ? 'rgba(29,158,117,0.08)' : '#f8fafc',
+                border:`1px solid ${fIngFactura ? 'rgba(29,158,117,0.3)' : '#e2e8f0'}` }}>
+                <input type="checkbox" checked={fIngFactura} onChange={e => setFIngFactura(e.target.checked)}
+                  style={{ width:17, height:17, accentColor:'#1D9E75', cursor:'pointer' }} />
+                <span style={{ fontSize:13, color:'#0a1e3d', fontWeight:500 }}>Facturar este ingreso</span>
+              </label>
             </div>
             <div style={{ display:'flex', gap:8, marginTop:'1.25rem', justifyContent:'flex-end' }}>
               <button onClick={() => setModalIngreso(false)} style={{ fontSize:13, padding:'7px 16px', borderRadius:8, border:'1px solid #e2e8f0', background:'#fff', color:'#64748b', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>Cancelar</button>
@@ -798,6 +880,54 @@ export default function FinanzasPage() {
               <button onClick={() => setModalEgreso(false)} style={{ fontSize:13, padding:'7px 16px', borderRadius:8, border:'1px solid #e2e8f0', background:'#fff', color:'#64748b', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>Cancelar</button>
               <button onClick={agregarEgreso} disabled={saving} style={{ fontSize:13, fontWeight:600, padding:'7px 18px', borderRadius:8, border:'none', background: saving ? '#e2e8f0' : '#ef4444', color: saving ? '#94a3b8' : '#fff', cursor: saving ? 'not-allowed' : 'pointer', fontFamily:'DM Sans, sans-serif' }}>
                 {saving ? 'Guardando...' : 'Registrar Gasto'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {modalSaldar && saldarCita && (
+        <div onClick={() => setModalSaldar(false)} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.4)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:200, padding:'1rem' }}>
+          <div onClick={e => e.stopPropagation()} style={{ background:'#fff', borderRadius:16, padding:'1.5rem', width:'100%', maxWidth:380, boxShadow:'0 8px 32px rgba(0,0,0,0.12)' }}>
+            <div style={{ fontSize:16, fontWeight:700, color:'#0a1e3d', marginBottom:'0.35rem' }}>Registrar cobro</div>
+            <p style={{ fontSize:12, color:'#64748b', marginBottom:'1.25rem' }}>
+              {saldarCita.pacientes?.nombre} — {saldarCita.tipo_tratamiento}
+            </p>
+
+            <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+              <div>
+                <div style={{ fontSize:12, fontWeight:600, color:'#64748b', marginBottom:4 }}>Monto</div>
+                <input type="number" inputMode="decimal" style={inputSt} value={saldarMonto}
+                  onChange={e => setSaldarMonto(e.target.value === '' ? '' : Number(e.target.value))} />
+              </div>
+              <div>
+                <div style={{ fontSize:12, fontWeight:600, color:'#64748b', marginBottom:4 }}>Forma de pago</div>
+                <select style={inputSt} value={saldarForma}
+                  onChange={e => { setSaldarForma(e.target.value); setSaldarFactura(sugerirRequiereFactura(e.target.value, formasFacturables)) }}>
+                  {FORMAS_PAGO.map(f => <option key={f} value={f}>{f}</option>)}
+                </select>
+              </div>
+
+              <label style={{ display:'flex', alignItems:'center', gap:9, cursor:'pointer', padding:'10px 12px', borderRadius:9,
+                background: saldarFactura ? 'rgba(29,158,117,0.08)' : '#f8fafc',
+                border:`1px solid ${saldarFactura ? 'rgba(29,158,117,0.3)' : '#e2e8f0'}` }}>
+                <input type="checkbox" checked={saldarFactura} onChange={e => setSaldarFactura(e.target.checked)}
+                  style={{ width:17, height:17, accentColor:'#1D9E75', cursor:'pointer' }} />
+                <span style={{ fontSize:13, color:'#0a1e3d', fontWeight:500 }}>
+                  Facturar este cobro
+                  <span style={{ display:'block', fontSize:11, color:'#64748b', fontWeight:400, marginTop:1 }}>
+                    {sugerirRequiereFactura(saldarForma, formasFacturables)
+                      ? `${saldarForma} se factura según tu configuración`
+                      : `${saldarForma} no se factura, salvo que el paciente lo pida`}
+                  </span>
+                </span>
+              </label>
+            </div>
+
+            <div style={{ display:'flex', gap:8, marginTop:'1.25rem', justifyContent:'flex-end' }}>
+              <button onClick={() => setModalSaldar(false)} style={{ fontSize:13, padding:'7px 16px', borderRadius:8, border:'1px solid #e2e8f0', background:'#fff', color:'#64748b', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>Cancelar</button>
+              <button onClick={confirmarSaldar} disabled={saving} style={{ fontSize:13, fontWeight:600, padding:'7px 18px', borderRadius:8, border:'none', background: saving ? '#e2e8f0' : '#1D9E75', color: saving ? '#94a3b8' : '#fff', cursor: saving ? 'not-allowed' : 'pointer', fontFamily:'DM Sans, sans-serif' }}>
+                {saving ? 'Registrando...' : 'Registrar cobro'}
               </button>
             </div>
           </div>

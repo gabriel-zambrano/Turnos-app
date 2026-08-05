@@ -9,6 +9,8 @@ import { createClient } from '@/lib/supabase/client'
 import type { EstadoCita, TipoTratamiento } from '@/types'
 import { useTenantContext } from '@/components/TenantContext'
 import { triggerConfetti } from '@/lib/confetti'
+import { FORMAS_PAGO, FORMAS_PAGO_FACTURABLES_DEFAULT, sugerirRequiereFactura } from '@/lib/pagos'
+import { registrarPago, formasFacturablesDe } from '@/lib/registrar-pago'
 import { registrarInasistenciaAction, aprobarAsistenciaAction } from '@/app/actions/fidelizacion'
 import dynamic from 'next/dynamic'
 
@@ -388,8 +390,18 @@ export default function Agenda() {
     setCobConcepto(`Pago ${c.tratamiento} — ${c.nombre}`)
     setCobMonto(c.valor ?? '')
     setCobFecha(c.fecha)
+    // Arranca en Efectivo, que es lo más habitual, y el check de facturar
+    // se pre-marca según el criterio de la clínica.
+    setCobForma(FORMAS_PAGO[0])
+    setCobFactura(sugerirRequiereFactura(FORMAS_PAGO[0], formasFacturables))
     setModal('cobrar')
   }
+
+  // Criterio de medios facturables de la clínica, para pre-marcar el check.
+  useEffect(() => {
+    if (!tenant) return
+    formasFacturablesDe(supabase, tenant.id).then(setFormasFacturables)
+  }, [tenant, supabase])
 
   async function guardarCobroExpress() {
     if (!cobConcepto.trim() || cobMonto === '' || Number(cobMonto) <= 0) {
@@ -397,23 +409,24 @@ export default function Agenda() {
     }
     if (!tenant || !sel) return
     setGuardandoCobro(true)
-    
-    // 1. Insert manual income record
-    const { error: insError } = await supabase.from('ingresos_manuales').insert({
-      fecha: cobFecha || new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }),
-      concepto: cobConcepto.trim(),
+
+    // El cobro entra por `pagos`, no escribiendo `citas.precio_cobrado` a
+    // mano: así queda la forma de pago (sin ella este cobro esquivaba el
+    // criterio de facturación) y el trigger mantiene la columna derivada.
+    const { error: pagoError } = await registrarPago(supabase, {
+      tenantId: tenant.id,
+      pacienteId: sel.paciente_id,
+      citaId: sel.id,
+      formaPago: cobForma,
       monto: Number(cobMonto),
-      tenant_id: tenant.id
+      requiereFactura: cobFactura,
+      origen: 'cobro_rapido',
+      nota: cobConcepto.trim(),
     })
 
-    // 2. Update price_cobrado on appointment
-    const { error: updError } = await supabase.from('citas').update({
-      precio_cobrado: Number(cobMonto)
-    }).eq('id', sel.id)
-
-    if (insError || updError) {
+    if (pagoError) {
       setGuardandoCobro(false)
-      return msg('Error al registrar cobro: ' + (insError?.message || updError?.message), 'error')
+      return msg('Error al registrar cobro: ' + pagoError, 'error')
     }
 
     // 3. Approve assistance and process points
@@ -451,6 +464,10 @@ export default function Agenda() {
   const [fMedioPago, setFMedioPago] = useState('')
   const [mostrarDetalle, setMostrarDetalle] = useState(false)
   const snapshotRef = useRef<string>('')
+  // Cobro rápido: forma de pago y si se factura
+  const [cobForma, setCobForma] = useState<string>(FORMAS_PAGO[0])
+  const [cobFactura, setCobFactura] = useState(false)
+  const [formasFacturables, setFormasFacturables] = useState<string[]>(FORMAS_PAGO_FACTURABLES_DEFAULT)
 
   function msg(m:string,tipo='ok'){setToast({msg:m,tipo});setTimeout(()=>setToast(null),3500)}
 
@@ -1771,13 +1788,44 @@ export default function Agenda() {
             <div style={grid2Css}>
               <div style={groupCss}>
                 <label style={labelCss}>Monto ($)</label>
-                <input type="number" style={{...selectCss}} value={cobMonto} onChange={e=>setCobMonto(e.target.value===''?'':Number(e.target.value))} placeholder="0"/>
+                <input type="number" inputMode="decimal" style={{...selectCss}} value={cobMonto} onChange={e=>setCobMonto(e.target.value===''?'':Number(e.target.value))} placeholder="0"/>
               </div>
               <div style={groupCss}>
                 <label style={labelCss}>Fecha</label>
                 <input type="date" style={{...selectCss}} value={cobFecha} onChange={e=>setCobFecha(e.target.value)}/>
               </div>
             </div>
+
+            {/* Sin forma de pago, este cobro esquivaba el criterio de
+                facturación y se facturaba entero. */}
+            <div style={groupCss}>
+              <label style={labelCss}>Forma de pago</label>
+              <select style={selectCss} value={cobForma}
+                onChange={e=>{
+                  setCobForma(e.target.value)
+                  // Se re-sugiere al cambiar el medio; el usuario puede
+                  // desmarcarlo después si el paciente pide otra cosa.
+                  setCobFactura(sugerirRequiereFactura(e.target.value, formasFacturables))
+                }}>
+                {FORMAS_PAGO.map(f=><option key={f} value={f}>{f}</option>)}
+              </select>
+            </div>
+
+            <label style={{display:'flex', alignItems:'center', gap:10, cursor:'pointer',
+              padding:'10px 12px', borderRadius:9, marginBottom:'0.85rem',
+              background: cobFactura ? 'rgba(29,158,117,0.08)' : 'var(--bg-input, #f8fafc)',
+              border:`1px solid ${cobFactura ? 'rgba(29,158,117,0.3)' : 'var(--border-color, #e2e8ed)'}`}}>
+              <input type="checkbox" checked={cobFactura} onChange={e=>setCobFactura(e.target.checked)}
+                style={{width:18, height:18, accentColor:'#1D9E75', cursor:'pointer'}}/>
+              <span style={{fontSize:13.5, color:'var(--text-dark, #0a1e3d)', fontWeight:500}}>
+                Facturar este cobro
+                <span style={{display:'block', fontSize:11.5, color:'var(--text-muted-darker, #4a6080)', fontWeight:400, marginTop:2}}>
+                  {sugerirRequiereFactura(cobForma, formasFacturables)
+                    ? `${cobForma} se factura según tu configuración`
+                    : `${cobForma} no se factura, salvo que el paciente lo pida`}
+                </span>
+              </span>
+            </label>
             <div style={footerCss}>
               <button style={btnLightCss} onClick={()=>setModal(null)} disabled={guardandoCobro}>Cancelar</button>
               <button style={{...btnDarkCss,opacity:guardandoCobro?0.6:1}} onClick={guardarCobroExpress} disabled={guardandoCobro}>

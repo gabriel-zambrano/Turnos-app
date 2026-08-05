@@ -131,6 +131,11 @@ export function desagregarIva(total: number, alicuota: number): { neto: number; 
 export interface PagoLinea {
   forma_pago: string
   monto: number
+  /**
+   * Decisión tomada al cobrar. `undefined`/`null` en los pagos anteriores a
+   * esta funcionalidad: para esos se cae al criterio por medio de pago.
+   */
+  requiere_factura?: boolean | null
 }
 
 /**
@@ -166,6 +171,20 @@ export function condicionVentaDominante(pagos: PagoLinea[]): string {
  */
 export const FORMAS_PAGO_FACTURABLES_DEFAULT: string[] = ['Transferencia', 'Tarjeta de Crédito']
 
+/**
+ * Sugerencia con la que la UI pre-marca el check "se factura" al registrar
+ * un cobro. Es solo el valor inicial: la decisión final la toma el
+ * profesional y queda guardada en `pagos.requiere_factura`.
+ */
+export function sugerirRequiereFactura(
+  formaPago: string,
+  formasFacturables: string[] = FORMAS_PAGO_FACTURABLES_DEFAULT
+): boolean {
+  // Sin criterio configurado, la clínica factura todo.
+  if (!formasFacturables || formasFacturables.length === 0) return true
+  return formasFacturables.includes(formaPago)
+}
+
 export interface DesgloseFacturable {
   /** Total cobrado, sin importar el medio. */
   total: number
@@ -182,10 +201,15 @@ export interface DesgloseFacturable {
 }
 
 /**
- * Separa un cobro entre lo que la clínica factura y lo que no.
+ * Separa un cobro entre lo que se factura y lo que no.
  *
- * Un array de formas facturables vacío significa "facturar todo": es la
- * salida para las clínicas que no quieren este filtro.
+ * Manda la marca `requiere_factura` que quedó guardada al registrar cada
+ * pago, NO el medio de pago. Así un cobro en efectivo que el paciente pidió
+ * facturar se factura, y cambiar después el criterio de la clínica no altera
+ * cómo se trataron los cobros ya hechos.
+ *
+ * Los pagos sin la marca (cargados antes de que existiera) caen al criterio
+ * por medio de pago, para no cambiarles el comportamiento.
  */
 export function desglosarFacturable(
   pagos: PagoLinea[],
@@ -193,17 +217,12 @@ export function desglosarFacturable(
 ): DesgloseFacturable {
   const total = sumarMontos(pagos.map(p => p.monto))
 
-  // Sin criterio configurado no hay filtro: se factura todo.
-  if (!formasFacturables || formasFacturables.length === 0) {
-    return {
-      total, facturable: total, noFacturable: 0,
-      formasNoFacturables: [], esParcial: false, nadaFacturable: total <= 0,
-    }
-  }
+  const seFactura = (p: PagoLinea) => p.requiere_factura !== undefined && p.requiere_factura !== null
+    ? p.requiere_factura
+    : sugerirRequiereFactura(p.forma_pago, formasFacturables)
 
-  const permitidas = new Set(formasFacturables)
-  const siFactura = pagos.filter(p => permitidas.has(p.forma_pago))
-  const noFactura = pagos.filter(p => !permitidas.has(p.forma_pago))
+  const siFactura = pagos.filter(seFactura)
+  const noFactura = pagos.filter(p => !seFactura(p))
 
   const facturable = sumarMontos(siFactura.map(p => p.monto))
   const noFacturable = sumarMontos(noFactura.map(p => p.monto))
@@ -228,9 +247,9 @@ export function pagosFacturables(
   pagos: PagoLinea[],
   formasFacturables: string[] = FORMAS_PAGO_FACTURABLES_DEFAULT
 ): PagoLinea[] {
-  if (!formasFacturables || formasFacturables.length === 0) return pagos
-  const permitidas = new Set(formasFacturables)
-  return pagos.filter(p => permitidas.has(p.forma_pago))
+  return pagos.filter(p => p.requiere_factura !== undefined && p.requiere_factura !== null
+    ? p.requiere_factura
+    : sugerirRequiereFactura(p.forma_pago, formasFacturables))
 }
 
 /** Agrupa los pagos por forma para el bloque informativo del PDF. */

@@ -9,6 +9,8 @@ import { useTenantContext } from '@/components/TenantContext'
 import type { EstadoCita } from '@/types'
 import dynamic from 'next/dynamic'
 import { triggerConfetti } from '@/lib/confetti'
+import { FORMAS_PAGO, FORMAS_PAGO_FACTURABLES_DEFAULT, sugerirRequiereFactura } from '@/lib/pagos'
+import { registrarPago, formasFacturablesDe } from '@/lib/registrar-pago'
 import { registrarInasistenciaAction, aprobarAsistenciaAction } from '@/app/actions/fidelizacion'
 import { HeatmapSemanal } from './components/HeatmapSemanal'
 import { AccionesRapidas } from './components/AccionesRapidas'
@@ -68,6 +70,10 @@ export default function Dashboard() {
   const [cobMonto, setCobMonto] = useState<number | ''>('')
   const [cobFecha, setCobFecha] = useState(() => new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }))
   const [cobCitaId, setCobCitaId] = useState<string | null>(null)
+  const [cobPacienteId, setCobPacienteId] = useState<string | null>(null)
+  const [cobForma, setCobForma] = useState<string>(FORMAS_PAGO[0])
+  const [cobFactura, setCobFactura] = useState(false)
+  const [formasFacturables, setFormasFacturables] = useState<string[]>(FORMAS_PAGO_FACTURABLES_DEFAULT)
 
   const [guardandoAccion, setGuardandoAccion] = useState(false)
 
@@ -115,26 +121,38 @@ export default function Dashboard() {
     if (!tenant) return
     setGuardandoAccion(true)
     
-    // 1. Insert manual income record
-    const { error: errorIngreso } = await supabase.from('ingresos_manuales').insert({
-      fecha: cobFecha || new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }),
-      concepto: cobConcepto.trim(),
-      monto: Number(cobMonto),
-      tenant_id: tenant.id
-    })
+    // Cobro ligado a una cita: entra por `pagos` para que quede la forma de
+    // pago y la intención de facturar. Escribir `precio_cobrado` a mano hacía
+    // que el cobro esquivara el criterio de facturación de la clínica.
+    let errorIngreso: { message: string } | null = null
+    let errorCita: { message: string } | null = null
 
-    // 2. If linked to appointment, update precio_cobrado
-    let errorCita = null
+    if (!cobCitaId) {
+      const { error } = await supabase.from('ingresos_manuales').insert({
+        fecha: cobFecha || new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }),
+        concepto: cobConcepto.trim(),
+        monto: Number(cobMonto),
+        tenant_id: tenant.id,
+        forma_pago: cobForma,
+        requiere_factura: cobFactura,
+      })
+      errorIngreso = error
+    }
+
     if (cobCitaId) {
-      const { error: errCita } = await supabase
-        .from('citas')
-        .update({
-          precio_cobrado: Number(cobMonto)
-        })
-        .eq('id', cobCitaId)
-      
-      if (errCita) {
-        errorCita = errCita
+      const { error: errPago } = await registrarPago(supabase, {
+        tenantId: tenant.id,
+        pacienteId: cobPacienteId!,
+        citaId: cobCitaId,
+        formaPago: cobForma,
+        monto: Number(cobMonto),
+        requiereFactura: cobFactura,
+        origen: 'cobro_rapido',
+        nota: cobConcepto.trim(),
+      })
+
+      if (errPago) {
+        errorCita = { message: errPago }
       } else {
         const resAprobar = await aprobarAsistenciaAction(cobCitaId)
         if (!resAprobar.success) {
@@ -151,6 +169,7 @@ export default function Dashboard() {
       setCobConcepto('')
       setCobMonto('')
       setCobCitaId(null)
+      setCobPacienteId(null)
       setCobFecha(new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }))
       msg('Cobro registrado correctamente ✓')
       triggerConfetti()
@@ -183,6 +202,12 @@ export default function Dashboard() {
     const diff = date.getDate() - day + (day === 0 ? -6 : 1)
     return new Date(date.setDate(diff))
   }
+
+  // Criterio de medios facturables de la clínica, para pre-marcar el check.
+  useEffect(() => {
+    if (!tenant) return
+    formasFacturablesDe(supabase, tenant.id).then(setFormasFacturables)
+  }, [tenant, supabase])
 
   const load = useCallback(async()=>{
     if (!tenant) return
@@ -701,6 +726,9 @@ export default function Dashboard() {
                                   setCobConcepto(`Pago ${c.tratamiento} — ${c.nombre}`)
                                   setCobMonto(c.valor || '')
                                   setCobCitaId(c.id)
+                                  setCobPacienteId(c.paciente_id ?? null)
+                                  setCobForma(FORMAS_PAGO[0])
+                                  setCobFactura(sugerirRequiereFactura(FORMAS_PAGO[0], formasFacturables))
                                   setCobFecha(new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }))
                                   setModalCobro(true)
                                   msg('Ingresá el cobro para procesar los puntos.')
@@ -728,6 +756,9 @@ export default function Dashboard() {
                                 setCobConcepto(`Pago ${c.tratamiento} — ${c.nombre}`)
                                 setCobMonto(c.valor || '')
                                 setCobCitaId(c.id)
+                                setCobPacienteId(c.paciente_id ?? null)
+                                setCobForma(FORMAS_PAGO[0])
+                                setCobFactura(sugerirRequiereFactura(FORMAS_PAGO[0], formasFacturables))
                                 setCobFecha(new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }))
                                 setModalCobro(true)
                               }}
@@ -884,6 +915,34 @@ export default function Dashboard() {
                 <label style={labelCss}>Fecha</label>
                 <input type="date" style={inputCss} value={cobFecha} onChange={e => setCobFecha(e.target.value)} />
               </div>
+            </div>
+
+            {/* Sin forma de pago este cobro esquivaba el criterio de
+                facturación y se facturaba entero. */}
+            <div style={groupCss}>
+              <label style={labelCss}>Forma de pago</label>
+              <select style={selectCss} value={cobForma}
+                onChange={e => { setCobForma(e.target.value); setCobFactura(sugerirRequiereFactura(e.target.value, formasFacturables)) }}>
+                {FORMAS_PAGO.map(f => <option key={f} value={f}>{f}</option>)}
+              </select>
+            </div>
+
+            <label style={{display:'flex', alignItems:'center', gap:10, cursor:'pointer',
+              padding:'10px 12px', borderRadius:9, marginBottom:'0.85rem',
+              background: cobFactura ? 'rgba(29,158,117,0.08)' : 'var(--bg-input, #f8fafc)',
+              border:`1px solid ${cobFactura ? 'rgba(29,158,117,0.3)' : 'var(--border-color, #e2e8ed)'}`}}>
+              <input type="checkbox" checked={cobFactura} onChange={e => setCobFactura(e.target.checked)}
+                style={{width:18, height:18, accentColor:'#1D9E75', cursor:'pointer'}}/>
+              <span style={{fontSize:13.5, color:'var(--text-dark, #0a1e3d)', fontWeight:500}}>
+                Facturar este cobro
+                <span style={{display:'block', fontSize:11.5, color:'var(--text-muted-darker, #4a6080)', fontWeight:400, marginTop:2}}>
+                  {sugerirRequiereFactura(cobForma, formasFacturables)
+                    ? `${cobForma} se factura según tu configuración`
+                    : `${cobForma} no se factura, salvo que el paciente lo pida`}
+                </span>
+              </span>
+            </label>
+            <div style={{display:'none'}}>
             </div>
             
             <div style={footerCss}>

@@ -6,7 +6,7 @@ import {
   FORMAS_PAGO_FACTURABLES_DEFAULT,
   sumarMontos, subtotalItem, calcularTotales, desagregarIva,
   condicionVentaDominante, agruparPagos, esFormaPagoValida,
-  desglosarFacturable, pagosFacturables,
+  desglosarFacturable, pagosFacturables, sugerirRequiereFactura,
 } from './pagos'
 
 describe('Aritmética de dinero', () => {
@@ -223,5 +223,73 @@ describe('Qué medios de pago se facturan', () => {
   it('sin criterio configurado, pagosFacturables devuelve todos', () => {
     const pagos = [{ forma_pago: 'Efectivo', monto: 100 }]
     expect(pagosFacturables(pagos, [])).toEqual(pagos)
+  })
+})
+
+describe('La marca al cobrar manda sobre el medio de pago', () => {
+  const OK = FORMAS_PAGO_FACTURABLES_DEFAULT
+
+  it('sugiere facturar según el medio, como valor inicial del check', () => {
+    expect(sugerirRequiereFactura('Transferencia', OK)).toBe(true)
+    expect(sugerirRequiereFactura('Tarjeta de Crédito', OK)).toBe(true)
+    expect(sugerirRequiereFactura('Efectivo', OK)).toBe(false)
+    expect(sugerirRequiereFactura('Mercado Pago', OK)).toBe(false)
+  })
+
+  it('sin criterio configurado sugiere facturar todo', () => {
+    expect(sugerirRequiereFactura('Efectivo', [])).toBe(true)
+  })
+
+  it('el paciente que pagó en efectivo y pide factura, se factura', () => {
+    // El caso que motivó la funcionalidad: reintegro de obra social.
+    const d = desglosarFacturable([
+      { forma_pago: 'Efectivo', monto: 30000, requiere_factura: true },
+    ], OK)
+    expect(d.facturable).toBe(30000)
+    expect(d.nadaFacturable).toBe(false)
+  })
+
+  it('una transferencia marcada como no facturable no se factura', () => {
+    const d = desglosarFacturable([
+      { forma_pago: 'Transferencia', monto: 50000, requiere_factura: false },
+    ], OK)
+    expect(d.facturable).toBe(0)
+    expect(d.nadaFacturable).toBe(true)
+    expect(d.formasNoFacturables).toEqual(['Transferencia'])
+  })
+
+  it('mezcla marcas explícitas de distinto signo', () => {
+    const d = desglosarFacturable([
+      { forma_pago: 'Efectivo', monto: 20000, requiere_factura: true },
+      { forma_pago: 'Transferencia', monto: 30000, requiere_factura: false },
+    ], OK)
+    expect(d.facturable).toBe(20000)   // el efectivo que el paciente pidió
+    expect(d.noFacturable).toBe(30000) // la transferencia excluida a mano
+    expect(d.esParcial).toBe(true)
+  })
+
+  it('los pagos viejos sin marca caen al criterio por medio de pago', () => {
+    // Retrocompatibilidad: los cargados antes de que existiera la columna.
+    const d = desglosarFacturable([
+      { forma_pago: 'Transferencia', monto: 10000 },
+      { forma_pago: 'Efectivo', monto: 5000, requiere_factura: null },
+    ], OK)
+    expect(d.facturable).toBe(10000)
+    expect(d.noFacturable).toBe(5000)
+  })
+
+  it('la condición de venta sale de los pagos efectivamente facturados', () => {
+    const pagos = [
+      { forma_pago: 'Efectivo', monto: 90000, requiere_factura: true },
+      { forma_pago: 'Transferencia', monto: 10000, requiere_factura: false },
+    ]
+    // Se factura el efectivo, así que el comprobante declara Contado
+    expect(condicionVentaDominante(pagosFacturables(pagos, OK))).toBe('Contado')
+  })
+
+  it('cambiar el criterio de la clínica no altera cobros ya marcados', () => {
+    const pagos = [{ forma_pago: 'Efectivo', monto: 25000, requiere_factura: true }]
+    // Aunque la clínica pase a facturar solo cheques, este cobro ya estaba decidido
+    expect(desglosarFacturable(pagos, ['Cheque']).facturable).toBe(25000)
   })
 })

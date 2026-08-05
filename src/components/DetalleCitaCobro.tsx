@@ -1,7 +1,8 @@
 'use client'
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { FORMAS_PAGO, sumarMontos, subtotalItem } from '@/lib/pagos'
+import { FORMAS_PAGO, FORMAS_PAGO_FACTURABLES_DEFAULT, sumarMontos, subtotalItem, sugerirRequiereFactura } from '@/lib/pagos'
+import { registrarPago, formasFacturablesDe } from '@/lib/registrar-pago'
 
 /**
  * Editor de renglones de tratamiento y formas de pago de una cita.
@@ -27,6 +28,7 @@ interface PagoDB {
   forma_pago: string
   monto: number
   fecha: string
+  requiere_factura: boolean | null
 }
 
 interface Props {
@@ -95,6 +97,8 @@ export function DetalleCitaCobro({ tenantId, citaId, pacienteId, sena = 0, valor
   const [nDto, setNDto] = useState<number | ''>('')
   const [pForma, setPForma] = useState<string>(FORMAS_PAGO[0])
   const [pMonto, setPMonto] = useState<number | ''>('')
+  const [pFactura, setPFactura] = useState(false)
+  const [formasFacturables, setFormasFacturables] = useState<string[]>(FORMAS_PAGO_FACTURABLES_DEFAULT)
 
   const cargar = useCallback(async () => {
     setCargando(true)
@@ -110,6 +114,15 @@ export function DetalleCitaCobro({ tenantId, citaId, pacienteId, sena = 0, valor
   }, [supabase, citaId, tenantId])
 
   useEffect(() => { cargar() }, [cargar])
+
+  // Criterio de la clínica, para pre-marcar el check de facturar.
+  useEffect(() => {
+    formasFacturablesDe(supabase, tenantId).then(f => {
+      setFormasFacturables(f)
+      setPFactura(sugerirRequiereFactura(pForma, f))
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [supabase, tenantId])
 
   const totalTratamientos = sumarMontos(items.map(i => Number(i.subtotal)))
   const totalPagado = sumarMontos([...pagos.map(p => Number(p.monto)), Number(sena) || 0])
@@ -145,11 +158,14 @@ export function DetalleCitaCobro({ tenantId, citaId, pacienteId, sena = 0, valor
   async function agregarPago() {
     if (pMonto === '' || Number(pMonto) <= 0) return setError('Poné un monto mayor a cero')
     setError(null)
-    const { error: e } = await supabase.from('pagos').insert({
-      tenant_id: tenantId, paciente_id: pacienteId, cita_id: citaId,
-      forma_pago: pForma, monto: Number(pMonto),
+    const { error: e } = await registrarPago(supabase, {
+      tenantId, pacienteId, citaId,
+      formaPago: pForma,
+      monto: Number(pMonto),
+      requiereFactura: pFactura,
+      origen: 'detalle',
     })
-    if (e) return setError(e.message)
+    if (e) return setError(e)
     setPMonto('')
     await cargar(); onCambio?.()
   }
@@ -334,7 +350,13 @@ export function DetalleCitaCobro({ tenantId, citaId, pacienteId, sena = 0, valor
             {pagos.map(p => (
               <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0',
                 borderTop: '1px solid #eef2f6', fontSize: 12.5 }}>
-                <span style={{ flex: 1, color: '#0a1e3d' }}>{p.forma_pago}</span>
+                <span style={{ flex: 1, color: '#0a1e3d' }}>
+                  {p.forma_pago}
+                  {p.requiere_factura && (
+                    <span style={{ marginLeft: 6, fontSize: 10, fontWeight: 700, padding: '2px 6px',
+                      borderRadius: 5, background: '#d1fae5', color: '#065f46' }}>SE FACTURA</span>
+                  )}
+                </span>
                 <span style={{ fontWeight: 600, color: '#0a1e3d' }}>{fmt(Number(p.monto))}</span>
                 <button style={btnDelSt} onClick={() => borrarPago(p.id)} title="Quitar" aria-label="Quitar pago">×</button>
               </div>
@@ -345,7 +367,8 @@ export function DetalleCitaCobro({ tenantId, citaId, pacienteId, sena = 0, valor
         <div style={{ display: 'grid', gridTemplateColumns: angosto ? '1fr' : '1fr 110px', gap: 8, alignItems: 'end' }}>
           <div>
             <label style={labelSt}>Forma de pago</label>
-            <select style={inputSt} value={pForma} onChange={e => setPForma(e.target.value)}>
+            <select style={inputSt} value={pForma}
+              onChange={e => { setPForma(e.target.value); setPFactura(sugerirRequiereFactura(e.target.value, formasFacturables)) }}>
               {FORMAS_PAGO.map(f => <option key={f} value={f}>{f}</option>)}
             </select>
           </div>
@@ -355,6 +378,24 @@ export function DetalleCitaCobro({ tenantId, citaId, pacienteId, sena = 0, valor
               onChange={e => setPMonto(e.target.value === '' ? '' : Number(e.target.value))} placeholder="0" />
           </div>
         </div>
+        {/* La decisión de facturar se toma acá y queda guardada con el cobro.
+            El medio de pago solo pre-marca el check. */}
+        <label style={{ display: 'flex', alignItems: 'center', gap: 9, cursor: 'pointer', marginTop: 10,
+          padding: '9px 11px', borderRadius: 8,
+          background: pFactura ? 'rgba(29,158,117,0.08)' : '#fff',
+          border: `1px solid ${pFactura ? 'rgba(29,158,117,0.3)' : '#e2e8f0'}` }}>
+          <input type="checkbox" checked={pFactura} onChange={e => setPFactura(e.target.checked)}
+            style={{ width: 17, height: 17, accentColor: '#1D9E75', cursor: 'pointer' }} />
+          <span style={{ fontSize: 12.5, color: '#0a1e3d', fontWeight: 500 }}>
+            Facturar este cobro
+            <span style={{ display: 'block', fontSize: 11, color: '#64748b', fontWeight: 400, marginTop: 1 }}>
+              {sugerirRequiereFactura(pForma, formasFacturables)
+                ? `${pForma} se factura según tu configuración`
+                : `${pForma} no se factura, salvo que el paciente lo pida`}
+            </span>
+          </span>
+        </label>
+
         <div style={{ display: 'flex', flexDirection: angosto ? 'column' : 'row', gap: 8,
           justifyContent: 'space-between', alignItems: angosto ? 'stretch' : 'center', marginTop: 8 }}>
           {saldo > 0 ? (

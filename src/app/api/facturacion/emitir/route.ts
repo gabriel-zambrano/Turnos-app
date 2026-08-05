@@ -166,12 +166,17 @@ export async function POST(req: Request) {
       // condición de venta, que se deriva del medio con el que más se pagó).
       const { data: pagos } = await supabase
         .from('pagos')
-        .select('forma_pago, monto')
+        .select('forma_pago, monto, requiere_factura')
         .eq('cita_id', citaId)
         .eq('tenant_id', tenantId)
 
       if (pagos && pagos.length > 0) {
-        const todos = pagos.map(p => ({ forma_pago: p.forma_pago, monto: Number(p.monto) }))
+        const todos = pagos.map(p => ({
+          forma_pago: p.forma_pago,
+          monto: Number(p.monto),
+          // Manda la decisión que se tomó al cobrar, no el medio de pago.
+          requiere_factura: p.requiere_factura,
+        }))
 
         // Criterio de la clínica sobre qué medios de pago factura.
         const formasOk: string[] = arcaConfig.formas_pago_facturables ?? FORMAS_PAGO_FACTURABLES_DEFAULT
@@ -206,13 +211,29 @@ export async function POST(req: Request) {
     } else {
       const { data: ingreso } = await supabase
         .from('ingresos_manuales')
-        .select('monto, concepto')
+        .select('monto, concepto, forma_pago, requiere_factura')
         .eq('id', ingresoManualId)
         .eq('tenant_id', tenantId)
         .single()
 
       if (!ingreso) {
         return NextResponse.json({ error: 'Ingreso manual no encontrado' }, { status: 404 })
+      }
+
+      // Los ingresos sueltos también respetan la marca: antes se facturaban
+      // siempre, sin importar cómo había entrado la plata.
+      if (ingreso.requiere_factura === false && !forzarNoFacturable) {
+        return NextResponse.json({
+          error: `Este ingreso se cobró en ${ingreso.forma_pago || 'un medio que no facturás'} y quedó marcado como no facturable. Confirmá si querés emitirla igual.`,
+          requiereConfirmacion: true,
+          desglose: { total: Number(ingreso.monto), facturable: 0, noFacturable: Number(ingreso.monto),
+            formasNoFacturables: ingreso.forma_pago ? [ingreso.forma_pago] : [], esParcial: false, nadaFacturable: true },
+        }, { status: 409 })
+      }
+
+      if (ingreso.forma_pago) {
+        pagosFactura = [{ forma_pago: ingreso.forma_pago, monto: Number(ingreso.monto) }]
+        condVenta = condicionVentaDominante(pagosFactura)
       }
 
       monto = Number(ingreso.monto)

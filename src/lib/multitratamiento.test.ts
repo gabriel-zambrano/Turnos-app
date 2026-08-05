@@ -71,7 +71,7 @@ async function crearBaseMigrada(): Promise<PGlite> {
     CREATE TABLE tenant_users      (tenant_id uuid, user_id uuid);
     CREATE TABLE pacientes         (id uuid PRIMARY KEY, tenant_id uuid);
     CREATE TABLE tratamientos      (id uuid PRIMARY KEY, tenant_id uuid, nombre text);
-    CREATE TABLE ingresos_manuales (id uuid PRIMARY KEY, tenant_id uuid);
+    CREATE TABLE ingresos_manuales (id uuid PRIMARY KEY, tenant_id uuid, monto numeric(10,2), concepto text);
     CREATE TABLE arca_config       (tenant_id uuid PRIMARY KEY, cuit text, activo boolean DEFAULT true);
     CREATE TABLE citas (
       id uuid PRIMARY KEY, tenant_id uuid, paciente_id uuid, tipo_tratamiento text,
@@ -101,6 +101,7 @@ async function crearBaseMigrada(): Promise<PGlite> {
 
   await db.exec(leerMigracion())
   await db.exec(leerMigracion('20260805120000_sembrar_renglon_en_cita_nueva.sql'))
+  await db.exec(leerMigracion('20260805130000_intencion_de_facturar.sql'))
   return db
 }
 
@@ -195,6 +196,48 @@ describe('Cita nueva con valor: se le siembra el renglón sola', () => {
       `SELECT descripcion FROM tratamiento_items WHERE cita_id = '${id}'`
     )
     expect(items.rows[0].descripcion).toBe('Consulta')
+  })
+})
+
+describe('Migración: intención de facturar', () => {
+  it('el backfill marca los pagos según el criterio vigente de la clínica', async () => {
+    const propia = await crearBaseMigrada()
+    // Se insertan pagos ANTES de que exista la columna, como en producción
+    await propia.exec(`ALTER TABLE pagos DROP COLUMN requiere_factura;`)
+    await propia.exec(`INSERT INTO pagos (tenant_id, paciente_id, cita_id, forma_pago, monto) VALUES
+      ('${TENANT}', '${PACIENTE}', '${CITA}', 'Transferencia', 30000),
+      ('${TENANT}', '${PACIENTE}', '${CITA}', 'Efectivo', 20000);`)
+    await propia.exec(leerMigracion('20260805130000_intencion_de_facturar.sql'))
+
+    const r = await propia.query<{ forma_pago: string; requiere_factura: boolean }>(
+      `SELECT forma_pago, requiere_factura FROM pagos ORDER BY forma_pago`
+    )
+    // Efectivo no se factura, Transferencia sí — igual que antes de la columna
+    expect(r.rows.find(x => x.forma_pago === 'Efectivo')!.requiere_factura).toBe(false)
+    expect(r.rows.find(x => x.forma_pago === 'Transferencia')!.requiere_factura).toBe(true)
+    await propia.close()
+  })
+
+  it('los ingresos manuales existentes siguen siendo facturables', async () => {
+    // El default es true a propósito: preserva el comportamiento anterior,
+    // donde un ingreso suelto se facturaba siempre.
+    const r = await db.query<{ requiere_factura: boolean }>(
+      `INSERT INTO ingresos_manuales (id, tenant_id, monto, concepto)
+       VALUES (gen_random_uuid(), '${TENANT}', 5000, 'Venta de cepillos')
+       RETURNING requiere_factura`
+    )
+    expect(r.rows[0].requiere_factura).toBe(true)
+  })
+
+  it('rechaza una forma de pago inválida en ingresos manuales', async () => {
+    await expect(db.exec(`INSERT INTO ingresos_manuales (id, tenant_id, monto, concepto, forma_pago)
+      VALUES (gen_random_uuid(), '${TENANT}', 1000, 'x', 'Bitcoin');`)).rejects.toThrow()
+  })
+
+  it('acepta que el ingreso no tenga forma de pago cargada', async () => {
+    // Los que ya existían no la tienen y no hay que romperlos
+    await expect(db.exec(`INSERT INTO ingresos_manuales (id, tenant_id, monto, concepto)
+      VALUES (gen_random_uuid(), '${TENANT}', 1000, 'sin medio');`)).resolves.toBeTruthy()
   })
 })
 

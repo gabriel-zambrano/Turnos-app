@@ -5,6 +5,8 @@ import { Sidebar } from '@/components/Sidebar'
 import { Badge, Toast, PageHeader, BtnPrimary, BtnSm, SkeletonBox, SkeletonLista, inputCss, selectCss, textareaCss, overlayCss, modalCss, modalTitleCss, footerCss, groupCss, labelCss, grid2Css, btnDarkCss, btnLightCss, btnRedCss } from '@/components/UI'
 import { initials } from '@/lib/constants'
 import { createClient } from '@/lib/supabase/client'
+import { FORMAS_PAGO, FORMAS_PAGO_FACTURABLES_DEFAULT, sugerirRequiereFactura } from '@/lib/pagos'
+import { registrarPago, formasFacturablesDe } from '@/lib/registrar-pago'
 import { urlPublicaDeClinica } from '@/lib/config'
 import { storagePathFromUrl, esImagenSoportada, BUCKET_FOTOS } from '@/lib/storage'
 import { useTenantContext } from '@/components/TenantContext'
@@ -206,6 +208,18 @@ export default function PacienteDetalle() {
   const [citaAprobarId, setCitaAprobarId] = useState('')
   const [montoCobrado, setMontoCobrado] = useState<number | ''>('')
   const [isMontoEditable, setIsMontoEditable] = useState(false)
+  const [aprobForma, setAprobForma] = useState<string>(FORMAS_PAGO[0])
+  const [aprobFactura, setAprobFactura] = useState(false)
+  const [formasFacturables, setFormasFacturables] = useState<string[]>(FORMAS_PAGO_FACTURABLES_DEFAULT)
+
+  // Criterio de medios facturables de la clínica, para pre-marcar el check.
+  useEffect(() => {
+    if (!tenant) return
+    formasFacturablesDe(supabase, tenant.id).then(f => {
+      setFormasFacturables(f)
+      setAprobFactura(sugerirRequiereFactura(FORMAS_PAGO[0], f))
+    })
+  }, [tenant, supabase])
   const [procesandoPuntos, setProcesandoPuntos] = useState(false)
   const [procesandoCanje, setProcesandoCanje] = useState<string | null>(null)
 
@@ -391,11 +405,19 @@ export default function PacienteDetalle() {
     setProcesandoPuntos(true)
     try {
       if (isMontoEditable) {
-        const { error: updErr } = await supabase
-          .from('citas')
-          .update({ precio_cobrado: Number(montoCobrado) })
-          .eq('id', citaAprobarId)
-        if (updErr) throw updErr
+        // El cobro entra por `pagos`, no escribiendo `precio_cobrado` a mano:
+        // así queda la forma de pago y la intención de facturar, y el trigger
+        // mantiene la columna derivada.
+        const { error: pagoErr } = await registrarPago(supabase, {
+          tenantId: tenant!.id,
+          pacienteId: id as string,
+          citaId: citaAprobarId,
+          formaPago: aprobForma,
+          monto: Number(montoCobrado),
+          requiereFactura: aprobFactura,
+          origen: 'ficha_paciente',
+        })
+        if (pagoErr) throw new Error(pagoErr)
       }
       
       const res = await aprobarAsistenciaAction(citaAprobarId)
@@ -1230,6 +1252,35 @@ export default function PacienteDetalle() {
                             </span>
                           )}
                         </div>
+
+                        {/* Sin forma de pago, este cobro esquivaba el criterio
+                            de facturación y se facturaba entero. */}
+                        {isMontoEditable && (
+                          <>
+                            <div style={groupCss}>
+                              <label style={labelCss}>Forma de pago</label>
+                              <select style={inputCss} value={aprobForma}
+                                onChange={e => { setAprobForma(e.target.value); setAprobFactura(sugerirRequiereFactura(e.target.value, formasFacturables)) }}>
+                                {FORMAS_PAGO.map(f => <option key={f} value={f}>{f}</option>)}
+                              </select>
+                            </div>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: 9, cursor: 'pointer',
+                              padding: '10px 12px', borderRadius: 9, marginBottom: 12,
+                              background: aprobFactura ? 'rgba(29,158,117,0.08)' : 'var(--bg-input, #f8fafc)',
+                              border: `1px solid ${aprobFactura ? 'rgba(29,158,117,0.3)' : 'var(--border-color, #e2e8ed)'}` }}>
+                              <input type="checkbox" checked={aprobFactura} onChange={e => setAprobFactura(e.target.checked)}
+                                style={{ width: 17, height: 17, accentColor: '#1D9E75', cursor: 'pointer' }} />
+                              <span style={{ fontSize: 13, color: 'var(--text-dark)', fontWeight: 500 }}>
+                                Facturar este cobro
+                                <span style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)', fontWeight: 400, marginTop: 1 }}>
+                                  {sugerirRequiereFactura(aprobForma, formasFacturables)
+                                    ? `${aprobForma} se factura según tu configuración`
+                                    : `${aprobForma} no se factura, salvo que el paciente lo pida`}
+                                </span>
+                              </span>
+                            </label>
+                          </>
+                        )}
 
                         <button
                           style={{ ...btnDarkCss, width: '100%', marginTop: 8 }}
