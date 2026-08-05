@@ -630,8 +630,11 @@ export default function Dashboard() {
             {/* Solo métricas del día. Las semanales viven en Analítica: acá
                 estorbaban lo operativo, que es lo que se mira entre paciente
                 y paciente. */}
+            {/* auto-fit: en el celular entran dos por fila y la tercera baja.
+                Con tres columnas fijas cada tarjeta quedaba en ~110px y el
+                importe de "Cobrado hoy" se cortaba a la mitad. */}
             {loading ? <SkeletonKPIs cantidad={3}/> : (
-              <div style={{display:'grid',gridTemplateColumns:isMobile?'repeat(3,1fr)':'repeat(3,1fr)',gap:12}}>
+              <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit, minmax(150px, 1fr))',gap:12}}>
                 <MetricCard label="Citas del día" value={citas.length} sub={`Confirmadas: ${conf}`} accent={primaryColor}/>
                 <MetricCard label="Cobrado hoy" value={`$${cobradoHoy.toLocaleString('es-AR')}`} sub={`${citasCobradas} de ${citas.length} turnos`} accent={accentColor}/>
                 <MetricCard label="Pendientes de cobro" value={citas.length - citasCobradas} sub="Turnos de hoy sin cobrar" accent={citas.length - citasCobradas > 0 ? '#EF9F27' : accentColor}/>

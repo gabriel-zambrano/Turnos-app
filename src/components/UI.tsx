@@ -183,7 +183,14 @@ export function MetricCard({ label, value, sub, accent }: { label: string; value
       <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 4, background: `linear-gradient(90deg, ${accent}, ${accent}88)` }}/>
       <div>
         <div style={{ fontSize: 10.5, color: '#7a8f9d', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 700, marginBottom: 8 }}>{label}</div>
-        <div style={{ fontSize: 28, fontWeight: 800, color: DARK, lineHeight: 1.1, letterSpacing: '-0.5px' }}>{value}</div>
+        {/* El tamaño se adapta al ancho de la tarjeta: un importe como
+            "$400.000" no entra a 28px en una columna angosta y se cortaba.
+            clamp() lo resuelve en CSS, sin medir nada en JS. */}
+        <div style={{
+          fontSize: 'clamp(19px, 5.2vw, 28px)',
+          fontWeight: 800, color: DARK, lineHeight: 1.1, letterSpacing: '-0.5px',
+          overflowWrap: 'anywhere',
+        }}>{value}</div>
       </div>
       {sub && <div style={{ fontSize: 11.5, color: '#8b9cb0', marginTop: 8, fontWeight: 500 }}>{sub}</div>}
     </div>
