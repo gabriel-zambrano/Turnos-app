@@ -77,6 +77,17 @@ export function DetalleCitaCobro({ tenantId, citaId, pacienteId, sena = 0, valor
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  // En pantalla angosta la tabla de 6 columnas y la grilla de anchos fijos
+  // no entran: se apilan. El corte es el ancho útil dentro del modal, no el
+  // del dispositivo, por eso 640 y no 768.
+  const [angosto, setAngosto] = useState(false)
+  useEffect(() => {
+    const check = () => setAngosto(window.innerWidth < 640)
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [])
+
   // Formularios de alta
   const [nDesc, setNDesc] = useState('')
   const [nCant, setNCant] = useState(1)
@@ -177,6 +188,11 @@ export function DetalleCitaCobro({ tenantId, citaId, pacienteId, sena = 0, valor
     return <div style={{ fontSize: 13, color: '#94a3b8', padding: '10px 0' }}>Cargando detalle…</div>
   }
 
+  // En mobile los botones necesitan 44px de alto para ser tocables cómodos.
+  const btnAdd: React.CSSProperties = angosto
+    ? { ...btnAddSt, minHeight: 44, padding: '10px 16px', fontSize: 13, width: '100%' }
+    : btnAddSt
+
   return (
     <div>
       {error && (
@@ -198,6 +214,28 @@ export function DetalleCitaCobro({ tenantId, citaId, pacienteId, sena = 0, valor
                 Usar el valor ya cargado ({fmt(Number(valorCita))}) como primer renglón
               </button>
             )}
+          </div>
+        ) : angosto ? (
+          /* Pantalla angosta: cada renglón es una fila de dos niveles.
+             Una tabla de 6 columnas no entra en un teléfono. */
+          <div style={{ marginBottom: 10 }}>
+            {items.map(i => (
+              <div key={i.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 8,
+                padding: '8px 0', borderTop: '1px solid #eef2f6' }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, color: '#0a1e3d', fontWeight: 500 }}>{i.descripcion}</div>
+                  <div style={{ fontSize: 11.5, color: '#94a3b8', marginTop: 2 }}>
+                    {i.cantidad} × {fmt(Number(i.precio_unitario))}
+                    {Number(i.descuento_pct) > 0 && ` · ${Number(i.descuento_pct)}% dto.`}
+                  </div>
+                </div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: '#0a1e3d', whiteSpace: 'nowrap' }}>
+                  {fmt(Number(i.subtotal))}
+                </div>
+                <button style={{ ...btnDelSt, fontSize: 20, minWidth: 32, minHeight: 32 }}
+                  onClick={() => borrarItem(i.id)} aria-label="Quitar tratamiento">×</button>
+              </div>
+            ))}
           </div>
         ) : (
           <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 10, fontSize: 12.5 }}>
@@ -230,8 +268,12 @@ export function DetalleCitaCobro({ tenantId, citaId, pacienteId, sena = 0, valor
           </table>
         )}
 
-        {/* Alta de renglón */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 52px 100px 62px', gap: 6, alignItems: 'end' }}>
+        {/* Alta de renglón. En angosto la descripción ocupa una fila entera y
+            cantidad/precio/descuento bajan a una segunda: con anchos fijos
+            al campo de texto le quedaban ~70px en un teléfono. */}
+        <div style={angosto
+          ? { display: 'grid', gridTemplateColumns: '1fr', gap: 8 }
+          : { display: 'grid', gridTemplateColumns: '1fr 52px 100px 62px', gap: 6, alignItems: 'end' }}>
           <div>
             <label style={labelSt}>Tratamiento</label>
             {catalogo.length > 0 && (
@@ -246,26 +288,34 @@ export function DetalleCitaCobro({ tenantId, citaId, pacienteId, sena = 0, valor
             )}
             <input style={inputSt} value={nDesc} onChange={e => setNDesc(e.target.value)} placeholder="Ej: Caries pieza 26" />
           </div>
-          <div>
-            <label style={labelSt}>Cant.</label>
-            <input type="number" min={1} style={inputSt} value={nCant} onChange={e => setNCant(Number(e.target.value) || 1)} />
-          </div>
-          <div>
-            <label style={labelSt}>Precio</label>
-            <input type="number" min={0} style={inputSt} value={nPrecio}
-              onChange={e => setNPrecio(e.target.value === '' ? '' : Number(e.target.value))} placeholder="0" />
-          </div>
-          <div>
-            <label style={labelSt}>Dto. %</label>
-            <input type="number" min={0} max={100} style={inputSt} value={nDto}
-              onChange={e => setNDto(e.target.value === '' ? '' : Number(e.target.value))} placeholder="0" />
+          {/* En angosto los tres numéricos comparten una fila propia */}
+          <div style={angosto
+            ? { display: 'grid', gridTemplateColumns: '64px 1fr 72px', gap: 8, alignItems: 'end' }
+            : { display: 'contents' }}>
+            <div>
+              <label style={labelSt}>Cant.</label>
+              <input type="number" min={1} inputMode="numeric" style={inputSt} value={nCant}
+                onChange={e => setNCant(Number(e.target.value) || 1)} />
+            </div>
+            <div>
+              <label style={labelSt}>Precio</label>
+              {/* inputMode decimal abre el teclado numérico del teléfono */}
+              <input type="number" min={0} inputMode="decimal" style={inputSt} value={nPrecio}
+                onChange={e => setNPrecio(e.target.value === '' ? '' : Number(e.target.value))} placeholder="0" />
+            </div>
+            <div>
+              <label style={labelSt}>Dto. %</label>
+              <input type="number" min={0} max={100} inputMode="numeric" style={inputSt} value={nDto}
+                onChange={e => setNDto(e.target.value === '' ? '' : Number(e.target.value))} placeholder="0" />
+            </div>
           </div>
         </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
+        <div style={{ display: 'flex', flexDirection: angosto ? 'column' : 'row', gap: 8,
+          justifyContent: 'space-between', alignItems: angosto ? 'stretch' : 'center', marginTop: 8 }}>
           <span style={{ fontSize: 12, color: '#64748b' }}>
             {previewSubtotal > 0 && <>Subtotal: <strong style={{ color: '#0a1e3d' }}>{fmt(previewSubtotal)}</strong></>}
           </span>
-          <button style={btnAddSt} onClick={agregarItem}>+ Agregar tratamiento</button>
+          <button style={btnAdd} onClick={agregarItem}>+ Agregar tratamiento</button>
         </div>
       </div>
 
@@ -292,7 +342,7 @@ export function DetalleCitaCobro({ tenantId, citaId, pacienteId, sena = 0, valor
           </div>
         )}
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 110px', gap: 6, alignItems: 'end' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: angosto ? '1fr' : '1fr 110px', gap: 8, alignItems: 'end' }}>
           <div>
             <label style={labelSt}>Forma de pago</label>
             <select style={inputSt} value={pForma} onChange={e => setPForma(e.target.value)}>
@@ -301,20 +351,22 @@ export function DetalleCitaCobro({ tenantId, citaId, pacienteId, sena = 0, valor
           </div>
           <div>
             <label style={labelSt}>Monto</label>
-            <input type="number" min={0} style={inputSt} value={pMonto}
+            <input type="number" min={0} inputMode="decimal" style={inputSt} value={pMonto}
               onChange={e => setPMonto(e.target.value === '' ? '' : Number(e.target.value))} placeholder="0" />
           </div>
         </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8, gap: 8 }}>
+        <div style={{ display: 'flex', flexDirection: angosto ? 'column' : 'row', gap: 8,
+          justifyContent: 'space-between', alignItems: angosto ? 'stretch' : 'center', marginTop: 8 }}>
           {saldo > 0 ? (
+            // Atajo: completa el monto con lo que falta cobrar, para no tipearlo
             <button
-              style={{ ...btnAddSt, borderStyle: 'solid', borderColor: '#e2e8f0', color: '#64748b' }}
+              style={{ ...btnAdd, borderStyle: 'solid', borderColor: '#e2e8f0', color: '#64748b' }}
               onClick={() => setPMonto(saldo)}
             >
               Saldo restante: {fmt(saldo)}
             </button>
           ) : <span />}
-          <button style={btnAddSt} onClick={agregarPago}>+ Registrar pago</button>
+          <button style={btnAdd} onClick={agregarPago}>+ Registrar pago</button>
         </div>
       </div>
 

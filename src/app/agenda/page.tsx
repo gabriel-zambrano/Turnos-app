@@ -449,6 +449,8 @@ export default function Agenda() {
   const [fSena,     setFSena]     = useState<number|''>('')
   const [fDescuento,setFDescuento]= useState<number|''>('')
   const [fMedioPago, setFMedioPago] = useState('')
+  const [mostrarDetalle, setMostrarDetalle] = useState(false)
+  const snapshotRef = useRef<string>('')
 
   function msg(m:string,tipo='ok'){setToast({msg:m,tipo});setTimeout(()=>setToast(null),3500)}
 
@@ -492,7 +494,39 @@ export default function Agenda() {
   function openNueva(f?:string, h?:string){
     setFPac('');setFHora(h||'09:00');setFFecha(f||fecha);setFTrat('Consulta');setFEst('pendiente');setFDur(30);setFNotas('');setFValor('');setFSena('');setFDescuento('');setFMedioPago('');setSel(null);setSobreturnoAgenda(null);setModal('nueva')
   }
-  function openEditar(c:Cita){setSel(c);setFHora(c.hora);setFFecha(c.fecha);setFTrat(c.tratamiento);setFEst(c.estado);setFDur(c.duracion);setFNotas(c.notas);setFValor(c.valor??'');setFSena(c.sena??'');setFDescuento('');setFMedioPago(c.medio_pago??'');setModal('editar')}
+  function openEditar(c:Cita){
+    setSel(c);setFHora(c.hora);setFFecha(c.fecha);setFTrat(c.tratamiento);setFEst(c.estado);setFDur(c.duracion);setFNotas(c.notas);setFValor(c.valor??'');setFSena(c.sena??'');setFDescuento('');setFMedioPago(c.medio_pago??'')
+    // En el celular el detalle arranca plegado: si no, hay que scrollear medio
+    // metro para llegar a Guardar cuando solo querías correr el horario.
+    setMostrarDetalle(!isMobile)
+    // Referencia para detectar cambios sin guardar al cerrar.
+    snapshotRef.current = snapshotDe(c.fecha, c.hora, c.tratamiento, c.estado, c.duracion, c.notas, c.sena ?? '')
+    setModal('editar')
+  }
+
+  /** Huella de los campos del formulario, para comparar antes y después. */
+  function snapshotDe(fecha:string, hora:string, trat:string, est:string, dur:number, notas:string, sena:number|string){
+    return JSON.stringify([fecha, hora, trat, est, dur, notas, sena])
+  }
+  function hayCambiosSinGuardar(){
+    return snapshotRef.current !== snapshotDe(fFecha, fHora, fTrat, fEst, fDur, fNotas, fSena)
+  }
+  /** Cierra el modal de edición, avisando si se está por perder algo. */
+  function cerrarEditar(){
+    if(hayCambiosSinGuardar() && !confirm('Tenés cambios sin guardar en el turno. ¿Descartarlos?')) return
+    setModal(null)
+  }
+
+  /**
+   * Corre el horario del turno en minutos. Es la edición más común desde el
+   * celular: el paciente llegó tarde o se atrasó el turno anterior.
+   */
+  function desplazarHora(min:number){
+    const [h,m] = fHora.split(':').map(Number)
+    if(Number.isNaN(h)||Number.isNaN(m)) return
+    const tot = Math.min(23*60+59, Math.max(0, h*60+m+min))
+    setFHora(`${String(Math.floor(tot/60)).padStart(2,'0')}:${String(tot%60).padStart(2,'0')}`)
+  }
 
   function onChangeTrat(nombre: string) {
     setFTrat(nombre)
@@ -1507,9 +1541,18 @@ export default function Agenda() {
 
       {/* Modal editar */}
       {modal==='editar'&&(
-        <div style={overlayCss(isMobile)} onClick={()=>setModal(null)}>
+        <div style={overlayCss(isMobile)} onClick={cerrarEditar}>
           <div style={modalCss(isMobile)} onClick={e=>e.stopPropagation()}>
-            <div style={modalTitleCss}>Editar cita — {sel?.nombre}</div>
+            <div style={{...modalTitleCss, display:'flex', justifyContent:'space-between', alignItems:'center', gap:8,
+              position:'sticky', top:'-1.75rem', zIndex:2, background:'var(--bg-modal, rgba(255,255,255,0.97))',
+              backdropFilter:'blur(8px)', margin:'-1.75rem -1.75rem 1.25rem', padding:'1.25rem 1.75rem 0.9rem'}}>
+              <span style={{overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{sel?.nombre}</span>
+              {/* Salida explícita: en el celular el margen para tocar fuera
+                  del sheet es angosto y se cierra sin querer. */}
+              <button onClick={cerrarEditar} aria-label="Cerrar"
+                style={{border:'none', background:'transparent', fontSize:24, lineHeight:1,
+                  color:'var(--text-muted-darker, #4a6080)', cursor:'pointer', padding:'0 4px', minHeight:36}}>×</button>
+            </div>
 
             {sel?.telefono && (
               <div style={{ fontSize: 13, color: 'var(--text-muted-darker)', marginBottom: 15, display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -1568,36 +1611,87 @@ export default function Agenda() {
               </div>
             )}
 
-            <div style={grid2Css}>
-              <div style={groupCss}><label style={labelCss}>Fecha</label><input type="date" style={{...selectCss}} value={fFecha} onChange={e=>setFFecha(e.target.value)}/></div>
-              <div style={groupCss}><label style={labelCss}>Horario</label><select style={selectCss} value={fHora} onChange={e=>setFHora(e.target.value)}>{horasDisponibles().map(h=><option key={h} value={h}>{h}</option>)}</select></div>
+            {/* Cuándo — primero y destacado. Es lo que más se edita desde el
+                celular, así que no puede estar al final de un scroll largo. */}
+            <div style={{background:'var(--bg-input, #f8fafc)', border:'1px solid var(--border-color, #e2e8ed)', borderRadius:12, padding:'0.85rem', marginBottom:'0.85rem'}}>
+              <div style={grid2Css}>
+                <div><label style={labelCss}>Fecha</label><input type="date" style={{...selectCss}} value={fFecha} onChange={e=>setFFecha(e.target.value)}/></div>
+                <div>
+                  <label style={labelCss}>Horario</label>
+                  {/* En el celular, el reloj nativo es mucho más rápido que
+                      una lista larga de horarios. */}
+                  {isMobile
+                    ? <input type="time" step={300} style={{...selectCss}} value={fHora} onChange={e=>setFHora(e.target.value)}/>
+                    : <select style={selectCss} value={fHora} onChange={e=>setFHora(e.target.value)}>
+                        {/* Se incluye la hora actual aunque no sea un slot
+                            estándar: si no, un sobreturno perdía su horario. */}
+                        {horasDisponibles().concat(horasDisponibles().includes(fHora)?[]:[fHora]).sort().map(h=><option key={h} value={h}>{h}</option>)}
+                      </select>}
+                </div>
+              </div>
+              <div style={{display:'flex', gap:6, marginTop:10}}>
+                {[-30,-15,15,30].map(min=>(
+                  <button key={min} onClick={()=>desplazarHora(min)}
+                    style={{flex:1, minHeight:isMobile?40:32, borderRadius:8, cursor:'pointer',
+                      border:'1px solid var(--border-color, #dde5ef)', background:'var(--bg-card, #fff)',
+                      color:'var(--text-muted-darker, #4a6080)', fontSize:13, fontWeight:600, fontFamily:'DM Sans, sans-serif'}}>
+                    {min>0?`+${min}`:min}
+                  </button>
+                ))}
+              </div>
+              <div style={{...grid2Css, marginTop:12}}>
+                <div><label style={labelCss}>Duración</label><select style={selectCss} value={fDur} onChange={e=>setFDur(Number(e.target.value))}>{DURACIONES.map(d=><option key={d} value={d}>{d} min</option>)}</select></div>
+                <div><label style={labelCss}>Estado</label><select style={selectCss} value={fEst} onChange={e=>setFEst(e.target.value as EstadoCita)}>{ESTADOS.map(est=><option key={est} value={est}>{est.charAt(0).toUpperCase()+est.slice(1)}</option>)}</select></div>
+              </div>
             </div>
-            <div style={grid2Css}>
-              <div style={groupCss}><label style={labelCss}>Tratamiento</label><select style={selectCss} value={fTrat} onChange={e=>setFTrat(e.target.value)}>{TRATAMIENTOS.map(t=><option key={t} value={t}>{t}</option>)}</select></div>
-              <div style={groupCss}><label style={labelCss}>Duración</label><select style={selectCss} value={fDur} onChange={e=>setFDur(Number(e.target.value))}>{DURACIONES.map(d=><option key={d} value={d}>{d} min</option>)}</select></div>
-            </div>
-            <div style={groupCss}><label style={labelCss}>Estado</label><select style={selectCss} value={fEst} onChange={e=>setFEst(e.target.value as EstadoCita)}>{ESTADOS.map(est=><option key={est} value={est}>{est.charAt(0).toUpperCase()+est.slice(1)}</option>)}</select></div>
+
+            <div style={groupCss}><label style={labelCss}>Tratamiento</label><select style={selectCss} value={fTrat} onChange={e=>setFTrat(e.target.value)}>{TRATAMIENTOS.map(t=><option key={t} value={t}>{t}</option>)}</select></div>
             <div style={groupCss}><label style={labelCss}>Notas</label><textarea style={textareaCss} value={fNotas} onChange={e=>setFNotas(e.target.value)}/></div>
-            <div style={groupCss}><label style={labelCss}>Seña ($)</label><input type="number" style={{...selectCss}} value={fSena} onChange={e=>setFSena(e.target.value===''?'':Number(e.target.value))} placeholder="0"/></div>
+            <div style={groupCss}><label style={labelCss}>Seña ($)</label><input type="number" inputMode="decimal" style={{...selectCss}} value={fSena} onChange={e=>setFSena(e.target.value===''?'':Number(e.target.value))} placeholder="0"/></div>
 
             {/* Valor y medio de pago ya no se cargan a mano acá: los calculan
-                los triggers a partir del detalle de tratamientos y pagos. */}
+                los triggers a partir del detalle de tratamientos y pagos.
+                En mobile el bloque arranca plegado — cargar tratamientos con
+                precios es tarea de escritorio, no de chairside. */}
             {sel&&tenant&&(
-              <DetalleCitaCobro
-                tenantId={tenant.id}
-                citaId={sel.id}
-                pacienteId={sel.paciente_id}
-                sena={Number(fSena)||0}
-                valorCita={sel.valor}
-                tratamientoCita={sel.tratamiento}
-                onCambio={loadCitas}
-              />
+              mostrarDetalle ? (
+                <>
+                  {isMobile&&(
+                    <button onClick={()=>setMostrarDetalle(false)}
+                      style={{...btnLightCss, width:'100%', marginBottom:10, justifyContent:'space-between'}}>
+                      <span>Tratamientos y cobro</span><span>▲</span>
+                    </button>
+                  )}
+                  <DetalleCitaCobro
+                    tenantId={tenant.id}
+                    citaId={sel.id}
+                    pacienteId={sel.paciente_id}
+                    sena={Number(fSena)||0}
+                    valorCita={sel.valor}
+                    tratamientoCita={sel.tratamiento}
+                    onCambio={loadCitas}
+                  />
+                </>
+              ) : (
+                <button onClick={()=>setMostrarDetalle(true)}
+                  style={{...btnLightCss, width:'100%', justifyContent:'space-between'}}>
+                  <span>Tratamientos y cobro</span>
+                  <span style={{color:'var(--text-muted, #185FA5)', fontWeight:600}}>
+                    {sel.valor ? `$${Number(sel.valor).toLocaleString('es-AR')} ▼` : 'Cargar ▼'}
+                  </span>
+                </button>
+              )
             )}
 
-            <div style={{...footerCss, justifyContent: 'space-between', flexWrap: 'wrap', gap: 10}}>
+            {/* Footer pegado abajo: en el celular el formulario es largo y
+                Guardar no puede quedar al final de todo el scroll. */}
+            <div style={{...footerCss, justifyContent: 'space-between', flexWrap: 'wrap', gap: 10,
+              position:'sticky', bottom:'-1.75rem', background:'var(--bg-modal, rgba(255,255,255,0.97))',
+              backdropFilter:'blur(8px)', margin:'1.25rem -1.75rem -1.75rem', padding:'0.9rem 1.75rem',
+              borderTop:'1px solid var(--border-color, #e2e8ed)'}}>
               <div style={{display:'flex', gap: 6}}>
-                <button 
-                  style={{...btnLightCss, color: '#D85A30', borderColor: 'rgba(216,90,48,0.3)', padding: '0.55rem 0.85rem'}} 
+                <button
+                  style={{...btnLightCss, color: '#D85A30', borderColor: 'rgba(216,90,48,0.3)', padding: '0.55rem 0.85rem'}}
                   onClick={()=>{setModal(null);setTimeout(()=>{setSel(sel);setModal('borrar')},50)}}
                   disabled={saving}
                 >
@@ -1614,8 +1708,8 @@ export default function Agenda() {
                 )}
               </div>
               <div style={{display:'flex', gap: 6}}>
-                <button style={btnLightCss} onClick={()=>setModal(null)} disabled={saving}>Cancelar</button>
-                <button style={{...btnDarkCss,opacity:saving?.6:1}} onClick={saveEditar} disabled={saving}>{saving?'Guardando...':'Guardar cambios'}</button>
+                <button style={btnLightCss} onClick={cerrarEditar} disabled={saving}>Cancelar</button>
+                <button style={{...btnDarkCss,opacity:saving?.6:1, flex:isMobile?1:undefined}} onClick={saveEditar} disabled={saving}>{saving?'Guardando...':'Guardar'}</button>
               </div>
             </div>
           </div>
