@@ -592,6 +592,7 @@ export default function Dashboard() {
             </div>
 
             <PreparacionManana
+              compacto={isMobile}
               cantidadTurnos={citasMañana.length}
               enviando={enviandoEmail}
               onEnviarRecordatorios={enviarEmailsMañana}
@@ -600,6 +601,7 @@ export default function Dashboard() {
             />
 
             <AccionesRapidas
+              modo={isMobile ? 'flotante' : 'tarjeta'}
               primaryColor={primaryColor}
               secondaryColor={secondaryColor}
               accentColor={accentColor}

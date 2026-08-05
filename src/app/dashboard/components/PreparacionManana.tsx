@@ -13,6 +13,12 @@ interface Props {
   onEnviarRecordatorios: () => void
   primaryColor: string
   secondaryColor: string
+  /**
+   * En el celular la tarjeta alta empujaba las citas del día muy abajo:
+   * un número y un botón no justifican media pantalla. La versión compacta
+   * dice lo mismo en una fila.
+   */
+  compacto?: boolean
 }
 
 export function PreparacionManana({
@@ -21,9 +27,46 @@ export function PreparacionManana({
   onEnviarRecordatorios,
   primaryColor,
   secondaryColor,
+  compacto = false,
 }: Props) {
   // Sin turnos no hay a quién avisarle, así que el botón queda inerte.
   const deshabilitado = enviando || cantidadTurnos === 0
+
+  if (compacto) {
+    return (
+      <div
+        className="glass-container"
+        style={{
+          padding: '0.85rem 1rem', borderRadius: 14,
+          background: `linear-gradient(135deg, ${primaryColor}, ${secondaryColor})`,
+          color: '#fff',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, minWidth: 0 }}>
+          <span style={{ fontSize: 24, fontWeight: 800, lineHeight: 1 }}>{cantidadTurnos}</span>
+          <span style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.9)', lineHeight: 1.3 }}>
+            {cantidadTurnos === 1 ? 'turno mañana' : 'turnos mañana'}
+          </span>
+        </div>
+
+        <button
+          onClick={onEnviarRecordatorios}
+          disabled={deshabilitado}
+          className="btn-premium"
+          style={{
+            padding: '0.6rem 0.9rem', borderRadius: 10, border: 'none', minHeight: 40, flexShrink: 0,
+            background: deshabilitado ? 'rgba(255,255,255,0.2)' : '#fff',
+            color: deshabilitado ? 'rgba(255,255,255,0.5)' : primaryColor,
+            fontWeight: 700, fontSize: 12.5, cursor: deshabilitado ? 'not-allowed' : 'pointer',
+            fontFamily: 'DM Sans, sans-serif', whiteSpace: 'nowrap',
+          }}
+        >
+          {enviando ? 'Enviando…' : '📧 Recordar'}
+        </button>
+      </div>
+    )
+  }
 
   return (
     <div
