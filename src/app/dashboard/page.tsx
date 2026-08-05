@@ -507,12 +507,58 @@ export default function Dashboard() {
                   {getSaludo()}, {tenant?.nombre.split(' ')[0] || 'Doctor'}!
                 </h2>
                 <p style={{ fontSize: 13, color: '#687e96', lineHeight: 1.4 }}>
-                  {citas.length > 0 
-                    ? `Hoy tenés ${citas.length} turnos agendados en total.`
+                  {citas.length > 0
+                    ? `Hoy tenés ${citas.length} ${citas.length === 1 ? 'turno agendado' : 'turnos agendados'}: ${conf} ${conf === 1 ? 'confirmado' : 'confirmados'} y ${pend} ${pend === 1 ? 'pendiente' : 'pendientes'}.`
                     : 'No tenés citas agendadas para el día de hoy.'
                   }
                 </p>
               </div>
+
+              {/* Próximo paciente, dentro del saludo.
+                  Antes era un banner suelto debajo de las métricas que repetía
+                  lo que ya estaba en la lista de turnos. Acá queda junto al
+                  contexto del día, que es donde se lo busca: quién sigue. */}
+              {nextCita && (
+                <div style={{
+                  marginTop: 14,
+                  padding: '10px 12px',
+                  borderRadius: 10,
+                  background: `linear-gradient(135deg, ${accentColor}0d, ${secondaryColor}0d)`,
+                  border: `1px solid ${secondaryColor}20`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  flexWrap: 'wrap',
+                  gap: 10,
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 9, minWidth: 0 }}>
+                    <span className="pulse-indicator" style={{ display: 'flex', position: 'relative', width: 8, height: 8, flexShrink: 0 }}>
+                      <span style={{ animation: 'ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite', position: 'absolute', display: 'inline-flex', height: '100%', width: '100%', borderRadius: '50%', background: accentColor, opacity: 0.75 }}/>
+                      <span style={{ position: 'relative', display: 'inline-flex', borderRadius: '50%', height: 8, width: 8, background: accentColor }}/>
+                    </span>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: 10.5, fontWeight: 700, color: '#8fa3bc', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                        Sigue · {tiempoRestante}
+                      </div>
+                      <div style={{ fontSize: 13.5, fontWeight: 700, color: primaryColor, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {nextCita.nombre}
+                      </div>
+                      <div style={{ fontSize: 11.5, color: '#687e96' }}>
+                        {nextCita.hora} hs · {nextCita.tratamiento}
+                      </div>
+                    </div>
+                  </div>
+                  {nextCita.telefono && (
+                    <button onClick={() => enviarRecordatorioWhatsApp(nextCita)} className="btn-premium" style={{
+                      background: '#25D366', border: 'none', borderRadius: 8, padding: '7px 12px',
+                      color: '#fff', fontSize: 11.5, fontWeight: 600, cursor: 'pointer',
+                      minHeight: 36, flexShrink: 0,
+                    }}>
+                      WhatsApp
+                    </button>
+                  )}
+                </div>
+              )}
               
               {citas.length > 0 && (
                 <div style={{ marginTop: 14, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
@@ -592,56 +638,6 @@ export default function Dashboard() {
               </div>
             )}
           </div>
-
-          {/* Next Up Patient Alert */}
-          {nextCita && (
-            <div className="glass-container progress-glow" style={{
-              padding: '0.9rem 1.25rem',
-              marginBottom: '1.5rem',
-              background: `linear-gradient(135deg, ${accentColor}06, ${secondaryColor}06)`,
-              border: `1px solid ${secondaryColor}15`,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              flexWrap: 'wrap',
-              gap: 12,
-              '--glow-color': `${secondaryColor}10`
-            } as React.CSSProperties}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                {/* Pulsing Dot */}
-                <span className="pulse-indicator" style={{ display: 'flex', position: 'relative', width: 8, height: 8 }}>
-                  <span style={{ animation: 'ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite', position: 'absolute', display: 'inline-flex', height: '100%', width: '100%', borderRadius: '50%', background: accentColor, opacity: 0.75 }}></span>
-                  <span style={{ position: 'relative', display: 'inline-flex', borderRadius: '50%', height: 8, width: 8, background: accentColor }}></span>
-                </span>
-                <div style={{ fontSize: 13, fontWeight: 500, color: primaryColor }}>
-                  Próxima cita en agenda: <strong style={{ fontWeight: 700 }}>{nextCita.nombre}</strong> a las <strong style={{ color: secondaryColor }}>{nextCita.hora} hs</strong> ({nextCita.tratamiento})
-                </div>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ fontSize: 11, fontWeight: 700, color: accentColor, background: `${accentColor}15`, padding: '3px 8px', borderRadius: 20 }}>
-                  {tiempoRestante}
-                </span>
-                {nextCita.telefono && (
-                  <button onClick={() => enviarRecordatorioWhatsApp(nextCita)} className="btn-premium" style={{
-                    background: '#25D366',
-                    border: 'none',
-                    borderRadius: 8,
-                    padding: '4px 10px',
-                    color: '#fff',
-                    fontSize: 11,
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 4
-                  }}>
-                    WhatsApp
-                  </button>
-                )}
-              </div>
-            </div>
-          )}
-
 
           <div style={{display:'grid',gridTemplateColumns:isMobile?'1fr':'1fr 300px',gap:16,alignItems:'start'}}>
             <div>
