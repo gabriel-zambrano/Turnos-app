@@ -67,8 +67,17 @@ export function initials(nombre: string): string {
   return nombre.split(' ').slice(0,2).map(p => p[0]).join('').toUpperCase()
 }
 
+/**
+ * La fecha de hoy en el consultorio, formato AAAA-MM-DD.
+ *
+ * Se calcula en hora de Argentina y no en UTC. Con `toISOString()`, entre
+ * las 21 y las 24 hs locales la app ya creía estar en el día siguiente:
+ * la agenda abría en mañana y el dashboard mostraba los turnos del día
+ * equivocado. Justo el horario en que un consultorio cierra y repasa la
+ * jornada.
+ */
 export function hoyISO(): string {
-  return new Date().toISOString().split('T')[0]
+  return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' })
 }
 
 export function normalizarTelefono(raw: string): string {

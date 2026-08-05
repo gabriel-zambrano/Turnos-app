@@ -81,9 +81,6 @@ export default function Dashboard() {
 
   // Heatmap & KPI metrics states
   const [selectedDate, setSelectedDate] = useState(() => hoyISO())
-  const [weeklyRevenue, setWeeklyRevenue] = useState(0)
-  const [weeklyCancellations, setWeeklyCancellations] = useState(0)
-  const [confirmationRateChange, setConfirmationRateChange] = useState(0)
   const [heatmapData, setHeatmapData] = useState<{ dateStr: string; dayName: string; dayNum: string; count: number }[]>([])
 
   async function guardarNuevoPaciente() {
@@ -198,13 +195,6 @@ export default function Dashboard() {
 
   function msg(m:string,tipo='ok'){setToast({msg:m,tipo});setTimeout(()=>setToast(null),3500)}
 
-  const getMonday = (d: Date) => {
-    const date = new Date(d)
-    const day = date.getDay()
-    const diff = date.getDate() - day + (day === 0 ? -6 : 1)
-    return new Date(date.setDate(diff))
-  }
-
   // Criterio de medios facturables de la clínica, para pre-marcar el check.
   useEffect(() => {
     if (!tenant) return
@@ -215,44 +205,35 @@ export default function Dashboard() {
     if (!tenant) return
     setLoading(true)
     
-    // Dates for 28-day window (Monday of last week to Sunday of next week)
-    const nowLocal = new Date()
-    const currentMon = getMonday(nowLocal)
-    const prevMon = new Date(currentMon)
-    prevMon.setDate(currentMon.getDate() - 7)
-    const nextSun = new Date(currentMon)
-    nextSun.setDate(currentMon.getDate() + 13)
+    // Ventana de 7 dias: hoy y los proximos seis.
+    //
+    // Antes eran 28 (desde el lunes de la semana pasada), porque hacian falta
+    // los datos de la semana anterior para la variacion de tasa de
+    // confirmacion. Al mover esa metrica a Analitica, el pasado dejo de
+    // usarse: la unica ventana que se consulta es la que se muestra.
+    //
+    // La fecha se calcula en hora de Argentina, no en UTC. Con la ventana
+    // vieja el detalle daba igual porque el borde inferior estaba una semana
+    // en el pasado; ahora empieza hoy, y `toISOString()` después de las 21 hs
+    // locales ya devuelve la fecha de mañana — los turnos del día habrían
+    // desaparecido del dashboard cada noche.
+    const fechaAR = (d: Date) => d.toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' })
 
-    const prevMonISO = prevMon.toISOString().split('T')[0]
-    const nextSunISO = nextSun.toISOString().split('T')[0]
+    const desde = new Date()
+    desde.setDate(desde.getDate() - 1) // margen de un día por bordes de huso
+    const hasta = new Date()
+    hasta.setDate(hasta.getDate() + 7)
 
-    // Fetch treatments for price fallbacks
-    const { data: tratsData } = await supabase.from('tratamientos').select('nombre, precio_base').eq('tenant_id', tenant.id)
-    const priceMap: Record<string, number> = {
-      'Consulta': 50000,
-      'Limpieza': 70000,
-      'Ortodoncia': 120000,
-      'Blanqueamiento': 150000,
-      'Extracción': 80000,
-      'Caries': 60000,
-      'Implante': 450000,
-      'Cirugia': 300000,
-      'Endodoncia': 140000,
-      'Otro': 50000
-    }
-    if (tratsData) {
-      tratsData.forEach(t => {
-        if (t.precio_base) priceMap[t.nombre] = t.precio_base
-      })
-    }
+    const desdeISO = fechaAR(desde)
+    const hastaISO = fechaAR(hasta)
 
     // Fetch appointments in range
     const { data: rawCitas, error } = await supabase
       .from('citas')
       .select('id, tipo_tratamiento, estado, fecha_hora, valor, precio_cobrado, paciente_id, pacientes(nombre, telefono, token)')
       .eq('tenant_id', tenant.id)
-      .gte('fecha_hora', `${prevMonISO}T00:00:00-03:00`)
-      .lte('fecha_hora', `${nextSunISO}T23:59:59-03:00`)
+      .gte('fecha_hora', `${desdeISO}T00:00:00-03:00`)
+      .lte('fecha_hora', `${hastaISO}T23:59:59-03:00`)
       .order('fecha_hora', { ascending: true })
 
     if (error) {
@@ -304,41 +285,11 @@ export default function Dashboard() {
       }
     }))
 
-    // Current week calculations
-    const currentMonTime = new Date(currentMon.setHours(0,0,0,0)).getTime()
-    const currentSunTime = new Date(currentMon.getTime() + 7 * 86400000 - 1000).getTime()
-    const citasCurrentWeek = allCitas.filter(c => {
-      const t = new Date(c.fecha_hora).getTime()
-      return t >= currentMonTime && t <= currentSunTime
-    })
-
-    let rev = 0
-    citasCurrentWeek.forEach(c => {
-      if (c.estado !== 'cancelado') {
-        rev += c.precio_cobrado ?? c.valor ?? priceMap[c.tipo_tratamiento] ?? 50000
-      }
-    })
-    setWeeklyRevenue(rev)
-
-    const cancels = citasCurrentWeek.filter(c => c.estado === 'cancelado').length
-    setWeeklyCancellations(cancels)
-
-    const currentWeekTotal = citasCurrentWeek.length
-    const currentWeekConf = citasCurrentWeek.filter(c => c.estado === 'confirmado' || c.estado === 'asistio').length
-    const currentWeekRate = currentWeekTotal > 0 ? (currentWeekConf / currentWeekTotal) * 100 : 0
-
-    // Previous week confirmation rate
-    const prevMonTime = new Date(prevMon.setHours(0,0,0,0)).getTime()
-    const prevSunTime = new Date(prevMonTime + 7 * 86400000 - 1000).getTime()
-    const citasPrevWeek = allCitas.filter(c => {
-      const t = new Date(c.fecha_hora).getTime()
-      return t >= prevMonTime && t <= prevSunTime
-    })
-    const prevWeekTotal = citasPrevWeek.length
-    const prevWeekConf = citasPrevWeek.filter(c => c.estado === 'confirmado' || c.estado === 'asistio').length
-    const prevWeekRate = prevWeekTotal > 0 ? (prevWeekConf / prevWeekTotal) * 100 : 0
-
-    setConfirmationRateChange(Math.round(currentWeekRate - prevWeekRate))
+    // Las metricas semanales (revenue estimado, cancelaciones y variacion de
+    // tasa de confirmacion) se movieron a Analitica: son tendencias, no
+    // operacion del dia. Con eso se fueron tambien la consulta de precios de
+    // tratamientos y las tres semanas de citas que hacian falta para
+    // calcularlas.
 
     // Heatmap data
     const hData = []
@@ -346,7 +297,9 @@ export default function Dashboard() {
     for (let i = 0; i < 7; i++) {
       const d = new Date()
       d.setDate(d.getDate() + i)
-      const dISO = d.toISOString().split('T')[0]
+      // En hora local: se compara contra fechas convertidas a Argentina, y
+      // en UTC las columnas del heatmap se corrían un día cada noche.
+      const dISO = fechaAR(d)
       const count = allCitas.filter(c => toLocalDateStr(c.fecha_hora) === dISO && c.estado !== 'cancelado').length
       hData.push({
         dateStr: dISO,
@@ -371,6 +324,10 @@ export default function Dashboard() {
   useEffect(()=>{if (tenant) loadLogs()},[loadLogs, tenant])
 
   const conf    = citas.filter(c=>c.estado==='confirmado').length
+  // Métricas operativas del día: se derivan de las citas que ya están en
+  // memoria, sin ninguna consulta extra.
+  const citasCobradas = citas.filter(c => (c.precio_cobrado ?? 0) > 0).length
+  const cobradoHoy    = citas.reduce((s, c) => s + (c.precio_cobrado ?? 0), 0)
   const pend    = citas.filter(c=>c.estado==='pendiente').length
   const tasa    = citas.length>0?Math.round(conf/citas.length*100):0
   const lista   = filtro==='todas'?citas:citas.filter(c=>c.estado===filtro)
@@ -624,12 +581,14 @@ export default function Dashboard() {
           />
 
           <div style={{marginBottom:'1.5rem'}}>
-            {loading ? <SkeletonKPIs cantidad={4}/> : (
-              <div style={{display:'grid',gridTemplateColumns:isMobile?'repeat(2,1fr)':'repeat(4,1fr)',gap:12}}>
+            {/* Solo métricas del día. Las semanales viven en Analítica: acá
+                estorbaban lo operativo, que es lo que se mira entre paciente
+                y paciente. */}
+            {loading ? <SkeletonKPIs cantidad={3}/> : (
+              <div style={{display:'grid',gridTemplateColumns:isMobile?'repeat(3,1fr)':'repeat(3,1fr)',gap:12}}>
                 <MetricCard label="Citas del día" value={citas.length} sub={`Confirmadas: ${conf}`} accent={primaryColor}/>
-                <MetricCard label="Revenue estimado sem" value={`$${weeklyRevenue.toLocaleString('es-AR')}`} sub="Esta semana (Lun-Dom)" accent={accentColor}/>
-                <MetricCard label="Cancelaciones sem" value={weeklyCancellations} sub="Esta semana" accent={secondaryColor}/>
-                <MetricCard label="Variación tasa sem" value={confirmationRateChange >= 0 ? `+${confirmationRateChange}%` : `${confirmationRateChange}%`} sub="vs semana anterior" accent={confirmationRateChange>=0?accentColor:'#D85A30'}/>
+                <MetricCard label="Cobrado hoy" value={`$${cobradoHoy.toLocaleString('es-AR')}`} sub={`${citasCobradas} de ${citas.length} turnos`} accent={accentColor}/>
+                <MetricCard label="Pendientes de cobro" value={citas.length - citasCobradas} sub="Turnos de hoy sin cobrar" accent={citas.length - citasCobradas > 0 ? '#EF9F27' : accentColor}/>
               </div>
             )}
           </div>

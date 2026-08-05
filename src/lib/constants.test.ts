@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest'
-import { normalizarTelefono, initials, horasDisponibles, calcEdad } from './constants'
+import { describe, it, expect, afterEach, vi } from 'vitest'
+import { normalizarTelefono, initials, horasDisponibles, calcEdad, hoyISO } from './constants'
 
 describe('normalizarTelefono', () => {
   it('deja intacto un número que ya empieza con 549', () => {
@@ -50,5 +50,34 @@ describe('calcEdad', () => {
     hace30.setFullYear(hace30.getFullYear() - 30)
     const iso = hace30.toISOString().split('T')[0]
     expect(calcEdad(iso)).toBe('30 años')
+  })
+})
+
+describe('hoyISO — la fecha del consultorio, no la de UTC', () => {
+  afterEach(() => { vi.useRealTimers() })
+
+  function congelar(utc: string) {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(utc))
+  }
+
+  it('durante el día coincide con la fecha local', () => {
+    congelar('2026-08-05T15:00:00Z') // 12:00 en Argentina
+    expect(hoyISO()).toBe('2026-08-05')
+  })
+
+  it('a la noche NO se adelanta al día siguiente', () => {
+    // 23:30 del 5 de agosto en Argentina, pero ya 6 de agosto en UTC.
+    // Con toISOString() la agenda abría en mañana y el dashboard mostraba
+    // los turnos del día equivocado, justo cuando se cierra el consultorio.
+    congelar('2026-08-06T02:30:00Z')
+    expect(hoyISO()).toBe('2026-08-05')
+  })
+
+  it('cambia de día a la medianoche local, no a las 21', () => {
+    congelar('2026-08-06T02:59:00Z') // 23:59 del 5 en Argentina
+    expect(hoyISO()).toBe('2026-08-05')
+    vi.setSystemTime(new Date('2026-08-06T03:01:00Z')) // 00:01 del 6
+    expect(hoyISO()).toBe('2026-08-06')
   })
 })
