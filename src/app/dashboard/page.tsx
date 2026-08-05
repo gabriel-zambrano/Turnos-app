@@ -662,6 +662,11 @@ export default function Dashboard() {
                   {lista.map(c=>{
                     const tc=TRAT_STYLE[c.tratamiento]||TRAT_STYLE.Consulta
                     const es=ESTADO_STYLE[c.estado]||ESTADO_STYLE.pendiente
+                    // Cuando la fila ofrece una acción, el botón ya dice en qué
+                    // estado está: repetirlo en una etiqueta solo gastaba ancho
+                    // y empujaba las acciones a una segunda línea en el celular.
+                    const cobrado = c.estado==='asistio' && !!c.precio_cobrado
+                    const tieneAccion = c.estado==='pendiente' || c.estado==='confirmado' || (c.estado==='asistio' && !c.precio_cobrado)
                     return(
                       <div key={c.id} className="interactive-item" style={{background:'rgba(255,255,255,0.7)',border:'0.5px solid rgba(56,138,221,0.12)',borderRadius:12,padding:isMobile?'0.75rem':'0.85rem 1rem',display:'flex',alignItems:isMobile?'flex-start':'center',flexWrap:isMobile?'wrap':'nowrap',gap:isMobile?8:14}}>
                         <div style={{fontSize:13,fontWeight:700,color:primaryColor,minWidth:40,textAlign:'center'}}>{c.hora}</div>
@@ -671,8 +676,16 @@ export default function Dashboard() {
                           <div style={{marginTop:3}}><Badge bg={tc.bg} color={tc.color}>{c.tratamiento}</Badge></div>
                         </div>
                         <div style={{display:'flex',alignItems:'center',gap:8,width:isMobile?'100%':'auto',justifyContent:isMobile?'flex-end':'flex-start'}}>
-                          <Badge bg={es.bg} color={es.color}>{es.label}</Badge>
-                          
+                          {/* Cobrado: en vez de repetir "Asistió", se muestra
+                              cuánto entró, que es el dato que falta a esa altura. */}
+                          {cobrado && (
+                            <span style={{fontSize:11.5,fontWeight:700,color:'#138A6B',background:'rgba(19,138,107,0.1)',padding:'3px 9px',borderRadius:20,whiteSpace:'nowrap'}}>
+                              ✓ ${Number(c.precio_cobrado).toLocaleString('es-AR')}
+                            </span>
+                          )}
+
+                          {!tieneAccion && !cobrado && <Badge bg={es.bg} color={es.color}>{es.label}</Badge>}
+
                           {c.estado === 'pendiente' && (
                             <>
                               <button onClick={()=>confirmar(c.id)} className="btn-premium" style={{fontSize:11,padding:'4px 10px',borderRadius:7,border:`1.5px solid ${accentColor}`,background:`${accentColor}18`,color:accentColor,cursor:'pointer',fontWeight:600,fontFamily:'DM Sans, sans-serif',whiteSpace:'nowrap'}}>
