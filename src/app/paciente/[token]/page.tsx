@@ -64,43 +64,6 @@ function obtenerSaludo() {
   return 'Buenas noches'
 }
 
-function generateICS(t: Turno, tenant: TenantBranding | null) {
-  const start = new Date(t.fecha_hora)
-  const end = new Date(start.getTime() + t.duracion_minutos * 60000)
-  const fmt = (d: Date) => d.toISOString().replace(/[-:]/g,'').split('.')[0]+'Z'
-  
-  const doctorName = tenant?.nombre || 'tu consultorio'
-  const locationName = tenant?.direccion || 'Consultorio Odontológico'
-
-  const ics = [
-    'BEGIN:VCALENDAR',
-    'VERSION:2.0',
-    'PRODID:-//DentalDesk//ES',
-    'BEGIN:VEVENT',
-    'UID:' + t.id + '@dentaldesk',
-    'DTSTAMP:' + fmt(new Date()),
-    'DTSTART:' + fmt(start),
-    'DTEND:' + fmt(end),
-    'SUMMARY:Turno odontológico - ' + doctorName,
-    'DESCRIPTION:Tratamiento: ' + t.tipo_tratamiento + (t.notes ? ' Notas: ' + t.notes : ''),
-    'LOCATION:' + locationName,
-    'BEGIN:VALARM',
-    'TRIGGER:-PT60M',
-    'ACTION:DISPLAY',
-    'DESCRIPTION:Recordatorio turno odontológico',
-    'END:VALARM',
-    'END:VEVENT',
-    'END:VCALENDAR'
-  ].join('\r\n')
-  const dataUrl = 'data:text/calendar;charset=utf-8,' + encodeURIComponent(ics)
-  const a = document.createElement('a')
-  a.href = dataUrl
-  a.download = 'turno-' + t.fecha_hora.split('T')[0] + '.ics'
-  document.body.appendChild(a)
-  a.click()
-  document.body.removeChild(a)
-}
-
 export default function PacientePage() {
   const { token } = useParams<{ token: string }>()
   const [paciente, setPaciente] = useState<Paciente | null>(null)
@@ -395,10 +358,18 @@ export default function PacientePage() {
                                 Reprogramar
                               </button>
                             </div>
-                            <button
-                              onClick={() => generateICS(t, tenant)}
+                            {/* Anchor a la ruta del servidor, no un <a download>
+                                con URL data:. iOS Safari ignora `download` en
+                                data: y Chrome en Android las bloquea, asi que
+                                en el telefono —donde el paciente abre el link—
+                                tocar el boton no hacia absolutamente nada. */}
+                            <a
+                              href={`/api/ics?cita=${t.id}&token=${token}`}
                               style={{ 
-                                width:'100%', 
+                                width:'100%',
+                                boxSizing:'border-box',
+                                textDecoration:'none',
+                                minHeight:44,
                                 fontSize:13, 
                                 padding:'11px', 
                                 borderRadius:14, 
@@ -425,7 +396,7 @@ export default function PacientePage() {
                             >
                               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
                               Agregar a mi calendario
-                            </button>
+                            </a>
                           </div>
                         ) : (
                           <div style={{ display:'flex', flexDirection: 'column', gap:10 }}>
@@ -477,10 +448,18 @@ export default function PacientePage() {
                                 Reprogramar
                               </button>
                             </div>
-                            <button
-                              onClick={() => generateICS(t, tenant)}
+                            {/* Anchor a la ruta del servidor, no un <a download>
+                                con URL data:. iOS Safari ignora `download` en
+                                data: y Chrome en Android las bloquea, asi que
+                                en el telefono —donde el paciente abre el link—
+                                tocar el boton no hacia absolutamente nada. */}
+                            <a
+                              href={`/api/ics?cita=${t.id}&token=${token}`}
                               style={{ 
-                                width:'100%', 
+                                width:'100%',
+                                boxSizing:'border-box',
+                                textDecoration:'none',
+                                minHeight:44,
                                 fontSize:13, 
                                 padding:'11px', 
                                 borderRadius:14, 
@@ -507,7 +486,7 @@ export default function PacientePage() {
                             >
                               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
                               Agregar a mi calendario
-                            </button>
+                            </a>
                           </div>
                         )}
                       </div>
