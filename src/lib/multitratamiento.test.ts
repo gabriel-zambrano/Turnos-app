@@ -54,7 +54,7 @@ async function agregarPago(forma: string, monto: number) {
  * Cada bloque de tests que muta datos usa su propia instancia: compartir una
  * sola hacía que el orden de ejecución cambiara los resultados.
  */
-async function crearBaseMigrada(): Promise<PGlite> {
+async function crearBaseMigrada(sembrarAntesDeLimpiar?: (db: PGlite) => Promise<void>): Promise<PGlite> {
   const db = new PGlite()
 
   // Esquema mínimo con las columnas que la migración necesita tocar.
@@ -69,12 +69,13 @@ async function crearBaseMigrada(): Promise<PGlite> {
 
     CREATE TABLE tenants           (id uuid PRIMARY KEY);
     CREATE TABLE tenant_users      (tenant_id uuid, user_id uuid);
-    CREATE TABLE pacientes         (id uuid PRIMARY KEY, tenant_id uuid);
+    CREATE TABLE pacientes         (id uuid PRIMARY KEY, tenant_id uuid, nombre text);
     CREATE TABLE tratamientos      (id uuid PRIMARY KEY, tenant_id uuid, nombre text);
-    CREATE TABLE ingresos_manuales (id uuid PRIMARY KEY, tenant_id uuid, monto numeric(10,2), concepto text);
+    CREATE TABLE ingresos_manuales (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), tenant_id uuid, fecha date DEFAULT CURRENT_DATE, monto numeric(10,2), concepto text);
     CREATE TABLE arca_config       (tenant_id uuid PRIMARY KEY, cuit text, activo boolean DEFAULT true);
     CREATE TABLE citas (
       id uuid PRIMARY KEY, tenant_id uuid, paciente_id uuid, tipo_tratamiento text,
+      fecha_hora timestamptz DEFAULT now(),
       valor numeric(10,2) DEFAULT 0, sena numeric(10,2) DEFAULT 0,
       saldo numeric(10,2) GENERATED ALWAYS AS (valor - sena) STORED,
       precio_cobrado numeric(12,2), medio_pago text,
@@ -93,7 +94,7 @@ async function crearBaseMigrada(): Promise<PGlite> {
   // medio de pago escrito a mano, para probar el backfill.
   await db.exec(`
     INSERT INTO tenants     VALUES ('${TENANT}');
-    INSERT INTO pacientes   VALUES ('${PACIENTE}', '${TENANT}');
+    INSERT INTO pacientes   VALUES ('${PACIENTE}', '${TENANT}', 'Araceli Castro');
     INSERT INTO arca_config (tenant_id, cuit) VALUES ('${TENANT}', '20111222333');
     INSERT INTO citas (id, tenant_id, paciente_id, tipo_tratamiento, valor, sena, medio_pago)
       VALUES ('${CITA}', '${TENANT}', '${PACIENTE}', 'Limpieza', 20000, 5000, 'EFECTIVO');
@@ -102,6 +103,10 @@ async function crearBaseMigrada(): Promise<PGlite> {
   await db.exec(leerMigracion())
   await db.exec(leerMigracion('20260805120000_sembrar_renglon_en_cita_nueva.sql'))
   await db.exec(leerMigracion('20260805130000_intencion_de_facturar.sql'))
+  // Los datos a limpiar tienen que existir ANTES de la migración de limpieza,
+  // igual que en producción.
+  if (sembrarAntesDeLimpiar) await sembrarAntesDeLimpiar(db)
+  await db.exec(leerMigracion('20260805140000_limpiar_ingresos_duplicados.sql'))
   return db
 }
 
@@ -367,5 +372,97 @@ describe('Emisión atómica de la factura', () => {
         '${TENANT}'::uuid, NULL, NULL, 11, 1, 2, 'X', '2026-09-01'::date, 100, 'Intruso',
         'DNI', '1', 'x', 'Contado', true, '[]'::jsonb, '[]'::jsonb)`)
     ).rejects.toThrow(/No autorizado/)
+  })
+})
+
+describe('Limpieza de ingresos manuales duplicados', () => {
+  const CITA_COBRADA = '88888888-8888-8888-8888-888888888888'
+  const CITA_FACTURADA = '99999999-9999-9999-9999-999999999999'
+  const ING_FACTURADO = 'aaaaaaaa-0000-0000-0000-000000000001'
+
+  /**
+   * Reproduce lo que dejaba el Cobro Express: escribía citas.precio_cobrado
+   * Y creaba un ingreso manual por el mismo cobro. Finanzas sumaba los dos.
+   */
+  async function sembrarDuplicados(db: PGlite) {
+    await db.exec(`
+      -- a) Duplicado real: cita cobrada + ingreso manual con el mismo monto
+      INSERT INTO citas (id, tenant_id, paciente_id, tipo_tratamiento, fecha_hora, precio_cobrado)
+        VALUES ('${CITA_COBRADA}', '${TENANT}', '${PACIENTE}', 'Ajuste de ortodoncia',
+                '2026-07-20T14:00:00-03:00', 75000);
+      INSERT INTO ingresos_manuales (tenant_id, fecha, concepto, monto)
+        VALUES ('${TENANT}', '2026-07-20', 'Pago Ajuste de ortodoncia — Araceli Castro', 75000);
+
+      -- b) Ingreso genuinamente suelto: no tiene cita pareja, no se toca
+      INSERT INTO ingresos_manuales (tenant_id, fecha, concepto, monto)
+        VALUES ('${TENANT}', '2026-07-24', 'Amanda- Blanqueamiento', 160000);
+
+      -- c) Con formato de Cobro Express pero sin cita que lo respalde
+      INSERT INTO ingresos_manuales (tenant_id, fecha, concepto, monto)
+        VALUES ('${TENANT}', '2026-07-15', 'Pago Consulta — Araceli Castro', 40000);
+
+      -- d) Duplicado PERO ya facturado: no se puede borrar, hay un
+      --    comprobante fiscal que lo referencia
+      INSERT INTO citas (id, tenant_id, paciente_id, tipo_tratamiento, fecha_hora, precio_cobrado)
+        VALUES ('${CITA_FACTURADA}', '${TENANT}', '${PACIENTE}', 'Caries',
+                '2026-07-21T10:00:00-03:00', 150000);
+      INSERT INTO ingresos_manuales (id, tenant_id, fecha, concepto, monto)
+        VALUES ('${ING_FACTURADO}', '${TENANT}', '2026-07-21', 'Pago Caries — Araceli Castro', 150000);
+      INSERT INTO facturas (tenant_id, ingreso_manual_id, tipo_comprobante, punto_venta,
+                            nro_comprobante, cae, cae_expira, monto, paciente_nombre,
+                            paciente_doc_tipo, paciente_doc_nro, estado, simulada)
+        VALUES ('${TENANT}', '${ING_FACTURADO}', 11, 1, 1, '74000000000000', '2026-08-01',
+                150000, 'Araceli Castro', 'DNI', '30111222', 'emitida', false);
+    `)
+  }
+
+  it('borra el ingreso duplicado y deja el cobro en la cita', async () => {
+    const propia = await crearBaseMigrada(sembrarDuplicados)
+
+    const dup = await propia.query(
+      `SELECT 1 FROM ingresos_manuales WHERE concepto = 'Pago Ajuste de ortodoncia — Araceli Castro'`)
+    expect(dup.rows).toHaveLength(0)
+
+    // La plata no se perdió: sigue registrada donde corresponde
+    const cita = await propia.query<{ precio_cobrado: string }>(
+      `SELECT precio_cobrado FROM citas WHERE id = '${CITA_COBRADA}'`)
+    expect(Number(cita.rows[0].precio_cobrado)).toBe(75000)
+    await propia.close()
+  })
+
+  it('respalda lo borrado antes de borrarlo', async () => {
+    const propia = await crearBaseMigrada(sembrarDuplicados)
+    const r = await propia.query<{ concepto: string; monto: string; cita_pareja: string }>(
+      `SELECT concepto, monto, cita_pareja FROM ingresos_manuales_duplicados_respaldo`)
+    expect(r.rows).toHaveLength(1)
+    expect(r.rows[0].concepto).toBe('Pago Ajuste de ortodoncia — Araceli Castro')
+    expect(r.rows[0].cita_pareja).toBe(CITA_COBRADA)
+    await propia.close()
+  })
+
+  it('no toca los ingresos sueltos sin cita pareja', async () => {
+    const propia = await crearBaseMigrada(sembrarDuplicados)
+    const r = await propia.query(`SELECT concepto FROM ingresos_manuales ORDER BY fecha`)
+    const conceptos = r.rows.map((x: any) => x.concepto)
+    expect(conceptos).toContain('Amanda- Blanqueamiento')
+    // Tiene formato de Cobro Express pero ninguna cita lo respalda
+    expect(conceptos).toContain('Pago Consulta — Araceli Castro')
+    await propia.close()
+  })
+
+  it('no borra un ingreso que ya fue facturado', async () => {
+    // Borrarlo dejaría huérfana la referencia de un comprobante fiscal
+    const propia = await crearBaseMigrada(sembrarDuplicados)
+    const r = await propia.query(`SELECT 1 FROM ingresos_manuales WHERE id = '${ING_FACTURADO}'`)
+    expect(r.rows).toHaveLength(1)
+    await propia.close()
+  })
+
+  it('es idempotente: correrla de nuevo no rompe ni duplica el respaldo', async () => {
+    const propia = await crearBaseMigrada(sembrarDuplicados)
+    await propia.exec(leerMigracion('20260805140000_limpiar_ingresos_duplicados.sql'))
+    const r = await propia.query(`SELECT 1 FROM ingresos_manuales_duplicados_respaldo`)
+    expect(r.rows).toHaveLength(1)
+    await propia.close()
   })
 })
