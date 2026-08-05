@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach, vi } from 'vitest'
-import { normalizarTelefono, initials, horasDisponibles, calcEdad, hoyISO } from './constants'
+import { normalizarTelefono, initials, horasDisponibles, calcEdad, hoyISO, nombreParaSaludo } from './constants'
 
 describe('normalizarTelefono', () => {
   it('deja intacto un número que ya empieza con 549', () => {
@@ -79,5 +79,30 @@ describe('hoyISO — la fecha del consultorio, no la de UTC', () => {
     expect(hoyISO()).toBe('2026-08-05')
     vi.setSystemTime(new Date('2026-08-06T03:01:00Z')) // 00:01 del 6
     expect(hoyISO()).toBe('2026-08-06')
+  })
+})
+
+describe('nombreParaSaludo', () => {
+  it('descarta el prefijo genérico de la clínica', () => {
+    // El caso real: saludaba con "¡Buenas tardes, Consultorio!"
+    expect(nombreParaSaludo('Consultorio Dr. Walter Benegas')).toBe('Dr. Walter')
+    expect(nombreParaSaludo('Clínica Dental Sonrisas')).toBe('Dental')
+    expect(nombreParaSaludo('Centro Odontológico Norte')).toBe('Odontológico')
+  })
+
+  it('conserva el tratamiento junto al nombre de pila', () => {
+    expect(nombreParaSaludo('Dra. Ana Pérez')).toBe('Dra. Ana')
+    expect(nombreParaSaludo('Dr Juan Gómez')).toBe('Dr Juan')
+  })
+
+  it('usa el primer nombre cuando no hay tratamiento', () => {
+    expect(nombreParaSaludo('Walter Benegas')).toBe('Walter')
+  })
+
+  it('cae a un saludo genérico si no hay nombre', () => {
+    expect(nombreParaSaludo('')).toBe('Doctor')
+    expect(nombreParaSaludo(null)).toBe('Doctor')
+    expect(nombreParaSaludo(undefined)).toBe('Doctor')
+    expect(nombreParaSaludo('Consultorio')).toBe('Consultorio')
   })
 })

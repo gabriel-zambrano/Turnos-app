@@ -80,6 +80,29 @@ export function hoyISO(): string {
   return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' })
 }
 
+/**
+ * Nombre corto para el saludo del dashboard.
+ *
+ * Tomar la primera palabra del nombre de la clínica daba resultados raros:
+ * "Consultorio Dr. Walter Benegas" saludaba con "¡Buenas tardes,
+ * Consultorio!". Se descartan los prefijos genéricos y se conserva el
+ * tratamiento junto al nombre de pila.
+ */
+export function nombreParaSaludo(nombre?: string | null): string {
+  if (!nombre?.trim()) return 'Doctor'
+
+  const limpio = nombre
+    .replace(/^(consultorio|cl[ií]nica|centro|estudio|odontolog[ií]a|dental)\s+/i, '')
+    .trim()
+
+  const partes = limpio.split(/\s+/).filter(Boolean)
+  if (partes.length === 0) return 'Doctor'
+
+  // "Dr. Walter Benegas" → "Dr. Walter"
+  if (/^dra?\.?$/i.test(partes[0]) && partes[1]) return `${partes[0]} ${partes[1]}`
+  return partes[0]
+}
+
 export function normalizarTelefono(raw: string): string {
   const digits = raw.replace(/\D/g, '')
   if (digits.startsWith('549')) return digits

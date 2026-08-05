@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { Sidebar } from '@/components/Sidebar'
 import { Badge, Toast, PageHeader, FilterBar, SkeletonLista, SkeletonKPIs, MetricCard, useBloqueoScroll, inputCss, selectCss, overlayCss, modalCss, modalTitleCss, footerCss, groupCss, labelCss, grid2Css, btnDarkCss, btnLightCss } from '@/components/UI'
-import { TRAT_STYLE, ESTADO_STYLE, hoyISO, normalizarTelefono, TRATAMIENTOS } from '@/lib/constants'
+import { TRAT_STYLE, ESTADO_STYLE, hoyISO, normalizarTelefono, nombreParaSaludo, TRATAMIENTOS } from '@/lib/constants'
 import { createClient } from '@/lib/supabase/client'
 import { urlPublicaDeClinica } from '@/lib/config'
 import { useTenantContext } from '@/components/TenantContext'
@@ -504,11 +504,16 @@ export default function Dashboard() {
               <div style={{ position: 'absolute', top: 0, left: 0, bottom: 0, width: 4, background: `linear-gradient(180deg, ${secondaryColor}, ${accentColor})` }}/>
               <div>
                 <h2 style={{ fontSize: isMobile ? 17 : 20, fontWeight: 800, color: primaryColor, marginBottom: 6 }}>
-                  {getSaludo()}, {tenant?.nombre.split(' ')[0] || 'Doctor'}!
+                  {getSaludo()}, {nombreParaSaludo(tenant?.nombre)}!
                 </h2>
                 <p style={{ fontSize: 13, color: '#687e96', lineHeight: 1.4 }}>
+                  {/* No se desglosa por estado: los turnos también pueden estar
+                      atendidos, cancelados o ausentes, y "2 confirmados y 3
+                      pendientes" sobre 10 daba a entender un desglose completo
+                      que no cerraba. Se dice el total y lo accionable. */}
                   {citas.length > 0
-                    ? `Hoy tenés ${citas.length} ${citas.length === 1 ? 'turno agendado' : 'turnos agendados'}: ${conf} ${conf === 1 ? 'confirmado' : 'confirmados'} y ${pend} ${pend === 1 ? 'pendiente' : 'pendientes'}.`
+                    ? `Hoy tenés ${citas.length} ${citas.length === 1 ? 'turno agendado' : 'turnos agendados'}.` +
+                      (pend > 0 ? ` ${pend} ${pend === 1 ? 'espera tu confirmación' : 'esperan tu confirmación'}.` : '')
                     : 'No tenés citas agendadas para el día de hoy.'
                   }
                 </p>
