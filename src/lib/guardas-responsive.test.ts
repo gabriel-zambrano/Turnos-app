@@ -52,6 +52,16 @@ function sinComentarios(texto: string): string {
 const PANTALLAS_CON_MENU = /^app\/(?!paciente\/|reserva\/|firmar\/|t\/|agendar\/|api\/)/
 
 /**
+ * El desplazamiento del contenido por el ancho del menú, decidido en JS.
+ *
+ * Pide el ancho ademas de `isMobile`: un `marginLeft: isMobile ? 0 : 46` es
+ * una sangría dentro de una lista y no tiene nada que ver con el armazón.
+ * Confundirlos hacía que la guarda gritara por algo legítimo, y una guarda que
+ * grita de más termina desactivada.
+ */
+const PATRON_ARMAZON = /marginLeft:\s*isMobile[^,\n]*(--sidebar-width|240)/
+
+/**
  * Las que faltan migrar.
  *
  * La lista solo puede achicarse. Está acá y no como un `skip` para que se vea
@@ -64,19 +74,15 @@ const PANTALLAS_CON_MENU = /^app\/(?!paciente\/|reserva\/|firmar\/|t\/|agendar\/
  */
 const PENDIENTES = [
   'app/agenda/page.tsx',
-  'app/bi/page.tsx',
-  'app/crm/page.tsx',
   'app/dashboard/page.tsx',
-  'app/finanzas/page.tsx',
   'app/pacientes/[id]/page.tsx',
   'app/pacientes/page.tsx',
-  'app/seguimiento/page.tsx',
 ]
 
 describe('el desplazamiento del contenido no se calcula en JavaScript', () => {
   it('ninguna pantalla nueva usa marginLeft condicional por isMobile', () => {
     const infractores = FUENTES
-      .filter(f => /marginLeft:\s*isMobile/.test(sinComentarios(f.texto)))
+      .filter(f => PATRON_ARMAZON.test(sinComentarios(f.texto)))
       .map(f => f.ruta)
       .filter(ruta => !PENDIENTES.includes(ruta))
 
@@ -104,7 +110,7 @@ describe('el desplazamiento del contenido no se calcula en JavaScript', () => {
     // lista deja de contar lo que falta y las guardas de arriba se aflojan
     // solas sin que nadie se entere.
     const siguenSucias = FUENTES
-      .filter(f => /marginLeft:\s*isMobile/.test(sinComentarios(f.texto)))
+      .filter(f => PATRON_ARMAZON.test(sinComentarios(f.texto)))
       .map(f => f.ruta)
 
     expect(PENDIENTES.filter(p => !siguenSucias.includes(p))).toEqual([])

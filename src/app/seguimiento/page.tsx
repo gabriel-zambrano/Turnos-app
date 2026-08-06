@@ -2,7 +2,7 @@
 import { useEffect, useState, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { urlPublicaDeClinica } from '@/lib/config'
-import { Sidebar } from '@/components/Sidebar'
+import { AppShell } from '@/components/AppShell'
 import { PageHeader } from '@/components/UI'
 import { AVATAR_COLORS, initials, normalizarTelefono } from '@/lib/constants'
 import { useTenantContext } from '@/components/TenantContext'
@@ -177,11 +177,9 @@ export default function SeguimientoPage() {
   }
 
   return (
-    <div style={{ display:'flex', minHeight:'100vh', fontFamily:'DM Sans, sans-serif' }}>
-      <Sidebar/>
-      <main style={{ marginLeft: isMobile ? 0 : 'var(--sidebar-width, 240px)', flex:1, background:'transparent', minWidth:0, paddingBottom:isMobile?80:0 }}>
+    <AppShell>
         <PageHeader title="Seguimiento"/>
-        <div style={{ padding: isMobile?'1rem':'1.5rem 2rem' }}>
+        <div className="app-content">
 
           {/* Tarjetas resumen */}
           <div style={{ display:'grid', gridTemplateColumns:isMobile?'1fr':'repeat(4,1fr)', gap:12, marginBottom:24 }}>
@@ -355,11 +353,10 @@ export default function SeguimientoPage() {
           </div>
         </div>
         {toast && (
-          <div style={{ position:'fixed', bottom:isMobile?80:24, left:'50%', transform:'translateX(-50%)', background:'#1a1a1a', color:'#fff', padding:'10px 20px', borderRadius:10, fontSize:13, zIndex:999 }}>
+          <div className="app-toast" style={{ background:'#1a1a1a', color:'#fff', padding:'10px 20px', borderRadius:10, fontSize:13, zIndex:999 }}>
             {toast}
           </div>
         )}
-      </main>
-    </div>
+    </AppShell>
   )
 }

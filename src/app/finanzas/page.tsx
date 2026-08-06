@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { Sidebar } from '@/components/Sidebar'
+import { AppShell } from '@/components/AppShell'
 import { Toast, Spinner, PageHeader, useBloqueoScroll } from '@/components/UI'
 import { createClient } from '@/lib/supabase/client'
 import { useTenantContext } from '@/components/TenantContext'
@@ -429,10 +429,7 @@ export default function FinanzasPage() {
 
   // ── Render ─────────────────────────────────────────────────────────────────
   if (tenantLoading || loading) return (
-    <div style={{ display:'flex', minHeight:'100vh', fontFamily:'DM Sans, sans-serif' }}>
-      <Sidebar />
-      <main style={{ marginLeft: isMobile ? 0 : 'var(--sidebar-width, 240px)', flex:1, display:'flex', alignItems:'center', justifyContent:'center' }}><Spinner /></main>
-    </div>
+    <AppShell centrado><Spinner /></AppShell>
   )
 
   const tabBtn = (t: typeof tab) => ({
@@ -454,9 +451,7 @@ export default function FinanzasPage() {
   const cajaDia = (totalCitasDia + totalIngresosDia) - totalEgresosDia
 
   return (
-    <div style={{ display:'flex', minHeight:'100vh', fontFamily:'DM Sans, sans-serif', background:'#f4f7fb' }}>
-      <Sidebar />
-      <main style={{ marginLeft: isMobile ? 0 : 'var(--sidebar-width, 240px)', flex:1, paddingBottom: isMobile ? 80 : 0, minWidth:0, overflowX:'hidden' }}>
+    <AppShell>
         <PageHeader
           title="Finanzas Operativas"
           sub={`${MESES[mesActual - 1]} ${anioActual}`}
@@ -468,7 +463,7 @@ export default function FinanzasPage() {
           }
         />
 
-        <div style={{ padding: isMobile ? '1rem' : '1.75rem 2rem', maxWidth:1100, margin:'0 auto' }}>
+        <div className="app-content" style={{ maxWidth:1100, margin:'0 auto' }}>
           
           <div style={{ display: 'flex', gap: 4, background: '#f1f5f9', borderRadius: 10, padding: 4, marginBottom: '1.5rem', width: 'fit-content' }}>
             <button onClick={() => setTab('resumen')} style={tabBtn('resumen')}>Resumen Mensual</button>
@@ -775,7 +770,6 @@ export default function FinanzasPage() {
           )}
 
         </div>
-      </main>
 
       {/* Modals */}
       {modalMeta && (
@@ -1081,6 +1075,6 @@ export default function FinanzasPage() {
       )}
 
       {toast && <Toast msg={toast.msg} tipo={toast.tipo} isMobile={isMobile} />}
-    </div>
+    </AppShell>
   )
 }

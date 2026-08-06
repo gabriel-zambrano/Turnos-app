@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Sidebar } from '@/components/Sidebar'
+import { AppShell } from '@/components/AppShell'
 import { useIsMobile } from '@/components/UI'
 import { useTenantContext } from '@/components/TenantContext'
 import {
@@ -176,9 +176,7 @@ export default function BiPage() {
 
   if (tenant && !tenant.feature_bi) {
     return (
-      <div style={{ display: 'flex', minHeight: '100vh', background: '#f4f7fb', fontFamily: 'DM Sans, sans-serif' }}>
-        <Sidebar />
-        <main style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: isMobile ? '1rem' : '2rem', marginLeft: isMobile ? 0 : 'var(--sidebar-width, 240px)', minWidth: 0 }}>
+      <AppShell centrado>
           <div style={{
             maxWidth: 480,
             width: '100%',
@@ -245,8 +243,7 @@ export default function BiPage() {
               Ver plan Business
             </button>
           </div>
-        </main>
-      </div>
+      </AppShell>
     )
   }
 
@@ -373,9 +370,8 @@ export default function BiPage() {
   } as React.CSSProperties)
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: '#f4f7fb', fontFamily: 'DM Sans, sans-serif' }}>
-      <Sidebar />
-      <main style={{ flex: 1, padding: isMobile ? '1rem' : '2rem', marginLeft: isMobile ? 0 : 'var(--sidebar-width, 240px)', minWidth: 0, overflowY: 'auto', paddingBottom: 80 }}>
+    <AppShell>
+      <div className="app-content">
 
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.75rem', flexWrap: 'wrap', gap: 12 }}>
@@ -744,11 +740,11 @@ export default function BiPage() {
             })()}
           </>
         )}
-      </main>
+      </div>
       <style>{`
         @keyframes spin { to { transform: rotate(360deg) } }
         * { box-sizing: border-box; }
       `}</style>
-    </div>
+    </AppShell>
   )
 }
