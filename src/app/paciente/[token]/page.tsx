@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { triggerConfetti } from '@/lib/confetti'
+import { ProgressRing } from '@/components/ProgressRing'
 
 interface Turno {
   id: string
@@ -36,10 +37,17 @@ interface TenantBranding {
   whatsappTemplate: string
 }
 
+/* Sin rojo, a propósito.
+   En la app del odontólogo el rojo hace falta: un turno caído o una deuda
+   tienen que alarmar, porque hay alguien que debe reaccionar. Acá el que mira
+   es el paciente, mirando su propio turno, y no hay nada que pueda hacer con
+   la alarma salvo asustarse. El ámbar dice "esto no siguió adelante" sin
+   decir "algo salió mal". Los valores son los mismos que ya usa
+   `--est-pendiente-*` en globals.css. */
 const ESTADO_STYLE: Record<string, { bg: string; color: string; label: string }> = {
   pendiente:  { bg: '#FFF3CD', color: '#856404', label: 'Pendiente' },
   confirmado: { bg: '#D1E7DD', color: '#0A3622', label: 'Confirmado' },
-  cancelado:  { bg: '#F8D7DA', color: '#58151C', label: 'Cancelado' },
+  cancelado:  { bg: '#FAEEDA', color: '#633806', label: 'Cancelado' },
   completado: { bg: '#E2E3E5', color: '#41464B', label: 'Completado' },
 }
 
@@ -160,9 +168,12 @@ export default function PacientePage() {
   if (error) return (
     <div style={{ minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'DM Sans, system-ui', background:'#f8fafc' }}>
       <div style={{ textAlign:'center', maxWidth:380, padding:'2.5rem 2rem', background:'#fff', borderRadius:24, boxShadow:'0 10px 30px rgba(0,0,0,0.03)', border: '1px solid rgba(0,0,0,0.02)' }}>
+        {/* Ámbar y no rojo: el link venció, que es lo más común y no es culpa
+            de nadie. Y el ícono es un reloj y no un signo de exclamación, por
+            lo mismo. */}
         <div style={{ fontSize:48, marginBottom:20, display: 'flex', justifyContent: 'center' }}>
-          <div style={{ background: 'rgba(239, 68, 68, 0.08)', color: '#ef4444', width: 64, height: 64, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <div style={{ background: 'rgba(239, 159, 39, 0.10)', color: '#EF9F27', width: 64, height: 64, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 7 12 12 15 14"/></svg>
           </div>
         </div>
         <div style={{ fontSize:19, fontWeight:800, color:'#0a1e3d', letterSpacing: '-0.01em' }}>Enlace de turno no válido</div>
@@ -627,29 +638,19 @@ export default function PacientePage() {
               </div>
             )}
 
-            {/* Progreso del tratamiento */}
+            {/* Progreso del tratamiento.
+                Era una barra lineal. Un anillo cuenta el mismo número como
+                avance y no como faltante, que es la lectura que corresponde a
+                un tratamiento de dos años. */}
             {isOrtodoncia && paciente && (paciente.progreso_plan_porcentaje || 0) > 0 && (
-              <div style={{ marginBottom: 28 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 8 }}>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--portal-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Progreso del tratamiento</span>
-                  <span style={{ fontSize: 17, fontWeight: 800, color: 'var(--portal-text-primary)' }}>{paciente.progreso_plan_porcentaje}%</span>
-                </div>
-                <div style={{
-                  height: 10,
-                  background: `${secondaryColor}10`,
-                  borderRadius: 6,
-                  overflow: 'hidden',
-                  marginBottom: 8,
-                  border: '1px solid rgba(0,0,0,0.01)'
-                }}>
-                  <div style={{
-                    height: '100%',
-                    width: `${paciente.progreso_plan_porcentaje}%`,
-                    background: `linear-gradient(90deg, ${secondaryColor}, ${accentColor})`,
-                    borderRadius: 6,
-                    boxShadow: `0 2px 6px ${accentColor}25`
-                  }} />
-                </div>
+              <div style={{ marginBottom: 28, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14 }}>
+                <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--portal-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Progreso del tratamiento</span>
+                <ProgressRing
+                  value={paciente.progreso_plan_porcentaje || 0}
+                  from={secondaryColor}
+                  to={accentColor}
+                  sublabel="completado"
+                />
                 <div style={{ fontSize:13, color:'var(--portal-text-secondary)', fontWeight:500, display: 'flex', alignItems: 'center', gap: 6 }}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={accentColor} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                   {getEstimadoMesesRestantes()}
@@ -661,7 +662,7 @@ export default function PacientePage() {
             {isOrtodoncia && (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 14, marginBottom: 28 }}>
                 <div className="patient-card" style={{ padding: '16px', borderRadius: 18, borderLeft: `4px solid ${secondaryColor}`, background: 'var(--portal-card-bg)' }}>
-                  <div style={{ fontSize: 26, fontWeight: 800, color: 'var(--portal-text-primary)', letterSpacing: '-0.02em' }}>
+                  <div className="kpi-numeral" style={{ fontSize: 28, fontWeight: 600, color: 'var(--portal-text-primary)', letterSpacing: '-0.02em' }}>
                     {pastTurnos.filter(pt => pt.estado === 'asistio' || pt.estado === 'completado').length}
                   </div>
                   <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--portal-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginTop: 6 }}>
@@ -676,7 +677,7 @@ export default function PacientePage() {
                     const adherence = pastNonCanceled.length > 0 ? Math.round((attendedCount / pastNonCanceled.length) * 100) : 100
                     return (
                       <>
-                        <div style={{ fontSize: 26, fontWeight: 800, color: accentColor, letterSpacing: '-0.02em' }}>{adherence}%</div>
+                        <div className="kpi-numeral" style={{ fontSize: 28, fontWeight: 600, color: accentColor, letterSpacing: '-0.02em' }}>{adherence}%</div>
                         <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--portal-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginTop: 6 }}>Adherencia</div>
                       </>
                     )
@@ -690,7 +691,7 @@ export default function PacientePage() {
                     const remaining = pct > 0 ? Math.max(1, Math.round(elapsed * (100 - pct) / pct)) : 0
                     return (
                       <>
-                        <div style={{ fontSize: 26, fontWeight: 800, color: 'var(--portal-text-primary)', letterSpacing: '-0.02em' }}>{remaining}</div>
+                        <div className="kpi-numeral" style={{ fontSize: 28, fontWeight: 600, color: 'var(--portal-text-primary)', letterSpacing: '-0.02em' }}>{remaining}</div>
                         <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--portal-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginTop: 6 }}>Meses restantes</div>
                       </>
                     )
@@ -698,7 +699,7 @@ export default function PacientePage() {
                 </div>
                 
                 <div className="patient-card" style={{ padding: '16px', borderRadius: 18, borderLeft: '4px solid #94a3b8', background: 'var(--portal-card-bg)' }}>
-                  <div style={{ fontSize: 26, fontWeight: 800, color: 'var(--portal-text-primary)', letterSpacing: '-0.02em' }}>{fotos.length}</div>
+                  <div className="kpi-numeral" style={{ fontSize: 28, fontWeight: 600, color: 'var(--portal-text-primary)', letterSpacing: '-0.02em' }}>{fotos.length}</div>
                   <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--portal-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginTop: 6 }}>Fotos</div>
                 </div>
               </div>
@@ -1131,17 +1132,37 @@ export default function PacientePage() {
           transition: all 0.3s ease;
         }
 
+        /* En escritorio el portal NO se expande a dos columnas.
+           El paciente lo abre desde un link de WhatsApp, o sea desde el
+           teléfono casi siempre. Mantener una sola columna significa que hay
+           un solo layout que mantener y testear, y que el odontólogo, cuando
+           previsualiza el portal desde su escritorio, ve exactamente lo que va
+           a ver el paciente. Con dos disposiciones eso no pasaba: el orden de
+           importancia de la versión móvil y el de la de escritorio se
+           desincronizaban en cuanto se agregaba una sección.
+
+           Para que 480px en una pantalla grande se lea como una decisión y no
+           como una página sin terminar, la columna se enmarca: fondo propio,
+           borde y sombra, centrada sobre el degradado del body. */
         @media (min-width: 768px) {
           .portal-wrapper {
             padding: 3.5rem 2rem;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
           }
           .portal-container {
-            max-width: 1024px;
-          }
-          .portal-layout {
-            grid-template-columns: 1.1fr 0.9fr;
-            align-items: start;
-            gap: 32px;
+            max-width: 480px;
+            width: 100%;
+            background: rgba(255, 255, 255, 0.55);
+            border: 1px solid var(--portal-card-border);
+            border-radius: 32px;
+            padding: 2.5rem 1.75rem;
+            box-shadow:
+              0 25px 50px -12px rgba(10, 30, 61, 0.12),
+              0 0 0 1px rgba(255, 255, 255, 0.6) inset;
+            backdrop-filter: blur(20px) saturate(180%);
+            -webkit-backdrop-filter: blur(20px) saturate(180%);
           }
           .portal-modal-overlay {
             align-items: center;
