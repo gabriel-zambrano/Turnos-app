@@ -10,6 +10,15 @@ describe('esRutaPublica', () => {
     // sesión. Si esta ruta queda fuera de la lista, el paciente termina en el
     // login del consultorio.
     expect(esRutaPublica('/agendar/token-abc/cita-123')).toBe(true)
+    expect(esRutaPublica('/t/K3M9QPX7RB4T')).toBe(true)
+  })
+
+  it('el prefijo corto /t no le abre la puerta a nada mas', () => {
+    // '/t' es el prefijo mas corto de la lista y el que mas riesgo tiene de
+    // matchear de mas. La comparacion por segmento lo evita.
+    expect(esRutaPublica('/turnos')).toBe(false)
+    expect(esRutaPublica('/tratamientos')).toBe(false)
+    expect(esRutaPublica('/team')).toBe(false)
   })
 
   it('/agendar no le abre la puerta a /agenda', () => {

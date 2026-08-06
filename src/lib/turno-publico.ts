@@ -44,6 +44,8 @@ export interface TurnoPublico {
   estado: string
   clinica: string
   direccion: string
+  /** Teléfono de la clínica, para el link de reprogramar por WhatsApp. */
+  telefono: string
 }
 
 /** Códigos HTTP por motivo. `base` es 500 a propósito: el paciente no hizo nada mal. */
@@ -143,25 +145,116 @@ export async function leerTurnoPublico(
     return { ok: false, motivo: 'cancelada' }
   }
 
-  // El tenant es para mostrar nombre y dirección. Si falla, el turno igual
-  // sirve: se degrada a los datos que ya tenemos en vez de no devolver nada.
+  return armar(supabase, paciente.tenant_id, paciente.nombre, cita)
+}
+
+/**
+ * Lo mismo, pero a partir del código corto del enlace.
+ *
+ * Diferencia importante con el token: **este camino no expone el token del
+ * paciente**. El código da acceso a UN turno; el token da acceso a todos sus
+ * turnos y a su ficha. Si la pantalla del código enlazara al portal, un código
+ * adivinado valdría lo mismo que el token, y el código es más corto. Por eso
+ * las tres acciones —agendar, confirmar, reprogramar— se resuelven con el
+ * código y ninguna necesita el token.
+ */
+export async function leerTurnoPorCodigo(codigo: string): Promise<ResultadoTurnoPublico> {
+  const c = (codigo || '').trim().toUpperCase()
+
+  // Mismo alfabeto que la migración: base32 sin I, L, O ni U.
+  if (!/^[0-9A-HJKMNP-TV-Z]{12}$/.test(c)) {
+    return { ok: false, motivo: 'parametros' }
+  }
+
+  const supabase = admin()
+
+  const { data: enlace, error: errorEnlace } = await supabase
+    .from('enlaces_turno')
+    .select('cita_id')
+    .eq('codigo', c)
+    .maybeSingle()
+
+  if (errorEnlace) return { ok: false, motivo: 'base', detalle: errorEnlace.message }
+  if (!enlace) return { ok: false, motivo: 'token' }
+
+  const { data: cita, error: errorCita } = await supabase
+    .from('citas')
+    .select('id, fecha_hora, tipo_tratamiento, duracion_minutos, estado, tenant_id, pacientes(nombre)')
+    .eq('id', enlace.cita_id)
+    .maybeSingle()
+
+  if (errorCita) return { ok: false, motivo: 'base', detalle: errorCita.message }
+  if (!cita) return { ok: false, motivo: 'cita' }
+  if (cita.estado === 'cancelado') return { ok: false, motivo: 'cancelada' }
+
+  const nombre = (cita as any).pacientes?.nombre || ''
+  return armar(supabase, (cita as any).tenant_id, nombre, cita)
+}
+
+/** Emite (o recupera) el código corto de una cita. Idempotente: ver la migración. */
+export async function emitirEnlaceTurno(citaId: string): Promise<string | null> {
+  const { data, error } = await admin().rpc('emitir_enlace_turno', { p_cita_id: citaId })
+  if (error) {
+    console.error('[turno-publico] no se pudo emitir el enlace:', error.message)
+    return null
+  }
+  return (data as string) || null
+}
+
+/** Completa el turno con los datos de la clínica. */
+async function armar(
+  supabase: ReturnType<typeof admin>,
+  tenantId: string,
+  pacienteNombre: string,
+  cita: any
+): Promise<ResultadoTurnoPublico> {
+  // El tenant es para mostrar nombre, dirección y el WhatsApp de contacto. Si
+  // falla, el turno igual sirve: se degrada a los datos que ya tenemos en vez
+  // de no devolver nada.
   const { data: tenant } = await supabase
     .from('tenants')
-    .select('nombre, direccion')
-    .eq('id', paciente.tenant_id)
+    .select('nombre, direccion, telefono')
+    .eq('id', tenantId)
     .maybeSingle()
 
   return {
     ok: true,
     turno: {
       citaId: cita.id,
-      pacienteNombre: paciente.nombre,
+      pacienteNombre,
       fechaHora: cita.fecha_hora,
       tratamiento: cita.tipo_tratamiento || 'Consulta',
       duracionMinutos: cita.duracion_minutos || 30,
       estado: cita.estado,
       clinica: tenant?.nombre || '',
       direccion: tenant?.direccion || '',
+      telefono: tenant?.telefono || '',
     },
   }
+}
+
+/**
+ * Confirma un turno a partir del código corto.
+ *
+ * No toca ningún otro estado: solo `pendiente` -> `confirmado`. Cancelar no se
+ * puede desde acá a propósito. Un turno que se cae hay que reprogramarlo, y eso
+ * se coordina con el consultorio: dejar un botón de cancelar a un toque, en un
+ * link reenviable, es pedirle a la agenda que se vacíe sola.
+ */
+export async function confirmarTurnoPorCodigo(codigo: string): Promise<boolean> {
+  const res = await leerTurnoPorCodigo(codigo)
+  if (!res.ok) return false
+  if (res.turno.estado !== 'pendiente') return res.turno.estado === 'confirmado'
+
+  const { error } = await admin()
+    .from('citas')
+    .update({ estado: 'confirmado' })
+    .eq('id', res.turno.citaId)
+    .eq('estado', 'pendiente')
+
+  if (error) {
+    console.error('[turno-publico] no se pudo confirmar:', error.message)
+    return false
+  }
+  return true
 }

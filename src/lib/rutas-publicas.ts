@@ -22,7 +22,8 @@ export const RUTAS_PUBLICAS = [
   '/recuperar-password',
   // De cara al paciente
   '/paciente',   // portal del paciente (por token)
-  '/agendar',    // alta del turno en el calendario (por token), desde WhatsApp
+  '/t',          // enlace corto del turno, el que va en el WhatsApp
+  '/agendar',    // la forma larga del anterior, viva por los links ya enviados
   '/reserva',    // agendamiento online
   '/firmar',     // firma remota de consentimientos
   // Institucional

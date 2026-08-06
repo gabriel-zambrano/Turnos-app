@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { APP_NAME, EMAIL_DOMAIN } from '@/lib/config'
 import { construirIcs } from '@/lib/calendario'
-import { leerTurnoPublico, HTTP_POR_MOTIVO, MENSAJE_POR_MOTIVO } from '@/lib/turno-publico'
+import {
+  leerTurnoPublico,
+  leerTurnoPorCodigo,
+  HTTP_POR_MOTIVO,
+  MENSAJE_POR_MOTIVO,
+} from '@/lib/turno-publico'
 
 // ─────────────────────────────────────────────────────────────
 // Archivo de calendario para que el paciente agende su turno de un toque.
@@ -18,10 +23,16 @@ import { leerTurnoPublico, HTTP_POR_MOTIVO, MENSAJE_POR_MOTIVO } from '@/lib/tur
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
+  const codigo = searchParams.get('c') || ''
   const token = searchParams.get('token') || ''
   const citaId = searchParams.get('cita') || ''
 
-  const res = await leerTurnoPublico(token, citaId)
+  // Dos formas de entrar. `c` es el código corto del enlace que recibe el
+  // paciente y es la que se usa hoy; token + cita queda por los links viejos
+  // que ya salieron en recordatorios y siguen en el WhatsApp de alguien.
+  const res = codigo
+    ? await leerTurnoPorCodigo(codigo)
+    : await leerTurnoPublico(token, citaId)
 
   if (!res.ok) {
     // El detalle solo se registra del lado del servidor: al paciente se le
