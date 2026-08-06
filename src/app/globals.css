@@ -248,7 +248,7 @@ html[data-sidebar="collapsed"] { --sidebar-width: 52px; }
    contenido no se desplaza. Se repite el selector con atributo para ganarle en
    especificidad a la regla de arriba. */
 @media (max-width: 767px) {
-  html,
+  :root,
   html[data-sidebar="collapsed"] { --sidebar-width: 0px; }
 }
 
