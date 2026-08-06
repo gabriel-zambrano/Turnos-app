@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient as createSupabaseServerClient } from '@/lib/supabase/server'
 import { remitente, EMAIL_FROM_RECORDATORIOS , urlDeClinica } from '@/lib/config'
+import { emitirEnlaceTurno } from '@/lib/turno-publico'
 
 
 export const dynamic = 'force-dynamic'
@@ -147,6 +148,16 @@ export async function POST(req: NextRequest) {
           hour: '2-digit', minute: '2-digit'
         })
 
+        // Un solo botón, al enlace corto: desde ahí el paciente confirma,
+        // agenda y pide reprogramar. Antes eran dos, y el segundo ("Ver mi
+        // turno") apuntaba al mismo lugar que el primero.
+        const codigo = await emitirEnlaceTurno(cita.id)
+        const enlaceTurno = codigo
+          ? `${urlClinica}/t/${codigo}`
+          : paciente.token
+            ? `${urlClinica}/paciente/${paciente.token}`
+            : ''
+
         const displayFromName = branding.nombre || 'DentalDesk'
         const fromEmail = remitente(displayFromName, EMAIL_FROM_RECORDATORIOS)
 
@@ -165,10 +176,9 @@ export async function POST(req: NextRequest) {
                 <p style="margin:8px 0 0;font-size:14px;color:#666">🦷 Tratamiento: <strong style="color:#333">${cita.tipo_tratamiento}</strong></p>
                 <p style="margin:8px 0 0;font-size:14px;color:#666">📍 ${branding.nombre} ${branding.direccion ? `— ${branding.direccion}` : ''}</p>
               </div>
-              ${paciente.token ? `
+              ${enlaceTurno ? `
               <div style="text-align:center;margin:24px 0">
-                <a href="${urlClinica}/paciente/${paciente.token}" style="display:inline-block;background:${branding.accentColor || '#1D9E75'};color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;margin:0 4px 8px">✓ Confirmar turno</a>
-                <a href="${urlClinica}/agendar/${paciente.token}/${cita.id}" style="display:inline-block;background:#f4f6f8;color:#555;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;margin:0 4px 8px">📅 Agendar en mi calendario</a>
+                <a href="${enlaceTurno}" style="display:inline-block;background:${branding.accentColor || '#1D9E75'};color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600;font-size:15px">Confirmar y agendar</a>
               </div>` : ''}
               <p style="color:#888;font-size:13px">Si necesitás cancelar o reprogramar, podés hacerlo desde el link de arriba.</p>
               <hr style="border:none;border-top:1px solid #eee;margin:24px 0"/>

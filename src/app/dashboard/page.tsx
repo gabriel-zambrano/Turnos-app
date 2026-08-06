@@ -35,6 +35,8 @@ export default function Dashboard() {
   const { tenant, loading: tenantLoading } = useTenantContext()
   const [citas, setCitas] = useState<Cita[]>([])
   const [citasMañana, setCitasMañana] = useState<CitaMañana[]>([])
+  /** Código corto del link de cada cita, por id. Ver el fetch en la carga. */
+  const [codigosEnlace, setCodigosEnlace] = useState<Record<string, string>>({})
   const [isMobile, setIsMobile] = useState(false)
   useEffect(()=>{
     const check = () => setIsMobile(window.innerWidth < 768)
@@ -271,6 +273,23 @@ export default function Dashboard() {
     tomorrow.setDate(tomorrow.getDate() + 1)
     const tomorrowISO = tomorrow.toISOString().split('T')[0]
     const tomorrowCitas = allCitas.filter(c => toLocalDateStr(c.fecha_hora) === tomorrowISO)
+
+    // Los códigos cortos de los links se piden acá y no al tocar el botón de
+    // WhatsApp: window.open despues de un await ya no cuenta como gesto del
+    // usuario y el bloqueador de pop-ups la mata. Pedirlos ahora deja el click
+    // sincrónico. Emitirlos es idempotente, así que esto no genera links
+    // nuevos en cada carga.
+    if (tomorrowCitas.length > 0) {
+      fetch('/api/enlaces-turno', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ citaIds: tomorrowCitas.map(c => c.id) }),
+      })
+        .then(r => (r.ok ? r.json() : { codigos: {} }))
+        .then(d => setCodigosEnlace(d.codigos || {}))
+        .catch(() => {})
+    }
+
     setCitasMañana(tomorrowCitas.map(c => {
       const pac = Array.isArray(c.pacientes) ? c.pacientes[0] : c.pacientes
       return {
@@ -375,7 +394,13 @@ export default function Dashboard() {
   const enviarRecordatorioWhatsApp = (cita: any) => {
     if (!tenant) return
     const num = normalizarTelefono(cita.telefono)
-    const rawTemplate = (tenant.whatsappTemplate || `Hola {nombre_paciente},\n\nTe recordamos tu turno en *{nombre_clinica}*:\n\n{dia_semana} {fecha} a las *{hora}hs*\n{tratamiento}\n📍 Dirección: {direccion}\n\nConfirma o cancela tu turno acá:\n{link}\n\nAgendalo en tu calendario:\n{link_calendario}`).replace(/\\n/g, '\n')
+    // La plantilla por defecto lleva UN solo link, y va al final.
+    //
+    // WhatsApp previsualiza únicamente la primera URL del mensaje: con dos, la
+    // segunda queda como noventa caracteres de texto suelto compitiendo con lo
+    // que importa. Y esa tarjeta de vista previa es, en la práctica, el botón
+    // que el paciente toca.
+    const rawTemplate = (tenant.whatsappTemplate || `Hola {nombre_paciente}, te esperamos el *{dia_semana} {fecha} a las {hora}hs* en {nombre_clinica}.\n\n{tratamiento} · {direccion}\n\nConfirmá y agendá tu turno acá:\n{link}`).replace(/\\n/g, '\n')
     
     let dia = ''
     let fecha = ''
@@ -397,11 +422,13 @@ export default function Dashboard() {
     }
 
     const appUrl = urlPublicaDeClinica(tenant)
-    const link = cita.token ? `${appUrl}/paciente/${cita.token}` : ''
-    // Link directo al alta en el calendario, sin pasar por el portal. Necesita
-    // el id de la cita además del token: el portal muestra todos los turnos,
-    // pero acá hay que agendar uno concreto.
-    const linkCalendario = cita.token && cita.id ? `${appUrl}/agendar/${cita.token}/${cita.id}` : ''
+    const linkPortal = cita.token ? `${appUrl}/paciente/${cita.token}` : ''
+
+    // {link} es el enlace corto del turno: confirmar, agendar y reprogramar,
+    // todo ahí. Si el código todavía no se emitió —la migración no corrió, o
+    // el fetch de la carga falló—, cae al portal, que es lo que había antes.
+    const codigo = codigosEnlace[cita.id]
+    const link = codigo ? `${appUrl}/t/${codigo}` : linkPortal
 
     const msgText = rawTemplate
       .replace(/{nombre_paciente}/g, cita.nombre)
@@ -410,7 +437,10 @@ export default function Dashboard() {
       .replace(/{fecha}/g, fecha)
       .replace(/{hora}/g, hora)
       .replace(/{tratamiento}/g, cita.tratamiento)
-      .replace(/{link_calendario}/g, linkCalendario)
+      // Alias de {link}, por si quedó en alguna plantilla guardada. Desde que
+      // el enlace corto resuelve las tres acciones, no hay dos links que dar.
+      .replace(/{link_calendario}/g, link)
+      .replace(/{link_portal}/g, linkPortal)
       .replace(/{link}/g, link)
       .replace(/{direccion}/g, tenant.direccion || '')
 

@@ -817,10 +817,12 @@ export default function Configuracion() {
               />
               <div style={{ marginTop: 8, fontSize: 12, color: 'var(--text-muted, #8fa3bc)', lineHeight: 1.5 }}>
                 <strong>Variables soportadas:</strong> <br/>
-                <code>{'{nombre_paciente}'}</code>, <code>{'{nombre_clinica}'}</code>, <code>{'{dia_semana}'}</code>, <code>{'{fecha}'}</code>, <code>{'{hora}'}</code>, <code>{'{tratamiento}'}</code>, <code>{'{direccion}'}</code>, <code>{'{link}'}</code>, <code>{'{link_calendario}'}</code>
+                <code>{'{nombre_paciente}'}</code>, <code>{'{nombre_clinica}'}</code>, <code>{'{dia_semana}'}</code>, <code>{'{fecha}'}</code>, <code>{'{hora}'}</code>, <code>{'{tratamiento}'}</code>, <code>{'{direccion}'}</code>, <code>{'{link}'}</code>
                 <div style={{ marginTop: 6 }}>
-                  <code>{'{link}'}</code> abre el portal, donde el paciente confirma o reprograma.{' '}
-                  <code>{'{link_calendario}'}</code> lleva directo a agregar ese turno al calendario del teléfono, sin pasar por el portal.
+                  <code>{'{link}'}</code> es el enlace del turno: desde ahí el paciente lo confirma, lo agenda en el calendario de su teléfono y pide reprogramarlo.
+                </div>
+                <div style={{ marginTop: 6 }}>
+                  Conviene dejarlo <strong>al final y solo, sin otro enlace en el mensaje</strong>. WhatsApp arma una vista previa de la primera dirección que encuentra y la muestra como una tarjeta: si hay dos, la segunda queda como texto largo compitiendo con el resto.
                 </div>
               </div>
             </div>
