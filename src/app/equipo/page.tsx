@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect, useMemo } from 'react'
-import { Sidebar } from '@/components/Sidebar'
+import { AppShell } from '@/components/AppShell'
 import { PageHeader, BtnPrimary, BtnSm, groupCss, labelCss, inputCss, selectCss, Toast, Spinner, DataTable, TR, TD, Badge, overlayCss, modalCss, modalTitleCss, footerCss, btnLightCss, useIsMobile } from '@/components/UI'
 import { createClient } from '@/lib/supabase/client'
 import { useTenantContext } from '@/components/TenantContext'
@@ -109,9 +109,7 @@ export default function Equipo() {
   if (tenantLoading) return <Spinner />
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', fontFamily: 'DM Sans, sans-serif' }}>
-      <Sidebar />
-      <main style={{ flex: 1, marginLeft: isMobile ? 0 : 'var(--sidebar-width, 240px)', paddingBottom: isMobile ? 80 : 0, minWidth: 0 }}>
+    <AppShell>
         <PageHeader
           title="Gestión de Equipo"
           sub={
@@ -130,12 +128,14 @@ export default function Equipo() {
         />
 
         {cupos !== null && members.length >= cupos && (
-          <div style={{ margin: isMobile ? '1rem 1rem 0' : '1rem 2rem 0', padding: '0.85rem 1rem', background: '#FFF3CD', border: '1px solid #ffe69c', borderRadius: 12, fontSize: 13, color: '#856404' }}>
+          <div className="app-content" style={{ paddingBottom: 0 }}>
+          <div style={{ padding: '0.85rem 1rem', background: '#FFF3CD', border: '1px solid #ffe69c', borderRadius: 12, fontSize: 13, color: '#856404' }}>
             Llegaste al máximo de usuarios de tu plan. Para sumar más gente al equipo, cambiá de plan desde Configuración.
           </div>
+          </div>
         )}
-        
-        <div style={{ padding: isMobile ? '1rem' : '2rem' }}>
+
+        <div className="app-content">
           {loading ? <Spinner /> : isMobile ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               {members.map(m => (
@@ -193,7 +193,6 @@ export default function Equipo() {
             </DataTable>
           )}
         </div>
-      </main>
 
       {modalOpen && (
         <div style={overlayCss(isMobile)}>
@@ -230,6 +229,6 @@ export default function Equipo() {
       )}
 
       {toast && <Toast msg={toast.msg} tipo={toast.tipo} isMobile={isMobile} />}
-    </div>
+    </AppShell>
   )
 }

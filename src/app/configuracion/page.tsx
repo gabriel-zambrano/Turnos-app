@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect, useMemo } from 'react'
-import { Sidebar } from '@/components/Sidebar'
+import { AppShell } from '@/components/AppShell'
 import { PageHeader, BtnPrimary, groupCss, labelCss, inputCss, textareaCss, Toast, grid2Css, Spinner } from '@/components/UI'
 import { createClient } from '@/lib/supabase/client'
 import { useTenantContext } from '@/components/TenantContext'
@@ -367,9 +367,7 @@ export default function Configuracion() {
   if (tenantLoading) return <Spinner />
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', fontFamily: 'DM Sans, sans-serif' }}>
-      <Sidebar />
-      <main style={{ flex: 1, marginLeft: isMobile ? 0 : 'var(--sidebar-width, 240px)', paddingBottom: isMobile ? 80 : 0, minWidth: 0 }}>
+    <AppShell>
         <PageHeader 
           title="Configuración de Clínica" 
           sub="Personalizá los colores, marca y textos para tus pacientes"
@@ -380,7 +378,7 @@ export default function Configuracion() {
           }
         />
         
-        <div style={{ padding: isMobile ? '1rem' : '2rem', maxWidth: 800 }}>
+        <div className="app-content" style={{ maxWidth: 800 }}>
 
           {slugReserva && (
             <div className="glass-card" style={{ padding: '1.5rem', marginBottom: '2rem' }}>
@@ -828,8 +826,7 @@ export default function Configuracion() {
             </div>
           </div>
         </div>
-      </main>
       {toast && <Toast msg={toast.msg} tipo={toast.tipo} isMobile={isMobile} />}
-    </div>
+    </AppShell>
   )
 }

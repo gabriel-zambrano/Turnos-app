@@ -93,8 +93,17 @@ export function Badge({ bg, color, children }: { bg: string; color: string; chil
   return <span style={{ display: 'inline-flex', alignItems: 'center', fontSize: 11, fontWeight: 500, padding: '3px 9px', borderRadius: 6, background: bg, color, whiteSpace: 'nowrap' }}>{children}</span>
 }
 
-export function Toast({ msg, tipo, isMobile }: { msg: string; tipo: string; isMobile?: boolean }) {
-  return <div style={{ position: 'fixed', bottom: isMobile ? 80 : 24, left: '50%', transform: 'translateX(-50%)', padding: '10px 22px', borderRadius: 10, fontSize: 13, fontWeight: 500, zIndex: 2000, background: tipo === 'ok' ? 'linear-gradient(135deg,#0a1e3d,#185FA5)' : '#D85A30', color: '#fff', whiteSpace: 'nowrap', boxShadow: '0 4px 24px rgba(24,95,165,0.25)' }}>{msg}</div>
+/**
+ * El aviso flotante de "guardado ✓".
+ *
+ * `isMobile` sigue aceptándose para no tocar los diez lugares que lo pasan,
+ * pero ya no hace nada: la altura la decide `.app-toast` en globals.css, que
+ * lo sube arriba de la barra inferior con una media query. Antes se calculaba
+ * en JavaScript, así que en la primera pintura el aviso aparecía tapado por la
+ * barra y saltaba después.
+ */
+export function Toast({ msg, tipo }: { msg: string; tipo: string; isMobile?: boolean }) {
+  return <div className="app-toast" style={{ padding: '10px 22px', borderRadius: 10, fontSize: 13, fontWeight: 500, zIndex: 2000, background: tipo === 'ok' ? 'linear-gradient(135deg,#0a1e3d,#185FA5)' : '#D85A30', color: '#fff', whiteSpace: 'nowrap', boxShadow: '0 4px 24px rgba(24,95,165,0.25)' }}>{msg}</div>
 }
 
 // ─────────────────────────────────────────────────────────────

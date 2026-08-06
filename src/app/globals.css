@@ -143,6 +143,80 @@
   --est-cancelado-color: #fca5a5;
 }
 
+/* ── El armazón de la app ──
+   Reemplaza a esto, que estaba copiado en unos veinte lugares:
+
+     <div style={{ display:'flex', minHeight:'100vh', ... }}>
+       <Sidebar />
+       <main style={{ marginLeft: isMobile ? 0 : 'var(--sidebar-width, 240px)',
+                      paddingBottom: isMobile ? 80 : 0, ... }}>
+
+   El problema no era la repetición sino de dónde salía `isMobile`: de
+   window.innerWidth medido en un useEffect. El servidor no conoce el ancho,
+   así que renderizaba SIEMPRE la versión de escritorio y el celular corregía
+   el layout después de la primera pintura. Un salto en cada carga.
+
+   Acá lo resuelve el navegador, que sí sabe el ancho antes de pintar. */
+.app-shell {
+  display: flex;
+  min-height: 100vh;
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+.app-main {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  /* `clip` y no `hidden`, que es lo que decía cada <main> a mano.
+     `overflow-x: hidden` obliga a `overflow-y: auto`, y eso convierte al
+     elemento en un contenedor de scroll. Como no tiene alto fijo, su
+     scrollport mide lo mismo que su contenido: el <PageHeader>, que es
+     `position: sticky`, se queda sin recorrido donde pegarse y se va con el
+     scroll de la página.
+     `clip` recorta igual pero no crea contenedor de scroll, así que el
+     encabezado sigue pegado arriba. */
+  overflow-x: clip;
+  /* --sidebar-width ya vale 0px abajo de 768px, así que el desplazamiento no
+     necesita media query: la misma declaración sirve para las dos. */
+  margin-left: var(--sidebar-width, 240px);
+  /* La barra inferior flota sobre el contenido: sin este espacio, la última
+     fila de cualquier lista queda tapada. 66 de alto + 16 de separación + el
+     borde útil del teléfono. */
+  padding-bottom: calc(98px + env(safe-area-inset-bottom, 0px));
+}
+
+/* El <main> no lleva padding propio porque el encabezado va a sangre y pegado
+   arriba. El aire lo pone el bloque de contenido que va debajo. */
+.app-content { padding: 1rem; }
+
+@media (min-width: 768px) {
+  .app-main { padding-bottom: 0; }
+  .app-content { padding: 2rem; }
+}
+
+/* El aviso flotante. En móvil va arriba de la barra inferior, que si no lo
+   tapa; en escritorio, pegado al borde. */
+.app-toast {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(98px + env(safe-area-inset-bottom, 0px));
+}
+@media (min-width: 768px) {
+  .app-toast { bottom: 24px; }
+}
+
+/* Para las pantallas de carga y de error, que centran una sola cosa. */
+.app-main--centrado {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+@media (min-width: 768px) {
+  .app-main--centrado { padding: 2rem; }
+}
+
 /* Números grandes: KPIs, importes, porcentajes.
    El serif se aplica solo acá; el resto de la interfaz sigue en DM Sans. La
    idea es que la jerarquía la marque el contraste tipográfico y no un color

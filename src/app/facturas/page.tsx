@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { Sidebar } from '@/components/Sidebar'
+import { AppShell } from '@/components/AppShell'
 import { Spinner, PageHeader, Toast } from '@/components/UI'
 import { createClient } from '@/lib/supabase/client'
 import { useTenantContext } from '@/components/TenantContext'
@@ -127,22 +127,17 @@ export default function FacturasPage() {
   }
 
   if (tenantLoading || loading) return (
-    <div style={{ display: 'flex', minHeight: '100vh', fontFamily: 'DM Sans, sans-serif' }}>
-      <Sidebar />
-      <main style={{ marginLeft: isMobile ? 0 : 'var(--sidebar-width, 240px)', flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Spinner /></main>
-    </div>
+    <AppShell centrado><Spinner /></AppShell>
   )
 
   const card: React.CSSProperties = { background: 'var(--bg-card, #fff)', border: '1px solid var(--border-light, rgba(56,138,221,0.12))', borderRadius: 14, padding: '1rem 1.25rem' }
   const inputSt: React.CSSProperties = { fontSize: 13, padding: '8px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontFamily: 'DM Sans, sans-serif', color: '#0a1e3d', outline: 'none' }
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', fontFamily: 'DM Sans, sans-serif' }}>
-      <Sidebar />
-      <main style={{ marginLeft: isMobile ? 0 : 'var(--sidebar-width, 240px)', flex: 1, minWidth: 0, paddingBottom: isMobile ? 90 : 0 }}>
+    <AppShell>
         <PageHeader title="Facturas emitidas" sub={tenant?.nombre} />
 
-        <div style={{ padding: isMobile ? '1rem' : '1.5rem 2rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+        <div className="app-content" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
 
           {/* Tarjetas de totales */}
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(3, 1fr)', gap: 12 }}>
@@ -271,7 +266,6 @@ export default function FacturasPage() {
         )}
 
         {toast && <Toast msg={toast.msg} tipo={toast.tipo} isMobile={isMobile} />}
-      </main>
-    </div>
+    </AppShell>
   )
 }

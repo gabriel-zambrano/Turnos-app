@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { Sidebar } from '@/components/Sidebar'
+import { AppShell } from '@/components/AppShell'
 import { PageHeader, Badge, Spinner } from '@/components/UI'
 import { createClient } from '@/lib/supabase/client'
 import { useTenantContext } from '@/components/TenantContext'
@@ -133,9 +133,7 @@ export default function Recordatorios() {
   // ausentismo, o sea los que le generan plata al consultorio.
   if (!tenantLoading && tenant && !tenant.feature_recordatorios) {
     return (
-      <div style={{ display: 'flex', minHeight: '100vh', fontFamily: 'DM Sans, sans-serif' }}>
-        <Sidebar />
-        <main style={{ marginLeft: isMobile ? 0 : 'var(--sidebar-width, 240px)', flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: isMobile ? '1rem' : '2rem', minWidth: 0 }}>
+      <AppShell centrado>
           <PlanGate
             emoji="🔔"
             titulo="Recordatorios & Reactivación"
@@ -148,17 +146,14 @@ export default function Recordatorios() {
             ]}
             planSugerido="Pro"
           />
-        </main>
-      </div>
+      </AppShell>
     )
   }
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', fontFamily: 'DM Sans, sans-serif' }}>
-      <Sidebar />
-      <main style={{ marginLeft: isMobile ? 0 : 'var(--sidebar-width, 240px)', flex: 1, background: 'transparent', paddingBottom: isMobile ? 80 : 0, minWidth: 0, overflowX: 'hidden' }}>
+    <AppShell>
         <PageHeader title="Recordatorios & Reactivación" />
-        <div style={{ padding: isMobile ? '0.75rem' : '1.75rem 2rem', maxWidth: 1100 }}>
+        <div className="app-content" style={{ maxWidth: 1100 }}>
           
           {/* Tab Selector */}
           <div style={{ display: 'flex', gap: 8, marginBottom: '1.5rem', borderBottom: '1px solid var(--border-light, #dde5ef)', paddingBottom: 10 }}>
@@ -334,7 +329,6 @@ export default function Recordatorios() {
           )}
 
         </div>
-      </main>
-    </div>
+    </AppShell>
   )
 }
