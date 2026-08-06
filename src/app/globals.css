@@ -616,3 +616,63 @@ input:focus, select:focus, textarea:focus {
 @media (max-width: 768px) {
   .aurora-blob { animation: none; filter: blur(90px); }
 }
+
+/* ── Refinamientos de UX/UI ── */
+
+/* Transición háptica para botones interactivos en móvil y escritorio */
+.btn-premium, .quick-action-btn {
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease, background-color 0.2s ease, border-color 0.2s ease, opacity 0.2s ease !important;
+}
+
+.btn-premium:active, .quick-action-btn:active {
+  transform: scale(0.975) !important;
+}
+
+/* Animación fluida de desvanecimiento para dropdowns y modales */
+@keyframes dropdownFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.dropdown-fade-in {
+  animation: dropdownFadeIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Deshabilitar movimiento si se solicita en el sistema operativo */
+@media (prefers-reduced-motion: reduce) {
+  .btn-premium:active, .quick-action-btn:active {
+    transform: none !important;
+  }
+  .dropdown-fade-in, .slide-up-sheet {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}
+
+/* Efectos hover premium en el sidebar */
+.btn-premium:hover .sidebar-icon {
+  transform: translateY(-1.5px) scale(1.05);
+}
+
+/* Animación slide-up para bottom sheets en móviles */
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.slide-up-sheet {
+  animation: slideUp 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+

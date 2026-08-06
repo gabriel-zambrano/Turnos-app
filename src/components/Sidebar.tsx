@@ -138,11 +138,9 @@ export function Sidebar({ pendientes }: { pendientes?: number }) {
     }
   }
 
-  // Mobile Bottom Sheet Navigation
   if (isMobile) {
     const activeColor = tenant?.secondaryColor || '#185FA5'
     
-    // Split navigation: 4 main actions + "Más"
     const mobileCoreItems = navItems.filter(item => !(item as any).adminOnly).slice(0, 4)
     const mobileMoreItems = navItems.filter((item, idx) => (item as any).adminOnly || idx >= 4)
 
@@ -152,13 +150,13 @@ export function Sidebar({ pendientes }: { pendientes?: number }) {
           {mobileCoreItems.map(item => {
             const active = path === item.href || (item.href !== '/dashboard' && path?.startsWith(item.href))
             return (
-              <button key={item.href} onClick={() => router.push(item.href)} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, padding: '6px 4px', borderRadius: 14, border: 'none', background: active ? `linear-gradient(135deg, ${activeColor}15, ${activeColor}25)` : 'transparent', color: active ? activeColor : '#8fa3bc', cursor: 'pointer', fontFamily: 'DM Sans, sans-serif', position: 'relative', minWidth: 0 }}>
+              <button key={item.href} onClick={() => router.push(item.href)} className="quick-action-btn" style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, padding: '6px 4px', borderRadius: 14, border: 'none', background: active ? `linear-gradient(135deg, ${activeColor}15, ${activeColor}25)` : 'transparent', color: active ? activeColor : '#8fa3bc', cursor: 'pointer', fontFamily: 'DM Sans, sans-serif', position: 'relative', minWidth: 0 }}>
                 {ICONS[item.icon]}
                 <span style={{ fontSize: 10, fontWeight: active ? 700 : 500 }}>{item.label}</span>
               </button>
             )}
           )}
-          <button onClick={() => setShowMoreMenu(true)} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, padding: '6px 4px', borderRadius: 14, border: 'none', background: showMoreMenu ? `linear-gradient(135deg, ${activeColor}15, ${activeColor}25)` : 'transparent', color: showMoreMenu ? activeColor : '#8fa3bc', cursor: 'pointer', fontFamily: 'DM Sans, sans-serif', position: 'relative', minWidth: 0 }}>
+          <button onClick={() => setShowMoreMenu(true)} className="quick-action-btn" style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, padding: '6px 4px', borderRadius: 14, border: 'none', background: showMoreMenu ? `linear-gradient(135deg, ${activeColor}15, ${activeColor}25)` : 'transparent', color: showMoreMenu ? activeColor : '#8fa3bc', cursor: 'pointer', fontFamily: 'DM Sans, sans-serif', position: 'relative', minWidth: 0 }}>
             {ICONS.more}
             <span style={{ fontSize: 10, fontWeight: showMoreMenu ? 700 : 500 }}>Más</span>
             {pendientes && pendientes > 0 ? (
@@ -167,10 +165,9 @@ export function Sidebar({ pendientes }: { pendientes?: number }) {
           </button>
         </nav>
 
-        {/* Mobile "Más" Bottom Sheet Modal */}
         {showMoreMenu && (
           <div className="sheet-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(10,30,61,0.55)', backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)', zIndex: 9999, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }} onClick={() => setShowMoreMenu(false)}>
-            <div className="sheet-panel" style={{ background: 'var(--bg-modal, #fff)', borderRadius: '24px 24px 0 0', padding: '1.5rem 1.5rem calc(1.5rem + env(safe-area-inset-bottom, 0px))', width: '100%', maxWidth: 480, boxShadow: '0 -12px 40px rgba(10,30,61,0.18)' }} onClick={e => e.stopPropagation()}>
+            <div className="slide-up-sheet" style={{ background: 'var(--bg-modal, #fff)', borderRadius: '24px 24px 0 0', padding: '1.5rem 1.5rem calc(1.5rem + env(safe-area-inset-bottom, 0px))', width: '100%', maxWidth: 480, boxShadow: '0 -12px 40px rgba(10,30,61,0.18)' }} onClick={e => e.stopPropagation()}>
               <div style={{ width: 40, height: 4, borderRadius: 4, background: 'var(--border-color, #e2e8f0)', margin: '0 auto 1.25rem' }}/>
               <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--text-dark, #0a1e3d)', marginBottom: '1rem', textAlign: 'center' }}>Menú de Opciones</div>
               
@@ -178,7 +175,7 @@ export function Sidebar({ pendientes }: { pendientes?: number }) {
                 {mobileMoreItems.map(item => {
                   const active = path === item.href || (item.href !== '/dashboard' && path?.startsWith(item.href))
                   return (
-                    <button key={item.href} onClick={() => { router.push(item.href); setShowMoreMenu(false) }} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', borderRadius: 12, border: active ? `1px solid ${activeColor}25` : '1px solid var(--border-color)', background: active ? `linear-gradient(135deg, ${activeColor}12, ${activeColor}22)` : 'var(--bg-card, #fff)', color: active ? activeColor : 'var(--text-dark, #0a1e3d)', cursor: 'pointer', fontFamily: 'DM Sans, sans-serif', fontSize: 13, fontWeight: active ? 700 : 500, justifyContent: 'flex-start', textAlign: 'left' }}>
+                    <button key={item.href} onClick={() => { router.push(item.href); setShowMoreMenu(false) }} className="quick-action-btn" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', borderRadius: 12, border: active ? `1px solid ${activeColor}25` : '1px solid var(--border-color)', background: active ? `linear-gradient(135deg, ${activeColor}12, ${activeColor}22)` : 'var(--bg-card, #fff)', color: active ? activeColor : 'var(--text-dark, #0a1e3d)', cursor: 'pointer', fontFamily: 'DM Sans, sans-serif', fontSize: 13, fontWeight: active ? 700 : 500, justifyContent: 'flex-start', textAlign: 'left' }}>
                       {ICONS[item.icon]}
                       <span>{item.label}</span>
                       {item.icon === 'bell' && pendientes && pendientes > 0 ? (
@@ -190,16 +187,15 @@ export function Sidebar({ pendientes }: { pendientes?: number }) {
               </div>
 
               <div style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
-                <button onClick={toggleTheme} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '12px', borderRadius: 12, border: '1px solid var(--border-color)', background: 'var(--bg-input)', color: 'var(--text-dark)', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'DM Sans, sans-serif' }}>
+                <button onClick={toggleTheme} className="quick-action-btn" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '12px', borderRadius: 12, border: '1px solid var(--border-color)', background: 'var(--bg-input)', color: 'var(--text-dark)', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'DM Sans, sans-serif' }}>
                   {theme === 'light' ? ICONS.moon : ICONS.sun}
                   <span>{theme === 'light' ? 'Modo Oscuro' : 'Modo Claro'}</span>
                 </button>
-                <button onClick={() => setShowMoreMenu(false)} style={{ flex: 1, padding: '12px', borderRadius: 12, border: 'none', background: 'var(--text-dark)', color: 'var(--bg-modal, #fff)', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'DM Sans, sans-serif' }}>
+                <button onClick={() => setShowMoreMenu(false)} className="quick-action-btn" style={{ flex: 1, padding: '12px', borderRadius: 12, border: 'none', background: 'var(--text-dark)', color: 'var(--bg-modal, #fff)', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'DM Sans, sans-serif' }}>
                   Cerrar
                 </button>
               </div>
 
-              {/* Selector de Clínicas Mobile */}
               <div style={{ borderTop: '1px solid var(--border-color, #e2e8f0)', paddingTop: '12px', marginTop: '12px', marginBottom: '12px', display: 'flex', flexDirection: 'column', gap: 6 }}>
                 <div style={{ fontSize: 10.5, fontWeight: 700, color: '#8fa3bc', textTransform: 'uppercase', letterSpacing: 0.5 }}>Clínicas</div>
                 <select 
@@ -233,7 +229,7 @@ export function Sidebar({ pendientes }: { pendientes?: number }) {
                 </select>
               </div>
 
-              <button onClick={handleLogout} disabled={loggingOut} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '12px', borderRadius: 12, border: '1px solid #D85A3030', background: '#D85A3012', color: '#D85A30', fontSize: 13, fontWeight: 700, cursor: loggingOut ? 'not-allowed' : 'pointer', fontFamily: 'DM Sans, sans-serif', opacity: loggingOut ? 0.6 : 1 }}>
+              <button onClick={handleLogout} disabled={loggingOut} className="quick-action-btn" style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '12px', borderRadius: 12, border: '1px solid #D85A3030', background: '#D85A3012', color: '#D85A30', fontSize: 13, fontWeight: 700, cursor: loggingOut ? 'not-allowed' : 'pointer', fontFamily: 'DM Sans, sans-serif', opacity: loggingOut ? 0.6 : 1 }}>
                 {ICONS.out}
                 <span>{loggingOut ? 'Saliendo...' : 'Cerrar sesión'}</span>
               </button>
@@ -311,6 +307,7 @@ export function Sidebar({ pendientes }: { pendientes?: number }) {
               {showClinicDropdown && (
                 <div 
                   ref={dropdownRef} 
+                  className="dropdown-fade-in"
                   style={{ 
                     position: 'absolute', 
                     top: '100%', 
@@ -417,9 +414,9 @@ export function Sidebar({ pendientes }: { pendientes?: number }) {
                 gap: showExpanded ? 10 : 0, 
                 padding: '10px 12px', 
                 borderRadius: 10, 
-                border: active ? `1px solid ${secondaryColor}25` : '1px solid transparent', 
-                background: active ? `linear-gradient(135deg, ${secondaryColor}12, ${secondaryColor}22)` : 'transparent', 
-                color: active ? secondaryColor : 'var(--text-muted, #8fa3bc)', 
+                border: '1px solid transparent', 
+                background: active ? 'var(--border-light, rgba(56, 138, 221, 0.08))' : 'transparent', 
+                color: active ? 'var(--text-dark, #0a1e3d)' : 'var(--text-muted, #8fa3bc)', 
                 cursor: 'pointer', 
                 fontFamily: 'DM Sans, sans-serif', 
                 fontSize: 13, 
@@ -430,7 +427,18 @@ export function Sidebar({ pendientes }: { pendientes?: number }) {
                 overflow: 'hidden'
               }}
             >
-              <div style={{ display: 'flex', flexShrink: 0 }}>
+              {active && (
+                <div style={{
+                  position: 'absolute',
+                  left: 0,
+                  top: '15%',
+                  bottom: '15%',
+                  width: 3,
+                  borderRadius: '0 4px 4px 0',
+                  background: secondaryColor
+                }} />
+              )}
+              <div style={{ display: 'flex', flexShrink: 0, transition: 'transform 0.2s ease', color: active ? secondaryColor : undefined }} className="sidebar-icon">
                 {ICONS[item.icon]}
               </div>
               {showExpanded && <span style={{ whiteSpace: 'nowrap' }}>{item.label}</span>}
