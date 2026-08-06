@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { Sidebar } from '@/components/Sidebar'
+import { AppShell } from '@/components/AppShell'
 import { Badge, Toast, PageHeader, BtnPrimary, BtnSm, DataTable, TR, TD, SkeletonLista, MetricCard, inputCss, selectCss, overlayCss, modalCss, modalTitleCss, footerCss, groupCss, labelCss, grid2Css, btnDarkCss, btnLightCss, btnRedCss } from '@/components/UI'
 import { TRAT_STYLE, AVATAR_COLORS, TRATAMIENTOS, calcEdad, initials, normalizarTelefono } from '@/lib/constants'
 import { createClient } from '@/lib/supabase/client'
@@ -143,12 +143,17 @@ export default function Pacientes() {
   }
 
   return (
-    <div style={{display:'flex',minHeight:'100vh',fontFamily:'DM Sans, sans-serif'}}>
-      <Sidebar/>
-      <main style={{marginLeft: isMobile ? 0 : 'var(--sidebar-width, 240px)',flex:1,background:'transparent',paddingBottom:isMobile?80:0,minWidth:0,overflowX:'hidden'}}>
+    <AppShell>
         <PageHeader title="Pacientes"
-          right={!isMobile ? (
-            <div style={{display:'flex',gap:12,alignItems:'center'}}>
+          right={(<>
+            {/* Las dos versiones se pintan siempre y el CSS elige cuál se ve.
+                Con `isMobile` el teléfono cargaba con la barra de escritorio
+                —buscador de 240px incluido— y la cambiaba un instante después. */}
+            <div className="solo-movil" style={{display:'flex',gap:8}}>
+              <button onClick={()=>setModal('importar')} style={{padding:'6px 12px',borderRadius:8,border:'1px solid #e2e8f0',background:'#fff',color:'#475569',fontWeight:600,fontSize:13,cursor:'pointer',fontFamily:'DM Sans, sans-serif'}}>Importar</button>
+              <button onClick={openNuevo} style={{padding:'6px 14px',borderRadius:8,border:'none',background:'#0f1e2b',color:'#fff',fontWeight:600,fontSize:13,cursor:'pointer',fontFamily:'DM Sans, sans-serif'}}>+ Nuevo</button>
+            </div>
+            <div className="solo-escritorio" style={{display:'flex',gap:12,alignItems:'center'}}>
               <input value={busq} onChange={e=>setBusq(e.target.value)} placeholder="Buscar..." style={{...inputCss,width:240,padding:'0.5rem 0.85rem',fontSize:13}}/>
               <button onClick={()=>setModal('importar')} style={{padding:'0.5rem 0.85rem',borderRadius:8,border:'1px solid #e2e8f0',background:'#fff',color:'#475569',fontWeight:600,fontSize:13,cursor:'pointer',fontFamily:'DM Sans, sans-serif',display:'flex',alignItems:'center',gap:6}}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
@@ -163,15 +168,13 @@ export default function Pacientes() {
                 Nuevo
               </BtnPrimary>
             </div>
-          ) : (
-            <div style={{display:'flex',gap:8}}>
-              <button onClick={()=>setModal('importar')} style={{padding:'6px 12px',borderRadius:8,border:'1px solid #e2e8f0',background:'#fff',color:'#475569',fontWeight:600,fontSize:13,cursor:'pointer',fontFamily:'DM Sans, sans-serif'}}>Importar</button>
-              <button onClick={openNuevo} style={{padding:'6px 14px',borderRadius:8,border:'none',background:'#0f1e2b',color:'#fff',fontWeight:600,fontSize:13,cursor:'pointer',fontFamily:'DM Sans, sans-serif'}}>+ Nuevo</button>
-            </div>
-          )}
+          </>)}
         />
-        <div style={{padding:isMobile?'0.75rem':'1.75rem 2rem',maxWidth:1100}}>
-          {isMobile&&<input value={busq} onChange={e=>setBusq(e.target.value)} placeholder="Buscar nombre, teléfono o email..." style={{...inputCss,fontSize:13,padding:'0.5rem 0.75rem',marginBottom:'0.75rem'}}/>}
+        <div className="app-content" style={{maxWidth:1100}}>
+          {/* El buscador se pinta siempre y lo esconde el CSS en escritorio,
+              donde ya hay uno en el encabezado. Con `isMobile` el teléfono
+              cargaba sin buscador y lo veía aparecer un instante después. */}
+          <input className="solo-movil" value={busq} onChange={e=>setBusq(e.target.value)} placeholder="Buscar nombre, teléfono o email..." style={{...inputCss,fontSize:13,padding:'0.5rem 0.75rem',marginBottom:'0.75rem',width:'100%'}}/>
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:'1.5rem'}}>
             <MetricCard label="Total pacientes" value={loading?'…':rows.length} accent="#1D9E75"/>
             <MetricCard label="Resultado búsqueda" value={loading?'…':filtrados.length} accent="#378ADD"/>
@@ -252,13 +255,12 @@ export default function Pacientes() {
             </DataTable>
           )}
         </div>
-      </main>
       {modal==='nuevo'&&<div style={overlayCss(isMobile)} onClick={()=>setModal(null)}><div style={modalCss(isMobile)} onClick={e=>e.stopPropagation()}><div style={modalTitleCss}>Nuevo paciente</div><div style={groupCss}><label style={labelCss}>Nombre completo *</label><input style={inputCss} value={fNombre} onChange={e=>setFNombre(e.target.value)} placeholder="Ej: María González" autoFocus/></div><div style={grid2Css}><div style={groupCss}><label style={labelCss}>Teléfono *</label><input style={inputCss} value={fTelefono} onChange={e=>setFTelefono(e.target.value)} placeholder="+5491123456789"/><span style={{fontSize:11,color:'#aaa',marginTop:3,display:'block'}}>Debe empezar con +</span></div><div style={groupCss}><label style={labelCss}>Email</label><input type="email" style={inputCss} value={fEmail} onChange={e=>setFEmail(e.target.value)} placeholder="paciente@email.com"/></div></div><div style={grid2Css}><div style={groupCss}><label style={labelCss}>Fecha de nacimiento</label><input type="date" style={inputCss} value={fNacimiento} onChange={e=>setFNacimiento(e.target.value)}/></div><div style={groupCss}><label style={labelCss}>Tratamiento</label><select style={selectCss} value={fTratamiento} onChange={e=>setFTratamiento(e.target.value)}>{TRATAMIENTOS.map(t=><option key={t} value={t}>{t}</option>)}</select></div></div><div style={grid2Css}><div style={groupCss}><label style={labelCss}>Alergias</label><input style={inputCss} value={fAlergias} onChange={e=>setFAlergias(e.target.value)} placeholder="Ej: Penicilina, látex..."/></div><div style={groupCss}><label style={labelCss}>Progreso del Plan (%)</label><input type="number" min="0" max="100" style={inputCss} value={fProgresoPlan} onChange={e=>setFProgresoPlan(Number(e.target.value))}/></div></div><div style={groupCss}><label style={labelCss}>Antecedentes Médicos</label><textarea style={{...inputCss,height:50,resize:'vertical'}} value={fAntecedentes} onChange={e=>setFAntecedentes(e.target.value)} placeholder="Hipertensión, diabetes, etc..."/></div><div style={{background:'#f8fafc',border:'1px solid #e2e8f0',borderRadius:12,padding:'14px',marginBottom:'0.85rem'}}><label style={{display:'flex',gap:10,alignItems:'flex-start',cursor:'pointer'}}><input type="checkbox" checked={fConsentimiento} onChange={e=>setFConsentimiento(e.target.checked)} style={{marginTop:3,width:17,height:17,flexShrink:0,cursor:'pointer'}}/><span style={{fontSize:12.5,color:'#4a6080',lineHeight:1.5}}><strong style={{color:'#0a1e3d'}}>El paciente presta su consentimiento</strong> para el registro y tratamiento de sus datos de salud (Ley 25.326). Queda asentada la fecha y la versión del texto.<details style={{marginTop:6}}><summary style={{cursor:'pointer',color:'#185FA5',fontWeight:600}}>Ver el texto</summary><span style={{display:'block',whiteSpace:'pre-line',marginTop:6,fontSize:12,color:'#64748b'}}>{TEXTO_CONSENTIMIENTO_DATOS}</span></details></span></label></div><div style={footerCss}><button style={btnLightCss} onClick={()=>setModal(null)} disabled={saving}>Cancelar</button><button style={{...btnDarkCss,opacity:(saving||!fConsentimiento)?0.6:1}} onClick={saveNuevo} disabled={saving||!fConsentimiento}>{saving?'Guardando...':'Agregar paciente'}</button></div></div></div>}
       {modal==='editar'&&<div style={overlayCss(isMobile)} onClick={()=>setModal(null)}><div style={modalCss(isMobile)} onClick={e=>e.stopPropagation()}><div style={modalTitleCss}>Editar paciente</div><div style={groupCss}><label style={labelCss}>Nombre completo *</label><input style={inputCss} value={fNombre} onChange={e=>setFNombre(e.target.value)} autoFocus/></div><div style={grid2Css}><div style={groupCss}><label style={labelCss}>Teléfono *</label><input style={inputCss} value={fTelefono} onChange={e=>setFTelefono(e.target.value)}/></div><div style={groupCss}><label style={labelCss}>Email</label><input type="email" style={inputCss} value={fEmail} onChange={e=>setFEmail(e.target.value)}/></div></div><div style={grid2Css}><div style={groupCss}><label style={labelCss}>Fecha de nacimiento</label><input type="date" style={inputCss} value={fNacimiento} onChange={e=>setFNacimiento(e.target.value)}/></div><div style={groupCss}><label style={labelCss}>Tratamiento</label><select style={selectCss} value={fTratamiento} onChange={e=>setFTratamiento(e.target.value)}>{TRATAMIENTOS.map(t=><option key={t} value={t}>{t}</option>)}</select></div></div><div style={grid2Css}><div style={groupCss}><label style={labelCss}>Alergias</label><input style={inputCss} value={fAlergias} onChange={e=>setFAlergias(e.target.value)} placeholder="Ej: Penicilina, látex..."/></div><div style={groupCss}><label style={labelCss}>Progreso del Plan (%)</label><input type="number" min="0" max="100" style={inputCss} value={fProgresoPlan} onChange={e=>setFProgresoPlan(Number(e.target.value))}/></div></div><div style={groupCss}><label style={labelCss}>Antecedentes Médicos</label><textarea style={{...inputCss,height:50,resize:'vertical'}} value={fAntecedentes} onChange={e=>setFAntecedentes(e.target.value)} placeholder="Hipertensión, diabetes, etc..."/></div><div style={footerCss}><button style={btnLightCss} onClick={()=>setModal(null)} disabled={saving}>Cancelar</button><button style={{...btnDarkCss,opacity:saving?0.6:1}} onClick={saveEditar} disabled={saving}>{saving?'Guardando...':'Guardar cambios'}</button></div></div></div>}
       {modal==='borrar'&&<div style={overlayCss(isMobile)} onClick={()=>setModal(null)}><div style={{...modalCss(isMobile),maxWidth:380}} onClick={e=>e.stopPropagation()}><div style={modalTitleCss}>Eliminar paciente</div><p style={{fontSize:14,color:'#666',marginBottom:'1.5rem'}}>Vas a eliminar a <strong>{sel?.nombre}</strong>. Esta acción no se puede deshacer.</p><div style={footerCss}><button style={btnLightCss} onClick={()=>setModal(null)} disabled={saving}>Cancelar</button><button style={{...btnRedCss,opacity:saving?0.6:1}} onClick={saveBorrar} disabled={saving}>{saving?'Eliminando...':'Sí, eliminar'}</button></div></div></div>}
       {modal==='importar'&&tenant&&<ImportarPacientesModal tenantId={tenant.id} onClose={()=>setModal(null)} onDone={(m)=>{msg(m);load()}}/>}
 
       {toast&&<Toast msg={toast.msg} tipo={toast.tipo} isMobile={isMobile}/>}
-    </div>
+    </AppShell>
   )
 }

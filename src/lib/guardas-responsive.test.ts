@@ -76,7 +76,6 @@ const PENDIENTES = [
   'app/agenda/page.tsx',
   'app/dashboard/page.tsx',
   'app/pacientes/[id]/page.tsx',
-  'app/pacientes/page.tsx',
 ]
 
 describe('el desplazamiento del contenido no se calcula en JavaScript', () => {

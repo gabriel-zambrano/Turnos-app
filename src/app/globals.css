@@ -194,6 +194,17 @@
   .app-content { padding: 2rem; }
 }
 
+/* Mostrar u ocultar por tamaño de pantalla, sin preguntarle a JavaScript.
+   Para lo chico —un botón, un buscador—: se pinta una sola vez y el navegador
+   decide si se ve, así que no hay parpadeo en la primera pintura.
+   Para bloques grandes no sirven: tener la lista de pacientes dos veces en el
+   DOM cuesta más que el parpadeo que evita. Eso sigue con isMobile. */
+.solo-movil { display: none; }
+@media (max-width: 767px) {
+  .solo-movil { display: revert; }
+  .solo-escritorio { display: none !important; }
+}
+
 /* El aviso flotante. En móvil va arriba de la barra inferior, que si no lo
    tapa; en escritorio, pegado al borde. */
 .app-toast {
