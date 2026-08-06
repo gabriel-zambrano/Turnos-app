@@ -375,7 +375,7 @@ export default function Dashboard() {
   const enviarRecordatorioWhatsApp = (cita: any) => {
     if (!tenant) return
     const num = normalizarTelefono(cita.telefono)
-    const rawTemplate = (tenant.whatsappTemplate || `Hola {nombre_paciente},\n\nTe recordamos tu turno en *{nombre_clinica}*:\n\n{dia_semana} {fecha} a las *{hora}hs*\n{tratamiento}\n📍 Dirección: {direccion}\n\nConfirma o cancela tu turno acá:\n{link}`).replace(/\\n/g, '\n')
+    const rawTemplate = (tenant.whatsappTemplate || `Hola {nombre_paciente},\n\nTe recordamos tu turno en *{nombre_clinica}*:\n\n{dia_semana} {fecha} a las *{hora}hs*\n{tratamiento}\n📍 Dirección: {direccion}\n\nConfirma o cancela tu turno acá:\n{link}\n\nAgendalo en tu calendario:\n{link_calendario}`).replace(/\\n/g, '\n')
     
     let dia = ''
     let fecha = ''
@@ -398,7 +398,11 @@ export default function Dashboard() {
 
     const appUrl = urlPublicaDeClinica(tenant)
     const link = cita.token ? `${appUrl}/paciente/${cita.token}` : ''
-    
+    // Link directo al alta en el calendario, sin pasar por el portal. Necesita
+    // el id de la cita además del token: el portal muestra todos los turnos,
+    // pero acá hay que agendar uno concreto.
+    const linkCalendario = cita.token && cita.id ? `${appUrl}/agendar/${cita.token}/${cita.id}` : ''
+
     const msgText = rawTemplate
       .replace(/{nombre_paciente}/g, cita.nombre)
       .replace(/{nombre_clinica}/g, tenant.nombre || 'DentalDesk')
@@ -406,6 +410,7 @@ export default function Dashboard() {
       .replace(/{fecha}/g, fecha)
       .replace(/{hora}/g, hora)
       .replace(/{tratamiento}/g, cita.tratamiento)
+      .replace(/{link_calendario}/g, linkCalendario)
       .replace(/{link}/g, link)
       .replace(/{direccion}/g, tenant.direccion || '')
 

@@ -6,6 +6,17 @@ describe('esRutaPublica', () => {
     expect(esRutaPublica('/reserva/walterbenegas')).toBe(true)
     expect(esRutaPublica('/paciente/abc-123')).toBe(true)
     expect(esRutaPublica('/firmar/token-xyz')).toBe(true)
+    // El link para agregar el turno al calendario se abre desde WhatsApp, sin
+    // sesión. Si esta ruta queda fuera de la lista, el paciente termina en el
+    // login del consultorio.
+    expect(esRutaPublica('/agendar/token-abc/cita-123')).toBe(true)
+  })
+
+  it('/agendar no le abre la puerta a /agenda', () => {
+    // La comparación es por segmento justamente por esto: con un startsWith
+    // pelado, /agendar dejaría pasar /agenda, que es la del consultorio.
+    expect(esRutaPublica('/agenda')).toBe(false)
+    expect(esRutaPublica('/agenda/2026-08-06')).toBe(false)
   })
 
   it('deja entrar a las páginas institucionales', () => {

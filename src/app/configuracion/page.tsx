@@ -817,7 +817,11 @@ export default function Configuracion() {
               />
               <div style={{ marginTop: 8, fontSize: 12, color: 'var(--text-muted, #8fa3bc)', lineHeight: 1.5 }}>
                 <strong>Variables soportadas:</strong> <br/>
-                <code>{'{nombre_paciente}'}</code>, <code>{'{nombre_clinica}'}</code>, <code>{'{dia_semana}'}</code>, <code>{'{fecha}'}</code>, <code>{'{hora}'}</code>, <code>{'{tratamiento}'}</code>, <code>{'{link}'}</code>
+                <code>{'{nombre_paciente}'}</code>, <code>{'{nombre_clinica}'}</code>, <code>{'{dia_semana}'}</code>, <code>{'{fecha}'}</code>, <code>{'{hora}'}</code>, <code>{'{tratamiento}'}</code>, <code>{'{direccion}'}</code>, <code>{'{link}'}</code>, <code>{'{link_calendario}'}</code>
+                <div style={{ marginTop: 6 }}>
+                  <code>{'{link}'}</code> abre el portal, donde el paciente confirma o reprograma.{' '}
+                  <code>{'{link_calendario}'}</code> lleva directo a agregar ese turno al calendario del teléfono, sin pasar por el portal.
+                </div>
               </div>
             </div>
           </div>

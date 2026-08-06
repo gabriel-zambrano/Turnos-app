@@ -166,9 +166,9 @@ export async function POST(req: NextRequest) {
                 <p style="margin:8px 0 0;font-size:14px;color:#666">📍 ${branding.nombre} ${branding.direccion ? `— ${branding.direccion}` : ''}</p>
               </div>
               ${paciente.token ? `
-              <div style="text-align:center;margin:24px 0;display:flex;gap:12px;justify-content:center">
-                <a href="${urlClinica}/paciente/${paciente.token}" style="display:inline-block;background:${branding.accentColor || '#1D9E75'};color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px">✓ Confirmar turno</a>
-                <a href="${urlClinica}/paciente/${paciente.token}" style="display:inline-block;background:#f4f6f8;color:#555;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px">Ver mi turno</a>
+              <div style="text-align:center;margin:24px 0">
+                <a href="${urlClinica}/paciente/${paciente.token}" style="display:inline-block;background:${branding.accentColor || '#1D9E75'};color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;margin:0 4px 8px">✓ Confirmar turno</a>
+                <a href="${urlClinica}/agendar/${paciente.token}/${cita.id}" style="display:inline-block;background:#f4f6f8;color:#555;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;margin:0 4px 8px">📅 Agendar en mi calendario</a>
               </div>` : ''}
               <p style="color:#888;font-size:13px">Si necesitás cancelar o reprogramar, podés hacerlo desde el link de arriba.</p>
               <hr style="border:none;border-top:1px solid #eee;margin:24px 0"/>
