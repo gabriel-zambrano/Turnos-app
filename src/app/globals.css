@@ -27,6 +27,16 @@
   --grid-2: 1fr 1fr;
   --scrollbar-thumb: #c5d4e8;
 
+  /* Ancho del menú lateral.
+     Vive acá y no en JS por la misma razón que --grid-2: antes se escribía con
+     `documentElement.style.setProperty` dentro de un useEffect, así que en la
+     primera pintura la variable todavía no existía y el <main> caía al valor
+     por defecto de 240px. En el teléfono eso se veía como un salto del
+     contenido en cada carga. El valor real lo decide el navegador; el estado
+     colapsado llega como atributo en <html> desde el script inline del layout,
+     que corre antes de pintar. */
+  --sidebar-width: 240px;
+
   /* Treatments Light Mode */
   --trat-Limpieza-bg: rgba(225, 245, 238, 0.85);
   --trat-Limpieza-color: #085041;
@@ -131,6 +141,30 @@
   --est-asistio-color: #bae6fd;
   --est-cancelado-bg: rgba(216, 90, 48, 0.15);
   --est-cancelado-color: #fca5a5;
+}
+
+/* Números grandes: KPIs, importes, porcentajes.
+   El serif se aplica solo acá; el resto de la interfaz sigue en DM Sans. La
+   idea es que la jerarquía la marque el contraste tipográfico y no un color
+   más, que es lo que termina pasando cuando cada métrica pelea por atención.
+   `tnum` fuerza dígitos de ancho fijo: sin eso, una cifra que cambia en vivo
+   —el total del día en la agenda— hace bailar el resto de la línea. */
+.kpi-numeral {
+  font-family: 'Playfair Display', 'DM Sans', Georgia, serif;
+  font-feature-settings: 'tnum' 1, 'lnum' 1;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+/* Estado colapsado del menú. El atributo lo escribe el script inline de
+   layout.tsx leyendo localStorage, antes del primer paint. */
+html[data-sidebar="collapsed"] { --sidebar-width: 52px; }
+
+/* En móvil el menú lateral no existe (se usa la barra inferior), así que el
+   contenido no se desplaza. Se repite el selector con atributo para ganarle en
+   especificidad a la regla de arriba. */
+@media (max-width: 767px) {
+  html,
+  html[data-sidebar="collapsed"] { --sidebar-width: 0px; }
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -326,7 +360,11 @@ input:focus, select:focus, textarea:focus {
 /* Floating Capsule Navbar for Mobile */
 .mobile-nav-floating {
   position: fixed;
-  bottom: 16px;
+  /* Los 16px son el aire respecto del borde util de la pantalla. En un iPhone
+     con indicador de home ese borde no es el fisico: el indicador ocupa ~34px
+     y la barra le quedaba encima, tapando las etiquetas de los dos items
+     centrales. env() vale 0 en los telefonos que no lo tienen. */
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
   left: 16px;
   right: 16px;
   height: 66px;
@@ -347,6 +385,37 @@ input:focus, select:focus, textarea:focus {
   background: rgba(12, 24, 40, 0.72) !important;
   border: 1px solid rgba(56, 138, 221, 0.15) !important;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5) !important;
+}
+
+/* ── Bottom sheet del menú "Más" ──
+   Aparecía de golpe, y en una hoja que ocupa media pantalla eso se lee como un
+   salto de pantalla y no como un panel que se abre: se pierde de dónde vino y
+   hacia dónde se cierra. La curva es la de iOS (arranca rápido, frena largo),
+   que es con la que el gesto se siente "pesado" en vez de elástico. */
+@keyframes sheet-overlay-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes sheet-slide-up {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+
+.sheet-overlay {
+  animation: sheet-overlay-in 300ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+.sheet-panel {
+  animation: sheet-slide-up 300ms cubic-bezier(0.32, 0.72, 0, 1);
+  /* El padding inferior con env() va en el estilo inline del componente: es un
+     shorthand y desde acá una regla de clase no le gana.
+     El tope de alto sí va acá, para que con el teclado abierto o en un
+     teléfono chico la hoja no se coma la barra de estado. */
+  max-height: 88vh;
+  overflow-y: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sheet-overlay, .sheet-panel { animation: none; }
 }
 
 /* Progress Glow Effect */

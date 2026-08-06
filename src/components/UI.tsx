@@ -186,9 +186,11 @@ export function MetricCard({ label, value, sub, accent }: { label: string; value
         {/* El tamaño se adapta al ancho de la tarjeta: un importe como
             "$400.000" no entra a 28px en una columna angosta y se cortaba.
             clamp() lo resuelve en CSS, sin medir nada en JS. */}
-        <div style={{
-          fontSize: 'clamp(19px, 5.2vw, 28px)',
-          fontWeight: 800, color: DARK, lineHeight: 1.1, letterSpacing: '-0.5px',
+        {/* El peso baja de 800 a 600 porque el serif ya carga más tinta que el
+            sans: a 800 el número se veía embarrado en pantallas sin retina. */}
+        <div className="kpi-numeral" style={{
+          fontSize: 'clamp(20px, 5.4vw, 30px)',
+          fontWeight: 600, color: DARK, lineHeight: 1.1, letterSpacing: '-0.5px',
           overflowWrap: 'anywhere',
         }}>{value}</div>
       </div>

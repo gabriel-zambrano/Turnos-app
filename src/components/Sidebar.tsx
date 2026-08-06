@@ -81,17 +81,18 @@ export function Sidebar({ pendientes }: { pendientes?: number }) {
     return () => window.removeEventListener('resize', check)
   }, [])
 
+  // Sincroniza el estado de React con lo que el script inline del layout ya
+  // dejó escrito en <html> antes del primer paint. Acá no se escribe el ancho:
+  // lo resuelve globals.css a partir de `data-sidebar`, y por eso este efecto
+  // ya no depende de `isMobile` (dependía sólo para recalcular el ancho, y eso
+  // hacía que el valor cambiara después de la primera pintura).
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const savedTheme = localStorage.getItem('theme') as 'light'|'dark' || 'light'
-      setTheme(savedTheme)
-      document.documentElement.setAttribute('data-theme', savedTheme)
-
-      const savedCollapse = localStorage.getItem('sidebar_collapsed') === 'true'
-      setCollapsed(savedCollapse)
-      document.documentElement.style.setProperty('--sidebar-width', isMobile ? '0px' : savedCollapse ? '52px' : '240px')
-    }
-  }, [isMobile])
+    if (typeof window === 'undefined') return
+    const savedTheme = (localStorage.getItem('theme') as 'light'|'dark') || 'light'
+    setTheme(savedTheme)
+    document.documentElement.setAttribute('data-theme', savedTheme)
+    setCollapsed(localStorage.getItem('sidebar_collapsed') === 'true')
+  }, [])
 
   const toggleTheme = () => {
     const next = theme === 'light' ? 'dark' : 'light'
@@ -121,7 +122,8 @@ export function Sidebar({ pendientes }: { pendientes?: number }) {
     const next = !collapsed
     setCollapsed(next)
     localStorage.setItem('sidebar_collapsed', String(next))
-    document.documentElement.style.setProperty('--sidebar-width', isMobile ? '0px' : next ? '52px' : '240px')
+    if (next) document.documentElement.setAttribute('data-sidebar', 'collapsed')
+    else document.documentElement.removeAttribute('data-sidebar')
   }
 
   const handleLogout = async () => {
@@ -167,8 +169,8 @@ export function Sidebar({ pendientes }: { pendientes?: number }) {
 
         {/* Mobile "Más" Bottom Sheet Modal */}
         {showMoreMenu && (
-          <div style={{ position: 'fixed', inset: 0, background: 'rgba(10,30,61,0.55)', backdropFilter: 'blur(6px)', zIndex: 9999, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', padding: '0 0 env(safe-area-inset-bottom,0)' }} onClick={() => setShowMoreMenu(false)}>
-            <div style={{ background: 'var(--bg-modal, #fff)', borderRadius: '24px 24px 0 0', padding: '1.5rem', width: '100%', maxWidth: 480, boxShadow: '0 -12px 40px rgba(10,30,61,0.18)' }} onClick={e => e.stopPropagation()}>
+          <div className="sheet-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(10,30,61,0.55)', backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)', zIndex: 9999, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }} onClick={() => setShowMoreMenu(false)}>
+            <div className="sheet-panel" style={{ background: 'var(--bg-modal, #fff)', borderRadius: '24px 24px 0 0', padding: '1.5rem 1.5rem calc(1.5rem + env(safe-area-inset-bottom, 0px))', width: '100%', maxWidth: 480, boxShadow: '0 -12px 40px rgba(10,30,61,0.18)' }} onClick={e => e.stopPropagation()}>
               <div style={{ width: 40, height: 4, borderRadius: 4, background: 'var(--border-color, #e2e8f0)', margin: '0 auto 1.25rem' }}/>
               <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--text-dark, #0a1e3d)', marginBottom: '1rem', textAlign: 'center' }}>Menú de Opciones</div>
               
@@ -248,7 +250,15 @@ export function Sidebar({ pendientes }: { pendientes?: number }) {
   const accentColor = tenant?.accentColor || '#138A6B'
 
   const showExpanded = !collapsed || hovered
-  const currentWidth = showExpanded ? 240 : 52
+  // El ancho sale de la misma variable que usa el <main>, no de `collapsed`.
+  // `collapsed` es estado de React y en la primera pintura vale siempre false
+  // (el servidor no lee localStorage), así que si el menú estaba colapsado el
+  // aside arrancaba en 240px y saltaba a 52px recién en el efecto — con el
+  // contenido acompañando el salto. La variable, en cambio, ya está resuelta
+  // antes del primer paint por el script del layout.
+  // El hover es la excepción: expande el menú por encima del contenido sin
+  // mover el <main>, así que ahí sí manda el estado.
+  const currentWidth = hovered ? 240 : 'var(--sidebar-width, 240px)'
 
   return (
     <aside 
