@@ -19,7 +19,20 @@ export const opcionesSentry = {
 
   // Separa producción de los deploys de preview: un error de preview no debería
   // mezclarse con los de la clínica que está trabajando.
-  environment: process.env.VERCEL_ENV || process.env.NODE_ENV || 'development',
+  //
+  // `NEXT_PUBLIC_VERCEL_ENV` va primero y no es un capricho. Next solo expone al
+  // navegador las variables con prefijo `NEXT_PUBLIC_`: sin ella, en el cliente
+  // `VERCEL_ENV` es `undefined` y cae a `NODE_ENV`, que en cualquier build de
+  // producción vale 'production'. Resultado: los eventos de preview llegaban
+  // etiquetados como producción y se mezclaban con los reales.
+  //
+  // Verificado en el evento JAVASCRIPT-NEXTJS-G del 12/08/2026, generado desde
+  // un preview y rotulado `environment: production`.
+  environment:
+    process.env.NEXT_PUBLIC_VERCEL_ENV ||
+    process.env.VERCEL_ENV ||
+    process.env.NODE_ENV ||
+    'development',
 
   // ── sendDefaultPii: false ──
   // Era `true`. Con eso el SDK adjuntaba IP, headers y cookies —incluida

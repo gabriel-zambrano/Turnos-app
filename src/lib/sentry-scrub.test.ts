@@ -374,6 +374,33 @@ describe('regresión · formas reales de producción', () => {
     expect(e.tags.transaction).toBe('/paciente/:token')
   })
 
+  it('event.transaction normalizado se conserva igual que el tag', () => {
+    // El evento JAVASCRIPT-NEXTJS-G salió con `/paciente/[redacted]` porque este
+    // campo se saneaba sin la guarda. No protegía nada —`:token` no es un
+    // secreto— y de paso degradaba el tag, que Sentry deriva de acá.
+    const e = beforeSend({ transaction: '/paciente/:token' }) as any
+    expect(e.transaction).toBe('/paciente/:token')
+  })
+
+  it('pero si transaction trae un UUID resuelto, SÍ se sanea', () => {
+    const e = beforeSend({ transaction: `/paciente/${TOKEN_REAL}` }) as any
+    expect(e.transaction).toBe('/paciente/[redacted]')
+    expect(JSON.stringify(e)).not.toContain(TOKEN_REAL)
+  })
+
+  it('el environment se resuelve con la variable que Next expone al cliente', () => {
+    // Sin `NEXT_PUBLIC_VERCEL_ENV`, en el navegador `VERCEL_ENV` es undefined y
+    // cae a NODE_ENV='production': los eventos de preview llegaban rotulados
+    // como producción y se mezclaban con los reales.
+    const compartida = readFileSync(join(RAIZ, 'src/lib/sentry-config.ts'), 'utf8')
+    const sinComentarios = compartida.split('\n').filter(l => !l.trim().startsWith('//')).join('\n')
+    expect(sinComentarios).toMatch(/NEXT_PUBLIC_VERCEL_ENV/)
+    // Y tiene que ir PRIMERO en la cadena de fallback.
+    const orden = sinComentarios.indexOf('NEXT_PUBLIC_VERCEL_ENV')
+    const ordenVercelEnv = sinComentarios.indexOf('process.env.VERCEL_ENV')
+    expect(orden).toBeLessThan(ordenVercelEnv)
+  })
+
   it('tags sin secretos quedan intactos', () => {
     const e = beforeSend({
       tags: { browser: 'Mobile Safari 26.5.2', os: 'iOS 18.7', environment: 'vercel-production' },

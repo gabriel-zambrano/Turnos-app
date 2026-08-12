@@ -283,10 +283,16 @@ function limpiarEvento(evento: EventoSentry): EventoSentry {
     if (req.data !== undefined) req.data = sanitizarDatos(req.data)
   }
 
-  // El nombre de la transacción. Next suele normalizarlo a /paciente/[token],
+  // El nombre de la transacción. Next suele normalizarlo (`/paciente/:token`),
   // pero cuando la ruta se resuelve dinámicamente puede traer el valor real.
+  //
+  // Se usa la misma guarda que en los tags: si no hay un UUID ni un parámetro
+  // sensible, se deja como está. `/paciente/:token` no es un secreto y es lo que
+  // se lee en el panel; convertirlo en `/paciente/[redacted]` no protegía nada y
+  // empeoraba la legibilidad. Sentry además deriva el tag `transaction` de este
+  // campo, así que saneándolo de más se degradaban los dos a la vez.
   if (typeof evento.transaction === 'string') {
-    evento.transaction = sanitizarPath(evento.transaction)
+    evento.transaction = sanitizarValorDeTag(evento.transaction) as string
   }
 
   // Spans de transacción: los http.client llevan la URL en `description`.
