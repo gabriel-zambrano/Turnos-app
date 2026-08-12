@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { enviarWhatsApp, whatsappConfigurado } from '@/lib/whatsapp'
+import { esCron } from '@/lib/cron-auth'
 
 export const dynamic = 'force-dynamic'
 
@@ -18,9 +19,12 @@ function hoyAR() {
 export async function GET(req: Request) {
   const secret = process.env.CRON_SECRET
   if (!secret) return NextResponse.json({ error: 'Server misconfigured' }, { status: 500 })
-  const authHeader = req.headers.get('authorization') || ''
-  const tokenParam = new URL(req.url).searchParams.get('token')
-  if (authHeader !== `Bearer ${secret}` && tokenParam !== secret) {
+
+  // Solo `Authorization: Bearer <CRON_SECRET>`, que es lo que manda Vercel Cron.
+  // Antes también se aceptaba `?token=<CRON_SECRET>`: el secreto terminaba en
+  // los access logs y en las trazas de Sentry, y con él se disparan campañas de
+  // WhatsApp a los pacientes de todas las clínicas.
+  if (!esCron(req)) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   }
 

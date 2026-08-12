@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient as createSupabaseServerClient } from '@/lib/supabase/server'
 import { remitente, EMAIL_FROM_RECORDATORIOS , urlDeClinica } from '@/lib/config'
 import { emitirEnlaceTurno } from '@/lib/turno-publico'
+import { esCron } from '@/lib/cron-auth'
 
 
 export const dynamic = 'force-dynamic'
@@ -20,12 +21,15 @@ export async function POST(req: NextRequest) {
   // Antes este endpoint no verificaba nada: cualquiera en internet podía
   // llamarlo y disparar el envío de recordatorios (sin token, sin sesión,
   // sin nada). Ahora acepta dos caminos válidos:
-  //   a) El cron diario, que manda ?token=CRON_SECRET — puede procesar
-  //      todas las clínicas activas.
+  //   a) El cron diario, que manda `Authorization: Bearer <CRON_SECRET>` —
+  //      puede procesar todas las clínicas activas.
   //   b) Un usuario logueado desde el dashboard, que solo puede procesar
   //      la clínica a la que pertenece (se verifica más abajo).
-  const cronToken = req.nextUrl.searchParams.get('token')
-  const isCron = !!cronToken && cronToken === process.env.CRON_SECRET
+  //
+  // El camino (a) recibía el secreto por `?token=`. Se cambió al header: un
+  // query string queda registrado en los access logs, en el Referer y en las
+  // trazas de Sentry, y este secreto habilita el envío para TODAS las clínicas.
+  const isCron = esCron(req)
 
   // 1. Determinar el/los tenant(s) a procesar
   let bodyTenantId: string | null = null
