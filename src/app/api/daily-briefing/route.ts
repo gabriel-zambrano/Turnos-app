@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { Resend } from 'resend'
 import { featureHabilitada } from '@/lib/planes'
+import { esCron } from '@/lib/cron-auth'
 
 function fmt(n: number) {
   return '$' + Math.round(n).toLocaleString('es-AR')
@@ -16,8 +17,10 @@ function diff(hoy: number, prom: number) {
 }
 
 export async function GET(req: NextRequest) {
-  const auth = req.headers.get('authorization')
-  if (auth !== `Bearer ${process.env.CRON_SECRET}`) {
+  // Ya usaba el header (nunca aceptó el secreto por query string). Pasa por el
+  // helper compartido para que las tres rutas de cron validen igual, con
+  // comparación en tiempo constante.
+  if (!esCron(req)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 

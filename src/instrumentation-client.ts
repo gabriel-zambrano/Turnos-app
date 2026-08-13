@@ -1,20 +1,18 @@
 // This file configures the initialization of Sentry on the client.
 // The added config here will be used whenever a users loads a page in their browser.
 // https://docs.sentry.io/platforms/javascript/guides/nextjs/
+//
+// Las opciones viven en src/lib/sentry-config.ts, compartidas con el servidor
+// y con el runtime edge.
+//
+// El cliente es el que más importa para el portal del paciente: el navegador
+// carga /paciente/<token>, genera una transacción de pageload con esa URL y
+// después hace fetch a /api/paciente/<token>, que deja el token en un
+// breadcrumb y en un span. Los tres pasan por el saneo.
 
 import * as Sentry from "@sentry/nextjs";
+import { opcionesSentry } from "./lib/sentry-config";
 
-Sentry.init({
-  dsn: "https://c32ad30fdc6aebeaa36490bc645231d7@o4511264226541568.ingest.us.sentry.io/4511264235913216",
-
-  // Define how likely traces are sampled. Adjust this value in production, or use tracesSampler for greater control.
-  tracesSampleRate: 1,
-  // Enable logs to be sent to Sentry
-  enableLogs: true,
-
-  // Enable sending user PII (Personally Identifiable Information)
-  // https://docs.sentry.io/platforms/javascript/guides/nextjs/configuration/options/#sendDefaultPii
-  sendDefaultPii: true,
-});
+Sentry.init(opcionesSentry);
 
 export const onRouterTransitionStart = Sentry.captureRouterTransitionStart;
