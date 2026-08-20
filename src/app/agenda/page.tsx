@@ -1039,6 +1039,91 @@ export default function Agenda() {
             </div>
           )}
 
+          {/* Panel de Resumen del Día (Daily KPIs) */}
+          {!tenantLoading && !loading && (
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)',
+              gap: 12,
+              margin: isMobile ? '0.75rem' : '0 0 16px 0',
+            }}>
+              {/* Card 1: Ocupación */}
+              <div style={{
+                background: 'var(--bg-card, #fff)',
+                border: '1px solid var(--border-lighter, #f1f5f9)',
+                borderRadius: 12,
+                padding: '12px 16px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 12,
+                boxShadow: '0 1px 3px rgba(10,30,61,0.02)'
+              }}>
+                <div style={{ fontSize: 18, background: '#EFF6FF', color: '#2563EB', padding: '6px 8px', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', width: 34, height: 34, flexShrink: 0 }}>
+                  📊
+                </div>
+                <div>
+                  <div style={{ fontSize: 9.5, fontWeight: 700, color: '#8fa3bc', textTransform: 'uppercase', letterSpacing: '0.05em', lineHeight: 1.2 }}>Ocupación de Agenda</div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-dark, #0a1e3d)', fontFamily: 'DM Sans, sans-serif', marginTop: 1 }}>
+                    {(() => {
+                      const totalMin = (HORA_FIN - HORA_INICIO) * 60
+                      const ocupadoMin = citasDelDia(fecha)
+                        .filter(c => c.estado !== 'cancelado')
+                        .reduce((acc, c) => acc + c.duracion, 0)
+                      return `${Math.min(100, Math.round((ocupadoMin / totalMin) * 100))}%`
+                    })()}
+                  </div>
+                </div>
+              </div>
+
+              {/* Card 2: Turnos */}
+              <div style={{
+                background: 'var(--bg-card, #fff)',
+                border: '1px solid var(--border-lighter, #f1f5f9)',
+                borderRadius: 12,
+                padding: '12px 16px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 12,
+                boxShadow: '0 1px 3px rgba(10,30,61,0.02)'
+              }}>
+                <div style={{ fontSize: 18, background: '#F5F3FF', color: '#7C3AED', padding: '6px 8px', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', width: 34, height: 34, flexShrink: 0 }}>
+                  📅
+                </div>
+                <div>
+                  <div style={{ fontSize: 9.5, fontWeight: 700, color: '#8fa3bc', textTransform: 'uppercase', letterSpacing: '0.05em', lineHeight: 1.2 }}>Total Turnos</div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-dark, #0a1e3d)', fontFamily: 'DM Sans, sans-serif', marginTop: 1 }}>
+                    {citasDelDia(fecha).length} {citasDelDia(fecha).length === 1 ? 'cita' : 'citas'}
+                  </div>
+                </div>
+              </div>
+
+              {/* Card 3: Proyectado */}
+              <div style={{
+                background: 'var(--bg-card, #fff)',
+                border: '1px solid var(--border-lighter, #f1f5f9)',
+                borderRadius: 12,
+                padding: '12px 16px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 12,
+                boxShadow: '0 1px 3px rgba(10,30,61,0.02)'
+              }}>
+                <div style={{ fontSize: 18, background: '#ECFDF5', color: '#059669', padding: '6px 8px', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', width: 34, height: 34, flexShrink: 0 }}>
+                  💰
+                </div>
+                <div>
+                  <div style={{ fontSize: 9.5, fontWeight: 700, color: '#8fa3bc', textTransform: 'uppercase', letterSpacing: '0.05em', lineHeight: 1.2 }}>Estimado del Día</div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-dark, #0a1e3d)', fontFamily: 'DM Sans, sans-serif', marginTop: 1 }}>
+                    ${citasDelDia(fecha)
+                      .filter(c => c.estado !== 'cancelado')
+                      .reduce((acc, c) => acc + (Number(c.valor) || 0), 0)
+                      .toLocaleString('es-AR')}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Interactive Treatment Legend & Filter */}
           {!tenantLoading && !loading && (
             <div style={{
