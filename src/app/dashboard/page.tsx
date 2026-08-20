@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { Sidebar } from '@/components/Sidebar'
-import { Badge, Toast, PageHeader, FilterBar, SkeletonLista, SkeletonKPIs, MetricCard, useBloqueoScroll, inputCss, selectCss, overlayCss, modalCss, modalTitleCss, footerCss, groupCss, labelCss, grid2Css, btnDarkCss, btnLightCss } from '@/components/UI'
+import { Badge, Toast, PageHeader, FilterBar, SkeletonLista, SkeletonKPIs, MetricCard, ProgressRing, useBloqueoScroll, inputCss, selectCss, overlayCss, modalCss, modalTitleCss, footerCss, groupCss, labelCss, grid2Css, btnDarkCss, btnLightCss } from '@/components/UI'
 import { TRAT_STYLE, ESTADO_STYLE, hoyISO, normalizarTelefono, nombreParaSaludo, TRATAMIENTOS } from '@/lib/constants'
 import { createClient } from '@/lib/supabase/client'
 import { urlPublicaDeClinica } from '@/lib/config'
@@ -355,6 +355,8 @@ export default function Dashboard() {
   // memoria, sin ninguna consulta extra.
   const citasCobradas = citas.filter(c => (c.precio_cobrado ?? 0) > 0).length
   const cobradoHoy    = citas.reduce((s, c) => s + (c.precio_cobrado ?? 0), 0)
+  const totalValorHoy = citas.reduce((s, c) => s + (c.valor ?? 0), 0)
+  const porcentajeCobrado = totalValorHoy > 0 ? Math.round((cobradoHoy / totalValorHoy) * 100) : 0
   const pend    = citas.filter(c=>c.estado==='pendiente').length
   const tasa    = citas.length>0?Math.round(conf/citas.length*100):0
   const lista   = filtro==='todas'?citas:citas.filter(c=>c.estado===filtro)
@@ -550,15 +552,26 @@ export default function Dashboard() {
                   {getSaludo()}, {nombreParaSaludo(tenant?.nombre)}!
                 </h2>
                 <p style={{ fontSize: 13, color: '#687e96', lineHeight: 1.4 }}>
-                  {/* No se desglosa por estado: los turnos también pueden estar
-                      atendidos, cancelados o ausentes, y "2 confirmados y 3
-                      pendientes" sobre 10 daba a entender un desglose completo
-                      que no cerraba. Se dice el total y lo accionable. */}
-                  {citas.length > 0
-                    ? `Hoy tenés ${citas.length} ${citas.length === 1 ? 'turno agendado' : 'turnos agendados'}.` +
+                  {(() => {
+                    if (citas.length === 0) return 'No tenés citas agendadas para el día de hoy.'
+                    
+                    const proximosPendientes = citas.filter(c => c.estado === 'pendiente' && parseTimeToMin(c.hora) > ahoraMin)
+                    if (proximosPendientes.length > 0) {
+                      return `Hoy tenés ${citas.length} ${citas.length === 1 ? 'turno' : 'turnos'} en agenda. Tenés ${proximosPendientes.length} por confirmar pronto; podés enviarles recordatorios rápidos.`
+                    }
+                    
+                    if (nextCita) {
+                      return `Hoy tenés ${citas.length} ${citas.length === 1 ? 'turno' : 'turnos'} agendados. El próximo paciente es ${nextCita.nombre} en el horario de las ${nextCita.hora} hs.`
+                    }
+                    
+                    const todasCompletadas = citas.every(c => c.estado === 'asistio' || c.estado === 'ausente' || c.estado === 'cancelado')
+                    if (todasCompletadas) {
+                      return '¡Excelente! Has completado todas las citas programadas para el día de hoy.'
+                    }
+                    
+                    return `Hoy tenés ${citas.length} ${citas.length === 1 ? 'turno agendado' : 'turnos agendados'}.` +
                       (pend > 0 ? ` ${pend} ${pend === 1 ? 'espera tu confirmación' : 'esperan tu confirmación'}.` : '')
-                    : 'No tenés citas agendadas para el día de hoy.'
-                  }
+                  })()}
                 </p>
               </div>
 
@@ -685,9 +698,29 @@ export default function Dashboard() {
                 importe de "Cobrado hoy" se cortaba a la mitad. */}
             {loading ? <SkeletonKPIs cantidad={3}/> : (
               <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit, minmax(150px, 1fr))',gap:12}}>
-                <MetricCard label="Citas del día" value={citas.length} sub={`Confirmadas: ${conf}`} accent={primaryColor}/>
-                <MetricCard label="Cobrado hoy" value={`$${cobradoHoy.toLocaleString('es-AR')}`} sub={`${citasCobradas} de ${citas.length} turnos`} accent={accentColor}/>
-                <MetricCard label="Pendientes de cobro" value={citas.length - citasCobradas} sub="Turnos de hoy sin cobrar" accent={citas.length - citasCobradas > 0 ? '#EF9F27' : accentColor}/>
+                <MetricCard 
+                  label="Citas del día" 
+                  value={citas.length} 
+                  sub={`Confirmadas: ${conf}`} 
+                  accent={primaryColor}
+                  right={<ProgressRing percentage={tasa} color={primaryColor} />}
+                />
+                <MetricCard 
+                  label="Cobrado hoy" 
+                  value={`$${cobradoHoy.toLocaleString('es-AR')}`} 
+                  sub={`${citasCobradas} de ${citas.length} turnos`} 
+                  accent={accentColor}
+                  right={<ProgressRing percentage={porcentajeCobrado} color={accentColor} />}
+                />
+                <MetricCard 
+                  label="Pendientes de cobro" 
+                  value={citas.length - citasCobradas} 
+                  sub="Turnos de hoy sin cobrar" 
+                  accent={citas.length - citasCobradas > 0 ? '#EF9F27' : accentColor}
+                  right={citas.length - citasCobradas > 0 ? (
+                    <div style={{ fontSize: 12, background: 'rgba(239, 159, 39, 0.15)', color: '#EF9F27', width: 22, height: 22, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>!</div>
+                  ) : null}
+                />
               </div>
             )}
           </div>
@@ -711,7 +744,7 @@ export default function Dashboard() {
                     const cobrado = c.estado==='asistio' && !!c.precio_cobrado
                     const tieneAccion = c.estado==='pendiente' || c.estado==='confirmado' || (c.estado==='asistio' && !c.precio_cobrado)
                     return(
-                      <div key={c.id} className="interactive-item" style={{background:'rgba(255,255,255,0.7)',border:'0.5px solid rgba(56,138,221,0.12)',borderRadius:12,padding:isMobile?'0.75rem':'0.85rem 1rem',display:'flex',alignItems:isMobile?'flex-start':'center',flexWrap:isMobile?'wrap':'nowrap',gap:isMobile?8:14}}>
+                      <div key={c.id} className="interactive-item" style={{background:'var(--bg-container)',border:'0.5px solid var(--border-light)',borderRadius:12,padding:isMobile?'0.75rem':'0.85rem 1rem',display:'flex',alignItems:isMobile?'flex-start':'center',flexWrap:isMobile?'wrap':'nowrap',gap:isMobile?8:14}}>
                         <div style={{fontSize:13,fontWeight:700,color:primaryColor,minWidth:40,textAlign:'center'}}>{c.hora}</div>
                         <div style={{width:8,height:8,borderRadius:'50%',background:tc.dot,flexShrink:0,marginTop:isMobile?4:0}}/>
                         <div style={{flex:1,minWidth:0}}>
@@ -946,7 +979,7 @@ export default function Dashboard() {
                     )
                   })}
                   {lista.length===0&&(
-                    <div style={{textAlign:'center',padding:'3rem 2rem',background:'rgba(255,255,255,0.6)',backdropFilter:'blur(20px)',borderRadius:16,border:'1px dashed rgba(56,138,221,0.2)',display:'flex',flexDirection:'column',alignItems:'center',gap:12}}>
+                    <div style={{textAlign:'center',padding:'3rem 2rem',background:'var(--bg-card)',backdropFilter:'blur(20px)',borderRadius:16,border:'1px dashed var(--border-light)',display:'flex',flexDirection:'column',alignItems:'center',gap:12}}>
                       <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke={`${secondaryColor}60`} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                         <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
                         <line x1="16" y1="2" x2="16" y2="6" />
@@ -990,11 +1023,11 @@ export default function Dashboard() {
                   ))}
                 </div>
               </div>
-              <div className="glass-container" style={{borderRadius:14,overflow:'hidden',background:'rgba(255,255,255,0.7)'}}>
+              <div className="glass-container" style={{borderRadius:14,overflow:'hidden',background:'var(--bg-container)'}}>
                 {logsFiltrados.length===0
                   ?<div style={{padding:'2rem',textAlign:'center',color:'#ccc',fontSize:13}}>Sin envíos aún</div>
                   :logsFiltrados.slice(0,8).map((l,i)=>(
-                    <div key={l.id} style={{display:'flex',alignItems:'center',gap:10,padding:'0.75rem 1rem',borderBottom:i<Math.min(logsFiltrados.length,8)-1?'0.5px solid rgba(56,138,221,0.08)':'none'}}>
+                    <div key={l.id} style={{display:'flex',alignItems:'center',gap:10,padding:'0.75rem 1rem',borderBottom:i<Math.min(logsFiltrados.length,8)-1?'0.5px solid var(--border-lighter)':'none'}}>
                       <div style={{width:7,height:7,borderRadius:'50%',flexShrink:0,background:l.estado==='enviado'?accentColor:'#D85A30'}}/>
                       <div style={{flex:1,minWidth:0}}>
                         <div style={{fontSize:13,fontWeight:500,color:primaryColor,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{l.paciente}</div>

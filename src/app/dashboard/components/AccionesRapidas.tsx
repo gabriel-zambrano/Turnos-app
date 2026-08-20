@@ -55,6 +55,7 @@ function estiloBoton(color: string, fondo?: string, borde?: string): React.CSSPr
 
 function Accion({
   etiqueta,
+  descripcion,
   color,
   onClick,
   href,
@@ -63,6 +64,7 @@ function Accion({
   children,
 }: {
   etiqueta: string
+  descripcion?: string
   color: string
   onClick?: () => void
   href?: string
@@ -71,9 +73,17 @@ function Accion({
   children: React.ReactNode
 }) {
   const contenido = (
-    <div className="quick-action-btn" style={estiloBoton(color, fondo, borde)}>
+    <div className="quick-action-btn" style={{
+      ...estiloBoton(color, fondo, borde),
+      padding: descripcion ? '12px 6px' : '8px 4px',
+    }}>
       {children}
       <span style={{ fontSize: 10.5, fontWeight: 700 }}>{etiqueta}</span>
+      {descripcion && (
+        <span style={{ fontSize: 8.5, opacity: 0.7, fontWeight: 500, display: 'block', marginTop: 2, lineHeight: 1.2 }}>
+          {descripcion}
+        </span>
+      )}
     </div>
   )
 
@@ -244,7 +254,7 @@ export function AccionesRapidas(props: Props) {
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, flex: 1 }}>
 
-        <Accion etiqueta="Agendar Turno" color={secondaryColor} onClick={onAgendarTurno}>
+        <Accion etiqueta="Agendar Turno" descripcion="Citas en agenda" color={secondaryColor} onClick={onAgendarTurno}>
           <svg {...svgProps}>
             <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
             <line x1="16" y1="2" x2="16" y2="6" />
@@ -255,7 +265,7 @@ export function AccionesRapidas(props: Props) {
           </svg>
         </Accion>
 
-        <Accion etiqueta="Nuevo Paciente" color={primaryColor} onClick={onNuevoPaciente}>
+        <Accion etiqueta="Nuevo Paciente" descripcion="Alta en base" color={primaryColor} onClick={onNuevoPaciente}>
           <svg {...svgProps}>
             <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
             <circle cx="9" cy="7" r="4" />
@@ -264,14 +274,14 @@ export function AccionesRapidas(props: Props) {
           </svg>
         </Accion>
 
-        <Accion etiqueta="Registrar Cobro" color={accentColor} onClick={onRegistrarCobro}>
+        <Accion etiqueta="Registrar Cobro" descripcion="Ingresos y facturas" color={accentColor} onClick={onRegistrarCobro}>
           <svg {...svgProps}>
             <line x1="12" y1="1" x2="12" y2="23" />
             <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
           </svg>
         </Accion>
 
-        <Accion etiqueta="Ver Agenda" color="#687e96" href="/agenda" fondo="#f0f4f8" borde="1px solid #dde5ef">
+        <Accion etiqueta="Ver Agenda" descripcion="Calendario completo" color="#687e96" href="/agenda" fondo="#f0f4f8" borde="1px solid #dde5ef">
           <svg {...svgProps}>
             <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
             <line x1="16" y1="2" x2="16" y2="6" />

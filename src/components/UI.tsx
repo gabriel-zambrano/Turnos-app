@@ -176,7 +176,43 @@ export function Spinner() {
   )
 }
 
-export function MetricCard({ label, value, sub, accent }: { label: string; value: string | number; sub?: string; accent: string }) {
+export function ProgressRing({ percentage, size = 38, strokeWidth = 3.5, color }: { percentage: number; size?: number; strokeWidth?: number; color: string }) {
+  const radius = (size - strokeWidth) / 2
+  const circumference = radius * 2 * Math.PI
+  const strokeDashoffset = circumference - (Math.min(100, Math.max(0, percentage)) / 100) * circumference
+
+  return (
+    <div style={{ position: 'relative', width: size, height: size, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="transparent"
+          stroke="var(--border-lighter, rgba(56, 138, 221, 0.06))"
+          strokeWidth={strokeWidth}
+        />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="transparent"
+          stroke={color}
+          strokeWidth={strokeWidth}
+          strokeDasharray={circumference}
+          strokeDashoffset={strokeDashoffset}
+          strokeLinecap="round"
+          style={{ transition: 'stroke-dashoffset 0.35s ease' }}
+        />
+      </svg>
+      <span style={{ position: 'absolute', fontSize: 9.5, fontWeight: 700, color: 'var(--text-dark, #0a1e3d)' }}>
+        {percentage}%
+      </span>
+    </div>
+  )
+}
+
+export function MetricCard({ label, value, sub, accent, right }: { label: string; value: string | number; sub?: string; accent: string; right?: React.ReactNode }) {
   return (
     <div className="glass-card" style={{ 
       padding: '1.25rem 1.4rem', 
@@ -190,18 +226,16 @@ export function MetricCard({ label, value, sub, accent }: { label: string; value
       '--card-accent-alpha': `${accent}15`
     } as React.CSSProperties}>
       <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 4, background: `linear-gradient(90deg, ${accent}, ${accent}88)` }}/>
-      <div>
-        <div style={{ fontSize: 10.5, color: '#7a8f9d', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 700, marginBottom: 8 }}>{label}</div>
-        {/* El tamaño se adapta al ancho de la tarjeta: un importe como
-            "$400.000" no entra a 28px en una columna angosta y se cortaba.
-            clamp() lo resuelve en CSS, sin medir nada en JS. */}
-        {/* El peso baja de 800 a 600 porque el serif ya carga más tinta que el
-            sans: a 800 el número se veía embarrado en pantallas sin retina. */}
-        <div className="kpi-numeral" style={{
-          fontSize: 'clamp(20px, 5.4vw, 30px)',
-          fontWeight: 600, color: DARK, lineHeight: 1.1, letterSpacing: '-0.5px',
-          overflowWrap: 'anywhere',
-        }}>{value}</div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontSize: 10.5, color: '#7a8f9d', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 700, marginBottom: 8 }}>{label}</div>
+          <div className="kpi-numeral" style={{
+            fontSize: 'clamp(20px, 5.4vw, 30px)',
+            fontWeight: 600, color: DARK, lineHeight: 1.1, letterSpacing: '-0.5px',
+            overflowWrap: 'anywhere',
+          }}>{value}</div>
+        </div>
+        {right && <div style={{ flexShrink: 0, marginTop: 4 }}>{right}</div>}
       </div>
       {sub && <div style={{ fontSize: 11.5, color: '#8b9cb0', marginTop: 8, fontWeight: 500 }}>{sub}</div>}
     </div>
