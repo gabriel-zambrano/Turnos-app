@@ -309,7 +309,7 @@ function AgendaHeaderMobile({ fecha, vista, esHoy, onPrev, onNext, onVista, onNu
 }
 const HORA_INICIO = 8
 const HORA_FIN = 20
-const SLOT_H = 48 // px por hora
+const SLOT_H = 80 // px por hora
 
 export default function Agenda() {
   const supabase = useMemo(() => createClient(), [])
@@ -1599,7 +1599,7 @@ export default function Agenda() {
                                     display: 'flex',
                                     alignItems: 'center',
                                     gap: 4,
-                                    fontSize: 10.5,
+                                    fontSize: 11,
                                     fontWeight: 700,
                                     color: isSobreturno ? '#78350F' : colorVar,
                                     height: '100%',
@@ -1611,15 +1611,15 @@ export default function Agenda() {
                                     <span style={{opacity: 0.5}}>•</span>
                                     <span style={{textOverflow: 'ellipsis', overflow: 'hidden'}}>{c.nombre}</span>
                                     <span style={{opacity: 0.5}}>•</span>
-                                    <span style={{fontSize: 9, fontWeight: 500, opacity: 0.8}}>{c.tratamiento}</span>
+                                    <span style={{fontSize: 9.5, fontWeight: 500, opacity: 0.8}}>{c.tratamiento}</span>
                                   </div>
-                                ) : hCard <= 48 ? (
+                                ) : hCard <= 54 ? (
                                   <>
-                                    <div style={{fontSize: 11, fontWeight: 700, color: isSobreturno ? '#78350F' : colorVar, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', lineHeight: 1.2}}>
+                                    <div style={{fontSize: 12.5, fontWeight: 700, color: isSobreturno ? '#78350F' : colorVar, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', lineHeight: 1.25}}>
                                       <span style={{fontWeight: 800, marginRight: 4}}>{c.hora}</span>
                                       {c.nombre}
                                     </div>
-                                    <div style={{fontSize: 9, color: isSobreturno ? '#B45309' : colorVar, opacity: 0.8, marginTop: 1, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'}}>
+                                    <div style={{fontSize: 10, color: isSobreturno ? '#B45309' : colorVar, opacity: 0.8, marginTop: 2, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'}}>
                                       <span>{c.tratamiento}</span>
                                       <span>•</span>
                                       <span>{c.duracion}m</span>
@@ -1655,21 +1655,21 @@ export default function Agenda() {
                                   </>
                                 ) : (
                                   <>
-                                    <div style={{fontSize: 11.5, fontWeight: 700, color: isSobreturno ? '#78350F' : colorVar, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'}}>
+                                    <div style={{fontSize: 13, fontWeight: 700, color: isSobreturno ? '#78350F' : colorVar, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'}}>
                                       <div style={{overflow: 'hidden', textOverflow: 'ellipsis'}}>
                                         <span style={{fontWeight: 800, marginRight: 4}}>{c.hora}</span>
                                         {c.nombre}
                                       </div>
                                       <span style={{
-                                        width: 6,
-                                        height: 6,
+                                        width: 7,
+                                        height: 7,
                                         borderRadius: '50%',
                                         background: `var(--est-${c.estado}-color, ${es.color})`,
                                         boxShadow: `0 0 6px var(--est-${c.estado}-color, ${es.color})`,
                                         flexShrink: 0
                                       }}/>
                                     </div>
-                                    <div style={{fontSize: 9.5, color: isSobreturno ? '#B45309' : colorVar, opacity: 0.85, marginTop: 2, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap'}}>
+                                    <div style={{fontSize: 10.5, color: isSobreturno ? '#B45309' : colorVar, opacity: 0.85, marginTop: 3, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap'}}>
                                       <span style={{display: 'flex', alignItems: 'center', gap: 2}}>
                                         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M15 3v18M3 9h18M3 15h18"/></svg>
                                         {c.tratamiento}
