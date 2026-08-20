@@ -60,6 +60,7 @@ export default function Dashboard() {
   const [toast, setToast] = useState<{msg:string;tipo:string}|null>(null)
   const [hoy, setHoy] = useState('')
   const [ahora, setAhora] = useState(() => new Date())
+  const [cajaCerrada, setCajaCerrada] = useState(false)
 
   // States for Quick Actions
   const [modalPaciente, setModalPaciente] = useState(false)
@@ -123,6 +124,7 @@ export default function Dashboard() {
   }
 
   async function guardarRegistrarCobro() {
+    if (cajaCerrada) return msg('La caja está cerrada para este día', 'error')
     if (!cobConcepto.trim() || cobMonto === '' || Number(cobMonto) <= 0) {
       return msg('Completá concepto y monto', 'error')
     }
@@ -337,6 +339,15 @@ export default function Dashboard() {
     }
     setHeatmapData(hData)
 
+    // Fetch if cash drawer is closed for selectedDate
+    const { data: cajaRes } = await supabase
+      .from('cajas_diarias')
+      .select('estado')
+      .eq('tenant_id', tenant.id)
+      .eq('fecha', selectedDate)
+      .maybeSingle()
+    setCajaCerrada(cajaRes?.estado === 'cerrada')
+
     setLoading(false)
   },[tenant, selectedDate])
 
@@ -396,6 +407,7 @@ export default function Dashboard() {
   const logsFiltrados = logFiltro === 'todos' ? logs : logs.filter(l => l.estado === logFiltro)
 
   async function confirmar(id:string){
+    if (cajaCerrada) return msg('La caja está cerrada para este día', 'error')
     await supabase.from('citas').update({estado:'confirmado'}).eq('id',id)
     setCitas(p=>p.map(c=>c.id===id?{...c,estado:'confirmado' as EstadoCita}:c))
     msg('Cita confirmada ✓')
@@ -728,8 +740,13 @@ export default function Dashboard() {
           <div style={{display:'grid',gridTemplateColumns:isMobile?'1fr':'1fr 300px',gap:16,alignItems:'start'}}>
             <div>
               <div style={{display:'flex',justifyContent:'space-between',alignItems:isMobile?'flex-start':'center',flexDirection:isMobile?'column':'row',gap:isMobile?8:0,marginBottom:12}}>
-                <span style={{fontWeight:700,fontSize:14,color:primaryColor}}>
+                <span style={{fontWeight:700,fontSize:14,color:primaryColor,display:'flex',alignItems:'center',gap:6}}>
                   {selectedDate === hoyISO() ? 'Citas de hoy' : `Citas del ${new Date(selectedDate + 'T00:00:00').toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' })}`}
+                  {cajaCerrada && (
+                    <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', background: '#fee2e2', color: '#ef4444', borderRadius: 12, display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                      🔒 Caja Cerrada
+                    </span>
+                  )}
                 </span>
                 <FilterBar options={FILTROS} active={filtro} onChange={setFiltro}/>
               </div>
@@ -771,6 +788,7 @@ export default function Dashboard() {
                           {c.estado === 'confirmado' && (
                             <button 
                               onClick={async () => {
+                                if (cajaCerrada) return msg('La caja está cerrada para este día', 'error')
                                 if (!c.precio_cobrado) {
                                   setCobConcepto(`Pago ${c.tratamiento} — ${c.nombre}`)
                                   setCobMonto(c.valor || '')
@@ -802,6 +820,7 @@ export default function Dashboard() {
                           {c.estado === 'asistio' && !c.precio_cobrado && (
                             <button 
                               onClick={() => {
+                                if (cajaCerrada) return msg('La caja está cerrada para este día', 'error')
                                 setCobConcepto(`Pago ${c.tratamiento} — ${c.nombre}`)
                                 setCobMonto(c.valor || '')
                                 setCobCitaId(c.id)
@@ -885,6 +904,7 @@ export default function Dashboard() {
                                   {c.estado === 'confirmado' && (
                                     <button
                                       onClick={async () => {
+                                        if (cajaCerrada) return msg('La caja está cerrada para este día', 'error');
                                         setActiveMenuId(null);
                                         const res = await aprobarAsistenciaAction(c.id);
                                         if (!res.success) {
@@ -906,6 +926,7 @@ export default function Dashboard() {
                                   {(c.estado === 'confirmado' || (c.estado === 'asistio' && !c.precio_cobrado)) && (
                                     <button
                                       onClick={() => {
+                                        if (cajaCerrada) return msg('La caja está cerrada para este día', 'error');
                                         setActiveMenuId(null);
                                         setCobConcepto(`Pago ${c.tratamiento} — ${c.nombre}`);
                                         setCobMonto(c.valor || '');
@@ -929,6 +950,7 @@ export default function Dashboard() {
                                       <div style={{ height: 1, background: 'rgba(56,138,221,0.08)', margin: '4px 0' }} />
                                       <button
                                         onClick={async () => {
+                                          if (cajaCerrada) return msg('La caja está cerrada para este día', 'error');
                                           setActiveMenuId(null);
                                           if (window.confirm(`¿Marcar el turno de ${c.nombre} como Ausente? (Se romperá la racha de fidelización)`)) {
                                             const res = await registrarInasistenciaAction(c.id, 'ausente');
@@ -950,6 +972,7 @@ export default function Dashboard() {
 
                                       <button
                                         onClick={async () => {
+                                          if (cajaCerrada) return msg('La caja está cerrada para este día', 'error');
                                           setActiveMenuId(null);
                                           if (window.confirm(`¿Seguro que querés cancelar el turno de ${c.nombre}?`)) {
                                             const res = await registrarInasistenciaAction(c.id, 'cancelado');

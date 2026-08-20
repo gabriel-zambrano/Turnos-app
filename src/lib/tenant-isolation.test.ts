@@ -32,7 +32,7 @@ const TABLAS_SECUNDARIAS = [
   'config_fidelizacion', 'costos_fijos', 'egresos_manuales', 'historial_dental',
   'historial_puntos', 'ingresos_manuales', 'logs_envios', 'meta_mensual',
   'paciente_fotos', 'pagos', 'perfil_doctor', 'premios', 'presupuestos',
-  'recordatorios_log', 'tratamiento_items', 'whatsapp_contactos',
+  'recordatorios_log', 'tratamiento_items', 'whatsapp_contactos', 'cajas_diarias',
 ] as const
 
 const TABLAS = [...TABLAS_NUCLEO, ...TABLAS_SECUNDARIAS] as const

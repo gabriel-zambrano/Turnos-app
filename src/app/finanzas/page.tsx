@@ -87,8 +87,30 @@ export default function FinanzasPage() {
   const [modalCosto, setModalCosto]     = useState(false)
   const [modalIngreso, setModalIngreso] = useState(false)
   const [modalEgreso, setModalEgreso]   = useState(false)
+  
+  // Estados de Caja Diaria y Arqueo
+  interface CajaDiaria {
+    id: string
+    tenant_id: string
+    fecha: string
+    monto_apertura: number
+    monto_cierre_declarado: number | null
+    monto_cierre_sistema: number | null
+    estado: 'abierta' | 'cerrada'
+    observaciones: string | null
+    created_at: string
+    closed_at: string | null
+  }
+  const [cajaActiva, setCajaActiva] = useState<CajaDiaria | null>(null)
+  const [cajaLoading, setCajaLoading] = useState(false)
+  const [modalApertura, setModalApertura] = useState(false)
+  const [modalCierre, setModalCierre] = useState(false)
+  const [mAperturaVal, setMAperturaVal] = useState<number | ''>(0)
+  const [mCierreVal, setMCierreVal] = useState<number | ''>('')
+  const [cajaObs, setCajaObs] = useState('')
+
   // Con un modal abierto, el fondo no se mueve al deslizar en el celular
-  useBloqueoScroll(modalSaldar || modalFacturar || modalMeta || modalCosto || modalIngreso || modalEgreso)
+  useBloqueoScroll(modalSaldar || modalFacturar || modalMeta || modalCosto || modalIngreso || modalEgreso || modalApertura || modalCierre)
   
   const [fMeta, setFMeta]               = useState<number | ''>('')
   const [fCostoNombre, setFCostoNombre] = useState('')
@@ -174,6 +196,27 @@ export default function FinanzasPage() {
   }, [mesActual, anioActual, tenant])
 
   useEffect(() => { if (tenant) load() }, [load, tenant])
+
+  const loadCaja = useCallback(async () => {
+    if (!tenant) return
+    setCajaLoading(true)
+    const { data, error } = await supabase
+      .from('cajas_diarias')
+      .select('*')
+      .eq('tenant_id', tenant.id)
+      .eq('fecha', fechaCaja)
+      .maybeSingle()
+    if (!error && data) {
+      setCajaActiva(data)
+    } else {
+      setCajaActiva(null)
+    }
+    setCajaLoading(false)
+  }, [tenant, fechaCaja])
+
+  useEffect(() => {
+    if (tenant) loadCaja()
+  }, [loadCaja, tenant])
 
   // ── Cálculos Globales ────────────────────────────────────────────────────────
   const precioMap     = useMemo(() => Object.fromEntries(tratamientos.map(t => [t.nombre, t.precio_base || 0])), [tratamientos])
@@ -317,6 +360,7 @@ export default function FinanzasPage() {
    * número no alcanza para representarlos y se manda al detalle.
    */
   async function guardarPrecioCita(c: CitaAsistida, precio: number) {
+    if (cajaActiva?.estado === 'cerrada') return msg('La caja está cerrada para este día', 'error')
     if (!tenant) return
     const { data: items } = await supabase
       .from('tratamiento_items').select('id').eq('cita_id', c.id).eq('tenant_id', tenant.id)
@@ -401,6 +445,7 @@ export default function FinanzasPage() {
   }
 
   async function agregarIngreso() {
+    if (cajaActiva?.estado === 'cerrada') return msg('La caja está cerrada para este día', 'error')
     if (!fConcepto.trim() || fMonto === '' || Number(fMonto) <= 0) return msg('Completá concepto y monto', 'error')
     if (!tenant) return
     setSaving(true)
@@ -413,10 +458,12 @@ export default function FinanzasPage() {
     setSaving(false); setModalIngreso(false); setFConcepto(''); setFMonto(''); setFFecha(hoyAR()); msg('Ingreso registrado ✓'); load()
   }
   async function eliminarIngreso(id: string) {
+    if (cajaActiva?.estado === 'cerrada') return msg('La caja está cerrada para este día', 'error')
     await supabase.from('ingresos_manuales').delete().eq('id', id); msg('Ingreso eliminado'); load()
   }
 
   async function agregarEgreso() {
+    if (cajaActiva?.estado === 'cerrada') return msg('La caja está cerrada para este día', 'error')
     if (!fConcepto.trim() || fMonto === '' || Number(fMonto) <= 0) return msg('Completá concepto y monto', 'error')
     if (!tenant) return
     setSaving(true)
@@ -424,7 +471,61 @@ export default function FinanzasPage() {
     setSaving(false); setModalEgreso(false); setFConcepto(''); setFMonto(''); setFFecha(hoyAR()); msg('Egreso registrado ✓'); load()
   }
   async function eliminarEgreso(id: string) {
+    if (cajaActiva?.estado === 'cerrada') return msg('La caja está cerrada para este día', 'error')
     await supabase.from('egresos_manuales').delete().eq('id', id); msg('Egreso eliminado'); load()
+  }
+
+  async function abrirCaja() {
+    if (!tenant) return
+    const valor = Number(mAperturaVal)
+    if (isNaN(valor) || valor < 0) return msg('Ingresá un monto de apertura válido', 'error')
+    
+    setSaving(true)
+    const { data: userRes } = await supabase.auth.getUser()
+    const { error } = await supabase.from('cajas_diarias').insert({
+      tenant_id: tenant.id,
+      fecha: fechaCaja,
+      monto_apertura: valor,
+      estado: 'abierta',
+      creado_por: userRes.user?.id
+    })
+    
+    setSaving(false)
+    if (error) {
+      msg('Error al abrir la caja: ' + error.message, 'error')
+    } else {
+      msg('Caja abierta exitosamente ✓')
+      setModalApertura(false)
+      loadCaja()
+    }
+  }
+
+  async function cerrarCaja() {
+    if (!tenant || !cajaActiva) return
+    const valor = Number(mCierreVal)
+    if (isNaN(valor) || valor < 0) return msg('Ingresá el efectivo contado físicamente', 'error')
+    
+    setSaving(true)
+    const { data: userRes } = await supabase.auth.getUser()
+    const totalSistema = cajaDia + cajaActiva.monto_apertura
+
+    const { error } = await supabase.from('cajas_diarias').update({
+      monto_cierre_declarado: valor,
+      monto_cierre_sistema: totalSistema,
+      estado: 'cerrada',
+      closed_at: new Date().toISOString(),
+      observaciones: cajaObs.trim() || null,
+      cerrado_por: userRes.user?.id
+    }).eq('id', cajaActiva.id)
+    
+    setSaving(false)
+    if (error) {
+      msg('Error al cerrar la caja: ' + error.message, 'error')
+    } else {
+      msg('Caja cerrada y arqueo registrado ✓')
+      setModalCierre(false)
+      loadCaja()
+    }
   }
 
   // ── Render ─────────────────────────────────────────────────────────────────
@@ -574,150 +675,230 @@ export default function FinanzasPage() {
           )}
 
           {tab === 'caja' && (
-            <div style={{ background:'#fff', border:'0.5px solid #e8e8e8', borderRadius:16, padding:'1.25rem' }}>
-              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16, flexWrap:'wrap', gap:10 }}>
-                <div style={{ fontWeight:700, fontSize:18, color:'#0a1e3d' }}>Control de Caja</div>
-                <div style={{ display:'flex', gap:10 }}>
-                  <input type="date" value={fechaCaja} onChange={e => setFechaCaja(e.target.value)} style={{ ...inputSt, width: 'auto', padding: '5px 10px' }} />
-                  <button onClick={() => { setFFecha(fechaCaja); setModalIngreso(true) }} style={{ fontSize:12, fontWeight:600, padding:'6px 12px', borderRadius:8, border:'none', background:'#10b981', color:'#fff', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>+ Ingreso</button>
-                  <button onClick={() => { setFFecha(fechaCaja); setModalEgreso(true) }} style={{ fontSize:12, fontWeight:600, padding:'6px 12px', borderRadius:8, border:'none', background:'#ef4444', color:'#fff', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>- Egreso</button>
+            cajaLoading ? (
+              <div style={{ background:'#fff', border:'0.5px solid #e8e8e8', borderRadius:16, padding:'3rem 1.25rem', textAlign:'center' }}>
+                <Spinner />
+              </div>
+            ) : !cajaActiva ? (
+              <div style={{ background:'#fff', border:'0.5px solid #e8e8e8', borderRadius:16, padding:'3rem 2rem', textAlign:'center', display:'flex', flexDirection:'column', alignItems:'center', gap:16 }}>
+                <div style={{ fontSize: 36 }}>💰</div>
+                <div style={{ fontWeight:700, fontSize:18, color:'#0a1e3d' }}>Caja Diaria no iniciada</div>
+                <p style={{ fontSize:13, color:'#64748b', maxWidth:420, lineHeight:1.5 }}>
+                  Para poder registrar cobros de turnos, ingresos manuales o egresos en esta fecha, primero debés realizar la apertura de la caja diaria.
+                </p>
+                <div style={{ display:'flex', alignItems:'center', gap:10, marginTop:8, flexWrap:'wrap', justifyContent:'center' }}>
+                  <input type="date" value={fechaCaja} onChange={e => setFechaCaja(e.target.value)} style={{ ...inputSt, width: 'auto', padding: '6px 12px' }} />
+                  <button onClick={() => { setMAperturaVal(0); setModalApertura(true) }} style={{ fontSize:13, fontWeight:600, padding:'8px 18px', borderRadius:8, border:'none', background:'#138A6B', color:'#fff', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>
+                    Abrir Caja Diaria
+                  </button>
                 </div>
               </div>
-
-              {/* Ingresos List */}
-              <div style={{ marginBottom: 20 }}>
-                <div style={{ fontSize:12, fontWeight:700, color:'#10b981', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:8, borderBottom:'1px solid #f0f0f0', paddingBottom:4 }}>Ingresos (+ {fmt(totalCitasDia + totalIngresosDia)})</div>
-                {citasDia.length === 0 && ingresosDia.length === 0 && <div style={{ fontSize:13, color:'#94a3b8', padding:'8px 0' }}>Sin ingresos en este día</div>}
-                
-                {citasDia.map(c => (
-                  <div key={c.id} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'8px 0', borderBottom:'0.5px solid #f0f0f0' }}>
-                    <div>
-                      <div style={{ fontSize:13, fontWeight:600 }}>{c.pacientes?.nombre || 'Paciente'} <span style={{fontWeight:400, color:'#888'}}>({c.tipo_tratamiento})</span></div>
-                      <div style={{ fontSize:11, color:'#aaa' }}>Turno Asistido</div>
-                    </div>
-                    <div style={{ display:'flex', alignItems:'center', gap:6 }}>
-                      {editandoPrecio === c.id ? (
-                        <>
-                          <input type="number" autoFocus defaultValue={getPrecio(c)} onChange={e => setPrecioEdit(e.target.value === '' ? '' : Number(e.target.value))} style={{ width:90, fontSize:13, padding:'4px 8px', borderRadius:7, border:'1px solid #1D9E75', fontFamily:'DM Sans, sans-serif', textAlign:'right' }} />
-                          <button onClick={() => precioEdit !== '' && guardarPrecioCita(c, precioEdit as number)} style={{ fontSize:11, padding:'4px 8px', borderRadius:6, border:'none', background:'#1D9E75', color:'#fff', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>✓</button>
-                          <button onClick={() => setEditandoPrecio(null)} style={{ fontSize:11, padding:'4px 8px', borderRadius:6, border:'0.5px solid #e2e8f0', background:'#fff', color:'#888', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>×</button>
-                        </>
-                      ) : (
-                        <>
-                          {(() => {
-                            const fac = facturas.find(f => f.cita_id === c.id);
-                            if (fac) {
-                              return (
-                                <a
-                                  href={`/api/facturacion/pdf/${fac.id}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  title={fac.simulada ? 'Factura de prueba, sin validez fiscal — clic para ver el PDF' : `CAE: ${fac.cae} — clic para ver el PDF`}
-                                  style={{ fontSize: 10, background: fac.simulada ? '#fef3c7' : '#d1fae5', color: fac.simulada ? '#92400e' : '#065f46', padding: '3px 8px', borderRadius: 12, fontWeight: 700, marginRight: 4, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 3 }}
-                                >
-                                  {fac.simulada ? 'Simulada' : 'Facturado'} N°{fac.nro_comprobante} ⬇
-                                </a>
-                              )
-                            } else if (arcaConfig) {
-                              // Se avisa, no se bloquea: puede haber un paciente
-                              // que pagó en efectivo y necesita el comprobante.
-                              const d = desgloseDeCita(c.id)
-                              const atenuado = d?.nadaFacturable
-                              const parcial  = d?.esParcial
-                              const aviso = atenuado
-                                ? `Cobrado con ${d!.formasNoFacturables.join(' y ')}, que no facturás. Podés emitirla igual confirmando.`
-                                : parcial
-                                  ? `Cobro mixto: se factura solo ${fmt(d!.facturable)} de ${fmt(d!.total)}`
-                                  : 'Emitir Factura Electrónica ARCA'
-                              return (
-                                <button
-                                  onClick={() => abrirModalFacturar(c, 'cita')}
-                                  style={{ fontSize: 10, padding: '3px 7px', borderRadius: 6, marginRight: 4, cursor: 'pointer', fontFamily: 'DM Sans, sans-serif', fontWeight: 600,
-                                    border: `1px solid ${atenuado ? '#cbd5e1' : parcial ? '#EF9F27' : '#1D9E75'}`,
-                                    background: atenuado ? '#f8fafc' : parcial ? '#fffbeb' : '#ecfdf5',
-                                    color: atenuado ? '#94a3b8' : parcial ? '#92400e' : '#1D9E75' }}
-                                  title={aviso}
-                                >
-                                  {atenuado ? 'Facturar ⚠' : parcial ? 'Facturar parcial 📄' : 'Facturar 📄'}
-                                </button>
-                              )
-                            }
-                            return null;
-                          })()}
-                          <div style={{ fontSize:14, fontWeight:700, color: c.precio_cobrado !== null ? '#378ADD' : '#1D9E75' }}>{fmt(getPrecio(c))}</div>
-                          <button onClick={() => { setEditandoPrecio(c.id); setPrecioEdit(getPrecio(c)) }} style={{ fontSize:11, padding:'2px 7px', borderRadius:5, border:'0.5px solid #e2e8f0', background:'#fff', color:'#94a3b8', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>✎</button>
-                        </>
-                      )}
-                    </div>
+            ) : (
+              <div style={{ background:'#fff', border:'0.5px solid #e8e8e8', borderRadius:16, padding:'1.25rem' }}>
+                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16, flexWrap:'wrap', gap:10 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{ fontWeight:700, fontSize:18, color:'#0a1e3d' }}>Control de Caja</div>
+                    {cajaActiva.estado === 'cerrada' ? (
+                      <span style={{ fontSize: 10, background: '#fee2e2', color: '#ef4444', padding: '2px 8px', borderRadius: 12, fontWeight: 700 }}>🔓 Cerrada</span>
+                    ) : (
+                      <span style={{ fontSize: 10, background: '#d1fae5', color: '#065f46', padding: '2px 8px', borderRadius: 12, fontWeight: 700 }}>🟢 Abierta</span>
+                    )}
                   </div>
-                ))}
-                
-                {ingresosDia.map(m => (
-                  <div key={m.id} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'8px 0', borderBottom:'0.5px solid #f0f0f0' }}>
-                    <div>
-                      <div style={{ fontSize:13, fontWeight:600 }}>{m.concepto}</div>
-                      <div style={{ fontSize:11, color:'#aaa' }}>Ingreso Manual</div>
-                    </div>
-                    <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                      {(() => {
-                        const fac = facturas.find(f => f.ingreso_manual_id === m.id);
-                        if (fac) {
-                          return (
-                            <a
-                              href={`/api/facturacion/pdf/${fac.id}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              title={fac.simulada ? 'Factura de prueba, sin validez fiscal — clic para ver el PDF' : `CAE: ${fac.cae} — clic para ver el PDF`}
-                              style={{ fontSize: 10, background: fac.simulada ? '#fef3c7' : '#d1fae5', color: fac.simulada ? '#92400e' : '#065f46', padding: '3px 8px', borderRadius: 12, fontWeight: 700, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 3 }}
-                            >
-                              {fac.simulada ? 'Simulada' : 'Facturado'} N°{fac.nro_comprobante} ⬇
-                            </a>
-                          )
-                        } else if (arcaConfig) {
-                          return (
-                            <button 
-                              onClick={() => abrirModalFacturar(m, 'ingreso')} 
-                              style={{ fontSize: 10, padding: '3px 7px', borderRadius: 6, border: '1px solid #1D9E75', background: '#ecfdf5', color: '#1D9E75', cursor: 'pointer', fontFamily: 'DM Sans, sans-serif', fontWeight: 600 }}
-                              title="Emitir Factura Electrónica ARCA"
-                            >
-                              Facturar 📄
-                            </button>
-                          )
-                        }
-                        return null;
-                      })()}
-                      <div style={{ fontSize:14, fontWeight:700, color:'#378ADD' }}>{fmt(m.monto)}</div>
-                      <button onClick={() => eliminarIngreso(m.id)} style={{ fontSize:12, padding:'2px 8px', borderRadius:6, border:'0.5px solid #e2e8f0', background:'#fff', color:'#D85A30', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>×</button>
-                    </div>
+                  <div style={{ display:'flex', gap:10, alignItems: 'center' }}>
+                    <input type="date" value={fechaCaja} onChange={e => setFechaCaja(e.target.value)} style={{ ...inputSt, width: 'auto', padding: '5px 10px' }} />
+                    {cajaActiva.estado === 'abierta' ? (
+                      <>
+                        <button onClick={() => { setFFecha(fechaCaja); setModalIngreso(true) }} style={{ fontSize:12, fontWeight:600, padding:'6px 12px', borderRadius:8, border:'none', background:'#10b981', color:'#fff', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>+ Ingreso</button>
+                        <button onClick={() => { setFFecha(fechaCaja); setModalEgreso(true) }} style={{ fontSize:12, fontWeight:600, padding:'6px 12px', borderRadius:8, border:'none', background:'#ef4444', color:'#fff', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>- Egreso</button>
+                        <button onClick={() => { setMCierreVal(''); setCajaObs(''); setModalCierre(true) }} style={{ fontSize:12, fontWeight:600, padding:'6px 12px', borderRadius:8, border:'1px solid #ef4444', background:'#fee2e2', color:'#ef4444', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>Cerrar Caja (Arqueo)</button>
+                      </>
+                    ) : (
+                      <span style={{ fontSize: 11, fontWeight: 700, padding: '5px 12px', background: '#fee2e2', color: '#ef4444', borderRadius: 6, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                        🔒 Caja Cerrada para Ediciones
+                      </span>
+                    )}
                   </div>
-                ))}
-              </div>
+                </div>
 
-              {/* Egresos List */}
-              <div style={{ marginBottom: 20 }}>
-                <div style={{ fontSize:12, fontWeight:700, color:'#ef4444', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:8, borderBottom:'1px solid #f0f0f0', paddingBottom:4 }}>Egresos (- {fmt(totalEgresosDia)})</div>
-                {egresosDia.length === 0 && <div style={{ fontSize:13, color:'#94a3b8', padding:'8px 0' }}>Sin egresos en este día</div>}
-                
-                {egresosDia.map(e => (
-                  <div key={e.id} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'8px 0', borderBottom:'0.5px solid #f0f0f0' }}>
-                    <div>
-                      <div style={{ fontSize:13, fontWeight:600 }}>{e.concepto}</div>
-                      <div style={{ fontSize:11, color:'#aaa' }}>Gasto Diario</div>
+                {/* Ingresos List */}
+                <div style={{ marginBottom: 20 }}>
+                  <div style={{ fontSize:12, fontWeight:700, color:'#10b981', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:8, borderBottom:'1px solid #f0f0f0', paddingBottom:4 }}>Ingresos (+ {fmt(totalCitasDia + totalIngresosDia)})</div>
+                  {citasDia.length === 0 && ingresosDia.length === 0 && <div style={{ fontSize:13, color:'#94a3b8', padding:'8px 0' }}>Sin ingresos en este día</div>}
+                  
+                  {citasDia.map(c => (
+                    <div key={c.id} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'8px 0', borderBottom:'0.5px solid #f0f0f0' }}>
+                      <div>
+                        <div style={{ fontSize:13, fontWeight:600 }}>{c.pacientes?.nombre || 'Paciente'} <span style={{fontWeight:400, color:'#888'}}>({c.tipo_tratamiento})</span></div>
+                        <div style={{ fontSize:11, color:'#aaa' }}>Turno Asistido</div>
+                      </div>
+                      <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+                        {editandoPrecio === c.id ? (
+                          <>
+                            <input type="number" autoFocus defaultValue={getPrecio(c)} onChange={e => setPrecioEdit(e.target.value === '' ? '' : Number(e.target.value))} style={{ width:90, fontSize:13, padding:'4px 8px', borderRadius:7, border:'1px solid #1D9E75', fontFamily:'DM Sans, sans-serif', textAlign:'right' }} />
+                            <button onClick={() => precioEdit !== '' && guardarPrecioCita(c, precioEdit as number)} style={{ fontSize:11, padding:'4px 8px', borderRadius:6, border:'none', background:'#1D9E75', color:'#fff', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>✓</button>
+                            <button onClick={() => setEditandoPrecio(null)} style={{ fontSize:11, padding:'4px 8px', borderRadius:6, border:'0.5px solid #e2e8f0', background:'#fff', color:'#888', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>×</button>
+                          </>
+                        ) : (
+                          <>
+                            {(() => {
+                              const fac = facturas.find(f => f.cita_id === c.id);
+                              if (fac) {
+                                return (
+                                  <a
+                                    href={`/api/facturacion/pdf/${fac.id}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    title={fac.simulada ? 'Factura de prueba, sin validez fiscal — clic para ver el PDF' : `CAE: ${fac.cae} — clic para ver el PDF`}
+                                    style={{ fontSize: 10, background: fac.simulada ? '#fef3c7' : '#d1fae5', color: fac.simulada ? '#92400e' : '#065f46', padding: '3px 8px', borderRadius: 12, fontWeight: 700, marginRight: 4, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 3 }}
+                                  >
+                                    {fac.simulada ? 'Simulada' : 'Facturado'} N°{fac.nro_comprobante} ⬇
+                                  </a>
+                                )
+                              } else if (arcaConfig) {
+                                const d = desgloseDeCita(c.id)
+                                const atenuado = d?.nadaFacturable
+                                const parcial  = d?.esParcial
+                                const aviso = atenuado
+                                  ? `Cobrado con ${d!.formasNoFacturables.join(' y ')}, que no facturás. Podés emitirla igual confirmando.`
+                                  : parcial
+                                    ? `Cobro mixto: se factura solo ${fmt(d!.facturable)} de ${fmt(d!.total)}`
+                                    : 'Emitir Factura Electrónica ARCA'
+                                return (
+                                  <button
+                                    onClick={() => abrirModalFacturar(c, 'cita')}
+                                    disabled={cajaActiva.estado === 'cerrada'}
+                                    style={{ fontSize: 10, padding: '3px 7px', borderRadius: 6, marginRight: 4, cursor: cajaActiva.estado === 'cerrada' ? 'not-allowed' : 'pointer', fontFamily: 'DM Sans, sans-serif', fontWeight: 600,
+                                      border: `1px solid ${atenuado ? '#cbd5e1' : parcial ? '#EF9F27' : '#1D9E75'}`,
+                                      background: atenuado ? '#f8fafc' : parcial ? '#fffbeb' : '#ecfdf5',
+                                      color: atenuado ? '#94a3b8' : parcial ? '#92400e' : '#1D9E75',
+                                      opacity: cajaActiva.estado === 'cerrada' ? 0.6 : 1 }}
+                                    title={aviso}
+                                  >
+                                    {atenuado ? 'Facturar ⚠' : parcial ? 'Facturar parcial 📄' : 'Facturar 📄'}
+                                  </button>
+                                )
+                              }
+                              return null;
+                            })()}
+                            <div style={{ fontSize:14, fontWeight:700, color: c.precio_cobrado !== null ? '#378ADD' : '#1D9E75' }}>{fmt(getPrecio(c))}</div>
+                            {cajaActiva.estado === 'abierta' && (
+                              <button onClick={() => { setEditandoPrecio(c.id); setPrecioEdit(getPrecio(c)) }} style={{ fontSize:11, padding:'2px 7px', borderRadius:5, border:'0.5px solid #e2e8f0', background:'#fff', color:'#94a3b8', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>✎</button>
+                            )}
+                          </>
+                        )}
+                      </div>
                     </div>
-                    <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                      <div style={{ fontSize:14, fontWeight:700, color:'#ef4444' }}>{fmt(e.monto)}</div>
-                      <button onClick={() => eliminarEgreso(e.id)} style={{ fontSize:12, padding:'2px 8px', borderRadius:6, border:'0.5px solid #e2e8f0', background:'#fff', color:'#D85A30', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>×</button>
+                  ))}
+                  
+                  {ingresosDia.map(m => (
+                    <div key={m.id} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'8px 0', borderBottom:'0.5px solid #f0f0f0' }}>
+                      <div>
+                        <div style={{ fontSize:13, fontWeight:600 }}>{m.concepto}</div>
+                        <div style={{ fontSize:11, color:'#aaa' }}>Ingreso Manual</div>
+                      </div>
+                      <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                        {(() => {
+                          const fac = facturas.find(f => f.ingreso_manual_id === m.id);
+                          if (fac) {
+                            return (
+                              <a
+                                href={`/api/facturacion/pdf/${fac.id}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                title={fac.simulada ? 'Factura de prueba, sin validez fiscal — clic para ver el PDF' : `CAE: ${fac.cae} — clic para ver el PDF`}
+                                style={{ fontSize: 10, background: fac.simulada ? '#fef3c7' : '#d1fae5', color: fac.simulada ? '#92400e' : '#065f46', padding: '3px 8px', borderRadius: 12, fontWeight: 700, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 3 }}
+                              >
+                                {fac.simulada ? 'Simulada' : 'Facturado'} N°{fac.nro_comprobante} ⬇
+                              </a>
+                            )
+                          } else if (arcaConfig) {
+                            return (
+                              <button 
+                                onClick={() => abrirModalFacturar(m, 'ingreso')} 
+                                disabled={cajaActiva.estado === 'cerrada'}
+                                style={{ fontSize: 10, padding: '3px 7px', borderRadius: 6, border: '1px solid #1D9E75', background: '#ecfdf5', color: '#1D9E75', cursor: cajaActiva.estado === 'cerrada' ? 'not-allowed' : 'pointer', fontFamily: 'DM Sans, sans-serif', fontWeight: 600, opacity: cajaActiva.estado === 'cerrada' ? 0.6 : 1 }}
+                                title="Emitir Factura Electrónica ARCA"
+                              >
+                                Facturar 📄
+                              </button>
+                            )
+                          }
+                          return null;
+                        })()}
+                        <div style={{ fontSize:14, fontWeight:700, color:'#378ADD' }}>{fmt(m.monto)}</div>
+                        {cajaActiva.estado === 'abierta' && (
+                          <button onClick={() => eliminarIngreso(m.id)} style={{ fontSize:12, padding:'2px 8px', borderRadius:6, border:'0.5px solid #e2e8f0', background:'#fff', color:'#D85A30', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>×</button>
+                        )}
+                      </div>
                     </div>
+                  ))}
+                </div>
+
+                {/* Egresos List */}
+                <div style={{ marginBottom: 20 }}>
+                  <div style={{ fontSize:12, fontWeight:700, color:'#ef4444', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:8, borderBottom:'1px solid #f0f0f0', paddingBottom:4 }}>Egresos (- {fmt(totalEgresosDia)})</div>
+                  {egresosDia.length === 0 && <div style={{ fontSize:13, color:'#94a3b8', padding:'8px 0' }}>Sin egresos en este día</div>}
+                  
+                  {egresosDia.map(e => (
+                    <div key={e.id} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'8px 0', borderBottom:'0.5px solid #f0f0f0' }}>
+                      <div>
+                        <div style={{ fontSize:13, fontWeight:600 }}>{e.concepto}</div>
+                        <div style={{ fontSize:11, color:'#aaa' }}>Gasto Diario</div>
+                      </div>
+                      <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                        <div style={{ fontSize:14, fontWeight:700, color:'#ef4444' }}>{fmt(e.monto)}</div>
+                        {cajaActiva.estado === 'abierta' && (
+                          <button onClick={() => eliminarEgreso(e.id)} style={{ fontSize:12, padding:'2px 8px', borderRadius:6, border:'0.5px solid #e2e8f0', background:'#fff', color:'#D85A30', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>×</button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Balance / Arqueo Summary */}
+                {cajaActiva.estado === 'abierta' ? (
+                  <div style={{ background: cajaDia >= 0 ? '#ecfdf5' : '#fef2f2', padding: '1rem', borderRadius: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: `1px solid ${cajaDia >= 0 ? '#10b981' : '#ef4444'}` }}>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: cajaDia >= 0 ? '#065f46' : '#991b1b' }}>CAJA DEL DÍA (SISTEMA)</div>
+                    <div style={{ fontSize: 24, fontWeight: 800, color: cajaDia >= 0 ? '#10b981' : '#ef4444' }}>{fmt(cajaDia + cajaActiva.monto_apertura)}</div>
                   </div>
-                ))}
+                ) : (
+                  (() => {
+                    const totalSistema = cajaDia + cajaActiva.monto_apertura
+                    const diff = (cajaActiva.monto_cierre_declarado ?? 0) - totalSistema
+                    return (
+                      <div style={{ background: '#f8fafc', padding: '1.25rem', borderRadius: 14, border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: 12 }}>
+                        <div style={{ fontWeight: 700, fontSize: 14, color: '#0a1e3d' }}>Resumen del Arqueo de Caja</div>
+                        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(4, 1fr)', gap: 12 }}>
+                          <div style={{ padding: 10, background: '#fff', borderRadius: 8, border: '0.5px solid #e2e8f0' }}>
+                            <div style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>MONTO APERTURA</div>
+                            <div style={{ fontSize: 15, fontWeight: 700, color: '#0a1e3d', marginTop: 4 }}>{fmt(cajaActiva.monto_apertura)}</div>
+                          </div>
+                          <div style={{ padding: 10, background: '#fff', borderRadius: 8, border: '0.5px solid #e2e8f0' }}>
+                            <div style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>SISTEMA (CALCULADO)</div>
+                            <div style={{ fontSize: 15, fontWeight: 700, color: '#0a1e3d', marginTop: 4 }}>{fmt(totalSistema)}</div>
+                          </div>
+                          <div style={{ padding: 10, background: '#fff', borderRadius: 8, border: '0.5px solid #e2e8f0' }}>
+                            <div style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>CONTADO (DECLARADO)</div>
+                            <div style={{ fontSize: 15, fontWeight: 700, color: '#0a1e3d', marginTop: 4 }}>{fmt(cajaActiva.monto_cierre_declarado ?? 0)}</div>
+                          </div>
+                          <div style={{ padding: 10, background: diff === 0 ? '#ecfdf5' : '#fffbeb', borderRadius: 8, border: `0.5px solid ${diff === 0 ? '#10b981' : '#f59e0b'}` }}>
+                            <div style={{ fontSize: 11, color: diff === 0 ? '#065f46' : '#92400e', fontWeight: 600 }}>DIFERENCIA</div>
+                            <div style={{ fontSize: 15, fontWeight: 800, color: diff === 0 ? '#10b981' : diff > 0 ? '#10b981' : '#ef4444', marginTop: 4 }}>
+                              {diff === 0 ? 'Cuadrada ✓' : (diff > 0 ? `+${fmt(diff)} (Sobrante)` : `${fmt(diff)} (Faltante)`)}
+                            </div>
+                          </div>
+                        </div>
+                        {cajaActiva.observaciones && (
+                          <div style={{ fontSize: 12, color: '#475569', fontStyle: 'italic', padding: '8px 12px', background: '#fff', border: '0.5px solid #e2e8f0', borderRadius: 8 }}>
+                            <strong>Observaciones del Cierre:</strong> {cajaActiva.observaciones}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })()
+                )}
               </div>
-
-              {/* Total Balance */}
-              <div style={{ background: cajaDia >= 0 ? '#ecfdf5' : '#fef2f2', padding: '1rem', borderRadius: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: `1px solid ${cajaDia >= 0 ? '#10b981' : '#ef4444'}` }}>
-                <div style={{ fontSize: 14, fontWeight: 700, color: cajaDia >= 0 ? '#065f46' : '#991b1b' }}>CAJA FINAL DEL DÍA</div>
-                <div style={{ fontSize: 24, fontWeight: 800, color: cajaDia >= 0 ? '#10b981' : '#ef4444' }}>{fmt(cajaDia)}</div>
-              </div>
-            </div>
+            )
           )}
 
           {tab === 'deudores' && (
@@ -876,6 +1057,59 @@ export default function FinanzasPage() {
               <button onClick={() => setModalEgreso(false)} style={{ fontSize:13, padding:'7px 16px', borderRadius:8, border:'1px solid #e2e8f0', background:'#fff', color:'#64748b', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>Cancelar</button>
               <button onClick={agregarEgreso} disabled={saving} style={{ fontSize:13, fontWeight:600, padding:'7px 18px', borderRadius:8, border:'none', background: saving ? '#e2e8f0' : '#ef4444', color: saving ? '#94a3b8' : '#fff', cursor: saving ? 'not-allowed' : 'pointer', fontFamily:'DM Sans, sans-serif' }}>
                 {saving ? 'Guardando...' : 'Registrar Gasto'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {modalApertura && (
+        <div onClick={() => setModalApertura(false)} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.4)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:200, padding:'1rem' }}>
+          <div onClick={e => e.stopPropagation()} style={{ background:'#fff', borderRadius:16, padding:'1.5rem', width:'100%', maxWidth:360, boxShadow:'0 8px 32px rgba(0,0,0,0.12)' }}>
+            <div style={{ fontSize:16, fontWeight:700, color:'#0a1e3d', marginBottom:'0.5rem' }}>Abrir Caja Diaria</div>
+            <p style={{ fontSize:12, color:'#64748b', marginBottom:'1rem' }}>
+              Establecé el fondo inicial en efectivo para dar cambio durante la jornada.
+            </p>
+            <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+              <div>
+                <div style={{ fontSize:12, fontWeight:600, color:'#64748b', marginBottom:4 }}>Monto Inicial (Efectivo) *</div>
+                <input type="number" style={inputSt} value={mAperturaVal} onChange={e => setMAperturaVal(e.target.value === '' ? '' : Number(e.target.value))} placeholder="0" autoFocus />
+              </div>
+            </div>
+            <div style={{ display:'flex', gap:8, marginTop:'1.25rem', justifyContent:'flex-end' }}>
+              <button onClick={() => setModalApertura(false)} style={{ fontSize:13, padding:'7px 16px', borderRadius:8, border:'1px solid #e2e8f0', background:'#fff', color:'#64748b', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>Cancelar</button>
+              <button onClick={abrirCaja} disabled={saving} style={{ fontSize:13, fontWeight:600, padding:'7px 18px', borderRadius:8, border:'none', background: saving ? '#e2e8f0' : '#138A6B', color: saving ? '#94a3b8' : '#fff', cursor: saving ? 'not-allowed' : 'pointer', fontFamily:'DM Sans, sans-serif' }}>
+                {saving ? 'Abriendo...' : 'Abrir Caja'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {modalCierre && (
+        <div onClick={() => setModalCierre(false)} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.4)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:200, padding:'1rem' }}>
+          <div onClick={e => e.stopPropagation()} style={{ background:'#fff', borderRadius:16, padding:'1.5rem', width:'100%', maxWidth:360, boxShadow:'0 8px 32px rgba(0,0,0,0.12)' }}>
+            <div style={{ fontSize:16, fontWeight:700, color:'#0a1e3d', marginBottom:'0.5rem' }}>Cierre de Caja y Arqueo</div>
+            <p style={{ fontSize:12, color:'#64748b', marginBottom:'1rem' }}>
+              Ingresá el total de efectivo y valores contados físicamente en la caja.
+            </p>
+            <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+              <div style={{ padding: '8px 12px', background: '#f8fafc', borderRadius: 8, border: '0.5px solid #e2e8f0', fontSize: 13, color: '#475569' }}>
+                Caja calculada por sistema: <strong style={{ color: '#0a1e3d' }}>{fmt(cajaDia + (cajaActiva?.monto_apertura ?? 0))}</strong>
+              </div>
+              <div>
+                <div style={{ fontSize:12, fontWeight:600, color:'#64748b', marginBottom:4 }}>Efectivo Contado Físicamente *</div>
+                <input type="number" style={inputSt} value={mCierreVal} onChange={e => setMCierreVal(e.target.value === '' ? '' : Number(e.target.value))} placeholder="0" autoFocus />
+              </div>
+              <div>
+                <div style={{ fontSize:12, fontWeight:600, color:'#64748b', marginBottom:4 }}>Observaciones / Notas</div>
+                <textarea style={{ ...inputSt, resize: 'none', height: 60 }} value={cajaObs} onChange={e => setCajaObs(e.target.value)} placeholder="Ej: Faltan $100 por vuelto mal dado." />
+              </div>
+            </div>
+            <div style={{ display:'flex', gap:8, marginTop:'1.25rem', justifyContent:'flex-end' }}>
+              <button onClick={() => setModalCierre(false)} style={{ fontSize:13, padding:'7px 16px', borderRadius:8, border:'1px solid #e2e8f0', background:'#fff', color:'#64748b', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>Cancelar</button>
+              <button onClick={cerrarCaja} disabled={saving} style={{ fontSize:13, fontWeight:600, padding:'7px 18px', borderRadius:8, border:'none', background: saving ? '#e2e8f0' : '#ef4444', color: saving ? '#94a3b8' : '#fff', cursor: saving ? 'not-allowed' : 'pointer', fontFamily:'DM Sans, sans-serif' }}>
+                {saving ? 'Cerrando...' : 'Cerrar Caja'}
               </button>
             </div>
           </div>
