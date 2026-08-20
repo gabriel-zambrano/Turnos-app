@@ -389,7 +389,7 @@ export default function BiPage() {
         </div>
 
         {/* Tabs */}
-        <div style={{ display: 'flex', gap: 4, background: '#f1f5f9', borderRadius: 10, padding: 4, marginBottom: '1.5rem', width: '100%' }}>
+        <div className="tabs-scroll" style={{ display: 'flex', gap: 4, background: '#f1f5f9', borderRadius: 10, padding: 4, marginBottom: '1.5rem', width: '100%' }}>
           {(['overview', 'agenda', 'tratamientos', 'financiero', 'facturacion'] as const).map(t => (
             <button key={t} onClick={() => setTab(t)} style={{ ...tabBtn(t), flex: 1, minWidth: 0 }}>
               {t === 'overview' ? 'Resumen' : t === 'agenda' ? 'Agenda' : t === 'tratamientos' ? 'Tratamientos' : t === 'financiero' ? 'Financiero' : 'Facturacion'}

@@ -44,6 +44,13 @@ export default function Dashboard() {
     window.addEventListener('resize', check)
     return () => window.removeEventListener('resize', check)
   },[])
+  const [activeMenuId, setActiveMenuId] = useState<string | null>(null)
+  useEffect(() => {
+    if (!activeMenuId) return
+    const handleOutsideClick = () => setActiveMenuId(null)
+    window.addEventListener('click', handleOutsideClick)
+    return () => window.removeEventListener('click', handleOutsideClick)
+  }, [activeMenuId])
   const [logs, setLogs] = useState<LogItem[]>([])
   const [loading, setLoading] = useState(true)
   const [enviando, setEnviando] = useState(false)
@@ -205,6 +212,7 @@ export default function Dashboard() {
 
   const load = useCallback(async()=>{
     if (!tenant) return
+    setActiveMenuId(null)
     setLoading(true)
     
     // Ventana de 7 dias: hoy y los proximos seis.
@@ -722,16 +730,9 @@ export default function Dashboard() {
                           {!tieneAccion && !cobrado && <Badge bg={es.bg} color={es.color}>{es.label}</Badge>}
 
                           {c.estado === 'pendiente' && (
-                            <>
-                              <button onClick={()=>confirmar(c.id)} className="btn-premium" style={{fontSize:11,padding:'4px 10px',borderRadius:7,border:`1.5px solid ${accentColor}`,background:`${accentColor}18`,color:accentColor,cursor:'pointer',fontWeight:600,fontFamily:'DM Sans, sans-serif',whiteSpace:'nowrap'}}>
-                                Confirmar
-                              </button>
-                              {c.telefono && (
-                                <button onClick={()=>enviarRecordatorioWhatsApp(c)} className="btn-premium" title="Enviar recordatorio WhatsApp" style={{fontSize:11,padding:'4px 8px',borderRadius:7,border:'none',background:'#25D36618',color:'#128C7E',cursor:'pointer',fontFamily:'DM Sans, sans-serif',display:'flex',alignItems:'center',gap:3}}>
-                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.514 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.724-1.455L0 24zm6.59-4.846c1.66.986 3.288 1.488 4.905 1.489 5.5.003 9.975-4.47 9.979-9.967.002-2.662-1.033-5.166-2.915-7.05C16.734 1.744 14.236.703 11.58.701c-5.503 0-9.98 4.47-9.985 9.969-.001 1.776.48 3.5 1.391 5.01L1.93 21.72l6.147-1.611-.43-.255z"/></svg>
-                                </button>
-                              )}
-                            </>
+                            <button onClick={()=>confirmar(c.id)} className="btn-premium" style={{fontSize:11,padding:'4px 10px',borderRadius:7,border:`1.5px solid ${accentColor}`,background:`${accentColor}18`,color:accentColor,cursor:'pointer',fontWeight:600,fontFamily:'DM Sans, sans-serif',whiteSpace:'nowrap'}}>
+                              Confirmar
+                            </button>
                           )}
 
                           {c.estado === 'confirmado' && (
@@ -782,6 +783,163 @@ export default function Dashboard() {
                             >
                               💰 Cobrar
                             </button>
+                          )}
+
+                          {tieneAccion && (
+                            <div style={{ position: 'relative' }}>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setActiveMenuId(activeMenuId === c.id ? null : c.id);
+                                }}
+                                className="btn-premium"
+                                title="Más opciones"
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  width: 26,
+                                  height: 26,
+                                  borderRadius: '50%',
+                                  border: '1px solid var(--border-color, #dde5ef)',
+                                  background: activeMenuId === c.id ? `${secondaryColor}15` : 'var(--bg-input, rgba(255,255,255,0.8))',
+                                  color: activeMenuId === c.id ? secondaryColor : '#8fa3bc',
+                                  cursor: 'pointer',
+                                  fontSize: 11,
+                                  fontWeight: 'bold',
+                                  lineHeight: 1,
+                                }}
+                              >
+                                •••
+                              </button>
+
+                              {activeMenuId === c.id && (
+                                <div
+                                  className="dropdown-fade-in"
+                                  onClick={(e) => e.stopPropagation()}
+                                  style={{
+                                    position: 'absolute',
+                                    right: 0,
+                                    top: '100%',
+                                    marginTop: 6,
+                                    background: 'var(--bg-modal, rgba(255, 255, 255, 0.96))',
+                                    backdropFilter: 'blur(20px)',
+                                    border: '1px solid var(--border-light, rgba(56,138,221,0.2))',
+                                    borderRadius: 10,
+                                    boxShadow: '0 10px 25px -5px rgba(10,30,61,0.12), 0 8px 10px -6px rgba(10,30,61,0.12)',
+                                    zIndex: 100,
+                                    minWidth: 170,
+                                    padding: '6px 0',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    gap: 2,
+                                  }}
+                                >
+                                  {c.telefono && (
+                                    <button
+                                      onClick={() => {
+                                        setActiveMenuId(null);
+                                        enviarRecordatorioWhatsApp(c);
+                                      }}
+                                      className="dashboard-dropdown-item"
+                                      style={{ color: primaryColor }}
+                                    >
+                                      <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" style={{ marginRight: 8, color: '#25D366' }}><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.514 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.724-1.455L0 24zm6.59-4.846c1.66.986 3.288 1.488 4.905 1.489 5.5.003 9.975-4.47 9.979-9.967.002-2.662-1.033-5.166-2.915-7.05C16.734 1.744 14.236.703 11.58.701c-5.503 0-9.98 4.47-9.985 9.969-.001 1.776.48 3.5 1.391 5.01L1.93 21.72l6.147-1.611-.43-.255z"/></svg>
+                                      WhatsApp
+                                    </button>
+                                  )}
+
+                                  {c.estado === 'confirmado' && (
+                                    <button
+                                      onClick={async () => {
+                                        setActiveMenuId(null);
+                                        const res = await aprobarAsistenciaAction(c.id);
+                                        if (!res.success) {
+                                          msg('Error: ' + res.error, 'error');
+                                        } else {
+                                          setCitas(p => p.map(x => x.id === c.id ? { ...x, estado: 'asistio' as EstadoCita } : x));
+                                          msg('Cita marcada como Asistió ✓');
+                                          triggerConfetti();
+                                        }
+                                      }}
+                                      className="dashboard-dropdown-item"
+                                      style={{ color: primaryColor }}
+                                    >
+                                      <span style={{ marginRight: 8, fontSize: 11 }}>✓</span>
+                                      Asistió (Sin cobrar)
+                                    </button>
+                                  )}
+
+                                  {(c.estado === 'confirmado' || (c.estado === 'asistio' && !c.precio_cobrado)) && (
+                                    <button
+                                      onClick={() => {
+                                        setActiveMenuId(null);
+                                        setCobConcepto(`Pago ${c.tratamiento} — ${c.nombre}`);
+                                        setCobMonto(c.valor || '');
+                                        setCobCitaId(c.id);
+                                        setCobPacienteId(c.paciente_id ?? null);
+                                        setCobForma(FORMAS_PAGO[0]);
+                                        setCobFactura(sugerirRequiereFactura(FORMAS_PAGO[0], formasFacturables));
+                                        setCobFecha(new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }));
+                                        setModalCobro(true);
+                                      }}
+                                      className="dashboard-dropdown-item"
+                                      style={{ color: primaryColor }}
+                                    >
+                                      <span style={{ marginRight: 8, fontSize: 11 }}>💰</span>
+                                      Registrar cobro
+                                    </button>
+                                  )}
+
+                                  {(c.estado === 'pendiente' || c.estado === 'confirmado') && (
+                                    <>
+                                      <div style={{ height: 1, background: 'rgba(56,138,221,0.08)', margin: '4px 0' }} />
+                                      <button
+                                        onClick={async () => {
+                                          setActiveMenuId(null);
+                                          if (window.confirm(`¿Marcar el turno de ${c.nombre} como Ausente? (Se romperá la racha de fidelización)`)) {
+                                            const res = await registrarInasistenciaAction(c.id, 'ausente');
+                                            if (!res.success) {
+                                              msg('Error: ' + res.error, 'error');
+                                            } else {
+                                              setCitas(p => p.map(x => x.id === c.id ? { ...x, estado: 'ausente' as EstadoCita } : x));
+                                              msg('Paciente marcado como Ausente ✓');
+                                              load();
+                                            }
+                                          }
+                                        }}
+                                        className="dashboard-dropdown-item"
+                                        style={{ color: '#D85A30' }}
+                                      >
+                                        <span style={{ marginRight: 8, fontSize: 11 }}>✕</span>
+                                        Marcar Ausente
+                                      </button>
+
+                                      <button
+                                        onClick={async () => {
+                                          setActiveMenuId(null);
+                                          if (window.confirm(`¿Seguro que querés cancelar el turno de ${c.nombre}?`)) {
+                                            const res = await registrarInasistenciaAction(c.id, 'cancelado');
+                                            if (!res.success) {
+                                              msg('Error: ' + res.error, 'error');
+                                            } else {
+                                              setCitas(p => p.map(x => x.id === c.id ? { ...x, estado: 'cancelado' as EstadoCita } : x));
+                                              msg('Turno cancelado ✓');
+                                              load();
+                                            }
+                                          }
+                                        }}
+                                        className="dashboard-dropdown-item"
+                                        style={{ color: '#D85A30' }}
+                                      >
+                                        <span style={{ marginRight: 8, fontSize: 11 }}>🗑️</span>
+                                        Cancelar Turno
+                                      </button>
+                                    </>
+                                  )}
+                                </div>
+                              )}
+                            </div>
                           )}
                         </div>
                       </div>

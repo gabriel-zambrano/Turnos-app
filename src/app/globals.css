@@ -182,7 +182,7 @@
   /* La barra inferior flota sobre el contenido: sin este espacio, la última
      fila de cualquier lista queda tapada. 66 de alto + 16 de separación + el
      borde útil del teléfono. */
-  padding-bottom: calc(98px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(120px + env(safe-area-inset-bottom, 0px));
 }
 
 /* El <main> no lleva padding propio porque el encabezado va a sangre y pegado
@@ -200,7 +200,7 @@
    Para bloques grandes no sirven: tener la lista de pacientes dos veces en el
    DOM cuesta más que el parpadeo que evita. Eso sigue con isMobile. */
 .solo-movil { display: none; }
-@media (max-width: 767px) {
+@media (max-width: 767.98px) {
   .solo-movil { display: revert; }
   .solo-escritorio { display: none !important; }
 }
@@ -211,7 +211,7 @@
   position: fixed;
   left: 50%;
   transform: translateX(-50%);
-  bottom: calc(98px + env(safe-area-inset-bottom, 0px));
+  bottom: calc(120px + env(safe-area-inset-bottom, 0px));
 }
 @media (min-width: 768px) {
   .app-toast { bottom: 24px; }
@@ -247,7 +247,7 @@ html[data-sidebar="collapsed"] { --sidebar-width: 52px; }
 /* En móvil el menú lateral no existe (se usa la barra inferior), así que el
    contenido no se desplaza. Se repite el selector con atributo para ganarle en
    especificidad a la regla de arriba. */
-@media (max-width: 767px) {
+@media (max-width: 767.98px) {
   :root,
   html[data-sidebar="collapsed"] { --sidebar-width: 0px; }
 }
@@ -548,7 +548,16 @@ input:focus, select:focus, textarea:focus {
   box-shadow: 0 8px 24px rgba(10, 30, 61, 0.15), 0 0 15px var(--hover-glow, rgba(56, 138, 221, 0.3)) !important;
 }
 
-@media (max-width: 767px) {
+.tabs-scroll {
+  display: flex;
+  gap: 4px;
+  background: #f1f5f9;
+  border-radius: 10px;
+  padding: 4px;
+  margin-bottom: 1.5rem;
+}
+
+@media (max-width: 767.98px) {
   /* En un teléfono de 360px, dos columnas dejan cada campo en ~140px:
      las etiquetas se cortan y el texto no se lee mientras se tipea.
      Los formularios pasan a una sola columna a ancho completo. */
@@ -569,6 +578,22 @@ input:focus, select:focus, textarea:focus {
   [style*="grid-template-columns: 1fr 1fr"] {
     grid-template-columns: 1fr !important;
     gap: 0 !important;
+  }
+
+  .tabs-scroll {
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow-x: auto !important;
+    white-space: nowrap !important;
+    -webkit-overflow-scrolling: touch !important;
+    flex-wrap: nowrap !important;
+  }
+  .tabs-scroll::-webkit-scrollbar {
+    display: none !important;
+  }
+  .tabs-scroll button {
+    flex: 0 0 auto !important;
+    white-space: nowrap !important;
   }
 }
 
@@ -674,5 +699,24 @@ input:focus, select:focus, textarea:focus {
 .slide-up-sheet {
   animation: slideUp 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
+
+.dashboard-dropdown-item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 8px 12px;
+  background: none;
+  border: none;
+  text-align: left;
+  font-size: 12.5px;
+  font-weight: 600;
+  font-family: 'DM Sans', sans-serif;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.dashboard-dropdown-item:hover {
+  background: rgba(56, 138, 221, 0.08);
+}
+
 
 

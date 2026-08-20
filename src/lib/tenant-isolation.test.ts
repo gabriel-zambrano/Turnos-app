@@ -63,8 +63,22 @@ beforeAll(async () => {
   `)
 
   // 2. Tablas núcleo (mínimas: solo lo que las políticas necesitan, tenant_id).
+  //
+  // `role` replica la columna real de producción, DEFAULT incluido. Hasta ahora
+  // el harness no la tenía, así que ninguna política ni función que discrimine
+  // por rol podía probarse acá: los tests de RBAC no compilaban.
+  //
+  // El DEFAULT 'admin' NO es un descuido, es lo que hay hoy en producción
+  // (remote_schema.sql). Está replicado a propósito para que se vea que una fila
+  // insertada sin `role` nace administradora. Cuando B1.5a lo cambie a 'staff',
+  // el test "estado actual del esquema de roles" de abajo va a fallar, y esa
+  // falla es la señal de que el cambio llegó.
   await db.exec(`
-    CREATE TABLE tenant_users (tenant_id uuid, user_id uuid);
+    CREATE TABLE tenant_users (
+      tenant_id uuid,
+      user_id   uuid,
+      role      text NOT NULL DEFAULT 'admin'
+    );
     CREATE TABLE citas        (id uuid primary key, tenant_id uuid, dato text);
     CREATE TABLE pacientes    (id uuid primary key, tenant_id uuid, dato text);
     CREATE TABLE bloqueos     (id uuid primary key, tenant_id uuid, dato text);
@@ -106,10 +120,11 @@ beforeAll(async () => {
   }
 
   // 5. Sembrar: 2 clínicas, 2 usuarios (uno por clínica), 1 fila por tabla por clínica.
+  //    Ambos con rol 'admin', que es exactamente lo que hay en producción hoy.
   await db.exec(`
-    INSERT INTO tenant_users (tenant_id, user_id) VALUES
-      ('${TENANT_A}', '${USER_A}'),
-      ('${TENANT_B}', '${USER_B}');
+    INSERT INTO tenant_users (tenant_id, user_id, role) VALUES
+      ('${TENANT_A}', '${USER_A}', 'admin'),
+      ('${TENANT_B}', '${USER_B}', 'admin');
   `)
   for (const t of TABLAS) {
     await db.exec(`
@@ -160,5 +175,59 @@ describe('Aislamiento entre clínicas (RLS)', () => {
     const res = await db.query('SELECT * FROM citas')
     await db.exec('RESET ROLE;')
     expect(res.rows).toHaveLength(0)
+  })
+})
+
+// ─────────────────────────────────────────────────────────────
+// Estado actual del esquema de roles.
+//
+// Estos tests no prueban una defensa: FIJAN lo que hay hoy, para que cambiarlo
+// tenga que ser deliberado. Cuando aterrice B1.5a (DEFAULT 'staff') el primero
+// va a fallar, y esa falla es la confirmación de que el cambio llegó — no un
+// test roto que haya que "arreglar" a mano.
+//
+// El aislamiento por tenant NO depende del rol: las políticas de arriba miran
+// solo la pertenencia a tenant_users. Por eso agregar la columna es inerte y
+// los 81 tests anteriores siguen valiendo igual.
+// ─────────────────────────────────────────────────────────────
+describe('Esquema de roles (estado actual, previo a P0-05)', () => {
+  it('una fila insertada sin rol nace como admin', async () => {
+    const tenant = crypto.randomUUID()
+    const usuario = crypto.randomUUID()
+    await db.exec(
+      `INSERT INTO tenant_users (tenant_id, user_id) VALUES ('${tenant}', '${usuario}')`
+    )
+    const res = await db.query<{ role: string }>(
+      `SELECT role FROM tenant_users WHERE user_id = '${usuario}'`
+    )
+    // Hoy: 'admin'. B1.5a lo baja a 'staff'.
+    expect(res.rows[0].role).toBe('admin')
+  })
+
+  it('no hay CHECK sobre el vocabulario: admite cualquier texto', async () => {
+    const tenant = crypto.randomUUID()
+    const usuario = crypto.randomUUID()
+    // Documenta el hallazgo R-2: /api/equipo/invitar inserta `role` tal como
+    // llega del cliente, sin lista blanca. La base no lo frena.
+    await db.exec(
+      `INSERT INTO tenant_users (tenant_id, user_id, role)
+       VALUES ('${tenant}', '${usuario}', 'rol-que-no-existe')`
+    )
+    const res = await db.query<{ role: string }>(
+      `SELECT role FROM tenant_users WHERE user_id = '${usuario}'`
+    )
+    expect(res.rows[0].role).toBe('rol-que-no-existe')
+  })
+
+  it('el rol no interviene en el aislamiento entre clínicas', async () => {
+    // Un usuario de B con rol arbitrario sigue sin ver datos de A.
+    const intruso = crypto.randomUUID()
+    await db.exec(
+      `INSERT INTO tenant_users (tenant_id, user_id, role)
+       VALUES ('${TENANT_B}', '${intruso}', 'owner')`
+    )
+    const filas = await asUser(intruso, `SELECT tenant_id FROM pacientes`)
+    expect(filas).toHaveLength(1)
+    expect(filas[0].tenant_id).toBe(TENANT_B)
   })
 })

@@ -175,7 +175,7 @@ export default function CRMPage() {
 
         <div className="app-content" style={{ maxWidth:900, margin:'0 auto' }}>
           
-          <div style={{ display: 'flex', gap: 4, background: '#f1f5f9', borderRadius: 10, padding: 4, marginBottom: '1.5rem', width: 'fit-content', flexWrap: 'wrap' }}>
+          <div className="tabs-scroll" style={{ display: 'flex', gap: 4, background: '#f1f5f9', borderRadius: 10, padding: 4, marginBottom: '1.5rem', width: 'fit-content', flexWrap: 'wrap' }}>
             <button onClick={() => setTab('controles')} style={tabBtn('controles')}>
               🦷 Controles <span style={{background:'#138A6B', color:'#fff', padding:'2px 6px', borderRadius:10, fontSize:10, marginLeft:6}}>{recalls.length}</span>
             </button>
