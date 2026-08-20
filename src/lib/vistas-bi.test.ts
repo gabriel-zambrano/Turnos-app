@@ -28,10 +28,10 @@ import path from 'path'
 // ─────────────────────────────────────────────────────────────
 
 const RAIZ = join(__dirname, '..', '..')
-const MIGRACION = path.join(RAIZ, 'supabase/migrations/20260807120000_cerrar_vistas_bi_expuestas.sql')
+const MIGRACION = path.join(RAIZ, 'supabase/migrations/20260820180000_p0_07_revoke_vistas_bi.sql')
 
-/** Las seis que se eliminan. */
-const VISTAS_ELIMINADAS = [
+/** Las seis que se revocan. */
+const VISTAS_REVOCADAS = [
   'bi_citas_por_dia',
   'bi_citas_por_tratamiento',
   'bi_ingresos_por_mes',
@@ -151,41 +151,33 @@ describe('estado previo (control del propio test)', () => {
   it('antes de migrar, las seis vistas existen y anon puede leerlas', async () => {
     // Si este test fallara, el resto no probaría nada: estaríamos verificando
     // que no existe algo que nunca creamos.
-    for (const v of VISTAS_ELIMINADAS) {
+    for (const v of VISTAS_REVOCADAS) {
       expect(await existe(v), `${v} debería existir antes de migrar`).toBe(true)
       expect(await puedeLeer('anon', v), `anon debería poder leer ${v} antes`).toBe(true)
     }
   })
 })
 
-describe('la migración elimina las vistas expuestas', () => {
+describe('la migración revoca acceso a las vistas expuestas', () => {
   it('corre sin errores', async () => {
     await expect(db.exec(sqlMigracion)).resolves.toBeDefined()
   })
 
-  it('1. las seis vistas vulnerables ya no existen', async () => {
-    for (const v of VISTAS_ELIMINADAS) {
-      expect(await existe(v), `${v} debería haber sido eliminada`).toBe(false)
+  it('1. las seis vistas vulnerables siguen existiendo', async () => {
+    for (const v of VISTAS_REVOCADAS) {
+      expect(await existe(v), `${v} debería seguir existiendo`).toBe(true)
     }
   })
 
-  it('2. no queda acceso anónimo: la relación no existe, así que no hay privilegio que conceder', async () => {
-    for (const v of VISTAS_ELIMINADAS) {
-      // has_table_privilege sobre algo inexistente lanza. Que lance es
-      // exactamente la prueba: no hay superficie sobre la que dar permiso.
-      await expect(
-        puedeLeer('anon', v),
-        `anon no debería tener nada que leer en ${v}`
-      ).rejects.toThrow()
+  it('2. no queda acceso anónimo: la relación existe pero no se puede leer', async () => {
+    for (const v of VISTAS_REVOCADAS) {
+      expect(await puedeLeer('anon', v)).toBe(false)
     }
   })
 
   it('3. tampoco queda acceso autenticado', async () => {
-    for (const v of VISTAS_ELIMINADAS) {
-      await expect(
-        puedeLeer('authenticated', v),
-        `authenticated no debería tener nada que leer en ${v}`
-      ).rejects.toThrow()
+    for (const v of VISTAS_REVOCADAS) {
+      expect(await puedeLeer('authenticated', v)).toBe(false)
     }
   })
 
@@ -221,17 +213,14 @@ describe('la migración elimina las vistas expuestas', () => {
   })
 })
 
-describe('la migración usa RESTRICT y no CASCADE', () => {
-  it('ningún DROP arrastra objetos dependientes', () => {
-    // CASCADE eliminaría en silencio cualquier objeto que dependa de la vista.
-    // Como las dependencias se verificaron contra el dump del 22/07 y no contra
-    // la base de hoy, queremos que la migración falle si aparece una sorpresa.
-    expect(sqlMigracion).not.toMatch(/DROP\s+(MATERIALIZED\s+)?VIEW[^;]*CASCADE/i)
-    for (const v of VISTAS_ELIMINADAS) {
-      expect(
-        sqlMigracion,
-        `el DROP de ${v} debe ser explícitamente RESTRICT`
-      ).toMatch(new RegExp(`DROP VIEW IF EXISTS public\\.${v}\\s+RESTRICT`, 'i'))
+describe('la migración usa REVOKE y no DROP', () => {
+  it('ningún DROP view existe en la migración', () => {
+    expect(sqlMigracion).not.toMatch(/DROP\s+(MATERIALIZED\s+)?VIEW/i)
+  })
+
+  it('se revoca el acceso a anon y authenticated', () => {
+    for (const v of VISTAS_REVOCADAS) {
+      expect(sqlMigracion).toMatch(new RegExp(`REVOKE ALL ON TABLE public\\.${v}\\s+FROM anon, authenticated`, 'i'))
     }
   })
 
@@ -241,8 +230,8 @@ describe('la migración usa RESTRICT y no CASCADE', () => {
       .filter(l => !l.trim().startsWith('--'))
       .join('\n')
     for (const v of VISTAS_CONSERVADAS) {
-      expect(sentencias, `la migración no debe hacer DROP de ${v}`)
-        .not.toMatch(new RegExp(`DROP\\s+(MATERIALIZED\\s+)?VIEW[^;]*${v}`, 'i'))
+      expect(sentencias, `la migración no debe alterar ${v}`)
+        .not.toMatch(new RegExp(`REVOKE\\s+ALL\\s+ON\\s+TABLE\\s+public\\.${v}`, 'i'))
     }
   })
 
@@ -251,8 +240,6 @@ describe('la migración usa RESTRICT y no CASCADE', () => {
       .split('\n')
       .filter(l => !l.trim().startsWith('--'))
       .join('\n')
-    // Un REVOKE ... ON ALL TABLES IN SCHEMA public arreglaría esto y rompería
-    // media aplicación de paso.
     expect(sentencias).not.toMatch(/ON\s+ALL\s+TABLES\s+IN\s+SCHEMA/i)
     expect(sentencias).not.toMatch(/ALTER\s+DEFAULT\s+PRIVILEGES/i)
   })
@@ -285,7 +272,7 @@ describe('4. la aplicación no consulta las vistas eliminadas', () => {
   it('ningún archivo de src/ las referencia', () => {
     const infractores: string[] = []
     for (const f of FUENTES) {
-      for (const v of VISTAS_ELIMINADAS) {
+      for (const v of VISTAS_REVOCADAS) {
         // Solo consultas reales: .from('vista') o .rpc(...). Una mención en un
         // comentario no rompe nada.
         const consulta = new RegExp(`\\.(from|rpc)\\(\\s*['"\`]${v}['"\`]`)
@@ -302,7 +289,7 @@ describe('5. BI y finanzas siguen funcionando: consultan las tablas reales', () 
   it('/bi lee citas directamente', () => {
     const bi = leer('src/app/bi/page.tsx')
     expect(bi).toMatch(/\.from\(\s*['"]citas['"]\s*\)/)
-    for (const v of VISTAS_ELIMINADAS) {
+    for (const v of VISTAS_REVOCADAS) {
       expect(bi).not.toMatch(new RegExp(`\\.from\\(\\s*['"\`]${v}['"\`]`))
     }
   })

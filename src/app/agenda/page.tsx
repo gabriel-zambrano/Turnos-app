@@ -326,6 +326,8 @@ export default function Agenda() {
   const [sel,     setSel]     = useState<Cita|null>(null)
   const [enviandoWA, setEnviandoWA] = useState(false)
   const [fecha,   setFecha]   = useState(hoyISO())
+  const [filtroTratamiento, setFiltroTratamiento] = useState<string | null>(null)
+  const [cajaCerrada, setCajaCerrada] = useState(false)
   const [toast,   setToast]   = useState<{msg:string;tipo:string}|null>(null)
   const [menuPos, setMenuPos] = useState<{x:number;y:number;f:string;h:string}|null>(null)
   const [bloqueos, setBloqueos] = useState<{id:string;fecha:string;hora_inicio:string;hora_fin:string;motivo:string|null}[]>([])
@@ -406,10 +408,19 @@ export default function Agenda() {
   }, [tenant, supabase])
 
   async function guardarCobroExpress() {
+    if (!tenant || !sel) return
+    const { data: origCajaRes } = await supabase
+      .from('cajas_diarias')
+      .select('estado')
+      .eq('tenant_id', tenant.id)
+      .eq('fecha', sel.fecha)
+      .maybeSingle()
+    if (origCajaRes?.estado === 'cerrada') {
+      return msg('La caja está cerrada para este día', 'error')
+    }
     if (!cobConcepto.trim() || cobMonto === '' || Number(cobMonto) <= 0) {
       return msg('Completá concepto y monto', 'error')
     }
-    if (!tenant || !sel) return
     setGuardandoCobro(true)
 
     // El cobro entra por `pagos`, no escribiendo `citas.precio_cobrado` a
@@ -485,6 +496,15 @@ export default function Agenda() {
     const {data,error} = await supabase.from('citas').select('*, pacientes(nombre,telefono,token)').eq('tenant_id', tenant.id).gte('fecha_hora',desde).lte('fecha_hora',hasta).order('fecha_hora',{ascending:true})
     if(error) msg('Error: '+error.message,'error')
     else setCitas((data as CitaDB[]).map(toCita))
+
+    const { data: cajaRes } = await supabase
+      .from('cajas_diarias')
+      .select('estado')
+      .eq('tenant_id', tenant.id)
+      .eq('fecha', fecha)
+      .maybeSingle()
+    setCajaCerrada(cajaRes?.estado === 'cerrada')
+
     setLoading(false)
   },[fecha, vista, tenant])
 
@@ -556,7 +576,20 @@ export default function Agenda() {
     }
   }
 
- async function saveNueva(forzar = false){
+  async function saveNueva(forzar = false){
+    if (cajaCerrada) return msg('La caja está cerrada para este día', 'error')
+    
+    // Check fFecha cash status specifically
+    const { data: targetCajaRes } = await supabase
+      .from('cajas_diarias')
+      .select('estado')
+      .eq('tenant_id', tenant?.id ?? '')
+      .eq('fecha', fFecha)
+      .maybeSingle()
+    if (targetCajaRes?.estado === 'cerrada') {
+      return msg('La caja está cerrada para este día', 'error')
+    }
+
     if(!fPac) return msg('Seleccioná un paciente','error')
 
     // El endpoint exige tenant_id: sin él devolvía 400 y `ocupadas` quedaba
@@ -579,6 +612,24 @@ export default function Agenda() {
 
   async function saveEditar(){
     if(!sel) return
+    
+    // Check orig and target cash states
+    const { data: targetCajaRes } = await supabase
+      .from('cajas_diarias')
+      .select('estado')
+      .eq('tenant_id', tenant?.id ?? '')
+      .eq('fecha', fFecha)
+      .maybeSingle()
+    const { data: origCajaRes } = await supabase
+      .from('cajas_diarias')
+      .select('estado')
+      .eq('tenant_id', tenant?.id ?? '')
+      .eq('fecha', sel.fecha)
+      .maybeSingle()
+    if (targetCajaRes?.estado === 'cerrada' || origCajaRes?.estado === 'cerrada') {
+      return msg('La caja está cerrada para este día', 'error')
+    }
+
     setSaving(true)
     // `valor`, `precio_cobrado` y `medio_pago` NO se escriben acá: los mantienen
     // los triggers de tratamiento_items y pagos. Si los mandáramos, pisaríamos
@@ -595,8 +646,8 @@ export default function Agenda() {
         tratamiento: fTrat,
         estado: 'asistio',
         duracion: fDur,
-        notas: fNotas
-      }
+        notes: fNotas
+      } as any
       setPropuestaProximaCita(updatedCita)
     }
     setModal(null);msg('Cita actualizada ✓');loadCitas()
@@ -604,6 +655,17 @@ export default function Agenda() {
 
   async function saveBorrar(){
     if(!sel) return
+    
+    const { data: origCajaRes } = await supabase
+      .from('cajas_diarias')
+      .select('estado')
+      .eq('tenant_id', tenant?.id ?? '')
+      .eq('fecha', sel.fecha)
+      .maybeSingle()
+    if (origCajaRes?.estado === 'cerrada') {
+      return msg('La caja está cerrada para este día', 'error')
+    }
+
     setSaving(true)
     const {error} = await supabase.from('citas').delete().eq('id',sel.id)
     setSaving(false)
@@ -612,6 +674,18 @@ export default function Agenda() {
   }
 
   async function cambiarEstado(id:string,estado:EstadoCita){
+    const cita = citas.find(c => c.id === id)
+    if (!cita) return
+    const { data: origCajaRes } = await supabase
+      .from('cajas_diarias')
+      .select('estado')
+      .eq('tenant_id', tenant?.id ?? '')
+      .eq('fecha', cita.fecha)
+      .maybeSingle()
+    if (origCajaRes?.estado === 'cerrada') {
+      return msg('La caja está cerrada para este día', 'error')
+    }
+
     if (estado === 'ausente' || estado === 'cancelado') {
       const res = await registrarInasistenciaAction(id, estado as any)
       if (!res.success) {
@@ -685,6 +759,20 @@ export default function Agenda() {
   }
 
   async function moverCita(citaId: string, nuevaFecha: string, nuevaHora: string) {
+    if (!tenant) return
+    if (cajaCerrada) return msg('La caja está cerrada para este día', 'error')
+    
+    // Check target date cash state as well
+    const { data: targetCajaRes } = await supabase
+      .from('cajas_diarias')
+      .select('estado')
+      .eq('tenant_id', tenant.id)
+      .eq('fecha', nuevaFecha)
+      .maybeSingle()
+    if (targetCajaRes?.estado === 'cerrada') {
+      return msg('La caja está cerrada para el día destino', 'error')
+    }
+
     const citaOrig = citas.find(c => c.id === citaId)
     if (!citaOrig) return
     if (citaOrig.fecha === nuevaFecha && citaOrig.hora === nuevaHora) return
@@ -886,12 +974,14 @@ export default function Agenda() {
                     </div>
                     <button
                       onClick={() => {
+                        if (cajaCerrada) return msg('La caja está cerrada para este día', 'error')
                         setFBloqFecha(fecha);
                         setFBloqDesde("08:00");
                         setFBloqHasta("12:00");
                         setFBloqMotivo("");
                         setModal('bloqueo');
                       }}
+                      disabled={cajaCerrada}
                       style={{
                         display: 'flex',
                         alignItems: 'center',
@@ -904,15 +994,16 @@ export default function Agenda() {
                         border: '1px solid var(--border-color, #e2e8ed)',
                         background: 'var(--bg-card, #fff)',
                         color: 'var(--text-dark, #333)',
-                        cursor: 'pointer',
+                        cursor: cajaCerrada ? 'not-allowed' : 'pointer',
                         fontFamily: 'DM Sans, sans-serif',
                         transition: 'all 0.2s ease',
+                        opacity: cajaCerrada ? 0.6 : 1
                       }}
                       className="quick-action-btn"
                     >
                       <span style={{color: '#ef4444'}}>🚫</span> Bloquear
                     </button>
-                    <BtnPrimary onClick={()=>openNueva()}>
+                    <BtnPrimary onClick={()=>openNueva()} disabled={cajaCerrada}>
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                       Nueva cita
                     </BtnPrimary>
@@ -926,6 +1017,90 @@ export default function Agenda() {
         </div>
 
         <div style={{padding: isMobile ? 0 : '1.5rem 2rem'}}>
+          {/* Caja Cerrada Warning Banner */}
+          {cajaCerrada && (
+            <div style={{
+              background: '#fef2f2',
+              border: '1px solid #fee2e2',
+              borderRadius: 12,
+              padding: '12px 16px',
+              margin: isMobile ? '0.75rem' : '0 0 16px 0',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              color: '#991b1b',
+              fontSize: 13,
+              fontWeight: 500
+            }}>
+              <span style={{ fontSize: 16 }}>🔒</span>
+              <div>
+                <strong>Caja diaria cerrada:</strong> La agenda está en modo consulta para esta fecha. No se pueden agendar, mover ni modificar citas.
+              </div>
+            </div>
+          )}
+
+          {/* Interactive Treatment Legend & Filter */}
+          {!tenantLoading && !loading && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
+              flexWrap: 'wrap',
+              margin: isMobile ? '0.75rem' : '0 0 16px 0',
+              padding: '0 4px'
+            }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: '#8fa3bc', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Filtrar por:</span>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                {Object.entries(TRAT_STYLE).filter(([name]) => name !== 'Otro').map(([name, s]) => {
+                  const active = filtroTratamiento === name
+                  return (
+                    <button
+                      key={name}
+                      onClick={() => setFiltroTratamiento(active ? null : name)}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        fontSize: 11,
+                        fontWeight: 600,
+                        padding: '6px 12px',
+                        borderRadius: 20,
+                        border: `1.5px solid ${active ? s.dot : '#f1f5f9'}`,
+                        background: active ? s.bg : '#fff',
+                        color: active ? s.color : '#64748b',
+                        cursor: 'pointer',
+                        fontFamily: 'DM Sans, sans-serif',
+                        transition: 'all 0.2s ease',
+                        boxShadow: active ? `0 2px 8px ${s.dot}20` : 'none'
+                      }}
+                    >
+                      <span style={{ width: 8, height: 8, borderRadius: '50%', background: s.dot }} />
+                      {name}
+                    </button>
+                  )
+                })}
+                {filtroTratamiento && (
+                  <button
+                    onClick={() => setFiltroTratamiento(null)}
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 600,
+                      padding: '6px 12px',
+                      borderRadius: 20,
+                      border: '1px solid #e2e8f0',
+                      background: '#fff',
+                      color: '#ef4444',
+                      cursor: 'pointer',
+                      fontFamily: 'DM Sans, sans-serif'
+                    }}
+                  >
+                    Limpiar filtro ×
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
           {tenantLoading || loading ? (
             <div style={{ padding: isMobile ? '1rem' : 0 }}><SkeletonLista filas={7}/></div>
           ) : (
@@ -1148,7 +1323,7 @@ export default function Agenda() {
                       }}
                       onDrop={e => handleDrop(e, f)}
                       onMouseMove={e => {
-                        if (isMobile) return
+                        if (isMobile || cajaCerrada) return
                         const rect = e.currentTarget.getBoundingClientRect()
                         const y = e.clientY - rect.top
                         const minTot = Math.max(0, Math.floor(y / SLOT_H * 60 / 20) * 20)
@@ -1165,6 +1340,7 @@ export default function Agenda() {
                         touchStart.current = {x:e.touches[0].clientX, y:e.touches[0].clientY}
                       }}
                       onTouchEnd={e=>{
+                        if (cajaCerrada) return
                         if(!touchStart.current) return
                         const dx = Math.abs(e.changedTouches[0].clientX - touchStart.current.x)
                         const dy = Math.abs(e.changedTouches[0].clientY - touchStart.current.y)
@@ -1274,7 +1450,35 @@ export default function Agenda() {
                       {/* Hora actual */}
                       {f===hoy&&ahoraTop>=0&&ahoraTop<=totalH&&(
                         <div style={{position:'absolute',top:ahoraTop,left:0,right:0,height:2,background:'#ef4444',zIndex:5,pointerEvents:'none'}}>
-                          <div style={{position:'absolute',left:-3,top:-3,width:8,height:8,borderRadius:'50%',background:'#ef4444'}}/>
+                          {/* Pulsating dot indicator */}
+                          <div style={{
+                            position:'absolute',
+                            left:-4,
+                            top:-4,
+                            width:10,
+                            height:10,
+                            borderRadius:'50%',
+                            background:'#ef4444',
+                            boxShadow: '0 0 0 3px rgba(239, 68, 68, 0.35)',
+                          }}/>
+                          {/* Floating time label overlaying the timeline */}
+                          {!isMobile && (
+                            <div style={{
+                              position: 'absolute',
+                              left: -52,
+                              top: -8,
+                              background: '#ef4444',
+                              color: '#fff',
+                              fontSize: '9px',
+                              fontWeight: 700,
+                              padding: '2px 5px',
+                              borderRadius: 4,
+                              boxShadow: '0 2px 4px rgba(239, 68, 68, 0.25)',
+                              fontFamily: 'DM Sans, sans-serif'
+                            }}>
+                              {ahora.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}
+                            </div>
+                          )}
                         </div>
                       )}
                       {/* Bloqueos */}
@@ -1332,7 +1536,8 @@ export default function Agenda() {
                               cursor:'pointer',
                               zIndex: isSobreturno ? 2 : 1,
                               boxShadow: isOrtodoncia ? undefined : '0 2px 6px rgba(10,30,61,0.04)',
-                              opacity: isDragging ? 0.4 : 1,
+                              opacity: (filtroTratamiento && c.tratamiento !== filtroTratamiento) ? 0.2 : isDragging ? 0.4 : 1,
+                              transition: 'opacity 0.2s ease',
                               ['--hover-glow' as any]: isSobreturno ? 'rgba(239, 159, 39, 0.25)' : `var(--trat-${c.tratamiento}-border, ${tc.dot})35`,
                             } as React.CSSProperties}>
                             
