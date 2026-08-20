@@ -49,13 +49,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         {/* Solo los pesos realmente usados (400/500/600/700); el 300 no se usaba.
-            Playfair Display entra solo para los números grandes (KPIs, importes,
-            porcentajes): un serif al lado de un sans marca la jerarquía sin
-            agrandar nada ni agregar color. Un único peso (600), y en el mismo
-            request que DM Sans para no encadenar una segunda descarga.
+            Cargamos DM Sans en un único request para evitar demoras de red.
             Nota: no se usa el parámetro `text=` para subsetear porque aplica a
-            todo el request y recortaría también a DM Sans. */}
-        <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@600&display=swap" />
+            todo el request. */}
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" />
         {/* Este script corre antes del primer paint. Sirve para todo lo que, si
             se resolviera en un useEffect, se vería como un parpadeo: el tema y
             el ancho del menú lateral. */}

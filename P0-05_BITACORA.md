@@ -13,7 +13,7 @@ Se escribe **después** de ejecutar y verificar, nunca antes.
 | Etapa | Estado | Entradas |
 |---|---|---|
 | **FASE 0 · solo lectura** | 🟢 **CERRADA** — evidencia completa y 9 decisiones tomadas | 001-008 |
-| **B1.1 · default privileges + `tiene_rol()`** | 🟢 **APLICADO** — falta prueba de efecto | 009 |
+| **B1.1 · default privileges + `tiene_rol()`** | 🟡 **APLICADO con limitación** — tablas y secuencias cerradas; funciones no (**R-17**) | 009 |
 | Diseño P0-05 v2 | ⬜ bloqueado por A-1, A-2, A-3, A-7 | — |
 | Revisión final | ⬜ | — |
 | B1.1 + B1.6 · privilegios | ⬜ | — |
@@ -50,6 +50,7 @@ Se escribe **después** de ejecutar y verificar, nunca antes.
 | **R-7** | Asimetría 19 CASCADE / 12 NO ACTION hacia `tenants` | **Media** *(subió: era el único freno del DELETE de R-10)* | Fase 3 |
 | **R-8** | Trigger `sync_turnos_to_sheets` → dominio ajeno, sin auth | **Media** | P0-08 / inventario v2 |
 | **R-9** | `FORCE RLS` en ninguna tabla — **confirmado en producción** (N-1, 43/43) | Baja-Media | Fase 2 |
+| **R-17** | **El default de `PUBLIC` sobre funciones no es suprimible por `ALTER DEFAULT PRIVILEGES`** en este entorno. Toda función nueva nace ejecutable por `anon` | **Media** | Mitigado por G-2 + N-2 · entrada 009 |
 
 ### Decisiones del owner
 
@@ -612,7 +613,79 @@ Ese error fue la única señal de que algo había corrido. **Sin él, la migraci
 
 **Verificación.** Consulta sobre `pg_default_acl` para `public` y `storage` — las seis filas de `postgres` sin `anon`. ACL de `tiene_rol` sin `anon`, con `authenticated` y `service_role`.
 
-⏳ **PENDIENTE — prueba de efecto.** Crear una tabla y una función de prueba y confirmar que nacen sin privilegio para `anon`, que `authenticated` **no** puede ejecutar la función, y que **sí** puede leer la tabla. **Verificar el catálogo no es verificar el comportamiento** — es la lección de P0-07. **Esta entrada no está completa hasta registrar ese resultado.**
+### Prueba de efecto — resultado parcial, y una limitación de plataforma
+
+**La prueba se justificó sola.** `pg_default_acl` mostraba las seis filas limpias. Con esa sola verificación habríamos cerrado B1.1 dando por resuelta la causa raíz de R-11 — y estaba resuelta a medias.
+
+```sql
+CREATE TABLE public.__prueba_b11 (id int);
+CREATE FUNCTION public.__prueba_b11_fn() RETURNS int LANGUAGE sql AS 'SELECT 1';
+SELECT has_table_privilege   ('anon','public.__prueba_b11','SELECT')                 AS t1,
+       has_function_privilege('anon','public.__prueba_b11_fn()','EXECUTE')           AS t2,
+       has_function_privilege('authenticated','public.__prueba_b11_fn()','EXECUTE')  AS t3,
+       has_table_privilege   ('authenticated','public.__prueba_b11','SELECT')        AS t4;
+```
+
+| | Esperado | Obtenido | |
+|---|---|---|---|
+| `anon` lee tabla nueva | `false` | **`false`** | ✅ |
+| `anon` ejecuta función nueva | `false` | **`true`** | ❌ |
+| `authenticated` ejecuta función nueva | `false` | **`true`** | ❌ |
+| `authenticated` lee tabla nueva | `true` | **`true`** | ✅ *(DO-1)* |
+
+**Tablas y secuencias: cerradas. Funciones: no.**
+
+### Causa — medida, no inferida
+
+El ACL crudo de una función recién creada:
+
+```
+=X/postgres            ← PUBLIC tiene EXECUTE
+postgres=X/postgres
+service_role=X/postgres
+```
+
+`anon` y `authenticated` **no** figuran como entradas explícitas — **nuestros `REVOKE` sí funcionaron**. Pero PostgreSQL concede `EXECUTE` a **`PUBLIC`** en toda función nueva, y eso **no sale de `pg_default_acl`**: es el default incorporado del tipo de objeto. Como todo rol pertenece a `PUBLIC`, `anon` lo hereda.
+
+Por eso el catálogo se veía limpio y el comportamiento no.
+
+### R-17 · Tres intentos de suprimirlo, sin efecto
+
+```sql
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public  REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC;
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA storage REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC;
+ALTER DEFAULT PRIVILEGES                   IN SCHEMA public  REVOKE ALL     ON FUNCTIONS FROM PUBLIC;
+```
+
+**Los tres devolvieron éxito. Ninguno tuvo efecto.** Verificado creando y midiendo una función después de cada uno: `=X/postgres` siempre presente, `anon_exec = true` siempre.
+
+**R-17 · el default de `PUBLIC` sobre funciones no es suprimible por `ALTER DEFAULT PRIVILEGES` en este entorno.** Causa exacta: NO VERIFICADA. Podría ser comportamiento de PostgreSQL, de la capa de Supabase, o algo del rol con que ejecuta el editor. **No lo sé, y no lo doy por sabido.**
+
+### Mitigación — la que el proyecto ya usa
+
+La protección de funciones pasa a ser **por migración, no por default**: todo `CREATE FUNCTION` incluye su `REVOKE ALL … FROM PUBLIC` y su `GRANT` explícito.
+
+**No es un parche improvisado.** 13 de las 14 funciones del esquema ya siguen ese patrón. La única que no lo tenía —`generar_codigo_enlace`— es exactamente la que quedó ejecutable por `anon`. Y `tiene_rol()`, creada hoy con ese patrón, tiene `anon_exec = false` — **verificado**.
+
+Lo que cambia es que deja de depender de la memoria de quien escribe la migración: **la guarda G-2 de B1.7 lo vuelve obligatorio en CI.**
+
+**Riesgo residual:** una función creada a mano desde el SQL Editor, fuera de una migración, nace ejecutable por `anon` y el CI no la ve. Se detecta corriendo **N-2** periódicamente.
+
+### Estado de B1.1
+
+| Protección | Estado |
+|---|---|
+| Tablas nuevas cerradas a `anon` | 🟢 **Verificado por comportamiento** |
+| Secuencias nuevas cerradas a `anon` | 🟢 Mismo mecanismo |
+| Funciones nuevas cerradas a `anon` | 🔴 **R-17** — vía G-2 + N-2 |
+| `authenticated` conserva tablas | 🟢 Verificado *(DO-1)* |
+| `tiene_rol()` creada y protegida | 🟢 Verificado |
+
+**B1.1 se da por cerrado con la limitación documentada.** No se declara resuelto lo que no lo está.
+
+**Limpieza:** los objetos de prueba fueron eliminados. Confirmado: `0` objetos `__prueba%` en `public`.
+
+⚠️ **El `DROP` multi-sentencia se ejecutó a medias dos veces** — borró la tabla y no la función, sin devolver error. Segunda confirmación del incidente. **La regla de un statement por vez aplica también a la limpieza.**
 
 **Rollback.**
 

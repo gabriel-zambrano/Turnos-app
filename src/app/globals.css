@@ -229,13 +229,11 @@
 }
 
 /* Números grandes: KPIs, importes, porcentajes.
-   El serif se aplica solo acá; el resto de la interfaz sigue en DM Sans. La
-   idea es que la jerarquía la marque el contraste tipográfico y no un color
-   más, que es lo que termina pasando cuando cada métrica pelea por atención.
-   `tnum` fuerza dígitos de ancho fijo: sin eso, una cifra que cambia en vivo
-   —el total del día en la agenda— hace bailar el resto de la línea. */
+   Usan la tipografía principal DM Sans con formato tabular para evitar
+   que la interfaz oscile al cambiar los números en vivo.
+   `tnum` fuerza dígitos de ancho fijo para alineación vertical perfecta. */
 .kpi-numeral {
-  font-family: 'Playfair Display', 'DM Sans', Georgia, serif;
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
   font-feature-settings: 'tnum' 1, 'lnum' 1;
   font-variant-numeric: tabular-nums lining-nums;
 }
