@@ -745,7 +745,7 @@ export default function Dashboard() {
                     const tieneAccion = c.estado==='pendiente' || c.estado==='confirmado' || (c.estado==='asistio' && !c.precio_cobrado)
                     return(
                       <div key={c.id} className="interactive-item" style={{background:'var(--bg-container)',border:'0.5px solid var(--border-light)',borderRadius:12,padding:isMobile?'0.75rem':'0.85rem 1rem',display:'flex',alignItems:isMobile?'flex-start':'center',flexWrap:isMobile?'wrap':'nowrap',gap:isMobile?8:14}}>
-                        <div style={{fontSize:13,fontWeight:700,color:primaryColor,minWidth:40,textAlign:'center'}}>{c.hora}</div>
+                        <div className="tabular-numbers" style={{fontSize:13,fontWeight:700,color:primaryColor,minWidth:40,textAlign:'center'}}>{c.hora}</div>
                         <div style={{width:8,height:8,borderRadius:'50%',background:tc.dot,flexShrink:0,marginTop:isMobile?4:0}}/>
                         <div style={{flex:1,minWidth:0}}>
                            <div style={{fontWeight:600,fontSize:14,color:primaryColor,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{c.nombre}</div>

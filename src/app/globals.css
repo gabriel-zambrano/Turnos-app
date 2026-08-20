@@ -718,5 +718,17 @@ input:focus, select:focus, textarea:focus {
   background: rgba(56, 138, 221, 0.08);
 }
 
+/* Reseteo de tipografía global para heredar la fuente del body */
+input, select, textarea, button {
+  font-family: inherit;
+}
+
+/* Espaciado numérico de ancho fijo (tabular) */
+.tabular-numbers {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+
 
 
