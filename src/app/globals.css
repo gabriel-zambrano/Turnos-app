@@ -199,9 +199,10 @@
    decide si se ve, así que no hay parpadeo en la primera pintura.
    Para bloques grandes no sirven: tener la lista de pacientes dos veces en el
    DOM cuesta más que el parpadeo que evita. Eso sigue con isMobile. */
-.solo-movil { display: none; }
+.solo-movil { display: none !important; }
+.solo-escritorio { display: flex !important; }
 @media (max-width: 767.98px) {
-  .solo-movil { display: revert; }
+  .solo-movil { display: flex !important; }
   .solo-escritorio { display: none !important; }
 }
 

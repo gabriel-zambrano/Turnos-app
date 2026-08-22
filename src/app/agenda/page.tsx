@@ -338,6 +338,7 @@ export default function Agenda() {
   const [vista,   setVista]   = useState<'semana'|'dia'|'lista'>('semana')
   const [isMobile, setIsMobile] = useState(false)
   const [draggedCitaId, setDraggedCitaId] = useState<string | null>(null)
+  const [hoveredCitaId, setHoveredCitaId] = useState<string | null>(null)
   const [dragOverDay, setDragOverDay] = useState<string | null>(null)
   const touchStart = useRef<{x:number; y:number} | null>(null)
   const [hoverSlot, setHoverSlot] = useState<{ f: string, top: number, timeStr: string } | null>(null)
@@ -1039,152 +1040,7 @@ export default function Agenda() {
             </div>
           )}
 
-          {/* Panel de Resumen del Día (Daily KPIs) */}
-          {!tenantLoading && !loading && (
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)',
-              gap: 12,
-              margin: isMobile ? '0.75rem' : '0 0 16px 0',
-            }}>
-              {/* Card 1: Ocupación */}
-              <div style={{
-                background: 'var(--bg-card, #fff)',
-                border: '1px solid var(--border-lighter, #f1f5f9)',
-                borderRadius: 12,
-                padding: '12px 16px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 12,
-                boxShadow: '0 1px 3px rgba(10,30,61,0.02)'
-              }}>
-                <div style={{ fontSize: 18, background: '#EFF6FF', color: '#2563EB', padding: '6px 8px', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', width: 34, height: 34, flexShrink: 0 }}>
-                  📊
-                </div>
-                <div>
-                  <div style={{ fontSize: 9.5, fontWeight: 700, color: '#8fa3bc', textTransform: 'uppercase', letterSpacing: '0.05em', lineHeight: 1.2 }}>Ocupación de Agenda</div>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-dark, #0a1e3d)', fontFamily: 'DM Sans, sans-serif', marginTop: 1 }}>
-                    {(() => {
-                      const totalMin = (HORA_FIN - HORA_INICIO) * 60
-                      const ocupadoMin = citasDelDia(fecha)
-                        .filter(c => c.estado !== 'cancelado')
-                        .reduce((acc, c) => acc + c.duracion, 0)
-                      return `${Math.min(100, Math.round((ocupadoMin / totalMin) * 100))}%`
-                    })()}
-                  </div>
-                </div>
-              </div>
 
-              {/* Card 2: Turnos */}
-              <div style={{
-                background: 'var(--bg-card, #fff)',
-                border: '1px solid var(--border-lighter, #f1f5f9)',
-                borderRadius: 12,
-                padding: '12px 16px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 12,
-                boxShadow: '0 1px 3px rgba(10,30,61,0.02)'
-              }}>
-                <div style={{ fontSize: 18, background: '#F5F3FF', color: '#7C3AED', padding: '6px 8px', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', width: 34, height: 34, flexShrink: 0 }}>
-                  📅
-                </div>
-                <div>
-                  <div style={{ fontSize: 9.5, fontWeight: 700, color: '#8fa3bc', textTransform: 'uppercase', letterSpacing: '0.05em', lineHeight: 1.2 }}>Total Turnos</div>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-dark, #0a1e3d)', fontFamily: 'DM Sans, sans-serif', marginTop: 1 }}>
-                    {citasDelDia(fecha).length} {citasDelDia(fecha).length === 1 ? 'cita' : 'citas'}
-                  </div>
-                </div>
-              </div>
-
-              {/* Card 3: Proyectado */}
-              <div style={{
-                background: 'var(--bg-card, #fff)',
-                border: '1px solid var(--border-lighter, #f1f5f9)',
-                borderRadius: 12,
-                padding: '12px 16px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 12,
-                boxShadow: '0 1px 3px rgba(10,30,61,0.02)'
-              }}>
-                <div style={{ fontSize: 18, background: '#ECFDF5', color: '#059669', padding: '6px 8px', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', width: 34, height: 34, flexShrink: 0 }}>
-                  💰
-                </div>
-                <div>
-                  <div style={{ fontSize: 9.5, fontWeight: 700, color: '#8fa3bc', textTransform: 'uppercase', letterSpacing: '0.05em', lineHeight: 1.2 }}>Estimado del Día</div>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-dark, #0a1e3d)', fontFamily: 'DM Sans, sans-serif', marginTop: 1 }}>
-                    ${citasDelDia(fecha)
-                      .filter(c => c.estado !== 'cancelado')
-                      .reduce((acc, c) => acc + (Number(c.valor) || 0), 0)
-                      .toLocaleString('es-AR')}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Interactive Treatment Legend & Filter */}
-          {!tenantLoading && !loading && (
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 12,
-              flexWrap: 'wrap',
-              margin: isMobile ? '0.75rem' : '0 0 16px 0',
-              padding: '0 4px'
-            }}>
-              <span style={{ fontSize: 11, fontWeight: 700, color: '#8fa3bc', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Filtrar por:</span>
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-                {Object.entries(TRAT_STYLE).filter(([name]) => name !== 'Otro').map(([name, s]) => {
-                  const active = filtroTratamiento === name
-                  return (
-                    <button
-                      key={name}
-                      onClick={() => setFiltroTratamiento(active ? null : name)}
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: 6,
-                        fontSize: 11,
-                        fontWeight: 600,
-                        padding: '6px 12px',
-                        borderRadius: 20,
-                        border: `1.5px solid ${active ? s.dot : '#f1f5f9'}`,
-                        background: active ? s.bg : '#fff',
-                        color: active ? s.color : '#64748b',
-                        cursor: 'pointer',
-                        fontFamily: 'DM Sans, sans-serif',
-                        transition: 'all 0.2s ease',
-                        boxShadow: active ? `0 2px 8px ${s.dot}20` : 'none'
-                      }}
-                    >
-                      <span style={{ width: 8, height: 8, borderRadius: '50%', background: s.dot }} />
-                      {name}
-                    </button>
-                  )
-                })}
-                {filtroTratamiento && (
-                  <button
-                    onClick={() => setFiltroTratamiento(null)}
-                    style={{
-                      fontSize: 11,
-                      fontWeight: 600,
-                      padding: '6px 12px',
-                      borderRadius: 20,
-                      border: '1px solid #e2e8f0',
-                      background: '#fff',
-                      color: '#ef4444',
-                      cursor: 'pointer',
-                      fontFamily: 'DM Sans, sans-serif'
-                    }}
-                  >
-                    Limpiar filtro ×
-                  </button>
-                )}
-              </div>
-            </div>
-          )}
 
           {tenantLoading || loading ? (
             <div style={{ padding: isMobile ? '1rem' : 0 }}><SkeletonLista filas={7}/></div>
@@ -1387,7 +1243,8 @@ export default function Agenda() {
                   </div>
 
                   {/* Columnas días */}
-                  {(vista==='semana'?semana:[fecha]).map((f)=>{
+                  {(vista==='semana'?semana:[fecha]).map((f, colIdx)=>{
+                  const isLastCol = colIdx === (vista === 'semana' ? semana.length : 1) - 1
                   const citasF = citasDelDia(f)
                   return(
                     <div key={f} 
@@ -1592,6 +1449,8 @@ export default function Agenda() {
                         const cardLeft = `calc(${leftOffset}% + 2px)`
                         const cardWidth = `calc(${colWidth}% - 4px)`
                         const hCard = citaHeight(c) - 4
+                        const isHovered = hoveredCitaId === c.id
+                        const activeHeight = isHovered ? Math.max(hCard, 108) : hCard
 
                         const bgVar = isOrtodoncia ? undefined : `var(--trat-${c.tratamiento}-bg, ${tc.bg})`
                         const colorVar = isSobreturno ? 'var(--text-dark)' : `var(--trat-${c.tratamiento}-color, ${tc.color})`
@@ -1603,26 +1462,30 @@ export default function Agenda() {
                             draggable
                             onDragStart={e => handleDragStart(e, c)}
                             onDragEnd={() => setDraggedCitaId(null)}
+                            onMouseEnter={() => { if(!isMobile) setHoveredCitaId(c.id); }}
+                            onMouseLeave={() => { if(!isMobile) setHoveredCitaId(null); }}
                             className={`agenda-card-interactive ${isOrtodoncia ? 'glow-card-ortodoncia' : ''} ${isSobreturno ? 'sobreturno-card' : ''}`}
                             style={{
                               position:'absolute',
                               top:citaTop(c)+2,
-                              left: cardLeft,
-                              width: cardWidth,
-                              height:hCard,
+                              left: isHovered ? (isLastCol ? 'auto' : `calc(${leftOffset}% - 2px)`) : cardLeft,
+                              right: isHovered ? (isLastCol ? '2px' : 'auto') : 'auto',
+                              width: isHovered ? '265px' : cardWidth,
+                              height: activeHeight,
                               background: isOrtodoncia ? undefined : bgVar,
                               borderLeft: `4px solid ${borderLeftColor}`,
                               borderTop: isSobreturno ? undefined : '1px solid var(--border-light, rgba(0,0,0,0.03))',
                               borderRight: isSobreturno ? undefined : '1px solid var(--border-light, rgba(0,0,0,0.03))',
                               borderBottom: isSobreturno ? undefined : '1px solid var(--border-light, rgba(0,0,0,0.03))',
                               borderRadius:12,
-                              padding:isMobile ? (isSobreturno ? '2px 4px' : '4px 6px') : '5px 8px',
-                              overflow:'hidden',
+                              padding:isMobile ? (isSobreturno ? '2px 4px' : '4px 6px') : '6px 10px',
+                              overflow: isHovered ? 'visible' : 'hidden',
                               cursor:'pointer',
-                              zIndex: isSobreturno ? 2 : 1,
-                              boxShadow: isOrtodoncia ? undefined : '0 2px 6px rgba(10,30,61,0.04)',
+                              zIndex: isHovered ? 60 : isSobreturno ? 2 : 1,
+                              boxShadow: isHovered ? '0 12px 30px rgba(10,30,61,0.18)' : isOrtodoncia ? undefined : '0 2px 6px rgba(10,30,61,0.04)',
                               opacity: (filtroTratamiento && c.tratamiento !== filtroTratamiento) ? 0.2 : isDragging ? 0.4 : 1,
-                              transition: 'opacity 0.2s ease',
+                              transform: isHovered ? 'translateY(-2px)' : 'none',
+                              transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease',
                               ['--hover-glow' as any]: isSobreturno ? 'rgba(239, 159, 39, 0.25)' : `var(--trat-${c.tratamiento}-border, ${tc.dot})35`,
                             } as React.CSSProperties}>
                             
@@ -1679,7 +1542,7 @@ export default function Agenda() {
                               </>
                             ) : (
                               <>
-                                {hCard <= 30 ? (
+                                {activeHeight <= 30 ? (
                                   <div style={{
                                     display: 'flex',
                                     alignItems: 'center',
@@ -1698,7 +1561,7 @@ export default function Agenda() {
                                     <span style={{opacity: 0.5}}>•</span>
                                     <span style={{fontSize: 9.5, fontWeight: 500, opacity: 0.8}}>{c.tratamiento}</span>
                                   </div>
-                                ) : hCard <= 54 ? (
+                                ) : activeHeight <= 54 ? (
                                   <>
                                     <div style={{fontSize: 12.5, fontWeight: 700, color: isSobreturno ? '#78350F' : colorVar, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', lineHeight: 1.25}}>
                                       <span style={{fontWeight: 800, marginRight: 4}}>{c.hora}</span>
@@ -1740,20 +1603,34 @@ export default function Agenda() {
                                   </>
                                 ) : (
                                   <>
-                                    <div style={{fontSize: 13, fontWeight: 700, color: isSobreturno ? '#78350F' : colorVar, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'}}>
-                                      <div style={{overflow: 'hidden', textOverflow: 'ellipsis'}}>
-                                        <span style={{fontWeight: 800, marginRight: 4}}>{c.hora}</span>
-                                        {c.nombre}
-                                      </div>
-                                      <span style={{
-                                        width: 7,
-                                        height: 7,
-                                        borderRadius: '50%',
-                                        background: `var(--est-${c.estado}-color, ${es.color})`,
-                                        boxShadow: `0 0 6px var(--est-${c.estado}-color, ${es.color})`,
-                                        flexShrink: 0
-                                      }}/>
-                                    </div>
+                                    <div style={{
+                                       fontSize: 13,
+                                       fontWeight: 700,
+                                       color: isSobreturno ? '#78350F' : colorVar,
+                                       display: 'flex',
+                                       alignItems: 'flex-start',
+                                       justifyContent: 'space-between',
+                                       gap: 4,
+                                       whiteSpace: isHovered ? 'normal' : 'nowrap',
+                                       wordBreak: 'break-word',
+                                       overflow: isHovered ? 'visible' : 'hidden',
+                                       textOverflow: isHovered ? 'clip' : 'ellipsis',
+                                       width: '100%'
+                                     }}>
+                                       <div style={{overflow: isHovered ? 'visible' : 'hidden', textOverflow: isHovered ? 'clip' : 'ellipsis', whiteSpace: isHovered ? 'normal' : 'nowrap'}}>
+                                         <span style={{fontWeight: 800, marginRight: 4}}>{c.hora}</span>
+                                         {c.nombre}
+                                       </div>
+                                       <span style={{
+                                         width: 7,
+                                         height: 7,
+                                         borderRadius: '50%',
+                                         background: `var(--est-${c.estado}-color, ${es.color})`,
+                                         boxShadow: `0 0 6px var(--est-${c.estado}-color, ${es.color})`,
+                                         flexShrink: 0,
+                                         marginTop: 4
+                                       }}/>
+                                     </div>
                                     <div style={{fontSize: 10.5, color: isSobreturno ? '#B45309' : colorVar, opacity: 0.85, marginTop: 3, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap'}}>
                                       <span style={{display: 'flex', alignItems: 'center', gap: 2}}>
                                         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M15 3v18M3 9h18M3 15h18"/></svg>
@@ -1810,10 +1687,23 @@ export default function Agenda() {
                                               💰 Cobrar
                                             </button>
                                           )}
-                                          {hCard > 68 && c.notas && (
-                                            <span style={{fontSize: 8.5, color: isSobreturno ? '#B45309' : colorVar, opacity: 0.6, fontStyle: 'italic', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '60%'}} title={c.notas}>
+                                          {(hCard > 68 || isHovered) && c.notas && (
+                                            <div style={{
+                                              fontSize: 9,
+                                              color: isSobreturno ? '#B45309' : colorVar,
+                                              opacity: 0.75,
+                                              fontStyle: 'italic',
+                                              marginTop: 4,
+                                              whiteSpace: isHovered ? 'normal' : 'nowrap',
+                                              overflow: isHovered ? 'visible' : 'hidden',
+                                              textOverflow: isHovered ? 'clip' : 'ellipsis',
+                                              wordBreak: 'break-word',
+                                              borderTop: isHovered ? '1px dashed rgba(0,0,0,0.06)' : 'none',
+                                              paddingTop: isHovered ? 4 : 0,
+                                              width: '100%'
+                                            }} title={c.notas}>
                                               📝 {c.notas}
-                                            </span>
+                                            </div>
                                           )}
                                         </div>
                                       )}
