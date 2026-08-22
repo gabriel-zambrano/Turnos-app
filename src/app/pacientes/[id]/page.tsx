@@ -13,6 +13,8 @@ import { useTenantContext } from '@/components/TenantContext'
 import { SignaturePad } from '@/components/SignaturePad'
 import { aprobarAsistenciaAction, canjearPremioAction, ajustarPuntosManualAction, registrarInasistenciaAction } from '@/app/actions/fidelizacion'
 import { registrarConsentimiento, tieneConsentimientoVigente } from '@/lib/consentimiento-datos'
+import { validarAjustePuntos } from '@/lib/ajuste-puntos'
+import { FIDELIZACION_HABILITADA } from '@/lib/fidelizacion-flag'
 
 interface Paciente {
   id: string
@@ -379,7 +381,7 @@ export default function PacienteDetalle() {
       if (cita) {
         setCitaAprobarId(citaId)
         setTabActiva('fidelizacion')
-        showMsg('Completá la aprobación del turno para otorgar puntos.')
+        showMsg('Completá la aprobación del turno.')
       }
       return
     }
@@ -425,7 +427,7 @@ export default function PacienteDetalle() {
         throw new Error(res.error)
       }
       
-      showMsg('Visita aprobada y puntos procesados ✓')
+      showMsg('Visita aprobada y cobro registrado ✓')
       setCitaAprobarId('')
       loadData()
     } catch (err: any) {
@@ -982,11 +984,16 @@ export default function PacienteDetalle() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               
               {/* Tab Selector Bar */}
-              <div className="glass-card" style={{ padding: '8px 12px', display: 'flex', gap: 6, overflowX: 'auto' }}>
+              <div className="glass-card" style={{ padding: '8px 12px', display: 'flex', gap: 6, overflowX: 'auto', position: 'sticky', top: 58, zIndex: 10, background: 'var(--bg-card, #fff)', borderBottom: '1px solid var(--border-light, rgba(56,138,221,0.12))' }}>
                 {[
                   { id: 'odontograma', label: '🦷 Odontograma & Tratamientos' },
                   { id: 'turnos', label: `📅 Turnos (${citas.length})` },
-                  { id: 'fidelizacion', label: `🪙 Club de Puntos (${paciente.puntos_saldo_cache ?? 0} pts)` },
+                  // Con fidelización apagada la pestaña sigue existiendo: adentro
+                  // vive la aprobación de visita, que es donde se registra el
+                  // cobro y se decide la facturación. Cambia el nombre, no el rol.
+                  { id: 'fidelizacion', label: FIDELIZACION_HABILITADA
+                      ? `🪙 Club de Puntos (${paciente.puntos_saldo_cache ?? 0} pts)`
+                      : '💰 Cobros y Visitas' },
                   { id: 'fotos', label: `📷 Evolución Visual (${fotos.length})` },
                   { id: 'consentimientos', label: '✍️ Consentimientos' }
                 ].map(tab => {
@@ -1227,12 +1234,12 @@ export default function PacienteDetalle() {
                   <div className="glass-card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: 14 }}>
                     <h3 style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-dark)', margin: 0 }}>Aprobación Manual de Visita</h3>
                     <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '4px 0 0' }}>
-                      Confirmá la asistencia del paciente y procesá la acumulación de puntos correspondiente al gasto de la cita.
+                      Confirmá la asistencia del paciente y registrá el cobro de la cita.
                     </p>
 
                     {citasParaAprobar.length === 0 ? (
                       <div style={{ padding: '1.5rem', background: 'var(--bg-input, #f0f4f8)', borderRadius: 12, fontSize: 13, color: 'var(--text-muted)', textAlign: 'center' }}>
-                        🎉 No hay consultas pendientes de procesamiento de puntos.
+                        🎉 No hay consultas pendientes de aprobación.
                       </div>
                     ) : (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 6 }}>
@@ -1306,11 +1313,20 @@ export default function PacienteDetalle() {
                           disabled={procesandoPuntos}
                           onClick={handleAprobarAsistencia}
                         >
-                          {procesandoPuntos ? 'Procesando Puntos...' : 'Confirmar Asistencia y Procesar Puntos'}
+                          {procesandoPuntos ? 'Procesando...' : 'Confirmar Asistencia y Registrar Cobro'}
                         </button>
                       </div>
                     )}
                   </div>
+
+                  {/* ─────────────────────────────────────────────────────────
+                      SECCIONES 2, 3 y 4 · canje, ajuste manual e historial.
+                      Ocultas mientras FIDELIZACION_HABILITADA sea false.
+                      El código queda: se reactiva poniendo el flag en true.
+                      Ver src/lib/fidelizacion-flag.ts para el porqué.
+                      ───────────────────────────────────────────────────────── */}
+                  {FIDELIZACION_HABILITADA && (
+                  <>
 
                   {/* SECCION 2: CATALOGO DE PREMIOS */}
                   <div className="glass-card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -1443,21 +1459,22 @@ export default function PacienteDetalle() {
                       style={{ ...btnDarkCss, width: '100%', marginTop: 4 }}
                       disabled={procesandoAjuste}
                       onClick={async () => {
-                        if (ajustePuntosMonto === '' || Number(ajustePuntosMonto) <= 0) {
-                          showMsg('Ingresa una cantidad de puntos válida', 'error')
-                          return
-                        }
-                        if (!ajustePuntosNota.trim()) {
-                          showMsg('Es obligatorio ingresar un motivo para el ajuste', 'error')
+                        // Las mismas reglas que aplica fn_ajustar_puntos_manual.
+                        // La base sigue siendo la autoridad final; esto solo
+                        // evita que el usuario reciba un error crudo de
+                        // PostgreSQL por algo que se puede avisar antes.
+                        const validacion = validarAjustePuntos(ajustePuntosMonto, ajustePuntosNota)
+                        if (!validacion.ok) {
+                          showMsg(validacion.error, 'error')
                           return
                         }
                         setProcesandoAjuste(true)
                         const signo = ajustePuntosTipo === 'ajuste_manual' ? 1 : -1
                         const res = await ajustarPuntosManualAction(
-                          paciente.id, 
-                          Number(ajustePuntosMonto) * signo, 
-                          ajustePuntosTipo, 
-                          ajustePuntosNota.trim()
+                          paciente.id,
+                          Number(ajustePuntosMonto) * signo,
+                          ajustePuntosTipo,
+                          validacion.nota
                         )
                         setProcesandoAjuste(false)
                         if (res.success) {
@@ -1550,6 +1567,10 @@ export default function PacienteDetalle() {
                       </div>
                     )}
                   </div>
+
+                  </>
+                  )}
+                  {/* ── fin del bloque oculto por FIDELIZACION_HABILITADA ── */}
 
                 </div>
               )}

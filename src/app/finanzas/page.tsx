@@ -551,6 +551,39 @@ export default function FinanzasPage() {
   const totalEgresosDia = egresosDia.reduce((s, m) => s + m.monto, 0)
   const cajaDia = (totalCitasDia + totalIngresosDia) - totalEgresosDia
 
+  const desgloseFormasPago = useMemo(() => {
+    const result: Record<string, number> = {}
+    
+    if (cajaActiva?.monto_apertura) {
+      result['Apertura (Efectivo)'] = cajaActiva.monto_apertura
+    }
+
+    citasDia.forEach(c => {
+      const pagos = pagosPorCita[c.id] || []
+      if (pagos.length > 0) {
+        pagos.forEach(p => {
+          result[p.forma_pago] = (result[p.forma_pago] || 0) + p.monto
+        })
+      } else {
+        const precio = getPrecio(c)
+        if (precio > 0) {
+          result['Efectivo'] = (result['Efectivo'] || 0) + precio
+        }
+      }
+    })
+
+    ingresosDia.forEach(m => {
+      const forma = (m as any).forma_pago || 'Efectivo'
+      result[forma] = (result[forma] || 0) + m.monto
+    })
+
+    egresosDia.forEach(e => {
+      result['Efectivo'] = (result['Efectivo'] || 0) - e.monto
+    })
+
+    return result
+  }, [cajaActiva, citasDia, pagosPorCita, ingresosDia, egresosDia, getPrecio])
+
   return (
     <AppShell>
         <PageHeader
@@ -1088,25 +1121,133 @@ export default function FinanzasPage() {
 
       {modalCierre && (
         <div onClick={() => setModalCierre(false)} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.4)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:200, padding:'1rem' }}>
-          <div onClick={e => e.stopPropagation()} style={{ background:'#fff', borderRadius:16, padding:'1.5rem', width:'100%', maxWidth:360, boxShadow:'0 8px 32px rgba(0,0,0,0.12)' }}>
-            <div style={{ fontSize:16, fontWeight:700, color:'#0a1e3d', marginBottom:'0.5rem' }}>Cierre de Caja y Arqueo</div>
-            <p style={{ fontSize:12, color:'#64748b', marginBottom:'1rem' }}>
-              Ingresá el total de efectivo y valores contados físicamente en la caja.
+          <div onClick={e => e.stopPropagation()} style={{ background:'#fff', borderRadius:16, padding:'1.5rem', width:'100%', maxWidth: isMobile ? 380 : 680, boxShadow:'0 8px 32px rgba(0,0,0,0.12)', transition: 'max-width 0.2s' }}>
+            <div style={{ fontSize:16, fontWeight:700, color:'#0a1e3d', marginBottom:'0.35rem' }}>Cierre de Caja y Arqueo</div>
+            <p style={{ fontSize:12, color:'#64748b', marginBottom:'1.25rem' }}>
+              Ingresá el total de efectivo y valores contados físicamente en la caja para registrar el arqueo.
             </p>
-            <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
-              <div style={{ padding: '8px 12px', background: '#f8fafc', borderRadius: 8, border: '0.5px solid #e2e8f0', fontSize: 13, color: '#475569' }}>
-                Caja calculada por sistema: <strong style={{ color: '#0a1e3d' }}>{fmt(cajaDia + (cajaActiva?.monto_apertura ?? 0))}</strong>
+            
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 20 }}>
+              
+              {/* Panel Izquierdo: Desglose Sistema */}
+              <div style={{ background: '#f8fafc', padding: '12px 14px', borderRadius: 12, border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <div style={{ fontSize: 11.5, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em', borderBottom: '1px solid #e2e8f0', paddingBottom: 6 }}>
+                  Cálculo del Sistema
+                </div>
+                
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 12.5 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', color: '#64748b' }}>
+                    <span>Fondo Inicial (Apertura):</span>
+                    <span style={{ fontWeight: 600, color: '#334155' }}>{fmt(cajaActiva?.monto_apertura ?? 0)}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', color: '#64748b' }}>
+                    <span>Cobros por Turnos:</span>
+                    <span style={{ fontWeight: 600, color: '#334155' }}>+{fmt(totalCitasDia)}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', color: '#64748b' }}>
+                    <span>Ingresos Manuales:</span>
+                    <span style={{ fontWeight: 600, color: '#334155' }}>+{fmt(totalIngresosDia)}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', color: '#64748b' }}>
+                    <span>Gastos (Egresos):</span>
+                    <span style={{ fontWeight: 600, color: '#ef4444' }}>-{fmt(totalEgresosDia)}</span>
+                  </div>
+                  
+                  <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #e2e8f0', paddingTop: 8, marginTop: 4, fontWeight: 700, fontSize: 13.5, color: '#0a1e3d' }}>
+                    <span>Total Estimado:</span>
+                    <span>{fmt(cajaDia + (cajaActiva?.monto_apertura ?? 0))}</span>
+                  </div>
+                </div>
+
+                {/* Desglose por Forma de Pago */}
+                <div style={{ borderTop: '1px dashed #cbd5e1', paddingTop: 8, marginTop: 4 }}>
+                  <div style={{ fontSize: 10.5, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6 }}>
+                    Detalle por Medio de Pago:
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 11.5 }}>
+                    {Object.entries(desgloseFormasPago).length === 0 ? (
+                      <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>Sin movimientos registrados.</span>
+                    ) : (
+                      Object.entries(desgloseFormasPago).map(([forma, monto]) => (
+                        <div key={forma} style={{ display: 'flex', justifyContent: 'space-between', color: '#475569' }}>
+                          <span>{forma}:</span>
+                          <span style={{ fontWeight: 600 }}>{fmt(monto)}</span>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
               </div>
-              <div>
-                <div style={{ fontSize:12, fontWeight:600, color:'#64748b', marginBottom:4 }}>Efectivo Contado Físicamente *</div>
-                <input type="number" style={inputSt} value={mCierreVal} onChange={e => setMCierreVal(e.target.value === '' ? '' : Number(e.target.value))} placeholder="0" autoFocus />
+
+              {/* Panel Derecho: Formulario e Discrepancia */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div>
+                  <div style={{ fontSize:12, fontWeight:600, color:'#64748b', marginBottom:4 }}>Efectivo Contado Físicamente *</div>
+                  <input 
+                    type="number" 
+                    style={inputSt} 
+                    value={mCierreVal} 
+                    onChange={e => setMCierreVal(e.target.value === '' ? '' : Number(e.target.value))} 
+                    placeholder="Ingresá monto contado" 
+                    autoFocus 
+                  />
+                </div>
+
+                {/* Discrepancia en Tiempo Real */}
+                {mCierreVal !== '' && (
+                  (() => {
+                    const totalSistema = cajaDia + (cajaActiva?.monto_apertura ?? 0)
+                    const dif = Number(mCierreVal) - totalSistema
+                    
+                    let bg = '#E6F4EA'
+                    let border = '1px solid #34A853'
+                    let color = '#137333'
+                    let label = `Caja Cuadrada ✓`
+                    
+                    if (dif > 0) {
+                      bg = '#E6F4EA'
+                      border = '1px solid #10B981'
+                      color = '#065F46'
+                      label = `Sobrante: +${fmt(dif)} 🟢`
+                    } else if (dif < 0) {
+                      bg = '#FCE8E6'
+                      border = '1px solid #EF4444'
+                      color = '#C5221F'
+                      label = `Faltante: -${fmt(Math.abs(dif))} 🔴`
+                    }
+
+                    return (
+                      <div style={{ 
+                        background: bg, 
+                        border: border, 
+                        color: color, 
+                        borderRadius: 10, 
+                        padding: '10px 12px', 
+                        fontSize: 12.5, 
+                        fontWeight: 700, 
+                        textAlign: 'center',
+                        transition: 'all 0.2s ease'
+                      }}>
+                        {label}
+                      </div>
+                    )
+                  })()
+                )}
+
+                <div>
+                  <div style={{ fontSize:12, fontWeight:600, color:'#64748b', marginBottom:4 }}>Observaciones / Notas de Cierre</div>
+                  <textarea 
+                    style={{ ...inputSt, resize: 'none', height: 75 }} 
+                    value={cajaObs} 
+                    onChange={e => setCajaObs(e.target.value)} 
+                    placeholder="Ej: Faltan $100 por vuelto mal dado..." 
+                  />
+                </div>
               </div>
-              <div>
-                <div style={{ fontSize:12, fontWeight:600, color:'#64748b', marginBottom:4 }}>Observaciones / Notas</div>
-                <textarea style={{ ...inputSt, resize: 'none', height: 60 }} value={cajaObs} onChange={e => setCajaObs(e.target.value)} placeholder="Ej: Faltan $100 por vuelto mal dado." />
-              </div>
+
             </div>
-            <div style={{ display:'flex', gap:8, marginTop:'1.25rem', justifyContent:'flex-end' }}>
+
+            <div style={{ display:'flex', gap:8, marginTop:'1.5rem', justifyContent:'flex-end', borderTop: '1px solid #f1f5f9', paddingTop: '12px' }}>
               <button onClick={() => setModalCierre(false)} style={{ fontSize:13, padding:'7px 16px', borderRadius:8, border:'1px solid #e2e8f0', background:'#fff', color:'#64748b', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>Cancelar</button>
               <button onClick={cerrarCaja} disabled={saving} style={{ fontSize:13, fontWeight:600, padding:'7px 18px', borderRadius:8, border:'none', background: saving ? '#e2e8f0' : '#ef4444', color: saving ? '#94a3b8' : '#fff', cursor: saving ? 'not-allowed' : 'pointer', fontFamily:'DM Sans, sans-serif' }}>
                 {saving ? 'Cerrando...' : 'Cerrar Caja'}
