@@ -798,11 +798,11 @@ export default function Dashboard() {
                                   setCobFactura(sugerirRequiereFactura(FORMAS_PAGO[0], formasFacturables))
                                   setCobFecha(new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }))
                                   setModalCobro(true)
-                                  msg('Ingresá el cobro para procesar los puntos.')
+                                  msg('Ingresá el cobro para aprobar la visita.')
                                 } else {
                                   const res = await aprobarAsistenciaAction(c.id)
                                   if (!res.success) {
-                                    msg('Error al procesar puntos: ' + res.error, 'error')
+                                    msg('Error al aprobar la visita: ' + res.error, 'error')
                                   } else {
                                     setCitas(p => p.map(x => x.id === c.id ? { ...x, estado: 'asistio' as EstadoCita } : x))
                                     msg('Cita marcada como Asistió ✓')
@@ -952,7 +952,7 @@ export default function Dashboard() {
                                         onClick={async () => {
                                           if (cajaCerrada) return msg('La caja está cerrada para este día', 'error');
                                           setActiveMenuId(null);
-                                          if (window.confirm(`¿Marcar el turno de ${c.nombre} como Ausente? (Se romperá la racha de fidelización)`)) {
+                                          if (window.confirm(`¿Marcar el turno de ${c.nombre} como Ausente?`)) {
                                             const res = await registrarInasistenciaAction(c.id, 'ausente');
                                             if (!res.success) {
                                               msg('Error: ' + res.error, 'error');

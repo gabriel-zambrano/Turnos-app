@@ -136,9 +136,24 @@ export default function Pacientes() {
   async function saveBorrar() {
     if(!sel) return
     setSaving(true)
-    const {error} = await supabase.from('pacientes').delete().eq('id',sel.id)
+    // B1.4 · El `.select('id')` NO es decorativo.
+    //
+    // Cuando RLS deniega un DELETE, PostgREST no devuelve una excepción:
+    // devuelve `error = null` y cero filas afectadas. Sin `.select()` eso es
+    // indistinguible de un borrado exitoso, y la UI felicitaba al usuario por
+    // una eliminación que nunca ocurrió. El paciente seguía en la base y la
+    // persona se iba creyendo que lo había borrado.
+    //
+    // Con `.select()`, PostgREST devuelve las filas efectivamente borradas.
+    // Cero filas = no se borró nada. Esa es la única señal disponible.
+    const {data,error} = await supabase.from('pacientes').delete().eq('id',sel.id).select('id')
     setSaving(false)
     if(error) return msg('Error al eliminar: '+error.message,'error')
+    if(!data || data.length===0) {
+      // El modal queda abierto a propósito: la acción falló y el usuario tiene
+      // que ver sobre qué paciente falló, no volver a una lista sin contexto.
+      return msg('No se pudo eliminar el paciente. Puede que no tengas permiso o que ya no exista. Actualizá la lista y verificá.','error')
+    }
     setModal(null); msg('Paciente eliminado'); load()
   }
 

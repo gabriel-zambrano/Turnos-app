@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { triggerConfetti } from '@/lib/confetti'
 import { ProgressRing } from '@/components/ProgressRing'
+import { FIDELIZACION_HABILITADA } from '@/lib/fidelizacion-flag'
 
 interface Turno {
   id: string
@@ -566,8 +567,12 @@ export default function PacientePage() {
           </div>
 
           <div className="portal-column-side">
-            {/* Tarjeta de Puntos VIP */}
-            {paciente && (
+            {/* Tarjeta de Puntos VIP.
+                Oculta mientras FIDELIZACION_HABILITADA sea false — el club de
+                puntos está pausado y no tiene sentido prometerle premios al
+                paciente. La API además deja de enviar el saldo.
+                Ver src/lib/fidelizacion-flag.ts. */}
+            {FIDELIZACION_HABILITADA && paciente && (
               <div className="patient-card" style={{ 
                 padding: '1.25rem', 
                 borderRadius: 20, 

@@ -1657,163 +1657,196 @@ GRANT ALL ON FUNCTION "public"."sync_turno_to_cita"() TO "service_role";
 
 
 
-GRANT ALL ON TABLE "public"."admin_users" TO "anon";
+
+-- ═══════════════════════════════════════════════════════════════════════════
+-- ⚠️  R-18 · GRANTS A `anon` NEUTRALIZADOS — 22/08/2026
+--
+-- Este dump inicial contenía 36 sentencias `GRANT ... TO "anon"` sobre 31
+-- tablas: pacientes, historial_dental, paciente_fotos, tenant_users, tenants
+-- y las 6 vistas bi_*. Es EXACTAMENTE el estado que B1.6 revocó en producción.
+--
+-- POR QUÉ IMPORTA
+--
+--   El archivo usa `CREATE TABLE IF NOT EXISTS` y `CREATE OR REPLACE VIEW`, así
+--   que re-ejecutarlo NO da error: parece inofensivo. Cualquier
+--   `db reset --linked`, `db push --include-all`, reparación del historial de
+--   migraciones, o pegarlo en el SQL Editor, restaura la exposición completa.
+--
+--   Esto explica el MECANISMO de R-18 — los privilegios que se revirtieron el
+--   20/08 y el 22/08 sin causa aparente. No identifica QUÉ invocación lo
+--   disparó: eso requiere Logs → Postgres. Pero desactiva el arma.
+--
+-- QUÉ SE CONSERVA
+--
+--   El GRANT sobre `tenants_public`. `anon` sí necesita leer esa vista: el
+--   portal del paciente resuelve el branding de la clínica sin sesión.
+--
+-- ESTO NO CAMBIA PRODUCCIÓN
+--
+--   Esta migración ya está aplicada. Editarla no re-ejecuta nada. Lo que
+--   cambia es que un `db reset` futuro produzca una base SIN estos privilegios,
+--   alineada con el estado real tras B1.6.
+--
+--   Fijado por `src/lib/guardas-privilegios.test.ts`.
+-- ═══════════════════════════════════════════════════════════════════════════
+
+-- [R-18 neutralizado 22/08/2026] GRANT ALL ON TABLE "public"."admin_users" TO "anon";
 GRANT ALL ON TABLE "public"."admin_users" TO "authenticated";
 GRANT ALL ON TABLE "public"."admin_users" TO "service_role";
 
 
 
-GRANT ALL ON TABLE "public"."citas" TO "anon";
+-- [R-18 neutralizado 22/08/2026] GRANT ALL ON TABLE "public"."citas" TO "anon";
 GRANT ALL ON TABLE "public"."citas" TO "authenticated";
 GRANT ALL ON TABLE "public"."citas" TO "service_role";
 
 
 
-GRANT ALL ON TABLE "public"."bi_citas_por_dia" TO "anon";
+-- [R-18 neutralizado 22/08/2026] GRANT ALL ON TABLE "public"."bi_citas_por_dia" TO "anon";
 GRANT ALL ON TABLE "public"."bi_citas_por_dia" TO "authenticated";
 GRANT ALL ON TABLE "public"."bi_citas_por_dia" TO "service_role";
 
 
 
-GRANT ALL ON TABLE "public"."bi_citas_por_tratamiento" TO "anon";
+-- [R-18 neutralizado 22/08/2026] GRANT ALL ON TABLE "public"."bi_citas_por_tratamiento" TO "anon";
 GRANT ALL ON TABLE "public"."bi_citas_por_tratamiento" TO "authenticated";
 GRANT ALL ON TABLE "public"."bi_citas_por_tratamiento" TO "service_role";
 
 
 
-GRANT ALL ON TABLE "public"."bi_ingresos_por_mes" TO "anon";
+-- [R-18 neutralizado 22/08/2026] GRANT ALL ON TABLE "public"."bi_ingresos_por_mes" TO "anon";
 GRANT ALL ON TABLE "public"."bi_ingresos_por_mes" TO "authenticated";
 GRANT ALL ON TABLE "public"."bi_ingresos_por_mes" TO "service_role";
 
 
 
-GRANT ALL ON TABLE "public"."bi_kpis_mes" TO "anon";
+-- [R-18 neutralizado 22/08/2026] GRANT ALL ON TABLE "public"."bi_kpis_mes" TO "anon";
 GRANT ALL ON TABLE "public"."bi_kpis_mes" TO "authenticated";
 GRANT ALL ON TABLE "public"."bi_kpis_mes" TO "service_role";
 
 
 
-GRANT ALL ON TABLE "public"."bi_ocupacion_por_hora" TO "anon";
+-- [R-18 neutralizado 22/08/2026] GRANT ALL ON TABLE "public"."bi_ocupacion_por_hora" TO "anon";
 GRANT ALL ON TABLE "public"."bi_ocupacion_por_hora" TO "authenticated";
 GRANT ALL ON TABLE "public"."bi_ocupacion_por_hora" TO "service_role";
 
 
 
-GRANT ALL ON TABLE "public"."pacientes" TO "anon";
+-- [R-18 neutralizado 22/08/2026] GRANT ALL ON TABLE "public"."pacientes" TO "anon";
 GRANT ALL ON TABLE "public"."pacientes" TO "authenticated";
 GRANT ALL ON TABLE "public"."pacientes" TO "service_role";
 
 
 
-GRANT ALL ON TABLE "public"."bi_pacientes_nuevos_por_mes" TO "anon";
+-- [R-18 neutralizado 22/08/2026] GRANT ALL ON TABLE "public"."bi_pacientes_nuevos_por_mes" TO "anon";
 GRANT ALL ON TABLE "public"."bi_pacientes_nuevos_por_mes" TO "authenticated";
 GRANT ALL ON TABLE "public"."bi_pacientes_nuevos_por_mes" TO "service_role";
 
 
 
-GRANT INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,MAINTAIN,UPDATE ON TABLE "public"."bi_resumen" TO "anon";
+-- [R-18 neutralizado 22/08/2026] GRANT INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,MAINTAIN,UPDATE ON TABLE "public"."bi_resumen" TO "anon";
 GRANT INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,MAINTAIN,UPDATE ON TABLE "public"."bi_resumen" TO "authenticated";
 GRANT ALL ON TABLE "public"."bi_resumen" TO "service_role";
 
 
 
-GRANT ALL ON TABLE "public"."bloqueos" TO "anon";
+-- [R-18 neutralizado 22/08/2026] GRANT ALL ON TABLE "public"."bloqueos" TO "anon";
 GRANT ALL ON TABLE "public"."bloqueos" TO "authenticated";
 GRANT ALL ON TABLE "public"."bloqueos" TO "service_role";
 
 
 
-GRANT ALL ON TABLE "public"."config_fidelizacion" TO "anon";
+-- [R-18 neutralizado 22/08/2026] GRANT ALL ON TABLE "public"."config_fidelizacion" TO "anon";
 GRANT ALL ON TABLE "public"."config_fidelizacion" TO "authenticated";
 GRANT ALL ON TABLE "public"."config_fidelizacion" TO "service_role";
 
 
 
-GRANT ALL ON TABLE "public"."costos_fijos" TO "anon";
+-- [R-18 neutralizado 22/08/2026] GRANT ALL ON TABLE "public"."costos_fijos" TO "anon";
 GRANT ALL ON TABLE "public"."costos_fijos" TO "authenticated";
 GRANT ALL ON TABLE "public"."costos_fijos" TO "service_role";
 
 
 
-GRANT ALL ON TABLE "public"."egresos_manuales" TO "anon";
+-- [R-18 neutralizado 22/08/2026] GRANT ALL ON TABLE "public"."egresos_manuales" TO "anon";
 GRANT ALL ON TABLE "public"."egresos_manuales" TO "authenticated";
 GRANT ALL ON TABLE "public"."egresos_manuales" TO "service_role";
 
 
 
-GRANT ALL ON TABLE "public"."feedback_post_visita" TO "anon";
+-- [R-18 neutralizado 22/08/2026] GRANT ALL ON TABLE "public"."feedback_post_visita" TO "anon";
 GRANT ALL ON TABLE "public"."feedback_post_visita" TO "authenticated";
 GRANT ALL ON TABLE "public"."feedback_post_visita" TO "service_role";
 
 
 
-GRANT ALL ON TABLE "public"."historial_dental" TO "anon";
+-- [R-18 neutralizado 22/08/2026] GRANT ALL ON TABLE "public"."historial_dental" TO "anon";
 GRANT ALL ON TABLE "public"."historial_dental" TO "authenticated";
 GRANT ALL ON TABLE "public"."historial_dental" TO "service_role";
 
 
 
-GRANT ALL ON TABLE "public"."historial_puntos" TO "anon";
+-- [R-18 neutralizado 22/08/2026] GRANT ALL ON TABLE "public"."historial_puntos" TO "anon";
 GRANT ALL ON TABLE "public"."historial_puntos" TO "authenticated";
 GRANT ALL ON TABLE "public"."historial_puntos" TO "service_role";
 
 
 
-GRANT ALL ON TABLE "public"."ingresos_manuales" TO "anon";
+-- [R-18 neutralizado 22/08/2026] GRANT ALL ON TABLE "public"."ingresos_manuales" TO "anon";
 GRANT ALL ON TABLE "public"."ingresos_manuales" TO "authenticated";
 GRANT ALL ON TABLE "public"."ingresos_manuales" TO "service_role";
 
 
 
-GRANT ALL ON TABLE "public"."logs_envios" TO "anon";
+-- [R-18 neutralizado 22/08/2026] GRANT ALL ON TABLE "public"."logs_envios" TO "anon";
 GRANT ALL ON TABLE "public"."logs_envios" TO "authenticated";
 GRANT ALL ON TABLE "public"."logs_envios" TO "service_role";
 
 
 
-GRANT ALL ON TABLE "public"."meta_mensual" TO "anon";
+-- [R-18 neutralizado 22/08/2026] GRANT ALL ON TABLE "public"."meta_mensual" TO "anon";
 GRANT ALL ON TABLE "public"."meta_mensual" TO "authenticated";
 GRANT ALL ON TABLE "public"."meta_mensual" TO "service_role";
 
 
 
-GRANT ALL ON TABLE "public"."paciente_fotos" TO "anon";
+-- [R-18 neutralizado 22/08/2026] GRANT ALL ON TABLE "public"."paciente_fotos" TO "anon";
 GRANT ALL ON TABLE "public"."paciente_fotos" TO "authenticated";
 GRANT ALL ON TABLE "public"."paciente_fotos" TO "service_role";
 
 
 
-GRANT ALL ON TABLE "public"."perfil_doctor" TO "anon";
+-- [R-18 neutralizado 22/08/2026] GRANT ALL ON TABLE "public"."perfil_doctor" TO "anon";
 GRANT ALL ON TABLE "public"."perfil_doctor" TO "authenticated";
 GRANT ALL ON TABLE "public"."perfil_doctor" TO "service_role";
 
 
 
-GRANT ALL ON TABLE "public"."premios" TO "anon";
+-- [R-18 neutralizado 22/08/2026] GRANT ALL ON TABLE "public"."premios" TO "anon";
 GRANT ALL ON TABLE "public"."premios" TO "authenticated";
 GRANT ALL ON TABLE "public"."premios" TO "service_role";
 
 
 
-GRANT ALL ON TABLE "public"."presupuestos" TO "anon";
+-- [R-18 neutralizado 22/08/2026] GRANT ALL ON TABLE "public"."presupuestos" TO "anon";
 GRANT ALL ON TABLE "public"."presupuestos" TO "authenticated";
 GRANT ALL ON TABLE "public"."presupuestos" TO "service_role";
 
 
 
-GRANT ALL ON TABLE "public"."recordatorios_log" TO "anon";
+-- [R-18 neutralizado 22/08/2026] GRANT ALL ON TABLE "public"."recordatorios_log" TO "anon";
 GRANT ALL ON TABLE "public"."recordatorios_log" TO "authenticated";
 GRANT ALL ON TABLE "public"."recordatorios_log" TO "service_role";
 
 
 
-GRANT ALL ON TABLE "public"."tenant_users" TO "anon";
+-- [R-18 neutralizado 22/08/2026] GRANT ALL ON TABLE "public"."tenant_users" TO "anon";
 GRANT ALL ON TABLE "public"."tenant_users" TO "authenticated";
 GRANT ALL ON TABLE "public"."tenant_users" TO "service_role";
 
 
 
-GRANT SELECT,REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."tenants" TO "anon";
+-- [R-18 neutralizado 22/08/2026] GRANT SELECT,REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."tenants" TO "anon";
 GRANT SELECT,REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."tenants" TO "authenticated";
 GRANT ALL ON TABLE "public"."tenants" TO "service_role";
 
@@ -1851,31 +1884,35 @@ GRANT UPDATE("whatsapptemplate") ON TABLE "public"."tenants" TO "authenticated";
 
 
 
-GRANT ALL ON TABLE "public"."tenants_public" TO "anon";
+-- [R-10 · 22/08/2026] `ALL` incluía INSERT/UPDATE/DELETE sobre una vista
+-- auto-actualizable cuyo dueño es postgres: anon podía ESCRIBIR en `tenants`.
+-- Corregido en producción por 20260820180100. Acotado también acá.
+GRANT SELECT ON TABLE "public"."tenants_public" TO "anon";
 GRANT ALL ON TABLE "public"."tenants_public" TO "authenticated";
 GRANT ALL ON TABLE "public"."tenants_public" TO "service_role";
 
 
 
-GRANT ALL ON TABLE "public"."tratamientos" TO "anon";
+-- [R-18 neutralizado 22/08/2026] GRANT ALL ON TABLE "public"."tratamientos" TO "anon";
 GRANT ALL ON TABLE "public"."tratamientos" TO "authenticated";
 GRANT ALL ON TABLE "public"."tratamientos" TO "service_role";
 
 
 
-GRANT ALL ON TABLE "public"."turnos" TO "anon";
+-- [R-18 neutralizado 22/08/2026] GRANT ALL ON TABLE "public"."turnos" TO "anon";
 GRANT ALL ON TABLE "public"."turnos" TO "authenticated";
 GRANT ALL ON TABLE "public"."turnos" TO "service_role";
 
 
 
-GRANT ALL ON TABLE "public"."whatsapp_contactos" TO "anon";
+-- [R-18 neutralizado 22/08/2026] GRANT ALL ON TABLE "public"."whatsapp_contactos" TO "anon";
 GRANT ALL ON TABLE "public"."whatsapp_contactos" TO "authenticated";
 GRANT ALL ON TABLE "public"."whatsapp_contactos" TO "service_role";
 
 
 
-GRANT ALL ON SEQUENCE "public"."whatsapp_contactos_id_seq" TO "anon";
+-- [R-18 neutralizado 22/08/2026] sin INSERT sobre la tabla, la secuencia sobra.
+-- GRANT ALL ON SEQUENCE "public"."whatsapp_contactos_id_seq" TO "anon";
 GRANT ALL ON SEQUENCE "public"."whatsapp_contactos_id_seq" TO "authenticated";
 GRANT ALL ON SEQUENCE "public"."whatsapp_contactos_id_seq" TO "service_role";
 

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { puedeSumarUsuario, cuposDelPlan } from '@/lib/planes'
+import { validarInvitacion } from '@/lib/roles-equipo'
 
 // Usamos el cliente de admin para poder invitar usuarios
 const supabaseAdmin = createClient(
@@ -46,9 +47,34 @@ export async function POST(req: Request) {
       .eq('tenant_id', tenantId)
       .maybeSingle()
 
-    if (!ownerTenant || (ownerTenant.role !== 'owner' && ownerTenant.role !== 'admin')) {
-      return NextResponse.json({ error: 'No tienes permisos para invitar al equipo de esta clínica' }, { status: 403 })
+    // ── R-2 · Validación de rol, ANTES de cualquier efecto ──
+    //
+    // Va acá y no más abajo a propósito: si valida después de
+    // `inviteUserByEmail`, el mail ya salió y el usuario ya existe en Auth.
+    // Un rechazo posterior deja basura que nadie limpia.
+    //
+    // Reemplaza la guarda anterior —que sólo miraba si el que invita era
+    // owner o admin— sumando dos cosas que faltaban: que el rol pedido exista
+    // y que un admin no pueda otorgar owner.
+    //
+    // La decisión vive en src/lib/roles-equipo.ts para poder probarla sin
+    // mockear Supabase. Revertir R-2 es volver a las 3 líneas anteriores.
+    // El chequeo de pertenencia va aparte y primero: si `ownerTenant` es null,
+    // el tenantId del body no es de este usuario. `validarInvitacion` también
+    // lo contempla —falla cerrado— pero acá se separa para que TypeScript
+    // pueda estrechar el tipo en los dos `insert` de más abajo.
+    if (!ownerTenant) {
+      return NextResponse.json(
+        { error: 'No tenés permisos para invitar al equipo de esta clínica' },
+        { status: 403 }
+      )
     }
+
+    const decision = validarInvitacion(ownerTenant.role, role)
+    if (!decision.ok) {
+      return NextResponse.json({ error: decision.error }, { status: decision.status })
+    }
+    const rolAsignado = decision.rol
 
     // 2b. Verificar el cupo de usuarios que incluye el plan.
     const { data: tenantPlan } = await supabaseAdmin
@@ -93,7 +119,7 @@ export async function POST(req: Request) {
           .insert({
             tenant_id: ownerTenant.tenant_id,
             user_id: existingUser.id,
-            role: role || 'staff'
+            role: rolAsignado          // R-2 · validado arriba, nunca el crudo del body
           })
 
         if (linkError) {
@@ -115,7 +141,7 @@ export async function POST(req: Request) {
         .insert({
           tenant_id: ownerTenant.tenant_id,
           user_id: inviteData.user.id,
-          role: role || 'staff'
+          role: rolAsignado          // R-2 · validado arriba, nunca el crudo del body
         })
         
       if (linkError) throw linkError

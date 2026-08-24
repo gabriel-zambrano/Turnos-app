@@ -40,7 +40,8 @@ Se escribe **después** de ejecutar y verificar, nunca antes.
 | # | Hallazgo | Severidad | Destino |
 |---|---|---|---|
 | **R-10** | **`anon` con `GRANT ALL` sobre `tenants_public`, vista actualizable sin `security_invoker`** | **Crítica** | 🟢 **CERRADO** — entrada 006 |
-| **R-1** | **34 de 35 tablas con `anon=arwdDxtm`** *(no 12 — confirmado en producción, N-1)* | Crítica | B1.6 |
+| **R-1** | 34 de 35 tablas con `anon=arwdDxtm` | Crítica | 🟢 **CERRADO** — B1.6, entrada 011 |
+| **R-18** | **Los ACL de P0-07 y R-10 aparecieron revertidos en producción el 20/08. Causa NO VERIFICADA** | **Crítica** | 🔴 **ABIERTO** — entrada 011 |
 | **R-2** | `role` sin whitelist en `/api/equipo/invitar` → escalada admin→owner | Alta | DO-7 |
 | **R-3** | El modelo de `role` no representa al dueño que ejerce | Alta | DO-6 |
 | **R-5** | ~~`generar_codigo_enlace` es SECURITY DEFINER~~ → **CORREGIDO: es INVOKER.** Ejecutable por `anon`, sin `search_path`, no toca tablas | **Baja** *(era falso positivo de mi regex)* | Higiene |
@@ -48,7 +49,10 @@ Se escribe **después** de ejecutar y verificar, nunca antes.
 | **R-12** | 9 de 13 funciones DEFINER con `search_path=public` sin `pg_temp`. `anon` y `authenticated` **tienen TEMP** | Media-baja | B1.2/B1.3 |
 | **R-6** | `/api/clinicas:114` borra tenant con `service_role`, 19 FK cascadean | Baja | Fase 3 |
 | **R-7** | Asimetría 19 CASCADE / 12 NO ACTION hacia `tenants` | **Media** *(subió: era el único freno del DELETE de R-10)* | Fase 3 |
-| **R-8** | Trigger `sync_turnos_to_sheets` → dominio ajeno, sin auth | **Media** | P0-08 / inventario v2 |
+| **R-8** | Trigger `sync_turnos_to_sheets` → dominio ajeno, sin auth. **Confirmado: devuelve 401, sin fuga** | **Media** | P0-08 / inventario v2 |
+| **R-13** | Cron horario contra ruta borrada · ~24 fallos/día | Media | 🟢 **CERRADO** — entrada 010 |
+| **R-14** | Secretos en texto plano en `cron.job` | Alta | 🟡 **PARCIAL** — token custom eliminado (010); falta `sb_publishable_` del jobid 3 y rotar `CRON_SECRET` |
+| **R-15** | Edge Function `enviar-recordatorios` sin versionar | Media | F1-3 del release board |
 | **R-9** | `FORCE RLS` en ninguna tabla — **confirmado en producción** (N-1, 43/43) | Baja-Media | Fase 2 |
 | **R-17** | **El default de `PUBLIC` sobre funciones no es suprimible por `ALTER DEFAULT PRIVILEGES`** en este entorno. Toda función nueva nace ejecutable por `anon` | **Media** | Mitigado por G-2 + N-2 · entrada 009 |
 
@@ -705,9 +709,469 @@ DROP FUNCTION public.tiene_rol(uuid, text[]);
 
 ---
 
-## Próximo paso
+## 010 · F1-4 · Eliminar el job horario roto — cierra R-13 y media R-14
 
-1. **Prueba de efecto de B1.1** — completa la entrada 009.
+**Fecha:** 20/08/2026 · **Etapa:** release · **Tipo:** cambio en producción · **Cierra:** R-13 · **Parcial:** R-14
+
+**Por qué.** `pg_cron` jobid 4 corría cada hora contra `https://turnos.walterbenegas.com.ar/api/recordatorio-email`. Esa ruta **fue borrada** —el historial de git muestra la eliminación de `src/app/api/recordatorio-email/route.ts`— y el job sobrevivió al refactor. Venía devolviendo **404 unas 24 veces por día**, sin que nadie se enterara, porque `pg_cron` no notifica fallos.
+
+Además, su `command` contenía un **bearer token en texto plano** con formato `<producto>_<palabra>_<año>` — R-14. Ese token quedó expuesto en la conversación de auditoría.
+
+**Por qué se borró en vez de rotarlo.** No tiene sentido rotar el secreto de un job que apunta a una ruta inexistente. Eliminarlo resuelve las dos cosas de una vez.
+
+**Comando.**
+
+```sql
+SELECT cron.unschedule(4);
+
+SELECT jobid, schedule, active, left(command, 70) AS comando
+FROM cron.job ORDER BY jobid;
+```
+
+**Resultado.**
+
+```
+unschedule: true
+
+jobid | schedule    | active | comando
+------+-------------+--------+--------------------------------------
+    3 | 0 11 * * *  | true   | select net.http_post( url := 'https://…
+```
+
+**Verificación.** Solo queda el jobid 3. El horario desapareció, y con él las ~24 llamadas fallidas diarias y el token en claro.
+
+**Lo que NO cierra — R-14 queda a medias.**
+
+El jobid 3 conserva una clave `sb_publishable_…` en texto plano en su `command`. Las claves *publishable* de Supabase **son públicas por diseño**, así que no es una fuga de secreto. Pero un valor de autenticación escrito en una tabla queda en los backups y a la vista de cualquiera con acceso al SQL Editor. **Moverlo a Supabase Vault es P2.**
+
+**Y sigue pendiente rotar `CRON_SECRET`**, por dos motivos independientes:
+
+1. **No se pudo determinar si era el mismo valor** que el token del jobid 4. Está marcado *Sensitive* en Vercel, que lo vuelve write-only. **Determinarlo salía más caro que rotarlo igual.**
+2. **Pendiente viejo sin cerrar:** durante la verificación de P0-03 nunca se confirmó si `CRON_SECRET` viajaba a Sentry en los spans de las llamadas salientes — la ventana de exportación no alcanzó la corrida del cron. **Rotarlo cierra esa duda también.**
+
+**Procedimiento pendiente:** generar valor con `openssl rand -base64 32`, actualizarlo en Vercel → Settings → Environment Variables → Production, y **hacer redeploy** — las variables se enlazan en el momento del deploy, sin redeploy el valor nuevo no toma efecto. Verificar al día siguiente que los tres crons de Vercel siguen ejecutando.
+
+**Riesgo asumido al borrar.** Si alguien esperaba recordatorios por email desde ese job, dejan de intentarse. **En la práctica no cambia nada: llevaban meses devolviendo 404.** Lo que sí cambia es que el fallo deja de ser silencioso — antes fallaba, ahora directamente no existe.
+
+**Rollback.**
+
+```sql
+SELECT cron.schedule(
+  'recordatorio_email_horario',
+  '0 * * * *',
+  $$ SELECT net.http_post(
+       url := 'https://turnos.walterbenegas.com.ar/api/recordatorio-email',
+       headers := '{"Content-Type": "application/json", "Authorization": "Bearer <TOKEN>"}'::jsonb,
+       body := '{}'::jsonb
+     ); $$
+);
+```
+
+⚠️ **Reconstruye el job con el token expuesto.** Solo con motivo explícito, y con un token nuevo. **El `jobid` no se puede reusar** — `cron.schedule` asigna uno nuevo.
+
+**Pendiente de versionado.** El job no estaba en Git y su eliminación tampoco lo está. Los jobs de `pg_cron` son **F1-3** del release board.
+
+---
+
+## 011 · B1.6 · Revocar `anon` de todo el esquema — y un incidente de reversión
+
+**Fecha:** 20/08/2026 · **Etapa:** B1.6 · **Tipo:** cambio en producción · **Cierra:** R-1, R-5, R-11
+
+**Por qué.** `anon` tenía `arwdDxtm` sobre 34 de 35 tablas y podía ejecutar funciones que no debía. Lo único que lo contenía era RLS. B1.6 elimina esa dependencia: `anon` pasa a poder leer **un solo objeto en todo el esquema**.
+
+> ⚠️ **PRECISIÓN AGREGADA EL 22/08.** Al repetir la consulta a las **62,5 h** del reset, el resultado se confirmó: `tenants_public` 49 llamadas, **cero tablas de negocio**. Pero la cobertura efectiva fue menor de lo que el protocolo pedía: **B1.6 se aplicó a las ~24 h**, así que solo ese primer tramo midió con `anon` operativo. Las 39 h restantes transcurrieron con `anon` ya revocado, donde un consumidor externo habría fallado sin necesariamente quedar registrado.
+>
+> **El protocolo pedía 48 h de observación con `anon` activo. Hubo ~24.** Decisión del owner: **no revertir** para conseguir una ventana más limpia — revertir reabriría R-1 a cambio de mejorar una evidencia cuyo riesgo residual es bajo. **Se compensa con el control de detección N-1 diario.**
+>
+> Dato favorable: `tenants_public` pasó de 20 a 49 llamadas, o sea **39 h de portal público funcionando después de B1.6**, con tráfico creciente.
+
+**Precondición cumplida.** La ventana de observación de `pg_stat_statements` cerró con **CASO 1 — AVANZA** según el protocolo congelado: V-1 PASS *(reset intacto)*, V-2 PASS *(`tenants_public` con 20 llamadas: el flujo anónimo fue ejercitado)*, V-3 contaminación declarada y evaluada como no relevante, y **cero entradas de tablas de negocio en 48 h de uso real**.
+
+---
+
+### 🔴 INCIDENTE — P0-07 y R-10 aparecieron revertidos
+
+**Al capturar la línea base de B1.6 apareció esto:**
+
+```
+tenants_public              anon=arwdDxtm    ← escritura completa
+bi_citas_por_dia            anon=arwdDxtm
+bi_citas_por_tratamiento    anon=arwdDxtm
+bi_ingresos_por_mes         anon=arwdDxtm
+bi_kpis_mes                 anon=arwdDxtm
+bi_ocupacion_por_hora       anon=arwdDxtm
+bi_pacientes_nuevos_por_mes anon=arwdDxtm
+bi_resumen                  anon=arwdDxtm
+```
+
+**Contradice directamente dos verificaciones previas de producción:**
+
+| Cuándo | Qué se verificó | Evidencia |
+|---|---|---|
+| 09/08 | Las 6 vistas `bi_*` devuelven `401` + `42501` a `anon` | curl · P0-07 |
+| 15/08 | `tenants_public` → `anon=r`, sin escritura | entrada 006 |
+| 20/08 | N-1 mostró las `bi_*` con solo `postgres` y `service_role` | entrada 007 |
+
+**Entre la consulta N-1 y la línea base de B1.6 —el mismo día— los ACL volvieron a su estado original.**
+
+**Gravedad: R-10 estuvo abierto de nuevo.** `anon` podía volver a escribir en `tenants` a través de `tenants_public`: nombre, teléfono, colores, `subdominio_generico` y `custom_domain`. Se detectó y cerró en el acto, pero **estuvo abierto un tiempo indeterminado**.
+
+**Un detalle del propio diseño de B1.6 casi lo oculta.** El bloque `DO` excluye `tenants_public` a propósito, para no dejar el portal público sin resolver el tenant. Como consecuencia, **no revocó su escritura**. Y la consulta de verificación miraba solo `SELECT`, así que devolvió el resultado esperado con la vulnerabilidad abierta.
+
+> **La verificación de B1.6 daba PASS con R-10 reabierto.** Se detectó solo porque la línea base se leyó entera en vez de mirar únicamente el resultado esperado.
+
+**CAUSA: ⚪ NO VERIFICADA.** La hipótesis principal es `supabase db push`: el runbook registra que el historial de migraciones remoto estaba vacío, así que un `push` aplicaría todas las migraciones desde `remote_schema.sql` — que contiene `GRANT ALL ON TABLE … TO anon` para cada objeto. Eso restauraría exactamente lo observado. **No confirmado.** Se determina consultando `supabase_migrations.schema_migrations`.
+
+**Si se confirma, es P0 y va antes que todo lo demás:** mientras el historial remoto esté desincronizado, cualquier `db push` puede revertir semanas de trabajo de privilegios en segundos, sin aviso.
+
+---
+
+**Comando.**
+
+```sql
+-- 1 · Cerrar R-10 nuevamente (de a uno)
+REVOKE ALL    ON TABLE public.tenants_public FROM anon, authenticated;
+GRANT  SELECT ON TABLE public.tenants_public TO   anon, authenticated;
+
+-- 2 · B1.6 — una sola sentencia atómica, que NUNCA toca tenants_public
+DO $$
+DECLARE r record;
+BEGIN
+  FOR r IN
+    SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE n.nspname = 'public' AND c.relkind IN ('r','v','m','p')
+      AND c.relname <> 'tenants_public'
+  LOOP
+    EXECUTE format('REVOKE ALL ON TABLE public.%I FROM anon', r.relname);
+  END LOOP;
+END $$;
+
+-- 3 · Funciones, de a una
+REVOKE ALL ON FUNCTION public.emitir_factura_con_detalle(
+  uuid, uuid, uuid, integer, integer, integer, text, date, numeric,
+  text, text, text, text, text, boolean, jsonb, jsonb) FROM anon;
+REVOKE ALL ON FUNCTION public.generar_codigo_enlace()   FROM PUBLIC, anon;
+REVOKE ALL ON FUNCTION public.sembrar_renglon_cita()    FROM PUBLIC, anon;
+REVOKE ALL ON FUNCTION public.sync_cobrado_cita()       FROM PUBLIC, anon;
+REVOKE ALL ON FUNCTION public.sync_valor_cita()         FROM PUBLIC, anon;
+```
+
+**Se usó un bloque `DO` en vez de `REVOKE ALL ON ALL TABLES … FROM anon` + `GRANT`** por el incidente de la entrada 009: el SQL Editor puede ejecutar parte de un bloque y no el resto, sin devolver error. Con dos sentencias sueltas, si corría el `REVOKE` y no el `GRANT`, **el portal público quedaba sin resolver el tenant**. El bucle es una sola sentencia atómica y excluye `tenants_public` por construcción.
+
+**Resultado — verificado en producción.**
+
+| Verificación | Resultado |
+|---|---|
+| Relaciones que `anon` puede leer | **1** — `tenants_public`, con `anon=r` |
+| Relaciones con escritura para `anon` | **0 filas** |
+| Funciones ejecutables por `anon` | **0 filas** |
+
+**Verificación funcional — OK.** Confirmado por el owner: portal público, reserva de turno, enlace de paciente por token, panel completo, facturación y acreditación de puntos. **Todo funciona.**
+
+**Hallazgos cerrados:** **R-1** *(34 tablas con `anon=arwdDxtm`)* · **R-5** *(`generar_codigo_enlace` ejecutable por `anon`)* · **R-11** *(`emitir_factura_con_detalle` con `anon=X`)*. Las 3 funciones de trigger también perdieron el `EXECUTE` de `PUBLIC`.
+
+**Rollback.**
+
+```sql
+GRANT ALL ON ALL TABLES IN SCHEMA public TO anon;
+```
+
+Un comando, inmediato, sin datos. La línea base completa con el ACL previo de las 44 relaciones quedó registrada en la sesión.
+
+---
+
+### Consecuencias para el release board
+
+| # | Qué | Prioridad |
+|---|---|---|
+| 1 | **Determinar qué revirtió los ACL.** Sin esto no se puede volver a usar `db push` | **P0 — nuevo, va primero** |
+| 2 | Sincronizar el historial de migraciones remoto | **P0** |
+| 3 | **Una verificación que solo mira el resultado esperado puede ocultar el problema.** Toda verificación de privilegios debe leer el ACL completo, no responder sí/no | **Regla nueva** |
+
+---
+
+## 012 · Prueba de restore, RTO medido, y el hallazgo que bloquea el lanzamiento
+
+**Fecha:** 22/08/2026 · **Tipo:** verificación de recuperación · **Cierra:** RTO · **Abre:** B-2 confirmado
+
+**Por qué.** El audit marcaba backups como ⚪ NO VERIFICADO. El runbook documentaba un restore probado el 22/07, pero sobre un baseline de 23 tablas cuando hoy hay 36.
+
+**Comando.** Script nuevo `probar-restore.sh`: dump de producción → base local limpia → 24 migraciones → restore → conteos. Cronometrado de punta a punta.
+
+**Resultado — el procedimiento funciona.**
+
+| | |
+|---|---|
+| **RTO medido** | **210 s** *(3m 30s, incluyendo descarga de imágenes; en régimen ~190 s)* |
+| Integridad de datos de negocio | **6 de 6 exactos** |
+| Metadatos de Storage | ✅ tras `supabase link` |
+| Migración de B1.6 | ✅ aplicó limpio sobre base vacía, verificación incluida |
+
+```
+citas 623 · pacientes 212 · historial_puntos 256 · pagos 31 · facturas 5 · tenant_users 2
+```
+
+Los mismos seis números en producción y en la base restaurada.
+
+**Incidente intermedio, resuelto.** El primer intento falló al restaurar `storage.buckets` y `storage.objects`: el CLI local tenía `storage-api v1.67.8` y producción corre **v1.70.4**. El dump traía columnas que la versión local no conocía. `npx supabase link` sincronizó las versiones y el segundo intento entró limpio. **Sin eso, el restore recuperaba todo menos las fotos clínicas.**
+
+---
+
+### 🔴 B-2 CONFIRMADO — no existen backups automáticos
+
+Panel de Supabase, Database → Backups:
+
+> **Free Plan does not include project backups.**
+
+| Control | Estado |
+|---|---|
+| Backups programados | **CERO** |
+| PITR | **No disponible en Free** |
+| **RPO real** | **INFINITO** — sin backup automático, se pierde todo desde el último dump manual |
+| RTO | 210 s — **pero solo si existe un backup que restaurar** |
+
+**Hay 212 pacientes reales en producción.** Si el proyecto se corrompe, se borra por error o hay un incidente de plataforma, **se pierden historias clínicas, citas, consentimientos firmados y facturas, sin recuperación posible.**
+
+**Es más grave que R-18.** Un privilegio mal puesto expone datos y RLS lo contiene en parte. Esto los borra, y no hay nada que lo contenga.
+
+**La paradoja del hallazgo:** normalmente uno encuentra backups que nadie probó. Acá hay **un procedimiento de restore probado y medido, sin backups que restaurar**.
+
+**→ DECISIÓN DEL OWNER: ¿se contrata plan Pro antes del lanzamiento?** Da 7 días de backups programados. PITR suele ser add-on aparte y baja el RPO de 24 h a segundos.
+
+**Mitigación provisoria:** correr `probar-restore.sh` —o solo su `db dump`— de forma periódica, guardando el archivo cifrado fuera de la máquina. Con una clínica y 1 MB de dump es viable semanalmente. Con cinco, no.
+
+---
+
+### 🔴 R-18 se repitió
+
+Durante esta sesión, `bi_citas_por_dia` volvió a aparecer con `anon=arwdDxtm` — **después** de B1.6.
+
+`anon` figura **al final del ACL**, o sea que corrió un `GRANT`. Y fue **una sola vista**, no las ocho: descarta un grant masivo y apunta a algo que tocó ese objeto en particular.
+
+**Hipótesis principal, NO confirmada:** cuando una vista se recrea con `DROP` + `CREATE`, hereda los default privileges del rol que la crea. B1.1 revocó los de `postgres`, pero **no se pudieron revocar los de `supabase_admin`** — `postgres` no es miembro de ese rol. Y los de `supabase_admin` siguen concediendo `anon=arwdDxtm`.
+
+Si la plataforma recrea objetos como `supabase_admin` —mantenimiento, optimizaciones— **nacen expuestos y no hay forma de impedirlo desde el proyecto.**
+
+**Dato favorable para el diagnóstico:** `log_statement = 'ddl'`, y PostgreSQL clasifica `GRANT` como `LOGSTMT_DDL`. **Los `GRANT` se están registrando.** El log de Postgres tiene la respuesta; falta mirarlo. Lo que decide es el `user_name` de la entrada: `postgres` significa que salió del editor o del CLI; `supabase_admin` confirma la hipótesis.
+
+**Estado: `bi_citas_por_dia` pendiente de revocar al cierre de esta entrada.**
+
+---
+
+**Verificación.** Conteos comparados entre producción y base restaurada: idénticos. RTO cronometrado por el script.
+
+**Rollback.** N/A — nada se modificó en producción. La base local se descarta con `npx supabase stop`.
+
+⚠️ **El dump contiene PII real.** Guardado con permisos `600` en `~/backups-dentaldesk`. **Borrarlo al terminar.**
+
+---
+
+## 013 · B1.2 + B1.3 · Rol, límite y nota obligatoria — aplicado
+
+**Fecha:** 22/08/2026
+**Migración:** `20260822130000_b1_2_b1_3_rol_limite_y_nota.sql`
+**Método:** `npx supabase db push` — no el editor SQL.
+
+### Qué se aplicó
+
+`db push` arrastró tres migraciones pendientes en una sola corrida:
+
+| Migración | Naturaleza |
+|---|---|
+| `20260820180300_cajas_diarias_privilegios.sql` | `REVOKE` no-op (B1.6 ya lo había hecho) + `GRANT` explícito a `authenticated` |
+| `20260822120000_b1_6_revocar_anon_del_esquema.sql` | Idempotente — versiona lo ya aplicado desde el editor |
+| `20260822130000_b1_2_b1_3_rol_limite_y_nota.sql` | **Único cambio real de comportamiento** |
+
+Las dos primeras no alteraron nada. Se pushearon para que el historial de migraciones deje de divergir de producción.
+
+### Por qué el push era seguro
+
+Tres razones, en orden de peso:
+
+1. **Impacto operativo nulo hoy.** Los dos usuarios del sistema son `admin`. Las nuevas verificaciones de rol no le quitan capacidades a nadie: empiezan a morder recién cuando exista un `odontologo` o un `staff`. El cambio se instala antes de que haya a quién romperle algo.
+2. **`CREATE OR REPLACE`, con rollback disponible.** Los cuerpos previos están en `remote_schema.sql` con md5 verificado contra producción en FASE 0 *(entrada 007)*. Revertir es un `CREATE OR REPLACE`, sin datos de por medio y sin redeploy.
+3. **El bloque `DO` de B1.6 funciona como red.** Si R-18 hubiera vuelto a golpear entre la verificación y el push, la migración **aborta** en vez de aplicar sobre un esquema distinto del que asumimos.
+
+### Verificación de privilegios — ejecutada
+
+```sql
+SELECT p.proname,
+       has_function_privilege('authenticated', p.oid, 'EXECUTE') AS auth_debe_true,
+       has_function_privilege('anon', p.oid, 'EXECUTE') AS anon_debe_false
+FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+WHERE n.nspname = 'public'
+  AND p.proname IN ('fn_ajustar_puntos_manual', 'fn_canjear_premio', 'tiene_rol')
+ORDER BY p.proname;
+```
+
+| función | `authenticated` | `anon` |
+|---|---|---|
+| `fn_ajustar_puntos_manual` | ✅ `true` | ✅ `false` |
+| `fn_canjear_premio` | ✅ `true` | ✅ `false` |
+| `tiene_rol` | ✅ `true` | ✅ `false` |
+
+**Los seis valores son los esperados.** `authenticated` conserva `EXECUTE` —la app no se rompe— y `anon` no lo tiene.
+
+**Y hay un dato que no es redundante con B1.6.** `has_function_privilege('anon', …)` devuelve `false` **incluyendo lo que `anon` heredaría de `PUBLIC`**. Que dé `false` prueba que el `REVOKE ALL … FROM PUBLIC` de esta migración surtió efecto. Bajo **R-17** los default privileges no protegen nada en este entorno: los `REVOKE` explícitos son la única defensa, y acá quedó demostrado que esa defensa opera.
+
+### Cobertura de tests
+
+`src/lib/fidelizacion-roles.test.ts` — 28 tests. Harness PGlite propio con el esquema real y 5 usuarios sembrados cubriendo los 4 roles en 2 tenants.
+
+**Cuatro de esos 28 prueban el estado *previo*:** cargan los cuerpos viejos desde `remote_schema.sql` y verifican que antes un odontólogo sí podía ajustar, que 5000 puntos pasaban sin límite y que la nota `NULL` se rellenaba sola. Si esos cuatro no fallaran contra el estado anterior, los otros 24 no probarían nada — estarían verificando una restricción que ya existía.
+
+Suite completa: **543 tests en 25 archivos, todos verdes.** `tsc --noEmit` en 0.
+
+### Dos hallazgos del harness — ninguno del código
+
+1. **`permission denied for table pacientes`.** `authenticated` no tenía privilegios sobre las tablas en PGlite. Supabase se los da por defecto; había que replicarlo en el harness.
+2. **`permission denied for schema public`.** Un `SET ROLE authenticated` global rompía el `CREATE OR REPLACE FUNCTION` de las migraciones. Se acotó el cambio de rol a cada llamada: fuera de `comoUsuario()`, todo corre como superusuario.
+
+Ambos anotados dentro del test, para que nadie los rediagnostique.
+
+---
+
+**Verificación.** Privilegios: ejecutada y correcta (tabla de arriba). **Funcional: PENDIENTE** — las 5 pruebas manuales del pie de la migración no se corrieron todavía.
+
+**Rollback.** `CREATE OR REPLACE` con los cuerpos de `remote_schema.sql`. Total, sin datos, sin redeploy. `CREATE OR REPLACE` preserva el ACL, así que revertir no altera privilegios.
+
+⚠️ **Esta entrada NO cierra B1.2/B1.3.** Los privilegios están verificados; el *comportamiento* no. Hasta que las 5 pruebas manuales pasen, el estado es **aplicado, no confirmado**.
+
+---
+
+## 014 · Fidelización apagada — decisión del owner
+
+**Fecha:** 22/08/2026
+**Decisión:** Gabriel — sacar el Club de Puntos del producto.
+**Implementación:** ocultar ya, borrar después de tener backups.
+
+### El dato que originó la decisión
+
+Consultado en producción, no inferido:
+
+| | |
+|---|---|
+| Puntos emitidos en 2 meses | 11.616 |
+| Canjes en toda la historia | **0** |
+| Premio más barato | 800 puntos |
+| Saldo máximo del sistema | **475** |
+| Pacientes que podían canjear | **0 de 212** |
+
+El programa acumulaba bien y apuntaba a una meta inalcanzable. A ~59 puntos/mes para un paciente activo, el primer premio quedaba a más de un año.
+
+**Cero canjes no era desinterés: era un catálogo fuera de alcance.**
+
+### Por qué ocultar y no borrar
+
+Borrar exigía `DROP` de `historial_puntos` y `premios`, cirugía sobre `fn_aprobar_asistencia` y `fn_registrar_inasistencia` —que también manejan asistencia— y 4 columnas de `pacientes`. Todo eso **sin backups** (blocker #1, entrada 012): un error no tiene vuelta atrás sobre datos de 212 pacientes reales.
+
+Ocultar da el mismo resultado visible hoy, es reversible con un booleano, y no cierra la puerta al `DROP` cuando exista PITR.
+
+### 🔴 Hallazgo · la pestaña no era solo puntos
+
+La pestaña **"🪙 Club de Puntos"** contenía, en su Sección 1, el flujo de **cobro y facturación**:
+
+```
+handleAprobarAsistencia()
+  → registrarPago(formaPago, monto, requiereFactura)   ← cobro + AFIP
+  → aprobarAsistenciaAction()                          ← asistencia + puntos
+```
+
+**Ocultar la pestaña entera habría dejado a la clínica sin la pantalla donde carga un pago y decide si se factura.** El nombre decía "puntos"; el contenido era plata.
+
+Se partió: Sección 1 se queda y se renombra la pestaña a **"💰 Cobros y Visitas"**; Secciones 2, 3 y 4 —canje, ajuste manual, historial— quedan detrás del flag.
+
+### Qué se hizo
+
+Un único punto de verdad: **`src/lib/fidelizacion-flag.ts`** → `FIDELIZACION_HABILITADA = false`.
+
+| Archivo | Cambio |
+|---|---|
+| `src/lib/fidelizacion-flag.ts` | **Nuevo.** El flag y el porqué |
+| `pacientes/[id]/page.tsx` | Secciones 2-4 tras el flag; pestaña renombrada; textos de puntos |
+| `paciente/[token]/page.tsx` | Tarjeta "Puntos VIP" oculta |
+| `api/paciente/[token]/route.ts` | **Deja de emitir `puntos` en el JSON** |
+| `dashboard/page.tsx` | 3 textos que mencionaban puntos |
+
+**La baja del portal es en el servidor, no en la UI.** Ocultar solo la tarjeta habría dejado el saldo viajando en el JSON, visible en las herramientas del navegador. Con el flag apagado el campo no se emite.
+
+### Qué NO se tocó
+
+**Cero cambios en la base.** Tablas, funciones y columnas intactas; el ledger de los 212 pacientes está completo. La acumulación sigue corriendo: no cuesta nada, no se le muestra a nadie, y evita un hueco de meses si el programa se reactiva con un catálogo calibrado.
+
+B1.2/B1.3 —aplicados en la entrada 013— siguen vigentes y no se revierten. Protegen funciones que hoy nadie puede invocar desde la UI, y eso está bien: si el flag vuelve a `true`, las guardas ya están puestas.
+
+### Verificación
+
+- `npx tsc --noEmit` → **0 errores en los archivos tocados**
+- Suite completa → **543 tests en 25 archivos, todos verdes**
+- `git diff` → **`src/app/agenda/page.tsx` no fue modificado por este trabajo**
+
+⚠️ **`tsc` reporta 2 errores en `src/app/agenda/page.tsx`** (JSX sin cerrar, líneas 1663 y 1704). **No son de este trabajo:** ese archivo tiene 63 inserciones y 173 borrados sin commitear, ajenos a P0-05, y al inicio de esta sesión `tsc` daba 0. Está a medio editar por Gabriel. **No se tocó** — sigue estando fuera de alcance.
+
+---
+
+**Verificación.** Tipos y tests, arriba. **Falta la visual:** abrir la ficha de un paciente y el portal con un token real.
+
+**Rollback.** `FIDELIZACION_HABILITADA = true`. Nada más — no hay migración ni datos que restaurar.
+
+**Pendiente que esto no cierra.** Si el programa se reactiva, el catálogo hay que recalibrarlo: con saldo máximo 475, el premio más barato debería costar entre 200 y 300, no 800. Y **DO-2 fijó el límite de ajuste manual en 500 mirando solo el tratamiento más grande (390), sin considerar el catálogo** — si un ajuste tiene que alcanzar para un premio, el número es otro. **DECISIÓN DEL OWNER**, para cuando corresponda.
+
+---
+
+## 015 · B1.4 · El borrado que mentía — y un patrón que lo excede
+
+**Fecha:** 22/08/2026
+**Autorización:** DO-5 — solo `src/app/pacientes/page.tsx`.
+
+### El defecto
+
+```ts
+const {error} = await supabase.from('pacientes').delete().eq('id',sel.id)
+if(error) return msg('Error al eliminar: '+error.message,'error')
+msg('Paciente eliminado')          // ← se ejecutaba aunque no se borrara nada
+```
+
+**RLS no lanza excepción cuando deniega un DELETE.** Devuelve `error = null` y cero filas. Sin pedir las filas de vuelta, un borrado bloqueado es indistinguible de uno exitoso.
+
+Consecuencia: la persona leía *"Paciente eliminado"*, se iba, y el paciente seguía en la base. Sobre historia clínica, esa creencia falsa es peor que un error visible.
+
+### La corrección
+
+`.select('id')` después del `delete()`. PostgREST devuelve las filas efectivamente borradas; cero filas significa que no se borró nada.
+
+El modal **queda abierto** cuando falla, a propósito: la acción destructiva no se completó y el usuario tiene que ver sobre qué paciente falló.
+
+### 🔴 Hallazgo · el mismo defecto en otros 13 lugares
+
+Buscando el patrón apareció algo más grande: **13 escrituras que descartan el resultado por completo** — ni `error` ni filas. Nueve están en `finanzas/page.tsx`.
+
+| Archivo | Operaciones | Qué toca |
+|---|---|---|
+| `finanzas/page.tsx` | **9** | `costos_fijos`, `ingresos_manuales`, `egresos_manuales`, `meta_mensual` |
+| `dashboard/page.tsx` | 2 | estado de citas, `logs_envios` |
+| `api/facturacion/emitir` | 1 | datos fiscales del paciente |
+| `api/send-recordatorios` | 1 | `recordatorios_log` |
+
+**Son peores que el que acabo de corregir.** El borrado de pacientes al menos miraba `error`. Estos no miran nada:
+
+```ts
+await supabase.from('ingresos_manuales').delete().eq('id', id); msg('Ingreso eliminado'); load()
+```
+
+Ahí un fallo de red, una violación de constraint o una denegación de RLS producen todos el mismo cartel verde. Y es plata: ingresos y egresos de caja. Un ingreso que se cree registrado y no se guardó deja la caja sin cuadrar, y nadie sabe por qué.
+
+`load()` refresca después, así que la lista termina mostrando la verdad — pero **el mensaje ya mintió**, y nadie vuelve a leer una lista después de que le confirmaron la operación.
+
+**DECISIÓN DEL OWNER:** corregir las 13 excede DO-5, que autoriza únicamente `pacientes/page.tsx`. No se tocaron. Las 9 de `finanzas` son las que manejan dinero.
+
+---
+
+**Verificación.** `tsc --noEmit` → 0 errores fuera de `agenda/page.tsx` *(roto por trabajo ajeno, ver entrada 014)*. Suite: **543 tests verdes**.
+
+**Falta la manual:** intentar borrar un paciente de otro tenant y confirmar que ahora avisa que falló.
+
+**Rollback.** Quitar `.select('id')` y el bloque de cero filas. Un archivo, sin datos de por medio.
 2. **21/08 21:31 UTC** — consulta de cierre de la ventana *(entrada 008)*. Decide si **B1.6** avanza.
 3. **B1.2 + B1.3** — diseñados en `P0-05_v2_BLOQUE_FUNCIONES.md`. Precondición: verificar que la UI de ajuste exija nota de ≥10 caracteres.
 4. **B1.4** — autorizado a tocar `src/app/pacientes/page.tsx`, solo ese archivo.
@@ -724,6 +1188,37 @@ DROP FUNCTION public.tiene_rol(uuid, text[]);
 | 6 | Escribir el diseño P0-05 v2 con los datos reales | Claude |
 
 **Ninguna tarea de implementación arranca antes de cerrar FASE 0.**
+
+---
+
+## Próximo paso
+
+### 🔴 Bloquean el lanzamiento
+
+| | Qué | Quién |
+|---|---|---|
+| 1 | **`agenda/page.tsx` está roto** — JSX sin cerrar, líneas 1663 y 1704. Sin esto `next build` falla y no hay deploy | Gabriel |
+| 2 | **No existen backups.** Plan Pro + PITR. 212 pacientes, RPO infinito | Gabriel |
+| 3 | **R-18 sin explicar** — Logs → Postgres, filtrar `GRANT`, mirar `user_name` | Gabriel |
+| 4 | **Storage nunca auditado** — fotos clínicas. No sabemos si las policies están bien *ni* mal | Claude prepara, Gabriel corre |
+
+### 🟡 Verificaciones manuales pendientes
+
+| | Qué | Origen |
+|---|---|---|
+| 1 | Marcar asistencia con cobro desde la ficha → sigue registrando el pago | Entradas 013 y 014 |
+| 2 | Abrir la ficha de un paciente y el portal con token real → sin rastro de puntos | Entrada 014 |
+| 3 | Intentar borrar un paciente de otro tenant → ahora avisa que falló | Entrada 015 |
+
+*Las manuales #2, #3 y #4 de la entrada 013 —ajuste de 501, nota corta, canje— quedaron retiradas: la UI que las alcanzaba está oculta desde la entrada 014.*
+
+### ⚪ Después del lanzamiento
+
+Multirol (DO-6) · jerarquía `admin→owner` (R-2) · roles reales en staging · suite IDOR dinámica · export y baja de tenant · `FORCE RLS` (R-9) · `search_path` de 9 funciones (R-12) · las 13 escrituras que descartan el resultado *(entrada 015)* · recalibrar el catálogo de premios si fidelización vuelve *(entrada 014)*
+
+### Sin commitear
+
+Todo el trabajo de P0-05 sigue local. `agenda/page.tsx` y `globals.css` tienen cambios ajenos a este trabajo.
 
 ---
 

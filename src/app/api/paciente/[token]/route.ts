@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { rateLimit, getClientIp } from '@/lib/rate-limit'
 import { storagePathFromUrl, BUCKET_FOTOS } from '@/lib/storage'
+import { FIDELIZACION_HABILITADA } from '@/lib/fidelizacion-flag'
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -193,7 +194,11 @@ export async function GET(
       // Saldo del ledger de fidelización (única fuente de verdad). El portal lo
       // muestra tal cual: no debe recalcularse a partir de las asistencias, o el
       // paciente vería un número distinto al de la ficha del odontólogo.
-      puntos: pac.puntos_saldo_cache || 0,
+      //
+      // Con el flag apagado el campo NO se emite. Ocultarlo solo en la UI
+      // dejaría el saldo viajando en el JSON, visible para cualquiera que abra
+      // las herramientas del navegador: la baja tiene que ser en el servidor.
+      ...(FIDELIZACION_HABILITADA ? { puntos: pac.puntos_saldo_cache || 0 } : {}),
       recomendaciones: pac.recomendaciones || null
     },
     turnos: citas || [],
