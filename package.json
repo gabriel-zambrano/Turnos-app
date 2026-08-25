@@ -8,7 +8,9 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "lint": "next lint",
+    "lint:hooks": "next lint --rule \"react-hooks/rules-of-hooks: error\" --no-cache"
   },
   "dependencies": {
     "@afipsdk/afip.js": "^1.2.3",
@@ -33,6 +35,8 @@
     "@types/qrcode": "^1.5.6",
     "@types/react": "^18.2.48",
     "@types/react-dom": "^18.2.18",
+    "eslint": "^8.57.1",
+    "eslint-config-next": "^14.2.29",
     "supabase": "^2.109.1",
     "typescript": "^5.3.3",
     "vitest": "^2.1.9"
