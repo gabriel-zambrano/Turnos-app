@@ -206,7 +206,15 @@ export async function GET(
     pastTurnos: pastCitas || [],
     fotos,
     feedbackPendiente,
-    tenant: { id: tid, ...registry }
+    // `logoUrl` explícito: la columna de la base se llama `logourl`, todo en
+    // minúscula, y acá se hacía spread de la fila cruda. El portal pedía
+    // `tenant.logoUrl` en camelCase y recibía undefined, así que el logo de la
+    // clínica NUNCA apareció en la pantalla del paciente.
+    //
+    // Las otras dos superficies sí lo mapeaban —`/api/reserva/[clinica]` L57 y
+    // `TenantContext` L173—, y por eso el defecto pasó desapercibido: se veía
+    // bien en todos lados menos en el portal.
+    tenant: { id: tid, ...registry, logoUrl: (registry as any).logourl || null }
   })
 
   // Evitar que el contenido clínico quede cacheado por intermediarios o se indexe.
