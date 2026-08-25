@@ -551,9 +551,27 @@ export default function FinanzasPage() {
   const totalEgresosDia = egresosDia.reduce((s, m) => s + m.monto, 0)
   const cajaDia = (totalCitasDia + totalIngresosDia) - totalEgresosDia
 
-  const desgloseFormasPago = useMemo(() => {
+  // ── Desglose por forma de pago ─────────────────────────────────────────────
+  //
+  // Era un `useMemo`, y rompía la página entera con React #310:
+  // "Rendered more hooks than during the previous render".
+  //
+  // El motivo: está DESPUÉS del `if (tenantLoading || loading) return` de la
+  // línea 532. Mientras cargaba, React ejecutaba 37 hooks y salía; cuando los
+  // datos llegaban, ejecutaba 38. Distinta cantidad de hooks entre renders es
+  // exactamente lo que React prohíbe, y la excepción tiraba la pantalla.
+  //
+  // Se convirtió en un cálculo normal en vez de subirlo arriba del return,
+  // porque el `useMemo` NO servía para nada: sus dependencias eran `citasDia`,
+  // `ingresosDia` y `egresosDia`, que se calculan con `.filter()` unas líneas
+  // más arriba y por lo tanto son referencias NUEVAS en cada render. Las deps
+  // cambiaban siempre y el memo recalculaba siempre. Era sobrecosto con un bug
+  // adosado.
+  //
+  // El comportamiento es idéntico. Lo que desaparece es el hook.
+  const desgloseFormasPago = (() => {
     const result: Record<string, number> = {}
-    
+
     if (cajaActiva?.monto_apertura) {
       result['Apertura (Efectivo)'] = cajaActiva.monto_apertura
     }
@@ -582,7 +600,7 @@ export default function FinanzasPage() {
     })
 
     return result
-  }, [cajaActiva, citasDia, pagosPorCita, ingresosDia, egresosDia, getPrecio])
+  })()
 
   return (
     <AppShell>
