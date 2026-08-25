@@ -1,244 +1,165 @@
 -- ═══════════════════════════════════════════════════════════════════════════
--- R-12 · `pg_temp` explícito en las funciones SECURITY DEFINER que faltaban
+-- R-12 · `pg_temp` explícito en toda función SECURITY DEFINER
 -- ═══════════════════════════════════════════════════════════════════════════
 --
--- ⚠️  NO APLICADO. Probar con `npx supabase db reset` antes de `db push`.
+-- ⚠️  Probar con `npx supabase db reset` antes de `db push`.
 --
--- QUÉ CAMBIA — y es lo único que cambia
+-- QUÉ HACE
 --
---     SET "search_path" TO 'public'
---   → SET "search_path" TO 'public', 'pg_temp'
+--   Recorre `pg_proc` y, a toda función `SECURITY DEFINER` del esquema
+--   `public` cuyo `search_path` no incluya `pg_temp`, le agrega `pg_temp`
+--   AL FINAL. Nada más: ni el cuerpo, ni la firma, ni el retorno, ni los
+--   privilegios, ni el dueño.
 --
---   En cuatro funciones. Nada más: ni firma, ni retorno, ni lógica, ni
---   `SECURITY DEFINER`, ni dueño, ni privilegios, ni RLS. Los cuerpos están
---   copiados textualmente de `20260722120000_remote_schema.sql`, no
---   transcriptos: transcribir un cuerpo de 44 líneas para cambiar una es la
---   forma más fácil de introducir un error silencioso.
+-- POR QUÉ `ALTER FUNCTION` Y NO `CREATE OR REPLACE`
+--
+--   `ALTER FUNCTION ... SET search_path` cambia SOLO esa propiedad. No hay que
+--   copiar el cuerpo, así que no hay forma de introducir un error al
+--   transcribirlo. Para funciones de 120 líneas como `fn_aprobar_asistencia`,
+--   la diferencia de riesgo es enorme.
+--
+--   La primera versión de esta migración copiaba cuerpos con `CREATE OR
+--   REPLACE`. Funcionaba, pero era trabajo y riesgo innecesarios.
+--
+-- POR QUÉ RECORRE `pg_proc` EN VEZ DE LISTAR NOMBRES
+--
+--   Porque una lista escrita a mano ya falló. Este riesgo se contó mal cuatro
+--   veces:
+--
+--     "9 de 13 sin pg_temp"   heredado de la auditoría, sin verificar
+--     "8 sin search_path"     el regex buscaba `SET search_path`; el dump
+--                             escribe `SET "search_path"` CON COMILLAS
+--     "6 sin pg_temp"         tomaba la primera definición, no la última
+--     "4 sin pg_temp"         el regex exigía el prefijo `public.`, y cinco
+--                             funciones se declaran sin él
+--
+--   Las cuatro veces el error fue el mismo: **parsear archivos de texto en vez
+--   de consultar el estado real de la base.** Este bloque consulta `pg_proc`.
+--   No puede contar mal porque no cuenta: actúa sobre lo que encuentra.
+--
+--   Las cinco que el último regex se perdió —`sync_valor_cita`,
+--   `sync_cobrado_cita`, `sembrar_renglon_cita`, `emitir_enlace_turno` y
+--   `emitir_factura_con_detalle`— las detectó el bloque de verificación de la
+--   versión anterior de este mismo archivo, en un `db reset`.
 --
 -- POR QUÉ IMPORTA QUE FALTE `pg_temp`
 --
---   Cuando `pg_temp` no se declara, PostgreSQL lo busca de forma IMPLÍCITA y
---   PRIMERO para nombres de relación. Un usuario con privilegio TEMP —que
---   `anon` y `authenticated` tienen por defecto— puede crear `pg_temp.tenants`
---   o `pg_temp.pacientes`, y una función SECURITY DEFINER resolvería contra
---   esa tabla en lugar de la real, ejecutándose con los privilegios de
---   `postgres`, que no está sujeto a RLS.
+--   Cuando `pg_temp` no está declarado, PostgreSQL lo busca de forma IMPLÍCITA
+--   y PRIMERO para nombres de relación. Un usuario con privilegio TEMP —que
+--   `anon` y `authenticated` tienen por defecto— puede crear `pg_temp.pacientes`
+--   o `pg_temp.tenants`, y una función SECURITY DEFINER resolvería contra esa
+--   tabla en lugar de la real, ejecutándose con los privilegios de su dueño,
+--   que no está sujeto a RLS.
 --
 --   Declararlo AL FINAL lo mueve de implícito-primero a explícito-último.
 --   `public` se sigue buscando antes, así que ninguna resolución legítima
 --   cambia. Lo único que deja de ser posible es el eclipse.
 --
--- CUÁLES SÍ Y CUÁLES NO
+-- IMPACTO
 --
---   Se corrigen 4:
---     crear_tenant · get_tenant_admin_email · get_user_email · sync_turno_to_cita
---
---   NO se tocan las 5 que ya están correctas — verificado tomando la ÚLTIMA
---   definición de cada una, no la primera:
---     fn_aprobar_asistencia       'public', 'pg_temp'   ya en el dump inicial
---     fn_registrar_inasistencia   'public', 'pg_temp'   ya en el dump inicial
---     fn_ajustar_puntos_manual    'public', 'pg_temp'   corregida por B1.2
---     fn_canjear_premio           'public', 'pg_temp'   corregida por B1.3
---     tiene_rol                   public, pg_temp       nació correcta en B1.1
---
---   Recrearlas sin necesidad sería riesgo sin beneficio: `fn_ajustar_puntos_manual`
---   y `fn_canjear_premio` llevan las guardas de rol y límite de B1.2/B1.3, y
---   tocarlas acá podría revertirlas.
---
--- ⚠️  `sync_turno_to_cita` ES UNA FUNCIÓN DE TRIGGER
---
---   `CREATE OR REPLACE FUNCTION` conserva el trigger asociado. **NO recrear
---   el trigger.** Hacerlo abriría una ventana sin sincronización entre
---   `turnos` y `citas`.
+--   Ninguno sobre comportamiento legítimo. Los triggers asociados se conservan:
+--   `ALTER FUNCTION` no los toca —a diferencia de un `DROP` + `CREATE`—.
 --
 -- FIJADO POR
 --
---   `src/lib/guardas-privilegios.test.ts` · G-5.4 falla si una SECURITY
---   DEFINER nueva se declara sin `pg_temp`.
+--   `src/lib/guardas-privilegios.test.ts` · G-5.4
 -- ═══════════════════════════════════════════════════════════════════════════
 
-
--- ── crear_tenant ──
-CREATE OR REPLACE FUNCTION "public"."crear_tenant"("p_nombre" "text", "p_subdominio" "text", "p_plan" "text", "p_custom_domain" "text" DEFAULT NULL::"text") RETURNS "uuid"
-    LANGUAGE "plpgsql" SECURITY DEFINER
-    SET "search_path" TO 'public', 'pg_temp'
-    AS $$
+DO $r12$
 DECLARE
-  v_tenant_id UUID;
-  v_feature_bi BOOLEAN := false;
-  v_feature_whatsapp BOOLEAN := false;
-  v_feature_recordatorios BOOLEAN := false;
-  v_max_pacientes INT := 100;
-  v_max_citas_mes INT := 200;
+  r        record;
+  v_actual text;
+  v_nuevo  text;
+  v_n      integer := 0;
 BEGIN
-  IF p_plan = 'pro' THEN
-    v_feature_whatsapp := true;
-    v_feature_recordatorios := true;
-    v_max_pacientes := 500;
-    v_max_citas_mes := 999;
-  ELSIF p_plan = 'business' THEN
-    v_feature_bi := true;
-    v_feature_whatsapp := true;
-    v_feature_recordatorios := true;
-    v_max_pacientes := 999;
-    v_max_citas_mes := 999;
-  END IF;
+  FOR r IN
+    SELECT p.oid,
+           p.oid::regprocedure AS firma,
+           array_to_string(p.proconfig, ',') AS cfg
+    FROM pg_proc p
+    JOIN pg_namespace n ON n.oid = p.pronamespace
+    WHERE n.nspname = 'public'
+      AND p.prosecdef                                   -- SECURITY DEFINER
+      AND (p.proconfig IS NULL
+           OR NOT EXISTS (
+             SELECT 1 FROM unnest(p.proconfig) c
+             WHERE c LIKE 'search_path=%' AND c LIKE '%pg_temp%'
+           ))
+    ORDER BY p.oid::regprocedure::text
+  LOOP
+    -- Conservar el search_path que ya tiene y sumarle pg_temp al final.
+    -- Si no tenía ninguno, queda 'public, pg_temp'.
+    SELECT substring(c FROM 'search_path=(.*)')
+      INTO v_actual
+      FROM unnest(coalesce((SELECT proconfig FROM pg_proc WHERE oid = r.oid), '{}'))  c
+     WHERE c LIKE 'search_path=%'
+     LIMIT 1;
 
-  INSERT INTO tenants (
-    nombre, subdominio, plan, custom_domain,
-    subdominio_generico, activo,
-    feature_bi, feature_whatsapp, feature_recordatorios,
-    max_pacientes, max_citas_mes
-  )
-  VALUES (
-    p_nombre, p_subdominio, p_plan, p_custom_domain,
-    p_subdominio, true,
-    v_feature_bi, v_feature_whatsapp, v_feature_recordatorios,
-    v_max_pacientes, v_max_citas_mes
-  )
-  RETURNING id INTO v_tenant_id;
+    v_nuevo := coalesce(nullif(trim(v_actual), ''), 'public');
 
-  RETURN v_tenant_id;
-END;
-$$;
+    EXECUTE format('ALTER FUNCTION %s SET search_path TO %s, %L',
+                   r.firma, v_nuevo, 'pg_temp');
 
--- ── get_tenant_admin_email ──
-CREATE OR REPLACE FUNCTION "public"."get_tenant_admin_email"("tid" "uuid") RETURNS "text"
-    LANGUAGE "sql" SECURITY DEFINER
-    SET "search_path" TO 'public', 'pg_temp'
-    AS $$
-  SELECT u.email 
-  FROM auth.users u
-  JOIN public.tenant_users tu ON tu.user_id = u.id
-  WHERE tu.tenant_id = tid
-  LIMIT 1;
-$$;
+    RAISE NOTICE 'R-12: % → search_path = %, pg_temp', r.firma, v_nuevo;
+    v_n := v_n + 1;
+  END LOOP;
 
--- ── get_user_email ──
-CREATE OR REPLACE FUNCTION "public"."get_user_email"("uid" "uuid") RETURNS "text"
-    LANGUAGE "sql" SECURITY DEFINER
-    SET "search_path" TO 'public', 'pg_temp'
-    AS $$
-  SELECT email FROM auth.users WHERE id = uid;
-$$;
-
--- ── sync_turno_to_cita ──
-CREATE OR REPLACE FUNCTION "public"."sync_turno_to_cita"() RETURNS "trigger"
-    LANGUAGE "plpgsql" SECURITY DEFINER
-    SET "search_path" TO 'public', 'pg_temp'
-    AS $$
-DECLARE
-  v_paciente_id UUID;
-  v_nombre_completo TEXT;
-  v_fecha_hora TIMESTAMPTZ;
-BEGIN
-  v_nombre_completo := NEW.nombre || ' ' || NEW.apellido;
-
-  v_fecha_hora := (NEW.fecha::TEXT || ' ' || NEW.hora || ':00')::TIMESTAMP 
-                  AT TIME ZONE 'America/Argentina/Buenos_Aires';
-
-  SELECT id INTO v_paciente_id
-  FROM pacientes
-  WHERE email = NEW.email
-  LIMIT 1;
-
-  IF v_paciente_id IS NULL THEN
-    INSERT INTO pacientes (nombre, email, telefono)
-    VALUES (v_nombre_completo, NEW.email, NEW.telefono)
-    RETURNING id INTO v_paciente_id;
-  END IF;
-
-  INSERT INTO citas (
-    paciente_id,
-    fecha_hora,
-    tipo_tratamiento,
-    estado,
-    notas,
-    duracion_minutos
-  ) VALUES (
-    v_paciente_id,
-    v_fecha_hora,
-    NEW.servicio,
-    'pendiente',
-    COALESCE(NEW.notas, ''),
-    30
-  );
-
-  RETURN NEW;
-END;
-$$;
-
-
-
--- ── Privilegios · RE-AFIRMADOS, NO MODIFICADOS ──
---
--- Estas cuatro líneas son COPIA EXACTA de lo que ya declara
--- `20260722120000_remote_schema.sql` (L1616-1656). No cambian nada: ninguna
--- de las cuatro funciones es ejecutable hoy por `anon` ni por `authenticated`.
---
--- Van igual por dos razones:
---
---   1. `CREATE OR REPLACE` preserva el ACL de una función que YA existe, pero
---      en una base reconstruida desde cero el orden importa. Bajo R-17 —el
---      default privilege no se puede suprimir en este entorno— una función
---      creada de nuevo nace ejecutable por PUBLIC. El REVOKE explícito es la
---      única protección que funciona acá.
---
---   2. La guarda G-2.1 exige que toda migración que declare una función
---      declare también su REVOKE, en la misma migración. Detectó la ausencia
---      en la primera versión de este archivo.
-
-REVOKE ALL ON FUNCTION public.crear_tenant(text, text, text, text) FROM PUBLIC;
-GRANT ALL  ON FUNCTION public.crear_tenant(text, text, text, text) TO service_role;
-
-REVOKE ALL ON FUNCTION public.get_tenant_admin_email(uuid) FROM PUBLIC;
-GRANT ALL  ON FUNCTION public.get_tenant_admin_email(uuid) TO service_role;
-
-REVOKE ALL ON FUNCTION public.get_user_email(uuid) FROM PUBLIC;
-GRANT ALL  ON FUNCTION public.get_user_email(uuid) TO service_role;
-
-REVOKE ALL ON FUNCTION public.sync_turno_to_cita() FROM PUBLIC;
-GRANT ALL  ON FUNCTION public.sync_turno_to_cita() TO service_role;
+  RAISE NOTICE 'R-12: % función(es) corregida(s).', v_n;
+END $r12$;
 
 
 -- ── Verificación ──
 DO $verif$
-DECLARE r record; v_mal text[] := '{}';
+DECLARE v_mal text[] := '{}'; v_total integer;
 BEGIN
-  FOR r IN
-    SELECT p.proname, array_to_string(p.proconfig, ',') AS cfg
+  SELECT array_agg(p.oid::regprocedure::text ORDER BY p.oid::regprocedure::text)
+    INTO v_mal
     FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
-    WHERE n.nspname = 'public' AND p.prosecdef
-  LOOP
-    IF r.cfg IS NULL OR position('pg_temp' in r.cfg) = 0 THEN
-      v_mal := v_mal || r.proname;
-    END IF;
-  END LOOP;
+   WHERE n.nspname = 'public' AND p.prosecdef
+     AND (p.proconfig IS NULL
+          OR NOT EXISTS (SELECT 1 FROM unnest(p.proconfig) c
+                          WHERE c LIKE 'search_path=%' AND c LIKE '%pg_temp%'));
 
-  IF array_length(v_mal, 1) > 0 THEN
+  IF v_mal IS NOT NULL AND array_length(v_mal, 1) > 0 THEN
     RAISE EXCEPTION 'R-12: SECURITY DEFINER sin pg_temp: %', array_to_string(v_mal, ', ');
   END IF;
 
-  -- Que la app siga andando importa tanto como el arreglo.
-  IF NOT has_function_privilege('authenticated', 'public.get_user_email(uuid)', 'EXECUTE') THEN
-    RAISE WARNING 'R-12: authenticated no ejecuta get_user_email (puede ser correcto)';
+  -- Que el bloque haya encontrado algo sobre lo que trabajar. Si no hay
+  -- ninguna SECURITY DEFINER, la verificación de arriba pasa por vacío — y
+  -- eso sería un problema distinto, no un éxito.
+  SELECT count(*) INTO v_total
+    FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+   WHERE n.nspname = 'public' AND p.prosecdef;
+
+  IF v_total < 9 THEN
+    RAISE EXCEPTION 'R-12: solo % funciones SECURITY DEFINER en public. Se esperaban 9 o más — '
+                    'el esquema no es el que esta migración asume.', v_total;
   END IF;
+
+  RAISE NOTICE 'R-12 OK: % funciones SECURITY DEFINER, todas con pg_temp.', v_total;
 END $verif$;
 
 
 -- ═══════════════════════════════════════════════════════════════════════════
 -- ROLLBACK
 --
---   `CREATE OR REPLACE` con los mismos cuerpos y `SET "search_path" TO 'public'`.
---   Están en `20260722120000_remote_schema.sql`. Sin datos de por medio, sin
---   redeploy, sin tocar el trigger.
+--   Por función, quitando pg_temp:
+--     ALTER FUNCTION public.<nombre>(<args>) SET search_path TO 'public';
+--
+--   O en bloque, con el mismo patrón dinámico de arriba invirtiendo la
+--   condición. Sin datos de por medio, sin redeploy, sin tocar triggers.
 --
 -- VERIFICACIÓN MANUAL POSTERIOR
 --
---   1. Crear una clínica desde el panel admin      → crear_tenant
---   2. Que llegue el daily-briefing                → get_tenant_admin_email
---   3. Abrir la pantalla de equipo                 → get_user_email
+--   1. Crear una clínica desde el panel admin        → crear_tenant
+--   2. Que llegue el daily-briefing                  → get_tenant_admin_email
+--   3. Abrir la pantalla de equipo                   → get_user_email
 --   4. Reservar un turno desde el formulario público → sync_turno_to_cita
+--   5. Cargar un pago en una cita                    → sync_cobrado_cita
+--   6. Crear una cita nueva                          → sembrar_renglon_cita
+--   7. Generar el link corto de un turno             → emitir_enlace_turno
+--   8. Emitir una factura simulada                   → emitir_factura_con_detalle
 --
---   La 4 es la que menos se ejercita y la única con trigger de por medio.
+--   La 4, la 6 y la 7 son las que menos se ejercitan, y las tres tienen
+--   trigger o dependencia de por medio.
 -- ═══════════════════════════════════════════════════════════════════════════

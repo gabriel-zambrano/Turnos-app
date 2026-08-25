@@ -52,6 +52,69 @@
 -- ═══════════════════════════════════════════════════════════════════════════
 
 
+-- ═══════════════════════════════════════════════════════════════════════════
+-- H-0 🔴 · VERSIONAR las policies de `fotos_clinicas`
+--
+-- HALLAZGO DEL 25/08, encontrado por un `supabase db reset`:
+--
+--   Las 4 policies de `fotos_clinicas` NO ESTABAN EN NINGUNA MIGRACIÓN.
+--   Existían únicamente en producción, creadas a mano desde el dashboard.
+--
+--   Consecuencia: una base reconstruida desde las migraciones —un `db reset`,
+--   un entorno de staging, una restauración de backup sobre esquema limpio—
+--   se levanta con las fotos clínicas SIN NINGÚN AISLAMIENTO POR TENANT.
+--
+--   Es más grave que el problema de `logos` que esta migración vino a
+--   corregir: son imágenes médicas asociadas a una persona identificable.
+--
+-- POR QUÉ `IF NOT EXISTS` Y NO `DROP` + `CREATE`
+--
+--   En producción estas policies YA existen y son correctas —verificado el
+--   22/08, consulta S-3—. Borrarlas para recrearlas abriría una ventana sin
+--   protección, aunque sea breve. Acá solo se crean donde faltan.
+--
+--   Las definiciones son COPIA EXACTA de lo que devolvió `pg_policies` en
+--   producción. No se rediseñó nada: se versionó lo que ya funciona.
+-- ═══════════════════════════════════════════════════════════════════════════
+
+DO $fotos$
+DECLARE
+  -- La condición de pertenencia, idéntica en las cuatro.
+  c_tenant CONSTANT text :=
+    '(bucket_id = ''fotos_clinicas''::text AND (storage.foldername(name))[1] IN ' ||
+    '(SELECT (tenant_users.tenant_id)::text FROM tenant_users ' ||
+    ' WHERE tenant_users.user_id = (SELECT auth.uid())))';
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies
+                  WHERE schemaname='storage' AND policyname='fotos_select_tenant') THEN
+    EXECUTE format('CREATE POLICY fotos_select_tenant ON storage.objects
+                    FOR SELECT TO authenticated USING (%s)', c_tenant);
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_policies
+                  WHERE schemaname='storage' AND policyname='fotos_insert_tenant') THEN
+    EXECUTE format('CREATE POLICY fotos_insert_tenant ON storage.objects
+                    FOR INSERT TO authenticated WITH CHECK (%s)', c_tenant);
+  END IF;
+
+  -- UPDATE lleva USING y WITH CHECK. En producción el WITH CHECK está en NULL,
+  -- lo que hace que PostgreSQL reutilice el USING — correcto, pero implícito.
+  -- Acá va explícito: el destino de la fila también tiene que ser del tenant.
+  IF NOT EXISTS (SELECT 1 FROM pg_policies
+                  WHERE schemaname='storage' AND policyname='fotos_update_tenant') THEN
+    EXECUTE format('CREATE POLICY fotos_update_tenant ON storage.objects
+                    FOR UPDATE TO authenticated USING (%s) WITH CHECK (%s)',
+                   c_tenant, c_tenant);
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_policies
+                  WHERE schemaname='storage' AND policyname='fotos_delete_tenant') THEN
+    EXECUTE format('CREATE POLICY fotos_delete_tenant ON storage.objects
+                    FOR DELETE TO authenticated USING (%s)', c_tenant);
+  END IF;
+END $fotos$;
+
+
 -- ── H-3 + H-2 · Reescribir las tres policies de escritura de `logos` ──
 --
 -- Se reemplazan, no se editan: no existe ALTER POLICY que agregue USING.
@@ -122,10 +185,70 @@ USING (
 -- Mismo criterio que B1.6 sobre `public`. `authenticated` conserva lo que
 -- necesita; el aislamiento real lo ponen las policies de arriba.
 
+-- ═══════════════════════════════════════════════════════════════════════════
+-- ⚠️  ESTOS REVOKE NO VAN A TENER EFECTO. Se conservan documentados.
+--
+-- VERIFICADO el 25/08 contra una base local reconstruida:
+--
+--   ACL de storage.objects:  anon=arwdDxtm/supabase_storage_admin
+--                                          ↑ el otorgante
+--
+--   En PostgreSQL, solo el OTORGANTE puede revocar un privilegio. Ese grant lo
+--   hizo `supabase_storage_admin`, no `postgres`. Y PostgreSQL no falla al
+--   revocar algo que no otorgaste: no hace nada, en silencio.
+--
+--   ¿Y asumir el rol?
+--     SET ROLE supabase_storage_admin;
+--     → ERROR: permission denied to set role "supabase_storage_admin"
+--
+--   Tampoco por el Dashboard: su UI de Storage gestiona POLICIES, no GRANT de
+--   tabla.
+--
+-- QUÉ SIGNIFICA ESO
+--
+--   Que `anon` tenga privilegios de tabla sobre `storage.objects` NO es una
+--   configuración mal hecha de este proyecto: **es cómo Supabase entrega todos
+--   sus proyectos.** El diseño de la plataforma asume que el control de acceso
+--   a Storage son las POLICIES —las que esta migración sí arregla— y no los
+--   privilegios de tabla.
+--
+--   Sumado a que el esquema `storage` no está expuesto en PostgREST
+--   —verificado el 22/08, HTTP 406 con Accept-Profile: storage—, no hay
+--   camino desde internet hacia esos privilegios.
+--
+--   Reclasificado: de "riesgo latente pendiente" a **diseño de la plataforma,
+--   no accionable, mitigado por RLS**. No queda como TODO abierto, porque no
+--   hay forma de cerrarlo.
+--
+-- POR QUÉ SE DEJAN LAS SENTENCIAS
+--
+--   Si Supabase cambia esto algún día, o si el proyecto migra a Postgres
+--   autogestionado, el REVOKE pasa a tener efecto y ya está escrito. Cuestan
+--   cero y documentan la intención.
+-- ═══════════════════════════════════════════════════════════════════════════
+--
+-- `FROM PUBLIC` además de `FROM anon` — es la lección de R-11.
+--
+--   Un `REVOKE ... FROM anon` NO quita un privilegio que `anon` hereda de
+--   `PUBLIC`: son dos mecanismos distintos. Y `has_table_privilege('anon', ...)`
+--   devuelve true si el privilegio llega por cualquiera de los dos caminos.
+--
+--   La primera versión de esta migración revocaba solo a `anon` y el bloque de
+--   verificación la rechazó en un `db reset`. El mismo error que R-11 documentó
+--   en agosto, cometido de nuevo acá.
+REVOKE ALL ON ALL TABLES IN SCHEMA storage FROM PUBLIC;
 REVOKE ALL ON ALL TABLES IN SCHEMA storage FROM anon;
-GRANT SELECT ON storage.buckets TO anon;   -- el portal público resuelve el logo
 
-REVOKE TRUNCATE, TRIGGER, REFERENCES ON ALL TABLES IN SCHEMA storage FROM authenticated;
+-- Y ahora se devuelve, explícito, solo lo que cada rol necesita.
+--
+-- `authenticated` opera sobre objects a través de las policies de arriba: sin
+-- estos privilegios de tabla, las policies no llegan a evaluarse y Storage deja
+-- de funcionar para todos los usuarios con sesión.
+GRANT SELECT, INSERT, UPDATE, DELETE ON storage.objects TO authenticated;
+GRANT SELECT ON storage.buckets TO authenticated;
+
+-- `anon` solo necesita resolver el bucket del logo en el portal del paciente.
+GRANT SELECT ON storage.buckets TO anon;
 
 
 -- ── H-4 · Límites de tipo y tamaño ──
@@ -159,18 +282,63 @@ BEGIN
     RAISE EXCEPTION 'P0-09: se esperaban 3 policies de logos, hay %', v_n;
   END IF;
 
+  -- Las 4 de fotos_clinicas: en producción ya existían, en una base nueva las
+  -- crea el bloque H-0. En ambos casos tienen que estar las cuatro.
+  --
+  -- La primera versión de esta migración las daba por existentes en vez de
+  -- crearlas, y por eso reventaba en un `db reset`. Esa falla fue lo que
+  -- reveló que nunca habían estado versionadas.
   SELECT count(*) INTO v_n FROM pg_policies
   WHERE schemaname = 'storage' AND policyname LIKE 'fotos_%_tenant';
   IF v_n <> 4 THEN
-    RAISE EXCEPTION 'P0-09: las 4 policies de fotos_clinicas debían quedar intactas, hay %', v_n;
+    RAISE EXCEPTION 'P0-09: se esperaban 4 policies de fotos_clinicas, hay %', v_n;
   END IF;
 
+  -- Y las cuatro tienen que exigir pertenencia al tenant. Una policy que
+  -- exista pero con `USING (true)` sería peor que no tenerla: da falsa calma.
+  SELECT count(*) INTO v_n FROM pg_policies
+  WHERE schemaname = 'storage' AND policyname LIKE 'fotos_%_tenant'
+    AND coalesce(qual, with_check) LIKE '%tenant_users%';
+  IF v_n <> 4 THEN
+    RAISE EXCEPTION 'P0-09: solo % de 4 policies de fotos_clinicas filtran por tenant_users', v_n;
+  END IF;
+
+  -- ── Privilegios de `anon`: ADVERTENCIA, no excepción ──
+  --
+  -- Por qué no aborta:
+  --
+  --   `storage.objects` pertenece a `supabase_storage_admin`. PostgreSQL NO
+  --   falla cuando revocás un privilegio que no otorgaste: simplemente no hace
+  --   nada. Así que este REVOKE puede quedar sin efecto y no hay forma de
+  --   forzarlo desde una migración que corre como `postgres`.
+  --
+  --   Y el riesgo es LATENTE, no activo: el esquema `storage` NO está expuesto
+  --   en PostgREST —verificado el 22/08, HTTP 406 con Accept-Profile: storage—.
+  --   Sin esa puerta, un privilegio de tabla sobre `storage.objects` no es
+  --   alcanzable desde internet.
+  --
+  --   Abortar acá bloquearía las correcciones que SÍ son activas —el
+  --   aislamiento de `logos` y el versionado de `fotos_clinicas`— por algo que
+  --   quizá no se pueda arreglar por esta vía. El orden de prioridades quedaría
+  --   al revés.
+  --
+  -- Si esta advertencia aparece, el arreglo va por Dashboard → Storage, o por
+  -- un bloque con `SET ROLE supabase_storage_admin`. Queda anotado en el
+  -- RELEASE-CHECKLIST, no silenciado.
   IF has_table_privilege('anon', 'storage.objects', 'DELETE') THEN
-    RAISE EXCEPTION 'P0-09: anon sigue con DELETE sobre storage.objects';
+    RAISE WARNING 'P0-09: anon conserva DELETE sobre storage.objects. '
+                  'El REVOKE no tuvo efecto — dueño: %. '
+                  'Riesgo LATENTE: storage no está expuesto en PostgREST. '
+                  'Corregir desde el Dashboard.',
+                  (SELECT pg_get_userbyid(relowner) FROM pg_class
+                    WHERE oid = 'storage.objects'::regclass);
   END IF;
 
+  -- Esto sí aborta: si `authenticated` perdió el acceso, Storage deja de
+  -- funcionar para todos los usuarios con sesión. Romper la app es peor que
+  -- no cerrar un riesgo latente.
   IF NOT has_table_privilege('authenticated', 'storage.objects', 'SELECT') THEN
-    RAISE EXCEPTION 'P0-09: authenticated perdió SELECT — Storage deja de funcionar';
+    RAISE EXCEPTION 'P0-09: authenticated perdió SELECT sobre storage.objects — Storage deja de funcionar';
   END IF;
 END $$;
 
