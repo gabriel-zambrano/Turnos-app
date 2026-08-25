@@ -1191,6 +1191,157 @@ Ahí un fallo de red, una violación de constraint o una denegación de RLS prod
 
 ---
 
+## 016 · R-18 en el repositorio · R-2 · R-12 · y una caída de producción
+
+**Fecha:** 22-24/08/2026 · **Commit:** `81565fb` — 34 archivos, 6821 líneas
+
+### 🔴 R-18 · el mecanismo nunca estuvo en producción
+
+Buscando en el repositorio todo lo que pudiera emitir `GRANT`, apareció en el lugar menos vigilado: **`20260722120000_remote_schema.sql`, el dump inicial.**
+
+Contenía **30 sentencias `GRANT ... ON TABLE ... TO "anon"`** sobre 30 tablas — `pacientes`, `historial_dental`, `paciente_fotos`, `tenant_users`, `tenants`, las 6 vistas `bi_*` — más **`ALL` sobre `tenants_public`**, que es literalmente R-10.
+
+**Es el estado exacto que B1.6 revocó.**
+
+Y el archivo usa `CREATE TABLE IF NOT EXISTS` y `CREATE OR REPLACE VIEW`: **re-ejecutarlo no produce ningún error.** `db reset --linked`, `db push --include-all`, una reparación de historial o pegarlo en el editor lo restauraban en silencio.
+
+**Por qué nadie lo vio:** G-1 y G-2 excluyen ese archivo a propósito (`DUMP_INICIAL`, línea 64). La guarda que debía atraparlo tenía el caso exento.
+
+**Acciones:** 30 GRANT comentados · `tenants_public` acotado a `SELECT` · secuencia de `whatsapp_contactos` comentada · guarda **G-5** creada.
+
+**Estado: MITIGADO, no cerrado.** Cubre 6 de los 7 orígenes posibles; el séptimo —un proceso de plataforma— solo se descarta con **4 semanas del control N-1 en cero**. El disparador histórico no es demostrable sin Logs → Postgres.
+
+### R-2 · cerrado sin tocar DO-6
+
+`/api/equipo/invitar` insertaba el rol crudo del body en **dos** `insert` distintos. La validación va **antes** de `inviteUserByEmail`: después, el mail ya salió y el usuario ya existe en Auth.
+
+Decisión en `src/lib/roles-equipo.ts`, función pura. 14 tests, incluido uno de estado previo que reproduce `role || 'staff'` y demuestra que aceptaba `'owner'`.
+
+### R-12 · tres diagnósticos míos, tres equivocados
+
+| Reporté | Por qué era falso |
+|---|---|
+| "9 de 13 sin `pg_temp`" | Heredado de la auditoría, sin verificar |
+| "8 sin `search_path`" | Mi regex buscaba `SET search_path`; el dump escribe `SET "search_path"` **con comillas** |
+| "6 sin `pg_temp`" | Tomé la **primera** definición, no la **última** |
+
+**Son 4.** Migración escrita, **no aplicada**. Privilegios re-afirmados idénticos —G-2.1 detectó su ausencia en la primera versión.
+
+### 🔴 Caída de producción · 24/08, 16:17-16:22
+
+Cinco minutos de **504 `MIDDLEWARE_INVOCATION_TIMEOUT`** en `/dashboard`, `/nueva-cita`, `/` y —tres veces— **`/sw.js`**. En los dos dominios. Se normalizó sola.
+
+**Mi primera hipótesis —latencia de Supabase Auth— era incorrecta.** El log del request `np26k-1787599367700` la desmintió:
+
+```
+External APIs: No outgoing requests
+Memory Used:   234 MB
+Response finished in 25.0s
+```
+
+Cero requests salientes: se colgó **antes** de llamar a Supabase, probablemente en el arranque en frío. Segunda hipótesis, **sin confirmar**.
+
+**Dos defectos reales encontrados en el camino:**
+
+1. El middleware calculaba `isPublic` y llamaba a `updateSession()` **igual**, usando el resultado dos líneas después. El portal del paciente, la reserva y la firma —que entran por token, sin login— dependían de Auth sin usarla.
+2. El matcher solo excluía `_next/static`, `_next/image` y `favicon.ico`. **En una ventana sana de 3 segundos, 8 de 13 invocaciones eran archivos estáticos.**
+
+**Corregido:** matcher ampliado · corto-circuito de ruta pública · `Promise.race` a 3 s.
+
+⚠️ **El timeout NO habría evitado esta caída** — se colgó antes de llegar a esa línea. Cubre el otro escenario, que también es real. Está escrito así en el código para que nadie lo lea como el arreglo del incidente.
+
+⚠️ **`ƒ Middleware 146 kB` no cambió.** Los tres arreglos reducen *cuántas veces* se invoca, no *cuánto cuesta arrancarlo*. Bajar ese número exige sacar `Sentry.init` del edge runtime — **decisión pendiente**.
+
+---
+
+**Verificación.** `tsc` 0 errores · **674 tests en 29 archivos** · `next build` limpio, 50/50 páginas.
+
+**Rollback.** Middleware: `git revert`. Baseline: `git checkout` del archivo. R-2: borrar el bloque de validación.
+
+**Producción NO modificada.** Las migraciones de Storage y R-12 están escritas y **sin aplicar**.
+
+---
+
+## 017 · Storage y R-12 aplicados · y lo que encontró el `db reset`
+
+**Fecha:** 25/08/2026 · **Commit:** `72201e5` · **Aplicadas en producción**
+
+### 🔴 El hallazgo grave del día, que no buscábamos
+
+**Las 4 policies de `fotos_clinicas` no estaban en ninguna migración.** Existían solo en producción, creadas a mano desde el dashboard.
+
+Consecuencia: cualquier base reconstruida desde las migraciones —un staging, un `db reset`, una restauración sobre esquema limpio— **se levantaba con las fotos clínicas sin ningún aislamiento entre clínicas.** Imágenes médicas de todos los pacientes visibles para cualquier usuario autenticado.
+
+Y no había forma de enterarse: en producción todo se veía bien.
+
+Lo encontró el `db reset`, porque mi migración **asumía** que esas policies existían en vez de crearlas. Ahora se crean con `IF NOT EXISTS`, sin tocar las de producción.
+
+### Tres errores míos en la misma migración
+
+Los tres los encontró el `db reset`, ninguno se habría visto aplicando directo:
+
+1. **Asumía las policies de fotos** en vez de crearlas → reveló que nunca estuvieron versionadas
+2. **Revocaba solo a `anon`, no a `PUBLIC`** → es literalmente **R-11**, documentado en esta misma bitácora tres días antes
+3. **No devolvía los privilegios a `authenticated`** → habría roto Storage para todos los usuarios con sesión
+
+### H-1 · reclasificado, no pendiente
+
+```
+ACL:  anon=arwdDxtm/supabase_storage_admin
+                     ↑ el otorgante
+```
+
+Solo el otorgante puede revocar. `postgres` no otorgó eso, y tampoco puede asumir el rol:
+
+```
+SET ROLE supabase_storage_admin;
+→ ERROR: permission denied to set role "supabase_storage_admin"
+```
+
+Y el Dashboard de Storage gestiona *policies*, no `GRANT` de tabla.
+
+**No es una configuración mal hecha de este proyecto: es cómo Supabase entrega todos sus proyectos.** El diseño de la plataforma asume que el control de Storage son las policies, no los privilegios de tabla. Sumado a que `storage` no está expuesto en PostgREST (HTTP 406, verificado), no hay camino desde internet.
+
+**De "riesgo latente pendiente" a "diseño de la plataforma, no accionable, mitigado por RLS".** Un pendiente que no se puede cerrar nunca es peor que un riesgo aceptado: se arrastra en cada revisión.
+
+### R-12 · cuarta vez que lo contaba mal
+
+Son **9**, no 4. Las cinco que faltaban —`sync_valor_cita`, `sync_cobrado_cita`, `sembrar_renglon_cita`, `emitir_enlace_turno`, `emitir_factura_con_detalle`— se declaran sin el prefijo `public.` y mi regex las salteó.
+
+| Conté | Por qué falló |
+|---|---|
+| 9 de 13 | Heredado sin verificar |
+| 8 sin `search_path` | El dump escribe `SET "search_path"` **con comillas** |
+| 6 | Tomaba la primera definición, no la última |
+| 4 | El regex exigía el prefijo `public.` |
+
+**Las cuatro veces el mismo error: parsear texto en vez de consultar la base.**
+
+La migración se rehízo: recorre `pg_proc` y usa `ALTER FUNCTION`. **No copia cuerpos** —`emitir_factura_con_detalle` tiene 17 argumentos— y **no puede contar mal**, porque no cuenta: actúa sobre lo que encuentra.
+
+Y las cinco que se me escaparon **las detectó el bloque de verificación que yo mismo había escrito**, corriendo contra la base real.
+
+---
+
+**Verificación en producción, post-push:**
+
+```
+8 policies en storage:  4 fotos_*_tenant + 3 logos_*_tenant + Logos public access
+logos:            5 MB · jpeg, png, webp
+fotos_clinicas:  10 MB · jpeg, png, webp
+R-12: 9 corregidas · 14 SECURITY DEFINER, todas con pg_temp
+```
+
+Las policies de `logos` pasaron de `{public}` con `auth.role()` a `{authenticated}` con aislamiento por tenant.
+
+**Confirmado también:** `postgres` **sí** puede crear policies sobre `storage.objects`, pero **no** puede tocar sus privilegios de tabla. Esa distinción explica por qué la migración aplicó y el `WARNING` de H-1 apareció igual.
+
+**Rollback.** `~/rollback-dentaldesk/ROLLBACK-20260825.sql`, cuatro bloques independientes. Fuera del repositorio a propósito: es una foto de un momento.
+
+**Pendiente.** Las 7 verificaciones manuales. Las que no se pueden saltear: **ver una foto ya cargada** y **reservar un turno desde el formulario público**.
+
+---
+
 ## Próximo paso
 
 ### 🔴 Bloquean el lanzamiento
