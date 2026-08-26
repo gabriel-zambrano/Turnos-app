@@ -2,7 +2,19 @@
 -- P0-09 · Storage · Aislamiento del bucket `logos` y privilegios del esquema
 -- ═══════════════════════════════════════════════════════════════════════════
 --
--- ⚠️  NO APLICADO. Leer las dos advertencias del final antes de ejecutar.
+-- ✅ APLICADA EN PRODUCCIÓN — 25/08/2026, vía `supabase db push`.
+--
+--    Verificado después, contra pg_policies de producción:
+--      8 policies en el esquema storage
+--        · 4 fotos_*_tenant      {authenticated}
+--        · 3 logos_*_tenant      {authenticated}   ← antes {public} con auth.role()
+--        · 1 "Logos public access"  SELECT {public}
+--      logos           5 MB · jpeg, png, webp
+--      fotos_clinicas 10 MB · jpeg, png, webp
+--
+--    Probada antes con `npx supabase db reset` sobre base limpia. Ese reset
+--    encontró tres defectos que en producción habrían quedado invisibles,
+--    porque el estado previo los tapaba. Están descritos abajo.
 --
 -- QUÉ NO SE TOCA
 --
