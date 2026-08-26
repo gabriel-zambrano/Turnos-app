@@ -24,7 +24,7 @@ Tres puntos del estado que pediste tomar como verdad **contradicen la evidencia 
 
 ## A · BLOQUEA LANZAMIENTO
 
-### A-1 · `sync-sheet` puede mezclar datos de clínicas distintas
+### ~~A-1 · `sync-sheet`~~ · ✅ **RESUELTO el 25/08**
 
 | | |
 |---|---|
@@ -33,9 +33,11 @@ Tres puntos del estado que pediste tomar como verdad **contradicen la evidencia 
 | **Agravante** | `notas` son las anotaciones internas del profesional. `api/paciente/[token]/route.ts` L104 lo dice: *"NO devolvemos el campo `notas`… no deben mostrarse al paciente"* |
 | **Impacto** | Fuga cross-tenant **fuera del alcance de RLS**: usa `service_role` y escribe en un tercero |
 | **Mitigación** | **NO VERIFICADO si está activo** — depende del Database Webhook en Supabase, que no puedo consultar |
-| **Cierre objetivo** | El webhook está desactivado en Supabase, **o** la ruta resuelve `GOOGLE_SHEET_ID` por `tenant_id` y hay evidencia de dos clínicas escribiendo en planillas distintas |
+| **Cierre objetivo** | ✅ **CUMPLIDO.** `ALTER TABLE citas DISABLE TRIGGER sync_turnos_to_sheets` · verificado `tgenabled = 'D'` |
 
-**Bloquea solo si el piloto incluye una segunda clínica.** Con tu clínica sola, no hay con qué mezclar.
+**El webhook ESTABA activo** — se confirmó por SQL, no por suposición. Se desactivó el 25/08 tras verificar con el owner que la planilla no se usaba: era de la etapa de armado de la base.
+
+⚠️ **Queda un pendiente que desactivar no resuelve:** la planilla sigue existiendo con la PII ya escrita —212 pacientes y notas clínicas—. **Borrarla o revisar con quién está compartida.** Ver `OPERACION.md` §7.
 
 ### A-2 · Backups — bloquea el primer cliente ajeno, no el piloto propio
 
@@ -111,8 +113,8 @@ Ya causó una confusión de estado en esta misma auditoría.
 
 | | Acción | Tiempo | Verificación |
 |---|---|---|---|
-| 1 | **Consultar si el Database Webhook de `sync-sheet` está activo** | 5 min | Supabase → Database → Webhooks |
-| 2 | Si está activo y va a haber 2ª clínica: **desactivarlo** | 2 min | Desaparece de la lista |
+| 1 | ~~Consultar el webhook de `sync-sheet`~~ | — | ✅ **Hecho.** Estaba activo |
+| 2 | ~~Desactivarlo~~ | — | ✅ **Hecho.** `tgenabled = 'D'` |
 | 3 | Corregir el encabezado `NO APLICADO` | 2 min | `grep -c "NO APLICADO"` = 0 |
 | 4 | Test: los PDFs no usan `SERVICE_ROLE_KEY` | 20 min | El test falla si se inyecta `supabaseAdmin` |
 | 5 | Declarar el acceso de mantenimiento en privacidad | 10 min | El texto lo menciona |
@@ -242,7 +244,7 @@ WHERE n.nspname = 'public' AND c.relkind IN ('r','v','m')
 [ ]  6. Control N-1                    → cero filas
 [ ]  7. 8 policies en el esquema storage
 [ ]  8. Al menos un `owner` por tenant
-[ ]  9. Webhook de sync-sheet: desactivado o con planilla por tenant
+[✓]  9. Webhook de sync-sheet: DESACTIVADO — verificado 25/08
 [ ] 10. Acceso de mantenimiento declarado en /legal/privacidad
 [ ] 11. Sentry histórico purgado
 [ ] 12. Los 12 smoke tests en verde
@@ -340,7 +342,7 @@ Antes: 5 lo tenían (`fn_aprobar_asistencia`, `fn_registrar_inasistencia`, `fn_a
 | `CRON_SECRET` | 🟢 Cerrado | 401 sin credencial · header · timing-safe | — | No |
 | `owner` en producción | 🟢 Cerrado | `RETURNING` → 1 fila | — | No |
 | **R-18** | 🔵 **Mitigado** | Mecanismo neutralizado · **G-5 probado con inyección** | 4 semanas de N-1 | No |
-| **`sync-sheet` cross-tenant** | 🔴 **Abierto** | Un solo `GOOGLE_SHEET_ID` · exporta `notas` | Verificar webhook | **Sí**¹ |
+| **`sync-sheet` cross-tenant** | 🟢 **Cerrado** | Trigger desactivado · `tgenabled = D` verificado | Borrar la planilla histórica | No |
 | **Backups / PITR** | 🔴 **Abierto** | Free plan · RPO infinito | Sección 3 | **Sí**² |
 | PDFs de una sola capa | 🟠 Frágil | `.eq('id')` sin filtro · RLS lo cubre | Test anti-`supabaseAdmin` | No |
 | Acceso de mantenimiento | 🟠 Sin declarar | `admin` sobre 212 historias | Privacidad | **Sí**² |
@@ -355,8 +357,8 @@ Antes: 5 lo tenían (`fn_aprobar_asistencia`, `fn_registrar_inasistencia`, `fn_a
 
 # PARA LANZAR — 10 pasos
 
-1. **Verificar el webhook de `sync-sheet`** y desactivarlo si va a haber 2ª clínica
-2. **Los 10 puntos gratis** de la sección 2
+1. ~~Verificar el webhook de `sync-sheet`~~ ✅ **hecho — desactivado**
+2. **Los puntos gratis restantes** de la sección 2
 3. **Pagar Supabase Pro** · 25 USD
 4. **Activar PITR** y confirmar que el Dashboard lista un backup
 5. **Restore de prueba** con RTO medido

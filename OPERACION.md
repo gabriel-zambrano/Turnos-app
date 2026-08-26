@@ -122,15 +122,42 @@ El 25/08 encontró **tres defectos** en una migración que en producción habrí
 
 ---
 
-## 7 · `sync-sheet` · ⚠️ verificar antes de la segunda clínica
+## 7 · `sync-sheet` · ✅ DESACTIVADO el 25/08/2026
 
-`src/app/api/sync-sheet/route.ts` escribe turnos en **una única planilla de Google** (`GOOGLE_SHEET_ID`), sin dimensión de tenant. Exporta nombre, email, teléfono **y `record.notas`** — las anotaciones internas del profesional.
+```sql
+ALTER TABLE citas DISABLE TRIGGER sync_turnos_to_sheets;
+-- verificado: tgenabled = 'D'
+```
 
-**Con dos clínicas activas, los datos de ambas caen en la misma planilla.** RLS no interviene: usa `service_role` y escribe fuera de la base.
+### Qué era
 
-**Estado: NO VERIFICADO si el Database Webhook está activo.** Supabase → Database → Webhooks.
+`src/app/api/sync-sheet/route.ts` escribía cada turno en **una única planilla de Google** (`GOOGLE_SHEET_ID`), **sin dimensión de tenant**: nombre, email y teléfono del paciente, más **`record.notas`** — las anotaciones internas del profesional, el mismo campo que `api/paciente/[token]` excluye a propósito por sensible.
 
-**Antes de sumar una segunda clínica: desactivarlo, o resolver `GOOGLE_SHEET_ID` por `tenant_id`.**
+Lo disparaba el Database Webhook `sync_turnos_to_sheets` sobre `citas`, **que estaba activo**.
+
+### Por qué se desactivó
+
+**Con una segunda clínica, los pacientes de ambas habrían caído en la misma planilla.** Sin código nuevo y sin aviso.
+
+Y RLS no habría intervenido: la ruta usa `service_role` y escribe **fuera de la base**, en un tercero donde nada de lo auditado aplica.
+
+Se había puesto para armar la base de datos inicial. Ya no se usa.
+
+### ⚠️ Lo que desactivar NO resolvió
+
+**La planilla sigue existiendo con todo lo que ya se escribió** — PII de 212 pacientes y notas clínicas acumuladas, en Google Drive, sin RLS, accesibles para quien tenga el link o la cuenta.
+
+**Pendiente: borrarla, o revisar con quién está compartida.**
+
+### Si alguna vez hay que reactivarlo
+
+1. `ALTER TABLE citas ENABLE TRIGGER sync_turnos_to_sheets;`
+2. **Antes:** resolver `GOOGLE_SHEET_ID` por `tenant_id` en la ruta
+3. **Y sacar `record.notas` del export** — son internas del profesional
+
+### Limpieza opcional
+
+Con el trigger en `D`, la ruta queda inerte: requiere `SYNC_SHEET_SECRET` y nadie la llama. Para dejarlo prolijo, en algún momento: borrar la ruta, sacar `GOOGLE_SERVICE_ACCOUNT_EMAIL`, `GOOGLE_PRIVATE_KEY`, `GOOGLE_SHEET_ID` y `SYNC_SHEET_SECRET` de Vercel, y revocar la service account en Google Cloud.
 
 ---
 

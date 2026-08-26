@@ -160,14 +160,36 @@ describe('G-5.4 · toda SECURITY DEFINER declara `pg_temp` (R-12)', () => {
   /** Tolera `SET search_path` y `SET "search_path"`, con `TO` o `=`. */
   const SEARCH_PATH = /SET\s+"?search_path"?\s*(?:TO|=)\s*([^\n]+)/i
 
-  /** Última definición de cada función, que es la que gobierna. */
+  /**
+   * Estado efectivo de cada función SECURITY DEFINER, recorriendo las
+   * migraciones en orden y quedándose con la última sentencia que la afecta.
+   *
+   * ⚠️  TIENE QUE ENTENDER `ALTER FUNCTION`, no solo `CREATE`.
+   *
+   *   La primera versión de este detector solo miraba `CREATE FUNCTION` y dio
+   *   un falso positivo: reportó 4 funciones sin `pg_temp` que en producción
+   *   ya estaban corregidas. La migración de R-12 las arregló con
+   *   `ALTER FUNCTION … SET search_path`, que cambia esa propiedad SIN
+   *   reescribir el `CREATE` original del dump.
+   *
+   *   Es la limitación de fondo de cualquier guarda que lea archivos: ve
+   *   declaraciones, no estado. Un `ALTER` posterior es invisible salvo que se
+   *   lo busque explícitamente.
+   *
+   *   La verificación autoritativa del estado real vive en el bloque `DO` de
+   *   la propia migración, que consulta `pg_proc`. Esto es la red de arriba:
+   *   detecta una función NUEVA que nazca sin `pg_temp`.
+   */
   function definicionesEfectivas() {
     const efectiva = new Map<string, { archivo: string; searchPath: string | null }>()
+
     for (const { archivo, lineas } of migraciones()) {
       const s = lineas.join('\n')
-      const re = /CREATE (?:OR REPLACE )?FUNCTION\s+"?public"?\."?(\w+)"?\s*\(/g
+
+      // 1 · CREATE — define la función y su search_path inicial.
+      const reCreate = /CREATE (?:OR REPLACE )?FUNCTION\s+"?public"?\."?(\w+)"?\s*\(/g
       let m: RegExpExecArray | null
-      while ((m = re.exec(s)) !== null) {
+      while ((m = reCreate.exec(s)) !== null) {
         const i = m.index
         const j = s.indexOf('AS $', i)
         if (j < 0 || j - i > 1500) continue
@@ -175,6 +197,29 @@ describe('G-5.4 · toda SECURITY DEFINER declara `pg_temp` (R-12)', () => {
         if (!/SECURITY\s+DEFINER/i.test(cabecera)) continue
         const sp = SEARCH_PATH.exec(cabecera)
         efectiva.set(m[1], { archivo, searchPath: sp ? sp[1].trim() : null })
+      }
+
+      // 2 · ALTER … SET search_path — cambia la propiedad sin tocar el cuerpo.
+      const reAlter = /ALTER\s+FUNCTION\s+"?public"?\."?(\w+)"?\s*\([^)]*\)\s*SET\s+"?search_path"?\s*(?:TO|=)\s*([^;\n]+)/gi
+      while ((m = reAlter.exec(s)) !== null) {
+        const nombre = m[1]
+        if (!efectiva.has(nombre)) continue   // solo interesa si es SECURITY DEFINER
+        efectiva.set(nombre, { archivo, searchPath: m[2].trim() })
+      }
+
+      // 3 · ALTER dinámico, con la firma resuelta en tiempo de ejecución.
+      //     La migración de R-12 recorre `pg_proc` y ejecuta:
+      //       EXECUTE format('ALTER FUNCTION %s SET search_path TO %s, %L', …)
+      //     El nombre no está en el texto, así que no se puede atribuir a una
+      //     función concreta. Lo que SÍ se puede afirmar es que ese bloque
+      //     corrige TODAS las que le falten — su propio `DO` de verificación
+      //     aborta si queda alguna.
+      if (/ALTER FUNCTION %s SET search_path/.test(s) && /pg_proc/.test(s) && /prosecdef/.test(s)) {
+        for (const [nombre, d] of Array.from(efectiva.entries())) {
+          if (!d.searchPath || !d.searchPath.includes('pg_temp')) {
+            efectiva.set(nombre, { archivo, searchPath: `${d.searchPath ?? 'public'}, pg_temp` })
+          }
+        }
       }
     }
     return efectiva
