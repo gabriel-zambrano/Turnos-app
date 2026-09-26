@@ -217,8 +217,8 @@ function AccionesFlotantes({ primaryColor, secondaryColor, accentColor, onAgenda
                 style={{
                   display: 'flex', alignItems: 'center', gap: 12, width: '100%',
                   padding: '14px 16px', borderRadius: 12, textDecoration: 'none',
-                  background: '#f0f4f8', border: '1px solid #dde5ef',
-                  color: '#687e96', fontSize: 14.5, fontWeight: 700,
+                  background: 'var(--border-lighter, #f0f4f8)', border: '1px solid var(--border-color, #dde5ef)',
+                  color: 'var(--text-muted-darker, #687e96)', fontSize: 14.5, fontWeight: 700,
                   boxSizing: 'border-box',
                 }}
               >
@@ -281,7 +281,7 @@ export function AccionesRapidas(props: Props) {
           </svg>
         </Accion>
 
-        <Accion etiqueta="Ver Agenda" descripcion="Calendario completo" color="#687e96" href="/agenda" fondo="#f0f4f8" borde="1px solid #dde5ef">
+        <Accion etiqueta="Ver Agenda" descripcion="Calendario completo" color="var(--text-muted-darker, #687e96)" href="/agenda" fondo="var(--border-lighter, #f0f4f8)" borde="1px solid var(--border-color, #dde5ef)">
           <svg {...svgProps}>
             <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
             <line x1="16" y1="2" x2="16" y2="6" />

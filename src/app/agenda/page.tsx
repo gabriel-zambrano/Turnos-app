@@ -280,9 +280,9 @@ function AgendaHeaderMobile({ fecha, vista, esHoy, onPrev, onNext, onVista, onNu
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="9 18 15 12 9 6"/></svg>
       </button>
 
-      <div style={{display:'flex',background:'var(--bg-input, #f0f4f8)',borderRadius:8,overflow:'hidden',marginRight:4,height:32,border:'0.5px solid var(--border-color, #dde5ef)',flexShrink:0}}>
+      <div style={{display:'flex',background:'rgba(15, 30, 61, 0.04)',borderRadius:8,overflow:'hidden',marginRight:4,height:32,border:'1px solid var(--border-light, rgba(15, 30, 61, 0.06))',padding:2,flexShrink:0}}>
         {(['semana','dia','lista'] as const).map(v=>(
-          <button key={v} onClick={()=>onVista(v)} style={{padding:'0 8px',fontSize:11,border:'none',cursor:'pointer',background:vista===v?'var(--text-dark, #0a1e3d)':'transparent',color:vista===v?'var(--bg-app, #fff)':'var(--text-muted, #687e96)',fontWeight:700,fontFamily:'DM Sans, sans-serif'}}>{v==='semana'?'Sem':v==='dia'?'Día':'Lista'}</button>
+          <button key={v} onClick={()=>onVista(v)} style={{padding:'0 9px',fontSize:11,borderRadius:6,border:'none',cursor:'pointer',background:vista===v?'var(--bg-card, #fff)':'transparent',color:vista===v?'var(--text-dark, #0a1e3d)':'var(--text-muted, #687e96)',fontWeight:vista===v?700:500,boxShadow:vista===v?'0 1px 3px rgba(10,30,61,0.08)':undefined,fontFamily:'DM Sans, sans-serif'}}>{v==='semana'?'Sem':v==='dia'?'Día':'Lista'}</button>
         ))}
       </div>
 
@@ -954,19 +954,21 @@ export default function Agenda() {
                     </button>
                   </div>
                   <div style={{display:'flex',gap:8,alignItems:'center'}}>
-                    <div style={{display:'flex',background:'var(--bg-input, rgba(0,0,0,0.05))',border:'1px solid var(--border-color, #e2e8ed)',borderRadius:8,overflow:'hidden',padding: 2, height: 36}}>
+                    <div style={{display:'flex',background:'rgba(15, 30, 61, 0.04)',border:'1px solid var(--border-light, rgba(15, 30, 61, 0.06))',borderRadius:9,overflow:'hidden',padding: 2, height: 34}}>
                       {(['semana','dia'] as const).map(v=>(
                         <button key={v} onClick={()=>setVista(v)} 
                           style={{
                             padding:'0 14px',
                             fontSize:12,
                             border:'none',
-                            borderRadius: 6,
+                            borderRadius: 7,
                             cursor:'pointer',
-                            background:vista===v?'var(--text-dark, #0f1e2b)':'transparent',
-                            color:vista===v?'var(--bg-app, #fff)':'var(--text-muted, #555)',
-                            fontWeight:600,
-                            fontFamily:'DM Sans, sans-serif'
+                            background:vista===v?'var(--bg-card, #fff)':'transparent',
+                            color:vista===v?'var(--text-dark, #0a1e3d)':'var(--text-muted, #8fa3bc)',
+                            fontWeight:vista===v?600:500,
+                            boxShadow:vista===v?'0 1px 3px rgba(10,30,61,0.08), 0 0.5px 1px rgba(10,30,61,0.04)':'none',
+                            transition:'all 0.15s ease',
+                            fontFamily:'var(--font-sans)'
                           }}
                         >
                           {v==='semana'?'Semana':'Día'}

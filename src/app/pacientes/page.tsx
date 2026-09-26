@@ -47,36 +47,27 @@ export default function Pacientes() {
   const load = useCallback(async()=>{
     if (!tenant) return
     setLoading(true)
+    const ahoraIso = new Date().toISOString()
     const {data: pacData, error: pacError} = await supabase.from('pacientes').select('*').eq('tenant_id', tenant.id).order('creado_en',{ascending:false})
-    const {data: citasData, error: citasError} = await supabase.from('citas').select('paciente_id, fecha_hora, estado').eq('tenant_id', tenant.id)
+    const {data: citasData, error: citasError} = await supabase
+      .from('citas')
+      .select('paciente_id')
+      .eq('tenant_id', tenant.id)
+      .gte('fecha_hora', ahoraIso)
+      .not('estado', 'in', '("cancelado","ausente")')
 
     if (pacError) {
       msg('Error al cargar pacientes: ' + pacError.message, 'error')
     } else {
-      const citasMap: Record<string, any[]> = {}
-      if (citasData) {
-        citasData.forEach(c => {
-          if (!citasMap[c.paciente_id]) citasMap[c.paciente_id] = []
-          citasMap[c.paciente_id].push(c)
-        })
-      }
-      const mappedPacs = (pacData as PacDB[]).map(p => {
-        const pac = toPac(p)
-        const pacCitas = citasMap[p.id] || []
-        const tieneTurnosFuturos = pacCitas.some(c => {
-          const isFuture = new Date(c.fecha_hora) >= new Date()
-          const isCancelled = c.estado === 'cancelado' || c.estado === 'ausente'
-          return isFuture && !isCancelled
-        })
-        return {
-          ...pac,
-          tieneTurnosFuturos
-        }
-      })
+      const pacientesConTurnosFuturos = new Set(citasData ? citasData.map(c => c.paciente_id) : [])
+      const mappedPacs = (pacData as PacDB[]).map(p => ({
+        ...toPac(p),
+        tieneTurnosFuturos: pacientesConTurnosFuturos.has(p.id)
+      }))
       setRows(mappedPacs)
     }
     setLoading(false)
-  },[tenant])
+  },[tenant, supabase])
 
   useEffect(()=>{if (tenant) load()},[load, tenant])
 

@@ -871,6 +871,8 @@ export default function PacienteDetalle() {
         .sort((a, b) => new Date(a.fecha_hora).getTime() - new Date(b.fecha_hora).getTime())[0]
     : null
 
+  const secondaryColor = tenant?.secondaryColor || '#185FA5'
+
   return (
     <div style={{ display: 'flex', minHeight: '100vh', fontFamily: 'DM Sans, sans-serif' }}>
       <Sidebar />
@@ -1004,15 +1006,16 @@ export default function PacienteDetalle() {
                       onClick={() => setTabActiva(tab.id as any)}
                       style={{
                         padding: '8px 14px',
-                        borderRadius: 10,
+                        borderRadius: 8,
                         border: 'none',
-                        background: active ? 'rgba(24, 95, 165, 0.08)' : 'transparent',
-                        color: active ? '#185FA5' : 'var(--text-muted-darker)',
+                        background: active ? `${secondaryColor}14` : 'transparent',
+                        color: active ? secondaryColor : 'var(--text-muted-darker, #4a6080)',
                         fontSize: 12.5,
-                        fontWeight: 700,
+                        fontWeight: active ? 700 : 500,
                         cursor: 'pointer',
-                        transition: 'all 0.2s',
-                        whiteSpace: 'nowrap'
+                        transition: 'all 0.15s ease',
+                        whiteSpace: 'nowrap',
+                        boxShadow: active ? '0 1px 3px rgba(10,30,61,0.06)' : 'none'
                       }}
                     >
                       {tab.label}

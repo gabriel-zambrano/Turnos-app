@@ -145,9 +145,43 @@ Se había puesto para armar la base de datos inicial. Ya no se usa.
 
 ### ⚠️ Lo que desactivar NO resolvió
 
-**La planilla sigue existiendo con todo lo que ya se escribió** — PII de 212 pacientes y notas clínicas acumuladas, en Google Drive, sin RLS, accesibles para quien tenga el link o la cuenta.
+**La planilla sigue existiendo con todo lo que ya se escribió.**
 
-**Pendiente: borrarla, o revisar con quién está compartida.**
+### Identificada el 26/08/2026
+
+```
+Título:      TURNOS-2026
+ID:          1nLPqQabBi4qUhSpj2YqTO27VGKns_FYwJH_v2o9BHtk
+Dueño:       odbenegaswalter@gmail.com
+Creada:      07/04/2026
+Modificada:  17/06/2026   ← ver abajo
+Permisos:    solo el dueño · sin enlace público · sin otros usuarios
+```
+
+**Contenido confirmado:** `NOMBRE, EMAIL, TELEFONO, TRATAMIENTO, FECHA, HORA, ESTADO, NOTAS, ID`.
+
+La columna `NOTAS` tiene anotaciones clínicas reales: *"Ajuste / Caries"*, *"arreglo de caries"*, *"Quisiera hacer la limpieza de sarro con ultrasonido"*, *"Evitar gaseosas Cola, Vinotinto, cigarrillos"*. Es el mismo campo que `api/paciente/[token]` excluye a propósito por sensible.
+
+### La ventana de exposición es más corta de lo que creíamos
+
+**El trigger estuvo activo hasta el 25/08, pero la planilla no se modifica desde el 17/06.**
+
+La explicación más probable: **la service account no figura en la lista de permisos.** Si perdió el acceso, la ruta venía recibiendo 403 de Google y fallando en silencio desde junio.
+
+**No está demostrado** — no hay logs de esa ruta que lo confirmen. Pero el dato duro es que **no se escribió nada entre el 17/06 y el 25/08**.
+
+### Pendiente · solo lo puede hacer el dueño
+
+La cuenta de Drive conectada a las herramientas es `gabrielle3612@gmail.com`; la planilla la posee `odbenegaswalter@gmail.com`. Un intento de borrado desde la otra cuenta devuelve `The caller does not have permission`.
+
+**Entrar con `odbenegaswalter@gmail.com` y borrarla.** La papelera de Drive retiene 30 días.
+
+### Otras planillas revisadas el 26/08 — sin acción
+
+| Planilla | Qué es | Decisión |
+|---|---|---|
+| `FACTURAS GENERADAS AFIP` | Libro contable manual 2023-2026. Nombres y montos, **sin** notas clínicas ni contactos. En uso | **No borrar** — retención fiscal |
+| `INCOMPLETO` | Trabajo de RR.HH. sobre Cognizant. Ajeno al consultorio | Sin relación |
 
 ### Si alguna vez hay que reactivarlo
 

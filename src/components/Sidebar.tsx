@@ -276,128 +276,213 @@ export function Sidebar({ pendientes }: { pendientes?: number }) {
       }}
     >
       {/* Header */}
-      <div style={{ padding: '1.25rem 1rem', borderBottom: '1px solid var(--border-light, rgba(56,138,221,0.08))', display: 'flex', alignItems: 'center', justifyContent: showExpanded ? 'space-between' : 'center', gap: 6, minHeight: 63 }}>
-        {showExpanded ? (
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-dark, #0a1e3d)', letterSpacing: '-0.3px', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>DentalDesk</div>
-            <div style={{ position: 'relative' }}>
-              <button 
-                onClick={() => setShowClinicDropdown(!showClinicDropdown)} 
-                style={{ 
-                  background: 'none', 
-                  border: 'none', 
-                  padding: 0, 
-                  color: 'var(--text-muted, #8fa3bc)', 
-                  fontSize: 10.5, 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  gap: 4, 
-                  cursor: 'pointer',
-                  textAlign: 'left',
-                  width: '100%',
-                  marginTop: 2
-                }}
-              >
-                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 140 }}>
-                  {tenantLoading ? 'Cargando...' : tenant?.nombre}
-                </span>
-                <span style={{ fontSize: 8 }}>▼</span>
-              </button>
-              
-              {showClinicDropdown && (
-                <div 
-                  ref={dropdownRef} 
-                  className="dropdown-fade-in"
-                  style={{ 
-                    position: 'absolute', 
-                    top: '100%', 
-                    left: 0, 
-                    width: 190, 
-                    background: 'var(--bg-modal, #fff)', 
-                    border: '1px solid var(--border-light, rgba(56,138,221,0.12))', 
-                    borderRadius: 8, 
-                    boxShadow: '0 4px 12px rgba(10,30,61,0.1)', 
-                    zIndex: 1000,
-                    padding: '4px 0',
-                    marginTop: 6
-                  }}
-                >
-                  <div style={{ padding: '6px 12px', fontSize: 9.5, fontWeight: 700, color: '#aab8c8', borderBottom: '1px solid var(--border-lighter, rgba(56,138,221,0.06))', textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                    Mis Clínicas
-                  </div>
-                  
-                  {userClinics.map(clinic => (
-                    <button
-                      key={clinic.id}
-                      onClick={() => {
-                        localStorage.setItem('active_tenant_id', clinic.id)
-                        setShowClinicDropdown(false)
-                        window.location.reload()
-                      }}
-                      style={{
-                        width: '100%',
-                        padding: '8px 12px',
-                        fontSize: 12,
-                        textAlign: 'left',
-                        background: clinic.id === tenant?.id ? 'var(--border-lighter, rgba(56,138,221,0.06))' : 'transparent',
-                        color: clinic.id === tenant?.id ? 'var(--text-dark, #0a1e3d)' : 'var(--text-muted-darker, #4a6080)',
-                        border: 'none',
-                        cursor: 'pointer',
-                        fontWeight: clinic.id === tenant?.id ? 700 : 500,
-                        fontFamily: 'inherit',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap'
-                      }}
-                      onMouseEnter={e => clinic.id !== tenant?.id && (e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.02)')}
-                      onMouseLeave={e => clinic.id !== tenant?.id && (e.currentTarget.style.backgroundColor = 'transparent')}
-                    >
-                      {clinic.nombre}
-                    </button>
-                  ))}
-                  
-                  <div style={{ borderTop: '1px solid var(--border-lighter, rgba(56,138,221,0.06))', marginTop: 4, padding: '4px 0' }}>
-                    <button
-                      onClick={() => {
-                        setShowClinicDropdown(false)
-                        setShowNewClinicModal(true)
-                      }}
-                      style={{
-                        width: '100%',
-                        padding: '8px 12px',
-                        fontSize: 11.5,
-                        textAlign: 'left',
-                        background: 'transparent',
-                        color: secondaryColor,
-                        border: 'none',
-                        cursor: 'pointer',
-                        fontWeight: 600,
-                        fontFamily: 'inherit',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 6
-                      }}
-                    >
-                      <span>+</span> Agregar clínica
-                    </button>
-                  </div>
+      <div style={{ padding: '1rem 0.85rem', borderBottom: '1px solid var(--border-light, rgba(56,138,221,0.08))', display: 'flex', flexDirection: 'column', gap: 8, minHeight: 63 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: showExpanded ? 'space-between' : 'center', gap: 6 }}>
+          {showExpanded ? (
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{
+                  width: 26,
+                  height: 26,
+                  borderRadius: 7,
+                  background: `linear-gradient(135deg, ${secondaryColor}, ${primaryColor})`,
+                  color: '#ffffff',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: 12,
+                  fontWeight: 800,
+                  flexShrink: 0,
+                  boxShadow: '0 2px 6px rgba(10,30,61,0.12)'
+                }}>
+                  {tenant?.nombre ? tenant.nombre.charAt(0).toUpperCase() : 'D'}
                 </div>
-              )}
-            </div>
-          </div>
-        ) : (
-          <div style={{ fontSize: 20, cursor: 'pointer', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.05))' }} onClick={toggleCollapse}>🦷</div>
-        )}
+                <div style={{ flex: 1, minWidth: 0, position: 'relative' }}>
+                  <div style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--text-dark, #0a1e3d)', letterSpacing: '-0.3px', lineHeight: 1.2 }}>
+                    DentalDesk
+                  </div>
+                  <button 
+                    onClick={() => setShowClinicDropdown(!showClinicDropdown)} 
+                    style={{ 
+                      background: 'none', 
+                      border: 'none', 
+                      padding: 0, 
+                      color: 'var(--text-muted, #8fa3bc)', 
+                      fontSize: 11, 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: 4, 
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      width: '100%',
+                      marginTop: 1,
+                      fontWeight: 500,
+                      fontFamily: 'inherit'
+                    }}
+                  >
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 125 }}>
+                      {tenantLoading ? 'Cargando...' : tenant?.nombre}
+                    </span>
+                    <span style={{ fontSize: 8, opacity: 0.7 }}>▼</span>
+                  </button>
 
-        {showExpanded && (
-          <button onClick={toggleCollapse} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted, #8fa3bc)', padding: 4, display: 'flex', borderRadius: '50%', transition: 'background-color 0.2s' }} onMouseEnter={e => e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.04)'} onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}>
-            {collapsed ? ICONS.chevronRight : ICONS.chevronLeft}
+                  {showClinicDropdown && (
+                    <div 
+                      ref={dropdownRef} 
+                      className="dropdown-fade-in"
+                      style={{ 
+                        position: 'absolute', 
+                        top: '100%', 
+                        left: -34, 
+                        width: 200, 
+                        background: 'var(--bg-modal, #fff)', 
+                        border: '1px solid var(--border-color, rgba(15,30,61,0.12))', 
+                        borderRadius: 10, 
+                        boxShadow: '0 12px 32px -4px rgba(10,30,61,0.16)', 
+                        zIndex: 1000,
+                        padding: '6px',
+                        marginTop: 8
+                      }}
+                    >
+                      <div style={{ padding: '6px 8px', fontSize: 10, fontWeight: 700, color: 'var(--text-muted, #8fa3bc)', borderBottom: '1px solid var(--border-lighter, rgba(15,30,61,0.06))', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        Mis Clínicas
+                      </div>
+                      
+                      <div style={{ maxHeight: 180, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 2, padding: '4px 0' }}>
+                        {userClinics.map(clinic => {
+                          const isCurrent = clinic.id === tenant?.id
+                          return (
+                            <button
+                              key={clinic.id}
+                              onClick={() => {
+                                localStorage.setItem('active_tenant_id', clinic.id)
+                                setShowClinicDropdown(false)
+                                window.location.reload()
+                              }}
+                              style={{
+                                width: '100%',
+                                padding: '7px 8px',
+                                fontSize: 12,
+                                textAlign: 'left',
+                                borderRadius: 6,
+                                background: isCurrent ? `${secondaryColor}15` : 'transparent',
+                                color: isCurrent ? secondaryColor : 'var(--text-dark, #0a1e3d)',
+                                border: 'none',
+                                cursor: 'pointer',
+                                fontWeight: isCurrent ? 700 : 500,
+                                fontFamily: 'inherit',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                gap: 6
+                              }}
+                              onMouseEnter={e => !isCurrent && (e.currentTarget.style.backgroundColor = 'var(--border-lighter, rgba(0,0,0,0.03))')}
+                              onMouseLeave={e => !isCurrent && (e.currentTarget.style.backgroundColor = 'transparent')}
+                            >
+                              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{clinic.nombre}</span>
+                              {isCurrent && <span style={{ color: secondaryColor, fontSize: 11, fontWeight: 700 }}>✓</span>}
+                            </button>
+                          )
+                        })}
+                      </div>
+                      
+                      <div style={{ borderTop: '1px solid var(--border-lighter, rgba(15,30,61,0.06))', marginTop: 2, paddingTop: 4 }}>
+                        <button
+                          onClick={() => {
+                            setShowClinicDropdown(false)
+                            setShowNewClinicModal(true)
+                          }}
+                          style={{
+                            width: '100%',
+                            padding: '7px 8px',
+                            fontSize: 11.5,
+                            textAlign: 'left',
+                            borderRadius: 6,
+                            background: 'transparent',
+                            color: secondaryColor,
+                            border: 'none',
+                            cursor: 'pointer',
+                            fontWeight: 600,
+                            fontFamily: 'inherit',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 6
+                          }}
+                          onMouseEnter={e => (e.currentTarget.style.backgroundColor = `${secondaryColor}10`)}
+                          onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
+                        >
+                          <span>+</span> Agregar clínica
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div style={{ fontSize: 20, cursor: 'pointer', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.05))' }} onClick={toggleCollapse}>🦷</div>
+          )}
+
+          {showExpanded && (
+            <button onClick={toggleCollapse} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted, #8fa3bc)', padding: 4, display: 'flex', borderRadius: '50%', transition: 'background-color 0.2s' }} onMouseEnter={e => e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.04)'} onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}>
+              {collapsed ? ICONS.chevronRight : ICONS.chevronLeft}
+            </button>
+          )}
+        </div>
+
+        {/* Quick Search Button (⌘K) */}
+        {showExpanded ? (
+          <button
+            onClick={() => window.dispatchEvent(new CustomEvent('open-command-palette'))}
+            className="quick-action-btn"
+            style={{
+              width: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '6px 8px',
+              borderRadius: 8,
+              border: '1px solid var(--border-color, rgba(15,30,61,0.08))',
+              background: 'var(--bg-input, #fff)',
+              color: 'var(--text-muted, #8fa3bc)',
+              fontSize: 12,
+              fontWeight: 500,
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+              transition: 'border-color 0.15s ease, box-shadow 0.15s ease'
+            }}
+          >
+            <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <span>Buscar o saltar...</span>
+            </span>
+            <kbd style={{ fontSize: 9.5, padding: '1px 5px', borderRadius: 4, background: 'var(--border-lighter, #f1f5f9)', border: '1px solid var(--border-color, #e2e8f0)', color: 'var(--text-muted, #8fa3bc)', fontWeight: 600 }}>⌘K</kbd>
+          </button>
+        ) : (
+          <button
+            onClick={() => window.dispatchEvent(new CustomEvent('open-command-palette'))}
+            className="quick-action-btn"
+            title="Buscar o saltar (⌘K)"
+            style={{
+              width: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '6px 0',
+              borderRadius: 8,
+              border: 'none',
+              background: 'transparent',
+              color: 'var(--text-muted, #8fa3bc)',
+              cursor: 'pointer'
+            }}
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
           </button>
         )}
       </div>
 
       {/* Navigation */}
-      <nav style={{ flex: 1, padding: '0.75rem 0.5rem', overflowX: 'hidden' }}>
+      <nav style={{ flex: 1, padding: '0.6rem 0.5rem', overflowX: 'hidden' }}>
         {navItems.map(item => {
           const active = path === item.href || (item.href !== '/dashboard' && path?.startsWith(item.href))
           return (
@@ -412,33 +497,34 @@ export function Sidebar({ pendientes }: { pendientes?: number }) {
                 alignItems: 'center', 
                 justifyContent: showExpanded ? 'flex-start' : 'center', 
                 gap: showExpanded ? 10 : 0, 
-                padding: '10px 12px', 
-                borderRadius: 10, 
+                padding: '8px 10px', 
+                borderRadius: 8, 
                 border: '1px solid transparent', 
-                background: active ? 'var(--border-light, rgba(56, 138, 221, 0.08))' : 'transparent', 
-                color: active ? 'var(--text-dark, #0a1e3d)' : 'var(--text-muted, #8fa3bc)', 
+                background: active ? `${secondaryColor}14` : 'transparent', 
+                color: active ? 'var(--text-dark, #0a1e3d)' : 'var(--text-muted-darker, #4a6080)', 
                 cursor: 'pointer', 
-                fontFamily: 'DM Sans, sans-serif', 
+                fontFamily: 'var(--font-sans)', 
                 fontSize: 13, 
-                fontWeight: active ? 700 : 500, 
-                marginBottom: 4, 
+                fontWeight: active ? 600 : 500, 
+                marginBottom: 2, 
                 textAlign: 'left', 
                 position: 'relative',
-                overflow: 'hidden'
+                overflow: 'hidden',
+                transition: 'background-color 0.15s ease, color 0.15s ease'
               }}
             >
               {active && (
                 <div style={{
                   position: 'absolute',
                   left: 0,
-                  top: '15%',
-                  bottom: '15%',
+                  top: '18%',
+                  bottom: '18%',
                   width: 3,
                   borderRadius: '0 4px 4px 0',
                   background: secondaryColor
                 }} />
               )}
-              <div style={{ display: 'flex', flexShrink: 0, transition: 'transform 0.2s ease', color: active ? secondaryColor : undefined }} className="sidebar-icon">
+              <div style={{ display: 'flex', flexShrink: 0, transition: 'transform 0.2s ease', color: active ? secondaryColor : 'var(--text-muted, #8fa3bc)' }} className="sidebar-icon">
                 {ICONS[item.icon]}
               </div>
               {showExpanded && <span style={{ whiteSpace: 'nowrap' }}>{item.label}</span>}
@@ -457,7 +543,7 @@ export function Sidebar({ pendientes }: { pendientes?: number }) {
       </nav>
 
       {/* Footer Actions */}
-      <div style={{ padding: '0.75rem 0.5rem', display: 'flex', flexDirection: 'column', gap: 6, borderTop: '1px solid var(--border-light, rgba(56,138,221,0.08))', overflow: 'hidden' }}>
+      <div style={{ padding: '0.6rem 0.5rem', display: 'flex', flexDirection: 'column', gap: 6, borderTop: '1px solid var(--border-light, rgba(56,138,221,0.08))', overflow: 'hidden' }}>
         <button 
           onClick={toggleTheme} 
           className="quick-action-btn" 
@@ -468,18 +554,18 @@ export function Sidebar({ pendientes }: { pendientes?: number }) {
             alignItems: 'center', 
             justifyContent: showExpanded ? 'flex-start' : 'center', 
             gap: showExpanded ? 10 : 0, 
-            padding: '10px 12px', 
-            borderRadius: 10, 
-            border: '1px solid var(--border-color)', 
-            background: 'var(--bg-input)', 
-            color: 'var(--text-dark)', 
+            padding: '8px 10px', 
+            borderRadius: 8, 
+            border: '1px solid var(--border-color, #e2e8f0)', 
+            background: 'var(--bg-input, #fff)', 
+            color: 'var(--text-dark, #0a1e3d)', 
             cursor: 'pointer', 
-            fontFamily: 'DM Sans, sans-serif', 
-            fontSize: 13, 
-            fontWeight: 700 
+            fontFamily: 'inherit', 
+            fontSize: 12.5, 
+            fontWeight: 600 
           }}
         >
-          <div style={{ display: 'flex', flexShrink: 0 }}>
+          <div style={{ display: 'flex', flexShrink: 0, color: 'var(--text-muted, #8fa3bc)' }}>
             {theme === 'light' ? ICONS.moon : ICONS.sun}
           </div>
           {showExpanded && <span style={{ whiteSpace: 'nowrap' }}>{theme === 'light' ? 'Modo Oscuro' : 'Modo Claro'}</span>}
@@ -496,15 +582,15 @@ export function Sidebar({ pendientes }: { pendientes?: number }) {
             alignItems: 'center',
             justifyContent: showExpanded ? 'flex-start' : 'center',
             gap: showExpanded ? 10 : 0,
-            padding: '10px 12px',
-            borderRadius: 10,
-            border: '1px solid #D85A3030',
-            background: '#D85A3012',
+            padding: '8px 10px',
+            borderRadius: 8,
+            border: '1px solid rgba(216, 90, 48, 0.18)',
+            background: 'rgba(216, 90, 48, 0.08)',
             color: '#D85A30',
             cursor: loggingOut ? 'not-allowed' : 'pointer',
-            fontFamily: 'DM Sans, sans-serif',
-            fontSize: 13,
-            fontWeight: 700,
+            fontFamily: 'inherit',
+            fontSize: 12.5,
+            fontWeight: 600,
             opacity: loggingOut ? 0.6 : 1
           }}
         >
@@ -524,8 +610,8 @@ export function Sidebar({ pendientes }: { pendientes?: number }) {
               display: 'flex', 
               alignItems: 'center', 
               justifyContent: 'center', 
-              padding: '10px 12px', 
-              borderRadius: 10, 
+              padding: '8px 10px', 
+              borderRadius: 8, 
               border: 'none', 
               background: 'transparent', 
               color: 'var(--text-muted, #8fa3bc)', 
@@ -537,7 +623,7 @@ export function Sidebar({ pendientes }: { pendientes?: number }) {
         ) : null}
 
         {showExpanded && (
-          <div style={{ fontSize: 9, color: 'var(--text-muted, #c5d4e8)', textAlign: 'center', letterSpacing: '0.05em', marginTop: 4, whiteSpace: 'nowrap' }}>DentalDesk v1.0</div>
+          <div style={{ fontSize: 9.5, color: 'var(--text-muted, #8fa3bc)', textAlign: 'center', letterSpacing: '0.06em', marginTop: 2, whiteSpace: 'nowrap', opacity: 0.8 }}>DentalDesk v1.0</div>
         )}
       </div>
       <CommandPalette />

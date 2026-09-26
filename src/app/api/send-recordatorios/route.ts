@@ -9,7 +9,33 @@ import { esCron } from '@/lib/cron-auth'
 
 export const dynamic = 'force-dynamic'
 
+// Los envíos ya no salen todos a la vez (ver TANDA_TAM más abajo), así que el
+// endpoint tarda más. Con el default de Vercel una clínica con muchos turnos
+// se cortaba a la mitad.
+export const maxDuration = 60
+
 const DEFAULT_TENANT_ID = '2845c423-affa-4ca2-9c5f-f4ec8e35701a'
+
+// Resend limita a 10 solicitudes por segundo POR EQUIPO — no por clave ni por
+// dominio. `Promise.allSettled` sobre todas las citas disparaba los envíos en
+// paralelo: con más de diez turnos mañana, del onceavo en adelante volvían con
+// 429 y esos pacientes no recibían nada. Se registraba 'fallido' y nadie lo
+// miraba.
+//
+// Cinco por tanda deja margen para el resto de los envíos del sistema
+// (confirmaciones, facturas, briefing) que comparten la misma cuota.
+const TANDA_TAM = 5
+const PAUSA_MS = 1100
+
+const dormir = (ms: number) => new Promise(r => setTimeout(r, ms))
+
+// Columnas de `tenants` tal como existen en la base: PostgREST distingue
+// mayúsculas y estas están todas en minúscula. Pedirlas en camelCase devolvía
+// error 42703, `activeTenants` quedaba null, y el código caía al tenant por
+// defecto SIN branding y sin dominio propio — anulando en silencio el arreglo
+// de `urlDeClinica` documentado más abajo.
+const COLUMNAS_TENANT =
+  'id, nombre, direccion, telefono, custom_domain, logourl, primarycolor, secondarycolor, accentcolor, whatsapptemplate'
 
 export async function POST(req: NextRequest) {
   const resend = new Resend(process.env.RESEND_API_KEY)
@@ -68,7 +94,7 @@ export async function POST(req: NextRequest) {
     // Si viene en el body, procesamos solo ese tenant
     const { data: tenantData } = await supabase
       .from('tenants')
-      .select('id, nombre, direccion, telefono, custom_domain, logoUrl, primaryColor, secondaryColor, accentColor, whatsappTemplate')
+      .select(COLUMNAS_TENANT)
       .eq('id', bodyTenantId)
       .single()
 
@@ -80,15 +106,25 @@ export async function POST(req: NextRequest) {
     }
   } else {
     // Si es una invocación global (cron), buscamos todos los tenants activos
-      const { data: activeTenants } = await supabase
-        .from('tenants')
-        .select('id, nombre, direccion, telefono, custom_domain, logoUrl, primaryColor, secondaryColor, accentColor, whatsappTemplate')
+    const { data: activeTenants, error: errorTenants } = await supabase
+      .from('tenants')
+      .select(COLUMNAS_TENANT)
       .eq('activo', true)
 
     if (activeTenants && activeTenants.length > 0) {
       tenantsToProcess = activeTenants
     } else {
-      // Fallback al tenant por defecto
+      // Este fallback existía en silencio: antes el `select` fallaba SIEMPRE por
+      // el camelCase y nadie se enteraba, porque el error ni se desestructuraba.
+      // Con una sola clínica pasaba desapercibido (el ID por defecto ES esa
+      // clínica); con dos, la segunda se quedaba sin recordatorios.
+      //
+      // Se conserva para no dejar al consultorio sin avisos ante un fallo
+      // transitorio de la base, pero ahora grita.
+      console.error(
+        '[recordatorios] No se pudo listar tenants activos; usando DEFAULT_TENANT_ID. ' +
+        'SOLO se procesará esa clínica. Error: ' + (errorTenants?.message ?? 'consulta vacía')
+      )
       tenantsToProcess = [{ id: DEFAULT_TENANT_ID, nombre: '' }]
     }
   }
@@ -102,6 +138,7 @@ export async function POST(req: NextRequest) {
 
   let totalEnviados = 0
   let totalFallidos = 0
+  let totalOmitidos = 0
 
   // 3. Procesar citas aisladas para cada tenant
   for (const tenant of tenantsToProcess) {
@@ -140,10 +177,31 @@ export async function POST(req: NextRequest) {
       continue
     }
 
-    const resultados = await Promise.allSettled(
-      citas.map(async (cita: any) => {
+    const enviarUna = async (cita: any): Promise<'enviado' | 'omitido'> => {
         const paciente = cita.pacientes
-        if (!paciente?.email) return { skip: true }
+
+        // Un paciente sin email no recibe nada. Antes esto devolvía
+        // `{ skip: true }`, que `Promise.allSettled` reporta como `fulfilled`,
+        // y el conteo lo sumaba como ENVIADO. Encima no escribía fila en
+        // `recordatorios_log`, así que el salto no dejaba rastro en ninguna
+        // parte: la respuesta decía "enviados: 12" habiendo salido 9, y la
+        // métrica de recordatorios por cita daba 1.00 porque solo promediaba
+        // las citas que SÍ habían generado una fila.
+        //
+        // Son 25 de 222 pacientes — 1 de cada 9 — y sesgados hacia los de
+        // ortodoncia, que vuelven todos los meses. Ahora queda registrado.
+        if (!paciente?.email) {
+          await supabase.from('recordatorios_log').insert({
+            cita_id: cita.id,
+            tipo_mensaje: 'email',
+            estado_envio: 'omitido',
+            error_detalle: 'paciente sin email',
+            mensaje_preview: `Sin email: ${paciente?.nombre ?? 'paciente sin ficha'}`,
+            enviado_en: new Date().toISOString(),
+            tenant_id: tenant.id
+          })
+          return 'omitido'
+        }
 
         const fecha = new Date(cita.fecha_hora)
         const horaAR = fecha.toLocaleString('es-AR', {
@@ -203,16 +261,32 @@ export async function POST(req: NextRequest) {
         })
 
         if (emailError) throw new Error(emailError.message)
-        return { ok: true, paciente: paciente.nombre }
-      })
-    )
+        return 'enviado'
+    }
 
-    const enviados = resultados.filter(r => r.status === 'fulfilled').length
-    const fallidos = resultados.filter(r => r.status === 'rejected').length
+    // En tandas, no todos de golpe: Resend corta en 10 solicitudes por segundo
+    // y `Promise.allSettled` sobre todas las citas las disparaba juntas. Con
+    // más de diez turnos, del onceavo en adelante volvía 429 y esos pacientes
+    // se quedaban sin aviso.
+    for (let i = 0; i < citas.length; i += TANDA_TAM) {
+      const tanda = citas.slice(i, i + TANDA_TAM)
+      const resultados = await Promise.allSettled(tanda.map(enviarUna))
 
-    totalEnviados += enviados
-    totalFallidos += fallidos
+      for (const r of resultados) {
+        if (r.status === 'rejected') totalFallidos++
+        else if (r.value === 'omitido') totalOmitidos++
+        else totalEnviados++
+      }
+
+      if (i + TANDA_TAM < citas.length) await dormir(PAUSA_MS)
+    }
   }
 
-  return NextResponse.json({ enviados: totalEnviados, fallidos: totalFallidos })
+  // `omitidos` se informa aparte a propósito. Sumarlo a `enviados` es
+  // exactamente el defecto que esta corrección elimina.
+  return NextResponse.json({
+    enviados: totalEnviados,
+    fallidos: totalFallidos,
+    omitidos: totalOmitidos,
+  })
 }
