@@ -9,11 +9,11 @@ import { createClient } from '@/lib/supabase/client'
 import type { EstadoCita, TipoTratamiento } from '@/types'
 import { useTenantContext } from '@/components/TenantContext'
 import { triggerConfetti } from '@/lib/confetti'
-import { FORMAS_PAGO, FORMAS_PAGO_FACTURABLES_DEFAULT, sugerirRequiereFactura } from '@/lib/pagos'
-import { registrarPago, formasFacturablesDe } from '@/lib/registrar-pago'
+import { FORMAS_PAGO_FACTURABLES_DEFAULT } from '@/lib/pagos'
+import { formasFacturablesDe } from '@/lib/registrar-pago'
 import { registrarInasistenciaAction, aprobarAsistenciaAction } from '@/app/actions/fidelizacion'
 import { FIDELIZACION_HABILITADA } from '@/lib/fidelizacion-flag'
-import { cobradoDeCita, requiereConfirmarPagoExtra, textoPagoPrevio, formatoPesos } from '@/lib/cobro-previo'
+import { CobrarTurno } from '@/components/cobro/CobrarTurno'
 import dynamic from 'next/dynamic'
 
 // Lazy-load: el modal solo se descarga cuando el usuario lo abre, no en la carga inicial.
@@ -383,109 +383,23 @@ export default function Agenda() {
   }
 
   // Express Billing States
-  const [cobConcepto, setCobConcepto] = useState('')
-  const [cobMonto, setCobMonto] = useState<number | ''>('')
-  const [cobFecha, setCobFecha] = useState('')
-  const [guardandoCobro, setGuardandoCobro] = useState(false)
-  // El estado tarda un render en deshabilitar el botón: dos clicks seguidos
-  // entraban los dos. El ref corta el segundo en el mismo instante.
-  const cobrandoRef = useRef(false)
-  // Lo ya cobrado del turno cuando hay que confirmar un pago extra.
-  const [cobPrevio, setCobPrevio] = useState<number | null>(null)
 
   // Pre-agendamiento States
   const [propuestaProximaCita, setPropuestaProximaCita] = useState<Cita | null>(null)
   const [guardandoPropuesta, setGuardandoPropuesta] = useState(false)
 
+  // El cobro vive en <CobrarTurno>, con la secuencia única de lib/cobro-turno.
   function openCobroExpress(c: Cita) {
     setSel(c)
-    setCobConcepto(`Pago ${c.tratamiento} — ${c.nombre}`)
-    setCobMonto(c.valor ?? '')
-    setCobFecha(c.fecha)
-    // Arranca en Efectivo, que es lo más habitual, y el check de facturar
-    // se pre-marca según el criterio de la clínica.
-    setCobForma(FORMAS_PAGO[0])
-    setCobFactura(sugerirRequiereFactura(FORMAS_PAGO[0], formasFacturables))
-    setCobPrevio(null)
     setModal('cobrar')
   }
+
 
   // Criterio de medios facturables de la clínica, para pre-marcar el check.
   useEffect(() => {
     if (!tenant) return
     formasFacturablesDe(supabase, tenant.id).then(setFormasFacturables)
   }, [tenant, supabase])
-
-  async function guardarCobroExpress(confirmadoPagoExtra = false) {
-    if (!tenant || !sel) return
-    if (cobrandoRef.current) return
-    if (!cobConcepto.trim() || cobMonto === '' || Number(cobMonto) <= 0) {
-      return msg('Completá concepto y monto', 'error')
-    }
-    // Se bloquea antes de cualquier consulta: la de caja tardaba lo
-    // suficiente para que un doble click registrara dos pagos.
-    cobrandoRef.current = true
-    setGuardandoCobro(true)
-    const liberar = () => { cobrandoRef.current = false; setGuardandoCobro(false) }
-
-    const [{ data: origCajaRes }, previo] = await Promise.all([
-      supabase.from('cajas_diarias').select('estado')
-        .eq('tenant_id', tenant.id).eq('fecha', sel.fecha).maybeSingle(),
-      cobradoDeCita(supabase, tenant.id, sel.id),
-    ])
-    if (origCajaRes?.estado === 'cerrada') {
-      liberar()
-      return msg('La caja de este día está cerrada. Reabrila desde Finanzas para registrar el cobro.', 'error')
-    }
-    if (previo.error) {
-      liberar()
-      return msg('No se pudo verificar si el turno ya tiene cobros. No se registró nada; probá de nuevo.', 'error')
-    }
-    if (requiereConfirmarPagoExtra(previo.total, confirmadoPagoExtra)) {
-      liberar()
-      setCobPrevio(previo.total)
-      return
-    }
-
-    // El cobro entra por `pagos`, no escribiendo `citas.precio_cobrado` a
-    // mano: así queda la forma de pago (sin ella este cobro esquivaba el
-    // criterio de facturación) y el trigger mantiene la columna derivada.
-    const monto = Number(cobMonto)
-    const { error: pagoError } = await registrarPago(supabase, {
-      tenantId: tenant.id,
-      pacienteId: sel.paciente_id,
-      citaId: sel.id,
-      formaPago: cobForma,
-      monto,
-      requiereFactura: cobFactura,
-      origen: 'cobro_rapido',
-      nota: cobConcepto.trim(),
-    })
-
-    if (pagoError) {
-      liberar()
-      return msg(`No se registró el cobro. ${pagoError}. Podés volver a intentarlo.`, 'error')
-    }
-
-    // El pago ya está guardado. De acá en adelante, pase lo que pase, el
-    // modal se cierra: si quedara abierto, el usuario reintentaría y
-    // duplicaría el cobro.
-    const resAprobar = await aprobarAsistenciaAction(sel.id)
-    liberar()
-    setModal(null)
-    setCobPrevio(null)
-    loadCitas()
-
-    if (!resAprobar.success) {
-      msg(`El cobro de ${formatoPesos(monto)} quedó registrado. No se pudo marcar el turno como asistido; hacelo desde el turno. No vuelvas a cobrarlo.`, 'error')
-    } else {
-      msg(FIDELIZACION_HABILITADA
-        ? `Cobro de ${formatoPesos(monto)} registrado · puntos acreditados`
-        : `Cobro de ${formatoPesos(monto)} registrado · turno cerrado`)
-      triggerConfetti()
-      setPropuestaProximaCita(sel)
-    }
-  }
 
   useEffect(()=>{
     const check = () => setIsMobile(window.innerWidth < 768)
@@ -508,8 +422,6 @@ export default function Agenda() {
   const [mostrarDetalle, setMostrarDetalle] = useState(false)
   const snapshotRef = useRef<string>('')
   // Cobro rápido: forma de pago y si se factura
-  const [cobForma, setCobForma] = useState<string>(FORMAS_PAGO[0])
-  const [cobFactura, setCobFactura] = useState(false)
   const [formasFacturables, setFormasFacturables] = useState<string[]>(FORMAS_PAGO_FACTURABLES_DEFAULT)
 
   function msg(m:string,tipo='ok'){setToast({msg:m,tipo});setTimeout(()=>setToast(null),3500)}
@@ -1990,71 +1902,23 @@ export default function Agenda() {
         </div>
       )}
       {/* Modal cobrar */}
-      {modal==='cobrar'&&sel&&(
-        <div style={overlayCss(isMobile)} onClick={()=>setModal(null)}>
-          <div style={{...modalCss(isMobile),maxWidth:400}} onClick={e=>e.stopPropagation()}>
-            <div style={modalTitleCss}>Registrar cobro</div>
-            <div style={groupCss}>
-              <label style={labelCss}>Concepto</label>
-              <input type="text" style={{...selectCss}} value={cobConcepto} onChange={e=>setCobConcepto(e.target.value)}/>
-            </div>
-            <div style={grid2Css}>
-              <div style={groupCss}>
-                <label style={labelCss}>Monto ($)</label>
-                <input type="number" inputMode="decimal" style={{...selectCss}} value={cobMonto} onChange={e=>setCobMonto(e.target.value===''?'':Number(e.target.value))} placeholder="0"/>
-              </div>
-              <div style={groupCss}>
-                <label style={labelCss}>Fecha</label>
-                <input type="date" style={{...selectCss}} value={cobFecha} onChange={e=>setCobFecha(e.target.value)}/>
-              </div>
-            </div>
-
-            {/* Sin forma de pago, este cobro esquivaba el criterio de
-                facturación y se facturaba entero. */}
-            <div style={groupCss}>
-              <label style={labelCss}>Forma de pago</label>
-              <select style={selectCss} value={cobForma}
-                onChange={e=>{
-                  setCobForma(e.target.value)
-                  // Se re-sugiere al cambiar el medio; el usuario puede
-                  // desmarcarlo después si el paciente pide otra cosa.
-                  setCobFactura(sugerirRequiereFactura(e.target.value, formasFacturables))
-                }}>
-                {FORMAS_PAGO.map(f=><option key={f} value={f}>{f}</option>)}
-              </select>
-            </div>
-
-            <label style={{display:'flex', alignItems:'center', gap:10, cursor:'pointer',
-              padding:'10px 12px', borderRadius:9, marginBottom:'0.85rem',
-              background: cobFactura ? 'rgba(29,158,117,0.08)' : 'var(--bg-input, #f8fafc)',
-              border:`1px solid ${cobFactura ? 'rgba(29,158,117,0.3)' : 'var(--border-color, #e2e8ed)'}`}}>
-              <input type="checkbox" checked={cobFactura} onChange={e=>setCobFactura(e.target.checked)}
-                style={{width:18, height:18, accentColor:'#1D9E75', cursor:'pointer'}}/>
-              <span style={{fontSize:13.5, color:'var(--text-dark, #0a1e3d)', fontWeight:500}}>
-                Facturar este cobro
-                <span style={{display:'block', fontSize:11.5, color:'var(--text-muted-darker, #4a6080)', fontWeight:400, marginTop:2}}>
-                  {sugerirRequiereFactura(cobForma, formasFacturables)
-                    ? `${cobForma} se factura según tu configuración`
-                    : `${cobForma} no se factura, salvo que el paciente lo pida`}
-                </span>
-              </span>
-            </label>
-            {cobPrevio !== null && (
-              <div role="alert" style={{padding:'10px 12px', borderRadius:9, marginBottom:'0.85rem',
-                background:'var(--warning-soft)', border:'1px solid var(--warning-border)',
-                color:'var(--warning-text)', fontSize:13}}>
-                {textoPagoPrevio(cobPrevio)}
-              </div>
-            )}
-            <div style={footerCss}>
-              <button style={btnLightCss} onClick={()=>{setModal(null); setCobPrevio(null)}} disabled={guardandoCobro}>Cancelar</button>
-              <button style={{...btnDarkCss,opacity:guardandoCobro?0.6:1}}
-                onClick={()=>guardarCobroExpress(cobPrevio !== null)} disabled={guardandoCobro} aria-busy={guardandoCobro}>
-                {guardandoCobro ? 'Registrando…' : cobPrevio !== null ? 'Registrar otro pago' : 'Confirmar cobro'}
-              </button>
-            </div>
-          </div>
-        </div>
+      {tenant && (
+        <CobrarTurno
+          open={modal==='cobrar' && !!sel}
+          turno={sel ? { id: sel.id, pacienteId: sel.paciente_id, fecha: sel.fecha, nombre: sel.nombre, tratamiento: sel.tratamiento, valor: sel.valor } : null}
+          supabase={supabase}
+          tenantId={tenant.id}
+          formasFacturables={formasFacturables}
+          onClose={()=>setModal(null)}
+          onResultado={(r, m)=>{
+            msg(m.texto, m.tono === 'exito' ? 'ok' : 'error')
+            loadCitas()
+            if (r.tipo === 'cobrado' && sel) {
+              triggerConfetti()
+              setPropuestaProximaCita(sel)
+            }
+          }}
+        />
       )}
       {/* Modal de Pre-agendamiento */}
       {propuestaProximaCita && (
