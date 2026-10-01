@@ -1,8 +1,9 @@
 'use client'
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { FORMAS_PAGO, FORMAS_PAGO_FACTURABLES_DEFAULT, sumarMontos, subtotalItem, sugerirRequiereFactura } from '@/lib/pagos'
 import { registrarPago, formasFacturablesDe } from '@/lib/registrar-pago'
+import { formatoPesos } from '@/lib/cobro-previo'
 
 /**
  * Editor de renglones de tratamiento y formas de pago de una cita.
@@ -98,6 +99,12 @@ export function DetalleCitaCobro({ tenantId, citaId, pacienteId, sena = 0, valor
   const [pForma, setPForma] = useState<string>(FORMAS_PAGO[0])
   const [pMonto, setPMonto] = useState<number | ''>('')
   const [pFactura, setPFactura] = useState(false)
+  // Bloqueo del botón de pago: el ref corta un segundo click en el mismo
+  // render, antes de que el estado deshabilite el botón.
+  const [guardandoPago, setGuardandoPago] = useState(false)
+  const pagandoRef = useRef(false)
+  // Pago que dejaría el turno cobrado de más: se pide confirmación explícita.
+  const [confirmarExceso, setConfirmarExceso] = useState(false)
   const [formasFacturables, setFormasFacturables] = useState<string[]>(FORMAS_PAGO_FACTURABLES_DEFAULT)
 
   const cargar = useCallback(async () => {
@@ -156,16 +163,30 @@ export function DetalleCitaCobro({ tenantId, citaId, pacienteId, sena = 0, valor
   }
 
   async function agregarPago() {
+    if (pagandoRef.current) return
     if (pMonto === '' || Number(pMonto) <= 0) return setError('Poné un monto mayor a cero')
+    const monto = Number(pMonto)
+    // Pagos parciales son el uso normal de este panel. Se frena solo cuando
+    // ya hay cobros y este pago supera lo que falta: es el caso que generó
+    // cobros duplicados.
+    if (totalPagado > 0 && monto > saldo && !confirmarExceso) {
+      setConfirmarExceso(true)
+      return
+    }
+    pagandoRef.current = true
+    setGuardandoPago(true)
     setError(null)
     const { error: e } = await registrarPago(supabase, {
       tenantId, pacienteId, citaId,
       formaPago: pForma,
-      monto: Number(pMonto),
+      monto,
       requiereFactura: pFactura,
       origen: 'detalle',
     })
-    if (e) return setError(e)
+    pagandoRef.current = false
+    setGuardandoPago(false)
+    setConfirmarExceso(false)
+    if (e) return setError(`No se registró el pago. ${e}. Podés volver a intentarlo.`)
     setPMonto('')
     await cargar(); onCambio?.()
   }
@@ -326,6 +347,16 @@ export function DetalleCitaCobro({ tenantId, citaId, pacienteId, sena = 0, valor
             </div>
           </div>
         </div>
+        {confirmarExceso && (
+          <div role="alert" style={{ marginTop: 8, padding: '8px 10px', borderRadius: 8, fontSize: 12.5,
+            background: 'var(--warning-soft, #fffbeb)', border: '1px solid var(--warning-border, #fde68a)',
+            color: 'var(--warning-text, #92400e)' }}>
+            Este turno ya tiene {formatoPesos(totalPagado)} cobrados y {saldo > 0 ? `faltan ${formatoPesos(saldo)}` : 'no tiene saldo pendiente'}.
+            {' '}Con este pago quedaría cobrado de más. ¿Querés registrarlo igual?{' '}
+            <button style={{ background: 'none', border: 'none', color: 'inherit', textDecoration: 'underline', cursor: 'pointer', padding: 0, font: 'inherit' }}
+              onClick={() => setConfirmarExceso(false)}>Cancelar</button>
+          </div>
+        )}
         <div style={{ display: 'flex', flexDirection: angosto ? 'column' : 'row', gap: 8,
           justifyContent: 'space-between', alignItems: angosto ? 'stretch' : 'center', marginTop: 8 }}>
           <span style={{ fontSize: 12, color: '#64748b' }}>
@@ -375,7 +406,7 @@ export function DetalleCitaCobro({ tenantId, citaId, pacienteId, sena = 0, valor
           <div>
             <label style={labelSt}>Monto</label>
             <input type="number" min={0} inputMode="decimal" style={inputSt} value={pMonto}
-              onChange={e => setPMonto(e.target.value === '' ? '' : Number(e.target.value))} placeholder="0" />
+              onChange={e => { setPMonto(e.target.value === '' ? '' : Number(e.target.value)); setConfirmarExceso(false) }} placeholder="0" />
           </div>
         </div>
         {/* La decisión de facturar se toma acá y queda guardada con el cobro.
@@ -402,12 +433,15 @@ export function DetalleCitaCobro({ tenantId, citaId, pacienteId, sena = 0, valor
             // Atajo: completa el monto con lo que falta cobrar, para no tipearlo
             <button
               style={{ ...btnAdd, borderStyle: 'solid', borderColor: '#e2e8f0', color: '#64748b' }}
-              onClick={() => setPMonto(saldo)}
+              onClick={() => { setPMonto(saldo); setConfirmarExceso(false) }}
             >
               Saldo restante: {fmt(saldo)}
             </button>
           ) : <span />}
-          <button style={btnAdd} onClick={agregarPago}>+ Registrar pago</button>
+          <button style={{ ...btnAdd, opacity: guardandoPago ? 0.6 : 1 }} onClick={agregarPago}
+            disabled={guardandoPago} aria-busy={guardandoPago}>
+            {guardandoPago ? 'Guardando…' : confirmarExceso ? 'Registrar igual' : '+ Registrar pago'}
+          </button>
         </div>
       </div>
 
