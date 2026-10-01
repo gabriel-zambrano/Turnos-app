@@ -11,7 +11,6 @@
   --bg-overlay: rgba(10, 25, 47, 0.45);
   --bg-modal: #ffffff;
   --text-dark: #0a1e3d;
-  --text-muted: #8fa3bc;
   --text-muted-darker: #4a6080;
   --border-color: #e2e8f0;
   --border-light: rgba(15, 30, 61, 0.08);
@@ -79,6 +78,66 @@
   --est-asistio-color: #0C447C;
   --est-cancelado-bg: #FAECE7;
   --est-cancelado-color: #712B13;
+  --est-ausente-bg: #EEF1F5;
+  --est-ausente-color: #3F4D63;
+
+  /* ── Sistema de diseño (Fase 2) ──────────────────────────────────────
+     Todo token nuevo existe también en [data-theme="dark"]. Contrastes
+     medidos contra --bg-card (#fff) y --bg-app (#f4f7fb); mínimo WCAG AA
+     para texto normal: 4,5:1. */
+
+  /* Texto secundario. Antes #8fa3bc (2,58:1, no pasaba AA).
+     #5d7190: 4,96:1 sobre tarjeta y 4,62:1 sobre el fondo de la app. */
+  --text-muted: #5d7190;
+  /* No hay un gris más claro que pase 4,5:1 sobre el fondo de la app, así
+     que "sutil" es el mismo tono. Existe para placeholders y metadatos; si
+     algún día se lo aclara, tiene que volver a medirse. */
+  --text-subtle: var(--text-muted);
+
+  /* Acento: acciones, links, foco. 6,52:1 sobre blanco. */
+  --accent: #185fa5;
+  --accent-hover: #134c84;
+  --accent-soft: rgba(24, 95, 165, 0.10);
+  --accent-contrast: #ffffff;
+  --focus-ring: 0 0 0 3px rgba(24, 95, 165, 0.35);
+
+  /* Estados. -text es el color de texto sobre -soft (≥ 5,9:1). */
+  --success: #0f8a66;
+  --success-soft: #ecf8f3;
+  --success-border: #a7dcc8;
+  --success-text: #0b6b50;
+  --warning: #b45309;
+  --warning-soft: #fffbeb;
+  --warning-border: #fde68a;
+  --warning-text: #92400e;
+  --danger: #c0352a;
+  --danger-soft: #fef2f2;
+  --danger-border: #fecaca;
+  --danger-text: #b42318;
+  --info: var(--accent);
+  --info-soft: var(--accent-soft);
+
+  /* Escalas. Pasos fijos en lugar de 55 tamaños, 209 paddings y 32 radios. */
+  --fs-xs: 12px;   /* mínimo de la app de la clínica */
+  --fs-sm: 13px;
+  --fs-md: 14px;
+  --fs-lg: 16px;
+  --fs-xl: 20px;
+  --fs-2xl: 24px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+  --radius-sm: 6px;    /* controles */
+  --radius-md: 10px;   /* superficies */
+  --radius-pill: 999px;
+  --shadow-pop: 0 8px 24px rgba(10, 25, 47, 0.12), 0 1px 3px rgba(10, 25, 47, 0.08);
+  --shadow-modal: 0 24px 64px rgba(10, 25, 47, 0.22);
+  --dur-fast: 120ms;
+  --dur-base: 180ms;
 }
 
 [data-theme="dark"] {
@@ -91,7 +150,6 @@
   --bg-overlay: rgba(0, 0, 0, 0.65);
   --bg-modal: rgba(15, 23, 42, 0.98);
   --text-dark: #f8fafc;
-  --text-muted: #849bbb;
   --text-muted-darker: #cbd5e1;
   --border-color: #1e293b;
   --border-light: rgba(255, 255, 255, 0.08);
@@ -141,6 +199,37 @@
   --est-asistio-color: #bae6fd;
   --est-cancelado-bg: rgba(216, 90, 48, 0.15);
   --est-cancelado-color: #fca5a5;
+  --est-ausente-bg: rgba(148, 163, 184, 0.14);
+  --est-ausente-color: #cbd5e1;
+
+  /* Sistema de diseño (Fase 2), tema oscuro. Contrastes contra --bg-card
+     (#0f172a) y --bg-app (#080d16). */
+  --text-muted: #849bbb;          /* 6,28:1 */
+  --text-subtle: var(--text-muted);
+
+  --accent: #6aa9ee;              /* 7,25:1 */
+  --accent-hover: #8dbdf2;
+  --accent-soft: rgba(106, 169, 238, 0.14);
+  --accent-contrast: #0b1220;     /* texto sobre el acento: 7,6:1 */
+  --focus-ring: 0 0 0 3px rgba(106, 169, 238, 0.45);
+
+  --success: #34d399;
+  --success-soft: rgba(52, 211, 153, 0.12);
+  --success-border: rgba(52, 211, 153, 0.35);
+  --success-text: #5eead4;        /* 12,1:1 */
+  --warning: #f59e0b;
+  --warning-soft: rgba(245, 158, 11, 0.12);
+  --warning-border: rgba(245, 158, 11, 0.35);
+  --warning-text: #fcd34d;        /* 12,4:1 */
+  --danger: #f87171;
+  --danger-soft: rgba(248, 113, 113, 0.12);
+  --danger-border: rgba(248, 113, 113, 0.35);
+  --danger-text: #fca5a5;         /* 9,4:1 */
+  --info: var(--accent);
+  --info-soft: var(--accent-soft);
+
+  --shadow-pop: 0 8px 24px rgba(0, 0, 0, 0.45), 0 1px 3px rgba(0, 0, 0, 0.35);
+  --shadow-modal: 0 24px 64px rgba(0, 0, 0, 0.6);
 }
 
 /* ── El armazón de la app ──
@@ -390,14 +479,34 @@ body {
   filter: brightness(0.95);
 }
 
+/* Foco visible para teclado (WCAG 2.4.7). Solo con :focus-visible: el click
+   del mouse no dibuja el anillo. Va con !important porque 17 lugares del
+   código ponen outline: none inline; esto lo devuelve sin tocar cada uno. */
+:focus-visible {
+  outline: 2px solid var(--accent) !important;
+  outline-offset: 2px !important;
+}
+input:focus-visible, select:focus-visible, textarea:focus-visible {
+  outline: none !important; /* los campos ya muestran borde + anillo abajo */
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 /* Input focus styles */
 input, select, textarea {
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
 
 input:focus, select:focus, textarea:focus {
-  border-color: #185FA5 !important;
-  box-shadow: 0 0 0 3px rgba(24, 95, 165, 0.15) !important;
+  border-color: var(--accent) !important;
+  box-shadow: var(--focus-ring) !important;
   background: var(--bg-input, #ffffff) !important;
   color: var(--text-dark) !important;
 }
@@ -714,3 +823,47 @@ input, select, textarea, button {
 
 
 
+
+/* ── Componentes del sistema de diseño (Fase 2) ─────────────────────────
+   Hover, activo y deshabilitado no se pueden escribir como estilos inline,
+   por eso estos componentes usan clases. Colores siempre por tokens. */
+
+.dd-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2);
+  font-family: var(--font-sans); font-weight: 600; line-height: 1.2;
+  border-radius: var(--radius-sm); border: 1px solid transparent;
+  cursor: pointer; white-space: nowrap; user-select: none;
+  transition: background-color var(--dur-fast) ease, border-color var(--dur-fast) ease,
+              color var(--dur-fast) ease, transform var(--dur-fast) ease;
+}
+.dd-btn--md { min-height: 36px; padding: 0 var(--space-4); font-size: var(--fs-md); }
+.dd-btn--sm { min-height: 30px; padding: 0 var(--space-3); font-size: var(--fs-sm); }
+.dd-btn--full { width: 100%; }
+.dd-btn:active:not(:disabled) { transform: translateY(1px); }
+.dd-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+.dd-btn[aria-busy="true"] { cursor: progress; }
+
+.dd-btn--primary { background: var(--accent); color: var(--accent-contrast); }
+.dd-btn--primary:hover:not(:disabled) { background: var(--accent-hover); }
+
+.dd-btn--secondary { background: var(--bg-input); color: var(--text-dark); border-color: var(--border-color); }
+.dd-btn--secondary:hover:not(:disabled) { background: var(--bg-card-hover); border-color: var(--text-muted); }
+
+.dd-btn--ghost { background: transparent; color: var(--text-dark); }
+.dd-btn--ghost:hover:not(:disabled) { background: var(--accent-soft); }
+
+.dd-btn--danger { background: var(--danger); color: #ffffff; }
+.dd-btn--danger:hover:not(:disabled) { filter: brightness(0.92); }
+[data-theme="dark"] .dd-btn--danger { color: #1a0505; }
+
+.dd-btn-spinner {
+  width: 14px; height: 14px; border-radius: 50%;
+  border: 2px solid currentColor; border-right-color: transparent;
+  animation: dd-spin 0.7s linear infinite; flex-shrink: 0;
+}
+@keyframes dd-spin { to { transform: rotate(360deg); } }
+
+/* Táctil: objetivo mínimo de 44 px en pantallas con dedo. */
+@media (pointer: coarse) {
+  .dd-btn--md, .dd-btn--sm { min-height: 44px; }
+}
