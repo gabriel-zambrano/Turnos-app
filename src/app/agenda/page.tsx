@@ -12,6 +12,8 @@ import { triggerConfetti } from '@/lib/confetti'
 import { FORMAS_PAGO, FORMAS_PAGO_FACTURABLES_DEFAULT, sugerirRequiereFactura } from '@/lib/pagos'
 import { registrarPago, formasFacturablesDe } from '@/lib/registrar-pago'
 import { registrarInasistenciaAction, aprobarAsistenciaAction } from '@/app/actions/fidelizacion'
+import { FIDELIZACION_HABILITADA } from '@/lib/fidelizacion-flag'
+import { cobradoDeCita, requiereConfirmarPagoExtra, textoPagoPrevio, formatoPesos } from '@/lib/cobro-previo'
 import dynamic from 'next/dynamic'
 
 // Lazy-load: el modal solo se descarga cuando el usuario lo abre, no en la carga inicial.
@@ -385,6 +387,11 @@ export default function Agenda() {
   const [cobMonto, setCobMonto] = useState<number | ''>('')
   const [cobFecha, setCobFecha] = useState('')
   const [guardandoCobro, setGuardandoCobro] = useState(false)
+  // El estado tarda un render en deshabilitar el botón: dos clicks seguidos
+  // entraban los dos. El ref corta el segundo en el mismo instante.
+  const cobrandoRef = useRef(false)
+  // Lo ya cobrado del turno cuando hay que confirmar un pago extra.
+  const [cobPrevio, setCobPrevio] = useState<number | null>(null)
 
   // Pre-agendamiento States
   const [propuestaProximaCita, setPropuestaProximaCita] = useState<Cita | null>(null)
@@ -399,6 +406,7 @@ export default function Agenda() {
     // se pre-marca según el criterio de la clínica.
     setCobForma(FORMAS_PAGO[0])
     setCobFactura(sugerirRequiereFactura(FORMAS_PAGO[0], formasFacturables))
+    setCobPrevio(null)
     setModal('cobrar')
   }
 
@@ -408,52 +416,73 @@ export default function Agenda() {
     formasFacturablesDe(supabase, tenant.id).then(setFormasFacturables)
   }, [tenant, supabase])
 
-  async function guardarCobroExpress() {
+  async function guardarCobroExpress(confirmadoPagoExtra = false) {
     if (!tenant || !sel) return
-    const { data: origCajaRes } = await supabase
-      .from('cajas_diarias')
-      .select('estado')
-      .eq('tenant_id', tenant.id)
-      .eq('fecha', sel.fecha)
-      .maybeSingle()
-    if (origCajaRes?.estado === 'cerrada') {
-      return msg('La caja está cerrada para este día', 'error')
-    }
+    if (cobrandoRef.current) return
     if (!cobConcepto.trim() || cobMonto === '' || Number(cobMonto) <= 0) {
       return msg('Completá concepto y monto', 'error')
     }
+    // Se bloquea antes de cualquier consulta: la de caja tardaba lo
+    // suficiente para que un doble click registrara dos pagos.
+    cobrandoRef.current = true
     setGuardandoCobro(true)
+    const liberar = () => { cobrandoRef.current = false; setGuardandoCobro(false) }
+
+    const [{ data: origCajaRes }, previo] = await Promise.all([
+      supabase.from('cajas_diarias').select('estado')
+        .eq('tenant_id', tenant.id).eq('fecha', sel.fecha).maybeSingle(),
+      cobradoDeCita(supabase, tenant.id, sel.id),
+    ])
+    if (origCajaRes?.estado === 'cerrada') {
+      liberar()
+      return msg('La caja de este día está cerrada. Reabrila desde Finanzas para registrar el cobro.', 'error')
+    }
+    if (previo.error) {
+      liberar()
+      return msg('No se pudo verificar si el turno ya tiene cobros. No se registró nada; probá de nuevo.', 'error')
+    }
+    if (requiereConfirmarPagoExtra(previo.total, confirmadoPagoExtra)) {
+      liberar()
+      setCobPrevio(previo.total)
+      return
+    }
 
     // El cobro entra por `pagos`, no escribiendo `citas.precio_cobrado` a
     // mano: así queda la forma de pago (sin ella este cobro esquivaba el
     // criterio de facturación) y el trigger mantiene la columna derivada.
+    const monto = Number(cobMonto)
     const { error: pagoError } = await registrarPago(supabase, {
       tenantId: tenant.id,
       pacienteId: sel.paciente_id,
       citaId: sel.id,
       formaPago: cobForma,
-      monto: Number(cobMonto),
+      monto,
       requiereFactura: cobFactura,
       origen: 'cobro_rapido',
       nota: cobConcepto.trim(),
     })
 
     if (pagoError) {
-      setGuardandoCobro(false)
-      return msg('Error al registrar cobro: ' + pagoError, 'error')
+      liberar()
+      return msg(`No se registró el cobro. ${pagoError}. Podés volver a intentarlo.`, 'error')
     }
 
-    // 3. Approve assistance and process points
+    // El pago ya está guardado. De acá en adelante, pase lo que pase, el
+    // modal se cierra: si quedara abierto, el usuario reintentaría y
+    // duplicaría el cobro.
     const resAprobar = await aprobarAsistenciaAction(sel.id)
-    setGuardandoCobro(false)
+    liberar()
+    setModal(null)
+    setCobPrevio(null)
+    loadCitas()
 
     if (!resAprobar.success) {
-      msg('Cobro registrado pero error al procesar puntos: ' + resAprobar.error, 'error')
+      msg(`El cobro de ${formatoPesos(monto)} quedó registrado. No se pudo marcar el turno como asistido; hacelo desde el turno. No vuelvas a cobrarlo.`, 'error')
     } else {
-      setModal(null)
-      msg('Cobro registrado y puntos acreditados correctamente ✓')
+      msg(FIDELIZACION_HABILITADA
+        ? `Cobro de ${formatoPesos(monto)} registrado · puntos acreditados`
+        : `Cobro de ${formatoPesos(monto)} registrado · turno cerrado`)
       triggerConfetti()
-      loadCitas()
       setPropuestaProximaCita(sel)
     }
   }
@@ -703,15 +732,15 @@ export default function Agenda() {
       if (cita) {
         if (!cita.precio_cobrado) {
           openCobroExpress(cita)
-          msg('Ingresá el cobro para procesar los puntos.')
+          msg('Ingresá el cobro para cerrar el turno.')
           return
         } else {
           const res = await aprobarAsistenciaAction(id)
           if (!res.success) {
-            msg('Error al procesar puntos: ' + res.error, 'error')
+            msg('No se pudo cerrar el turno. Probá de nuevo; no se registró ningún cobro.', 'error')
           } else {
             setCitas(p=>p.map(c=>c.id===id?{...c,estado}:c))
-            msg('Turno cerrado y puntos acumulados ✓')
+            msg(FIDELIZACION_HABILITADA ? 'Turno cerrado · puntos acreditados' : 'Turno cerrado')
             triggerConfetti()
             setPropuestaProximaCita(cita)
           }
@@ -2008,10 +2037,18 @@ export default function Agenda() {
                 </span>
               </span>
             </label>
+            {cobPrevio !== null && (
+              <div role="alert" style={{padding:'10px 12px', borderRadius:9, marginBottom:'0.85rem',
+                background:'var(--warning-soft, #fffbeb)', border:'1px solid var(--warning-border, #fde68a)',
+                color:'var(--warning-text, #92400e)', fontSize:13}}>
+                {textoPagoPrevio(cobPrevio)}
+              </div>
+            )}
             <div style={footerCss}>
-              <button style={btnLightCss} onClick={()=>setModal(null)} disabled={guardandoCobro}>Cancelar</button>
-              <button style={{...btnDarkCss,opacity:guardandoCobro?0.6:1}} onClick={guardarCobroExpress} disabled={guardandoCobro}>
-                {guardandoCobro?'Registrando...':'Confirmar cobro'}
+              <button style={btnLightCss} onClick={()=>{setModal(null); setCobPrevio(null)}} disabled={guardandoCobro}>Cancelar</button>
+              <button style={{...btnDarkCss,opacity:guardandoCobro?0.6:1}}
+                onClick={()=>guardarCobroExpress(cobPrevio !== null)} disabled={guardandoCobro} aria-busy={guardandoCobro}>
+                {guardandoCobro ? 'Registrando…' : cobPrevio !== null ? 'Registrar otro pago' : 'Confirmar cobro'}
               </button>
             </div>
           </div>
