@@ -349,8 +349,8 @@ export function DetalleCitaCobro({ tenantId, citaId, pacienteId, sena = 0, valor
         </div>
         {confirmarExceso && (
           <div role="alert" style={{ marginTop: 8, padding: '8px 10px', borderRadius: 8, fontSize: 12.5,
-            background: 'var(--warning-soft, #fffbeb)', border: '1px solid var(--warning-border, #fde68a)',
-            color: 'var(--warning-text, #92400e)' }}>
+            background: 'var(--warning-soft)', border: '1px solid var(--warning-border)',
+            color: 'var(--warning-text)' }}>
             Este turno ya tiene {formatoPesos(totalPagado)} cobrados y {saldo > 0 ? `faltan ${formatoPesos(saldo)}` : 'no tiene saldo pendiente'}.
             {' '}Con este pago quedaría cobrado de más. ¿Querés registrarlo igual?{' '}
             <button style={{ background: 'none', border: 'none', color: 'inherit', textDecoration: 'underline', cursor: 'pointer', padding: 0, font: 'inherit' }}

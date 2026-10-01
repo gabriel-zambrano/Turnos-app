@@ -1472,14 +1472,14 @@ export default function FinanzasPage() {
 
             {fError && (
               <div role="alert" style={{ marginTop:12, padding:'10px 12px', borderRadius:8, fontSize:12.5, lineHeight:1.45,
-                background:'var(--danger-soft, #fef2f2)', border:'1px solid var(--danger-border, #fecaca)', color:'var(--danger-text, #991b1b)' }}>
+                background:'var(--danger-soft)', border:'1px solid var(--danger-border)', color:'var(--danger-text)' }}>
                 {fError}
               </div>
             )}
 
             {fConfirmarNoFacturable && (
               <div role="alert" style={{ marginTop:12, padding:'10px 12px', borderRadius:8, fontSize:12.5, lineHeight:1.45,
-                background:'var(--warning-soft, #fffbeb)', border:'1px solid var(--warning-border, #fde68a)', color:'var(--warning-text, #92400e)' }}>
+                background:'var(--warning-soft)', border:'1px solid var(--warning-border)', color:'var(--warning-text)' }}>
                 <div>{fConfirmarNoFacturable.mensaje}</div>
                 <div style={{ marginTop:6, fontWeight:600 }}>
                   Si confirmás, se emite ante ARCA una factura por {fmt(fConfirmarNoFacturable.total)}. Una factura emitida no se borra: solo se anula con nota de crédito.

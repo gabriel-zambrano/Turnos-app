@@ -1277,8 +1277,8 @@ export default function Dashboard() {
             
             {cobPrevio !== null && (
               <div role="alert" style={{ padding: '10px 12px', borderRadius: 9, marginBottom: '0.85rem', fontSize: 13,
-                background: 'var(--warning-soft, #fffbeb)', border: '1px solid var(--warning-border, #fde68a)',
-                color: 'var(--warning-text, #92400e)' }}>
+                background: 'var(--warning-soft)', border: '1px solid var(--warning-border)',
+                color: 'var(--warning-text)' }}>
                 {textoPagoPrevio(cobPrevio)}
               </div>
             )}
