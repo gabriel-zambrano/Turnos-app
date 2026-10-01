@@ -17,27 +17,29 @@ export function useIsMobile() {
 }
  
 export const inputCss: React.CSSProperties = {
-  padding: '0.75rem 0.85rem', minHeight: 44, border: '1px solid var(--border-color, #dde5ef)', borderRadius: 10,
-  fontSize: 14, fontFamily: 'DM Sans, sans-serif', color: 'var(--text-dark, #0a1e3d)',
-  background: 'var(--bg-input, rgba(255,255,255,0.8))', outline: 'none', width: '100%',
+  padding: '0.65rem 0.85rem', minHeight: 40, border: '1px solid var(--border-color, #e2e8f0)', borderRadius: 9,
+  fontSize: 13.5, fontFamily: 'inherit', color: 'var(--text-dark, #0a1e3d)',
+  background: 'var(--bg-input, #ffffff)', outline: 'none', width: '100%',
+  boxShadow: '0 1px 2px rgba(10,30,61,0.02)',
 }
 export const selectCss: React.CSSProperties = { ...inputCss }
 export const textareaCss: React.CSSProperties = { ...inputCss, resize: 'vertical', minHeight: 80 }
 export const overlayCss = (isMobile = false): React.CSSProperties => ({
-  position: 'fixed', inset: 0, background: 'var(--bg-overlay, rgba(10,30,61,0.45))', zIndex: 1100,
+  position: 'fixed', inset: 0, background: 'var(--bg-overlay, rgba(10,25,47,0.45))', zIndex: 1100,
   display: 'flex', alignItems: isMobile ? 'flex-end' : 'center', justifyContent: 'center',
-  padding: isMobile ? 0 : '1rem', backdropFilter: 'blur(4px)',
+  padding: isMobile ? 0 : '1rem', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)',
 })
 export const modalCss = (isMobile = false): React.CSSProperties => ({
-  background: 'var(--bg-modal, rgba(255,255,255,0.95))', backdropFilter: 'blur(20px)',
+  background: 'var(--bg-modal, #ffffff)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
   borderRadius: isMobile ? '20px 20px 0 0' : 16, padding: '1.75rem',
   width: '100%', maxWidth: isMobile ? '100vw' : 540, maxHeight: isMobile ? '90dvh' : '90vh', overflowY: 'auto',
-  border: '1px solid var(--border-light, rgba(56,138,221,0.2))',
+  border: '1px solid var(--border-light, rgba(15,30,61,0.08))',
+  boxShadow: '0 20px 50px -10px rgba(10,30,61,0.22), 0 0 1px rgba(0,0,0,0.1)',
 })
-export const modalTitleCss: React.CSSProperties = { fontSize: 17, fontWeight: 600, color: DARK, marginBottom: '1.25rem' }
+export const modalTitleCss: React.CSSProperties = { fontSize: 17, fontWeight: 700, color: DARK, marginBottom: '1.25rem', letterSpacing: '-0.02em' }
 export const footerCss: React.CSSProperties = { display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '1.25rem' }
 export const groupCss: React.CSSProperties = { marginBottom: '0.85rem' }
-export const labelCss: React.CSSProperties = { fontSize: 12, fontWeight: 500, color: 'var(--text-muted-darker, #4a6080)', display: 'block', marginBottom: 5 }
+export const labelCss: React.CSSProperties = { fontSize: 12, fontWeight: 600, color: 'var(--text-muted-darker, #4a6080)', display: 'block', marginBottom: 5, letterSpacing: '0.01em' }
 /**
  * Grilla de dos columnas para formularios.
  *
@@ -47,9 +49,9 @@ export const labelCss: React.CSSProperties = { fontSize: 12, fontWeight: 500, co
  * El fallback `1fr 1fr` cubre el caso de que la variable no esté cargada.
  */
 export const grid2Css: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'var(--grid-2, 1fr 1fr)', gap: '1rem' }
-export const btnDarkCss: React.CSSProperties = { minHeight: 44, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '0.55rem 1.1rem', borderRadius: 9, fontSize: 13.5, fontWeight: 600, cursor: 'pointer', border: 'none', background: 'linear-gradient(135deg, #0a1e3d, #185FA5)', color: '#fff', fontFamily: 'DM Sans, sans-serif' }
-export const btnLightCss: React.CSSProperties = { minHeight: 44, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '0.55rem 1.1rem', borderRadius: 9, fontSize: 13.5, fontWeight: 500, cursor: 'pointer', border: '1px solid var(--border-color, #dde5ef)', background: 'var(--bg-input, rgba(255,255,255,0.8))', color: 'var(--text-muted-darker, #4a6080)', fontFamily: 'DM Sans, sans-serif' }
-export const btnRedCss: React.CSSProperties = { minHeight: 44, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '0.55rem 1.1rem', borderRadius: 9, fontSize: 13.5, fontWeight: 500, cursor: 'pointer', border: 'none', background: '#D85A30', color: '#fff', fontFamily: 'DM Sans, sans-serif' }
+export const btnDarkCss: React.CSSProperties = { minHeight: 40, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '0.55rem 1.15rem', borderRadius: 9, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(255,255,255,0.1)', background: 'linear-gradient(180deg, #185FA5 0%, #0a1e3d 100%)', color: '#fff', fontFamily: 'inherit', boxShadow: '0 1px 2px rgba(10,30,61,0.15), inset 0 1px 0 rgba(255,255,255,0.18)', transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)' }
+export const btnLightCss: React.CSSProperties = { minHeight: 40, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '0.55rem 1.15rem', borderRadius: 9, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: '1px solid var(--border-color, #e2e8f0)', background: 'var(--bg-input, #ffffff)', color: 'var(--text-muted-darker, #4a6080)', fontFamily: 'inherit', boxShadow: '0 1px 2px rgba(0,0,0,0.04)', transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)' }
+export const btnRedCss: React.CSSProperties = { minHeight: 40, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '0.55rem 1.15rem', borderRadius: 9, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(0,0,0,0.05)', background: 'linear-gradient(180deg, #E05A32 0%, #B83A14 100%)', color: '#fff', fontFamily: 'inherit', boxShadow: '0 1px 2px rgba(184, 58, 20, 0.2), inset 0 1px 0 rgba(255,255,255,0.2)', transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)' }
 
 /**
  * Bloquea el scroll del fondo mientras hay un modal abierto.
@@ -89,21 +91,53 @@ export function useBloqueoScroll(activo: boolean) {
   }, [activo])
 }
 
-export function Badge({ bg, color, children }: { bg: string; color: string; children: React.ReactNode }) {
-  return <span style={{ display: 'inline-flex', alignItems: 'center', fontSize: 11, fontWeight: 500, padding: '3px 9px', borderRadius: 6, background: bg, color, whiteSpace: 'nowrap' }}>{children}</span>
+export function Badge({ bg, color, dot = false, children }: { bg: string; color: string; dot?: boolean; children: React.ReactNode }) {
+  return (
+    <span style={{
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 5,
+      fontSize: 11.5,
+      fontWeight: 600,
+      padding: '2.5px 8px',
+      borderRadius: 6,
+      background: bg,
+      color,
+      whiteSpace: 'nowrap',
+      border: `1px solid ${color}20`,
+      letterSpacing: '0.01em',
+    }}>
+      {dot && <span style={{ width: 5, height: 5, borderRadius: '50%', background: color }} />}
+      {children}
+    </span>
+  )
 }
 
 /**
  * El aviso flotante de "guardado ✓".
- *
- * `isMobile` sigue aceptándose para no tocar los diez lugares que lo pasan,
- * pero ya no hace nada: la altura la decide `.app-toast` en globals.css, que
- * lo sube arriba de la barra inferior con una media query. Antes se calculaba
- * en JavaScript, así que en la primera pintura el aviso aparecía tapado por la
- * barra y saltaba después.
  */
 export function Toast({ msg, tipo }: { msg: string; tipo: string; isMobile?: boolean }) {
-  return <div className="app-toast" style={{ padding: '10px 22px', borderRadius: 10, fontSize: 13, fontWeight: 500, zIndex: 2000, background: tipo === 'ok' ? 'linear-gradient(135deg,#0a1e3d,#185FA5)' : '#D85A30', color: '#fff', whiteSpace: 'nowrap', boxShadow: '0 4px 24px rgba(24,95,165,0.25)' }}>{msg}</div>
+  const isOk = tipo === 'ok'
+  return (
+    <div className="app-toast dropdown-fade-in" style={{
+      padding: '8px 16px',
+      borderRadius: 10,
+      fontSize: 13,
+      fontWeight: 600,
+      zIndex: 2000,
+      background: isOk ? '#0a1e3d' : '#991B1B',
+      color: '#fff',
+      whiteSpace: 'nowrap',
+      boxShadow: '0 10px 25px rgba(10,30,61,0.2), 0 2px 6px rgba(0,0,0,0.08)',
+      border: '1px solid rgba(255,255,255,0.15)',
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 8,
+    }}>
+      <span style={{ fontSize: 13 }}>{isOk ? '✓' : '⚠️'}</span>
+      <span>{msg}</span>
+    </div>
+  )
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -215,7 +249,7 @@ export function ProgressRing({ percentage, size = 38, strokeWidth = 3.5, color }
 export function MetricCard({ label, value, sub, accent, right }: { label: string; value: string | number; sub?: string; accent: string; right?: React.ReactNode }) {
   return (
     <div className="glass-card" style={{ 
-      padding: '1.25rem 1.4rem', 
+      padding: '1.2rem 1.35rem', 
       minWidth: 0,
       display: 'flex',
       flexDirection: 'column',
@@ -225,19 +259,19 @@ export function MetricCard({ label, value, sub, accent, right }: { label: string
       '--card-accent': accent,
       '--card-accent-alpha': `${accent}15`
     } as React.CSSProperties}>
-      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 4, background: `linear-gradient(90deg, ${accent}, ${accent}88)` }}/>
+      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2.5, background: `linear-gradient(90deg, ${accent}, ${accent}55)` }}/>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
         <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: 10.5, color: '#7a8f9d', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 700, marginBottom: 8 }}>{label}</div>
+          <div style={{ fontSize: 11, color: 'var(--text-muted-darker, #64748b)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700, marginBottom: 8 }}>{label}</div>
           <div className="kpi-numeral" style={{
-            fontSize: 'clamp(20px, 5.4vw, 30px)',
-            fontWeight: 600, color: DARK, lineHeight: 1.1, letterSpacing: '-0.5px',
+            fontSize: 'clamp(22px, 5.2vw, 30px)',
+            fontWeight: 700, color: DARK, lineHeight: 1.15, letterSpacing: '-0.03em',
             overflowWrap: 'anywhere',
           }}>{value}</div>
         </div>
-        {right && <div style={{ flexShrink: 0, marginTop: 4 }}>{right}</div>}
+        {right && <div style={{ flexShrink: 0, marginTop: 2 }}>{right}</div>}
       </div>
-      {sub && <div style={{ fontSize: 11.5, color: '#8b9cb0', marginTop: 8, fontWeight: 500 }}>{sub}</div>}
+      {sub && <div style={{ fontSize: 12, color: 'var(--text-muted, #8fa3bc)', marginTop: 8, fontWeight: 500 }}>{sub}</div>}
     </div>
   )
 }
@@ -245,10 +279,24 @@ export function MetricCard({ label, value, sub, accent, right }: { label: string
 export function PageHeader({ title, sub, right }: { title: string; sub?: string; right?: React.ReactNode }) {
   const isMobile = useIsMobile()
   return (
-    <div style={{ background: 'var(--bg-header, rgba(255,255,255,0.85))', backdropFilter: 'blur(12px)', borderBottom: '1px solid var(--border-light, rgba(56,138,221,0.12))', padding: isMobile ? '0 1rem' : '0 2rem', minHeight: 58, display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 50, gap: 8 }}>
+    <div style={{
+      background: 'var(--bg-header, rgba(255,255,255,0.90))',
+      backdropFilter: 'blur(12px)',
+      WebkitBackdropFilter: 'blur(12px)',
+      borderBottom: '1px solid var(--border-light, rgba(15,30,61,0.08))',
+      padding: isMobile ? '0 1rem' : '0 2rem',
+      minHeight: 56,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      position: 'sticky',
+      top: 0,
+      zIndex: 50,
+      gap: 12
+    }}>
       <div style={{ minWidth: 0 }}>
-        <div style={{ fontSize: isMobile ? 15 : 16, fontWeight: 700, color: DARK }}>{title}</div>
-        {sub && <div style={{ fontSize: 11, color: '#8fa3bc', textTransform: 'capitalize', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sub}</div>}
+        <div style={{ fontSize: isMobile ? 15 : 16.5, fontWeight: 700, color: DARK, letterSpacing: '-0.02em' }}>{title}</div>
+        {sub && <div style={{ fontSize: 11.5, color: 'var(--text-muted, #8fa3bc)', textTransform: 'capitalize', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: 1 }}>{sub}</div>}
       </div>
       {right && <div style={{ flexShrink: 0 }}>{right}</div>}
     </div>
@@ -257,48 +305,92 @@ export function PageHeader({ title, sub, right }: { title: string; sub?: string;
  
 export function FilterBar({ options, active, onChange }: { options: { k: string; l: string }[]; active: string; onChange: (k: string) => void }) {
   return (
-    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-      {options.map(o => (
-        <button key={o.k} onClick={() => onChange(o.k)} style={{ fontSize: 12, padding: '5px 14px', borderRadius: 8, cursor: 'pointer', fontWeight: 500, fontFamily: 'DM Sans, sans-serif', border: active === o.k ? '1px solid rgba(56,138,221,0.35)' : '1px solid var(--border-color, #dde5ef)', background: active === o.k ? 'linear-gradient(135deg,#e8f0fc,#dbeeff)' : 'var(--bg-input, rgba(255,255,255,0.8))', color: active === o.k ? BLUE : '#8fa3bc' }}>
-          {o.l}
-        </button>
-      ))}
+    <div style={{
+      display: 'inline-flex',
+      gap: 3,
+      padding: 3,
+      background: 'rgba(15, 30, 61, 0.04)',
+      borderRadius: 10,
+      border: '1px solid var(--border-light, rgba(15,30,61,0.06))',
+      flexWrap: 'wrap',
+    }}>
+      {options.map(o => {
+        const isActive = active === o.k
+        return (
+          <button
+            key={o.k}
+            onClick={() => onChange(o.k)}
+            style={{
+              fontSize: 12.5,
+              padding: '5px 13px',
+              borderRadius: 7,
+              cursor: 'pointer',
+              fontWeight: isActive ? 600 : 500,
+              fontFamily: 'inherit',
+              border: 'none',
+              background: isActive ? '#ffffff' : 'transparent',
+              color: isActive ? DARK : 'var(--text-muted-darker, #64748b)',
+              boxShadow: isActive ? '0 1px 3px rgba(0,0,0,0.08), 0 1px 1px rgba(0,0,0,0.04)' : 'none',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            {o.l}
+          </button>
+        )
+      })}
     </div>
   )
 }
- 
+
 export function BtnPrimary({ onClick, children, disabled }: { onClick?: () => void; children: React.ReactNode; disabled?: boolean }) {
   return <button disabled={disabled} onClick={onClick} style={{ ...btnDarkCss, display: 'inline-flex', alignItems: 'center', gap: 7, opacity: disabled ? 0.5 : 1, cursor: disabled ? 'not-allowed' : 'pointer' }}>{children}</button>
 }
- 
+
 export function BtnSm({ onClick, variant, children }: { onClick?: () => void; variant: 'edit' | 'delete'; children: React.ReactNode }) {
   const s = variant === 'edit'
-    ? { border: '1px solid var(--border-color, #dde5ef)', background: 'var(--bg-input, rgba(255,255,255,0.8))', color: 'var(--text-muted-darker, #4a6080)' }
+    ? { border: '1px solid var(--border-color, #e2e8f0)', background: 'var(--bg-input, #ffffff)', color: 'var(--text-muted-darker, #4a6080)' }
     : { border: '1px solid rgba(216,90,48,0.25)', background: '#faece7', color: '#D85A30' }
-  return <button onClick={onClick} style={{ ...s, padding: '5px 12px', borderRadius: 7, fontSize: 12, cursor: 'pointer', fontFamily: 'DM Sans, sans-serif', fontWeight: 500 }}>{children}</button>
+  return <button onClick={onClick} style={{ ...s, padding: '5px 12px', borderRadius: 7, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600, transition: 'all 0.15s ease' }}>{children}</button>
 }
- 
+
 export function DataTable({ headers, empty, emptyMsg = 'Sin resultados', children }: { headers: string[]; empty: boolean; emptyMsg?: string; children?: React.ReactNode }) {
   return (
     <div className="glass-card" style={{ overflow: 'hidden' }}>
       <div style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
-            <tr style={{ background: 'var(--table-header-bg, linear-gradient(135deg,rgba(232,240,252,0.8),rgba(219,238,255,0.6)))' }}>
-              {headers.map((h, i) => <th key={h} style={{ fontSize: 11, fontWeight: 600, color: BLUE, letterSpacing: '0.06em', textTransform: 'uppercase', padding: i === 0 ? '0.75rem 1rem 0.75rem 1.5rem' : '0.75rem 1rem', textAlign: 'left', borderBottom: '1px solid var(--border-light, rgba(56,138,221,0.12))', whiteSpace: 'nowrap' }}>{h}</th>)}
+            <tr style={{ background: 'var(--table-header-bg, #f8fafc)' }}>
+              {headers.map((h, i) => (
+                <th
+                  key={h}
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 700,
+                    color: 'var(--text-muted-darker, #4a6080)',
+                    letterSpacing: '0.06em',
+                    textTransform: 'uppercase',
+                    padding: i === 0 ? '0.85rem 1rem 0.85rem 1.5rem' : '0.85rem 1rem',
+                    textAlign: 'left',
+                    borderBottom: '1px solid var(--border-light, rgba(15,30,61,0.08))',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {h}
+                </th>
+              ))}
             </tr>
           </thead>
-          <tbody>{empty ? <tr><td colSpan={headers.length} style={{ textAlign: 'center', color: '#aab8c8', padding: '2.5rem', fontSize: 13 }}>{emptyMsg}</td></tr> : children}</tbody>
+          <tbody>{empty ? <tr><td colSpan={headers.length} style={{ textAlign: 'center', color: 'var(--text-muted, #aab8c8)', padding: '2.5rem', fontSize: 13 }}>{emptyMsg}</td></tr> : children}</tbody>
         </table>
       </div>
     </div>
   )
 }
- 
+
 export function TR({ children }: { children: React.ReactNode }) {
-  return <tr style={{ borderBottom: '1px solid var(--border-lighter, rgba(56,138,221,0.06))' }}>{children}</tr>
+  return <tr style={{ borderBottom: '1px solid var(--border-lighter, rgba(15,30,61,0.04))', transition: 'background-color 0.15s ease' }} onMouseEnter={e => e.currentTarget.style.backgroundColor = 'rgba(24,95,165,0.02)'} onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}>{children}</tr>
 }
- 
+
 export function TD({ children, first, muted }: { children?: React.ReactNode; first?: boolean; muted?: boolean }) {
-  return <td style={{ padding: first ? '0.9rem 1rem 0.9rem 1.5rem' : '0.9rem 1rem', fontSize: 13.5, color: muted ? 'var(--text-muted, #8fa3bc)' : DARK, verticalAlign: 'middle' }}>{children}</td>
+  return <td style={{ padding: first ? '0.85rem 1rem 0.85rem 1.5rem' : '0.85rem 1rem', fontSize: 13.5, color: muted ? 'var(--text-muted, #8fa3bc)' : DARK, verticalAlign: 'middle' }}>{children}</td>
 }

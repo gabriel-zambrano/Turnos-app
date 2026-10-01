@@ -444,9 +444,13 @@ export default function Dashboard() {
 
   async function confirmar(id:string){
     if (cajaCerrada) return msg('La caja está cerrada para este día', 'error')
-    await supabase.from('citas').update({estado:'confirmado'}).eq('id',id)
     setCitas(p=>p.map(c=>c.id===id?{...c,estado:'confirmado' as EstadoCita}:c))
     msg('Cita confirmada ✓')
+    const { error } = await supabase.from('citas').update({estado:'confirmado'}).eq('id',id)
+    if (error) {
+      msg('Error al confirmar: ' + error.message, 'error')
+      load()
+    }
   }
 
   const enviarRecordatorioWhatsApp = (cita: any) => {
@@ -592,14 +596,14 @@ export default function Dashboard() {
               justifyContent: 'space-between',
               position: 'relative',
               overflow: 'hidden',
-              background: `linear-gradient(135deg, rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0.6))`
+              background: 'var(--bg-card, rgba(255, 255, 255, 0.88))'
             }}>
               <div style={{ position: 'absolute', top: 0, left: 0, bottom: 0, width: 4, background: `linear-gradient(180deg, ${secondaryColor}, ${accentColor})` }}/>
               <div>
-                <h2 style={{ fontSize: isMobile ? 17 : 20, fontWeight: 800, color: primaryColor, marginBottom: 6 }}>
+                <h2 style={{ fontSize: isMobile ? 17 : 20, fontWeight: 800, color: 'var(--text-dark, #0a1e3d)', marginBottom: 6 }}>
                   {getSaludo()}, {nombreParaSaludo(tenant?.nombre)}!
                 </h2>
-                <p style={{ fontSize: 13, color: '#687e96', lineHeight: 1.4 }}>
+                <p style={{ fontSize: 13, color: 'var(--text-muted-darker, #4a6080)', lineHeight: 1.4 }}>
                   {(() => {
                     if (citas.length === 0) return 'No tenés citas agendadas para el día de hoy.'
                     

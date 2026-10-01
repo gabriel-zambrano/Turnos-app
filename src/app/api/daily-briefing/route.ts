@@ -7,9 +7,8 @@ import { esCron } from '@/lib/cron-auth'
 function fmt(n: number) {
   return '$' + Math.round(n).toLocaleString('es-AR')
 }
-function pct(a: number, b: number) {
-  return b === 0 ? 0 : Math.round((a / b) * 100)
-}
+// `pct` se eliminó junto con las métricas de asistencia: su único uso era
+// calcular un porcentaje sobre `estado = 'completado'`, que nunca ocurre.
 function diff(hoy: number, prom: number) {
   if (prom === 0) return { val: 0, up: true }
   const d = Math.round(((hoy - prom) / prom) * 100)
@@ -75,35 +74,67 @@ export async function GET(req: NextRequest) {
       // 2. Consultar citas filtrando estrictamente por tenant_id
       const { data: citasHoy } = await supabase
         .from('citas')
-        .select('estado, valor, saldo, no_show, tipo_tratamiento')
+        .select('valor, saldo, tipo_tratamiento')
         .eq('tenant_id', tenant.id)
         .gte('fecha_hora', hoy.toISOString())
         .lt('fecha_hora', manana.toISOString())
 
       const { data: citasSemana } = await supabase
         .from('citas')
-        .select('estado, valor, fecha_hora, no_show')
+        .select('valor, fecha_hora')
         .eq('tenant_id', tenant.id)
         .gte('fecha_hora', hace7.toISOString())
         .lt('fecha_hora', hoy.toISOString())
 
+      // 3. Turnos de MAÑANA cuyo paciente no tiene email.
+      //
+      // El cron de recordatorios sale a las 8 de la mañana y solo avisa por
+      // correo. Un paciente sin email no recibe nada, y hasta ahora eso era
+      // invisible: el envío lo contaba como exitoso y no dejaba registro.
+      //
+      // El briefing sale a las 19, o sea con tiempo de levantar el teléfono.
+      // Por eso el aviso va acá y no en el propio cron de recordatorios: a las
+      // 8 de la mañana del día del turno ya es tarde para reaccionar.
+      const pasado = new Date(manana)
+      pasado.setDate(pasado.getDate() + 1)
+
+      const { data: citasManana } = await supabase
+        .from('citas')
+        .select('fecha_hora, pacientes(nombre, email, telefono)')
+        .eq('tenant_id', tenant.id)
+        .in('estado', ['pendiente', 'confirmado'])
+        .gte('fecha_hora', manana.toISOString())
+        .lt('fecha_hora', pasado.toISOString())
+        .order('fecha_hora')
+
+      const sinEmail = (citasManana || []).filter((c: any) => !c.pacientes?.email)
+
       const citasHoyArr = citasHoy || []
       const citasSemanaArr = citasSemana || []
 
+      // ── Sin métricas de asistencia, a propósito ──
+      //
+      // El briefing mostraba "Asistencia: 0%" todos los días desde que existe.
+      // No era un error de cálculo: se apoyaba en `estado = 'completado'` y en
+      // `no_show`, y NINGUNA cita llega nunca a esos valores. Verificado sobre
+      // 579 turnos pasados en 6 meses: 0 completados, 0 marcados como
+      // inasistencia. El ciclo de vida termina en 'confirmado' y ahí se queda.
+      //
+      // Un correo diario que repite un número falso enseña a no abrirlo, y en
+      // este correo está el único aviso accionable que tiene el sistema (los
+      // pacientes que mañana no van a recibir recordatorio). Preferimos mostrar
+      // menos y que lo poco sea cierto.
+      //
+      // Para reponerlo hace falta primero registrar asistencia de verdad: un
+      // "Atendido / No vino" en la agenda del día. Mientras eso no exista, esta
+      // métrica no puede volver.
       const totalHoy = citasHoyArr.length
-      const completadasHoy = citasHoyArr.filter(c => c.estado === 'completado').length
-      const noShowsHoy = citasHoyArr.filter(c => c.no_show).length
       const ingresosHoy = citasHoyArr.reduce((s, c) => s + (c.valor ?? 0), 0)
       const saldoHoy = citasHoyArr.reduce((s, c) => s + (c.saldo ?? 0), 0)
-      const asistenciaHoy = pct(completadasHoy, totalHoy)
 
       const promDiario = {
         citas: Math.round(citasSemanaArr.length / 7),
         ingresos: citasSemanaArr.reduce((s, c) => s + (c.valor ?? 0), 0) / 7,
-        asistencia: pct(
-          citasSemanaArr.filter(c => c.estado === 'completado').length,
-          citasSemanaArr.length
-        )
       }
 
       const tratMap: Record<string, number> = {}
@@ -117,12 +148,29 @@ export async function GET(req: NextRequest) {
       const insights: { emoji: string; texto: string }[] = []
       const dIngresos = diff(ingresosHoy, promDiario.ingresos)
       const dCitas = diff(totalHoy, promDiario.citas)
-      const dAsistencia = diff(asistenciaHoy, promDiario.asistencia)
+
+      // Va primero: es lo único del briefing sobre lo que todavía se puede
+      // actuar esta noche. El resto es información de lo que ya pasó.
+      if (sinEmail.length > 0) {
+        const detalle = sinEmail.slice(0, 6).map((c: any) => {
+          const hora = new Date(c.fecha_hora).toLocaleTimeString('es-AR', {
+            timeZone: 'America/Argentina/Buenos_Aires',
+            hour: '2-digit', minute: '2-digit'
+          })
+          const tel = c.pacientes?.telefono ? ` · ${c.pacientes.telefono}` : ' · sin teléfono'
+          return `${c.pacientes?.nombre ?? 'sin nombre'} (${hora}${tel})`
+        }).join(' — ')
+
+        insights.push({
+          emoji: '📵',
+          texto: `MAÑANA sin recordatorio: ${sinEmail.length} turno${sinEmail.length > 1 ? 's' : ''} ` +
+                 `de paciente${sinEmail.length > 1 ? 's' : ''} sin email. ${detalle}` +
+                 `${sinEmail.length > 6 ? ` y ${sinEmail.length - 6} más` : ''}. Conviene avisarles a mano.`
+        })
+      }
 
       if (dIngresos.val > 0) insights.push({ emoji: dIngresos.up ? '📈' : '📉', texto: `Facturación ${dIngresos.up ? '+' : '-'}${dIngresos.val}% vs promedio semanal` })
       if (dCitas.val > 0) insights.push({ emoji: dCitas.up ? '🗓️' : '⚠️', texto: `${dCitas.up ? 'Más' : 'Menos'} citas que el promedio (${dCitas.val}% de diferencia)` })
-      if (noShowsHoy > 0) insights.push({ emoji: '🚨', texto: `${noShowsHoy} inasistencia${noShowsHoy > 1 ? 's' : ''} hoy` })
-      if (asistenciaHoy >= 90) insights.push({ emoji: '⭐', texto: `Excelente tasa de asistencia: ${asistenciaHoy}%` })
       if (saldoHoy > 0) insights.push({ emoji: '💳', texto: `Saldo pendiente del día: ${fmt(saldoHoy)}` })
       if (topTrat) insights.push({ emoji: '🦷', texto: `Tratamiento más frecuente: ${topTrat[0]} (${topTrat[1]} citas)` })
 
@@ -130,9 +178,8 @@ export async function GET(req: NextRequest) {
 
       const html = generateEmail({
         fecha: fechaFormateada,
-        totalHoy, completadasHoy, noShowsHoy,
-        ingresosHoy, saldoHoy, asistenciaHoy,
-        promDiario, insights, dIngresos, dCitas, dAsistencia,
+        totalHoy, ingresosHoy, saldoHoy,
+        promDiario, insights, dIngresos, dCitas,
       })
 
       const displayFromName = doctor?.clinica || tenant.nombre || 'DentalDesk'
@@ -156,18 +203,14 @@ export async function GET(req: NextRequest) {
 function generateEmail(d: {
   fecha: string
   totalHoy: number
-  completadasHoy: number
-  noShowsHoy: number
   ingresosHoy: number
   saldoHoy: number
-  asistenciaHoy: number
-  promDiario: { citas: number; ingresos: number; asistencia: number }
+  promDiario: { citas: number; ingresos: number }
   insights: { emoji: string; texto: string }[]
   dIngresos: { val: number; up: boolean }
   dCitas: { val: number; up: boolean }
-  dAsistencia: { val: number; up: boolean }
 }) {
-  const { fecha, totalHoy, completadasHoy, noShowsHoy, ingresosHoy, saldoHoy, asistenciaHoy, promDiario, insights, dIngresos, dCitas, dAsistencia } = d
+  const { fecha, totalHoy, ingresosHoy, saldoHoy, promDiario, insights, dIngresos, dCitas } = d
 
   return `<!DOCTYPE html>
 <html lang="es">
@@ -189,25 +232,18 @@ function generateEmail(d: {
   <tr><td style="background:#0d1421;border-left:1px solid #1e3a5f;border-right:1px solid #1e3a5f;padding:24px 36px;">
     <table width="100%" cellpadding="0" cellspacing="0">
       <tr>
-        <td width="33%" style="padding-right:8px;">
+        <td width="50%" style="padding-right:8px;">
           <div style="background:#0a1628;border:1px solid #1e3a5f;border-radius:12px;padding:16px;">
             <div style="font-size:10px;font-weight:600;color:#475569;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px;">Facturación</div>
             <div style="font-size:22px;font-weight:700;color:#f1f5f9;">${fmt(ingresosHoy)}</div>
             <div style="font-size:11px;color:${dIngresos.up ? '#10b981' : '#ef4444'};margin-top:4px;">${dIngresos.up ? '↑' : '↓'} ${dIngresos.val}% vs promedio</div>
           </div>
         </td>
-        <td width="33%" style="padding:0 4px;">
-          <div style="background:#0a1628;border:1px solid #1e3a5f;border-radius:12px;padding:16px;">
-            <div style="font-size:10px;font-weight:600;color:#475569;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px;">Asistencia</div>
-            <div style="font-size:22px;font-weight:700;color:${asistenciaHoy >= 80 ? '#10b981' : '#f59e0b'};">${asistenciaHoy}%</div>
-            <div style="font-size:11px;color:${dAsistencia.up ? '#10b981' : '#ef4444'};margin-top:4px;">${dAsistencia.up ? '↑' : '↓'} ${dAsistencia.val}% vs promedio</div>
-          </div>
-        </td>
-        <td width="33%" style="padding-left:8px;">
+        <td width="50%" style="padding-left:8px;">
           <div style="background:#0a1628;border:1px solid #1e3a5f;border-radius:12px;padding:16px;">
             <div style="font-size:10px;font-weight:600;color:#475569;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px;">Citas</div>
             <div style="font-size:22px;font-weight:700;color:#f1f5f9;">${totalHoy}</div>
-            <div style="font-size:11px;color:#64748b;margin-top:4px;">${completadasHoy} ok · ${noShowsHoy} no-show</div>
+            <div style="font-size:11px;color:${dCitas.up ? '#10b981' : '#ef4444'};margin-top:4px;">${dCitas.up ? '↑' : '↓'} ${dCitas.val}% vs promedio</div>
           </div>
         </td>
       </tr>
@@ -227,10 +263,6 @@ function generateEmail(d: {
         <tr style="border-bottom:1px solid #1e2d40;">
           <td style="padding:12px 16px;font-size:12px;color:#64748b;">Promedio ingresos/día</td>
           <td align="right" style="padding:12px 16px;font-size:12px;font-weight:600;color:#f1f5f9;">${fmt(promDiario.ingresos)}</td>
-        </tr>
-        <tr>
-          <td style="padding:12px 16px;font-size:12px;color:#64748b;">Promedio asistencia</td>
-          <td align="right" style="padding:12px 16px;font-size:12px;font-weight:600;color:#f1f5f9;">${promDiario.asistencia}%</td>
         </tr>
       </table>
     </div>
