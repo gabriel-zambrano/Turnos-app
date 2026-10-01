@@ -6,7 +6,7 @@ import { Badge, Toast, PageHeader, BtnPrimary, BtnSm, SkeletonBox, SkeletonLista
 import { initials } from '@/lib/constants'
 import { createClient } from '@/lib/supabase/client'
 import { FORMAS_PAGO, FORMAS_PAGO_FACTURABLES_DEFAULT, sugerirRequiereFactura } from '@/lib/pagos'
-import { registrarPago, formasFacturablesDe } from '@/lib/registrar-pago'
+import { formasFacturablesDe } from '@/lib/registrar-pago'
 import { urlPublicaDeClinica } from '@/lib/config'
 import { storagePathFromUrl, esImagenSoportada, BUCKET_FOTOS } from '@/lib/storage'
 import { useTenantContext } from '@/components/TenantContext'
@@ -16,7 +16,8 @@ import { registrarConsentimiento, tieneConsentimientoVigente } from '@/lib/conse
 import { validarAjustePuntos } from '@/lib/ajuste-puntos'
 import { FIDELIZACION_HABILITADA } from '@/lib/fidelizacion-flag'
 import { citasPendientesDeAprobar } from '@/lib/citas-para-aprobar'
-import { formatoPesos } from '@/lib/cobro-previo'
+import { textoPagoPrevio } from '@/lib/cobro-previo'
+import { cobrarTurno, mensajeCobro } from '@/lib/cobro-turno'
 
 interface Paciente {
   id: string
@@ -401,62 +402,37 @@ export default function PacienteDetalle() {
   }
 
   const handleAprobarAsistencia = async () => {
-    if (!citaAprobarId) return
+    if (!citaAprobarId || !tenant) return
     if (montoCobrado === '' || Number(montoCobrado) <= 0) {
       showMsg('Ingresá un monto válido para el turno', 'error')
       return
     }
     setProcesandoPuntos(true)
-    const monto = Number(montoCobrado)
-    let pagoGuardado = false
     try {
-      if (isMontoEditable) {
-        // El cobro entra por `pagos`, no escribiendo `precio_cobrado` a mano:
-        // así queda la forma de pago y la intención de facturar, y el trigger
-        // mantiene la columna derivada.
-        const { error: pagoErr } = await registrarPago(supabase, {
-          tenantId: tenant!.id,
-          pacienteId: id as string,
-          citaId: citaAprobarId,
-          formaPago: aprobForma,
-          monto,
-          requiereFactura: aprobFactura,
-          origen: 'ficha_paciente',
-        })
-        if (pagoErr) {
-          showMsg(`No se registró el cobro. ${pagoErr}. Podés volver a intentarlo.`, 'error')
-          return
-        }
-        pagoGuardado = true
-      }
-
-      const res = await aprobarAsistenciaAction(citaAprobarId)
-      if (!res.success) {
-        if (pagoGuardado) {
-          // El pago ya existe: se cierra el formulario para que nadie
-          // reintente y duplique el cobro.
-          setCitaAprobarId('')
-          loadData()
-          showMsg(`El cobro de ${formatoPesos(monto)} quedó registrado. No se pudo marcar el turno como asistido; hacelo desde la agenda. No vuelvas a cobrarlo.`, 'error')
-        } else {
-          showMsg('No se pudo marcar el turno como asistido. Probá de nuevo.', 'error')
-        }
+      // Misma secuencia que Agenda y Dashboard (lib/cobro-turno). Si el turno
+      // ya tiene cobro, el monto está bloqueado y solo se cierra el turno.
+      // La Ficha no verifica la caja del día, igual que antes.
+      const r = await cobrarTurno({
+        supabase, tenantId: tenant.id,
+        citaId: citaAprobarId, pacienteId: id as string,
+        pago: isMontoEditable
+          ? { monto: Number(montoCobrado), formaPago: aprobForma, requiereFactura: aprobFactura, origen: 'ficha_paciente' }
+          : null,
+        cerrarTurno: aprobarAsistenciaAction,
+      })
+      if (r.tipo === 'requiere_confirmacion') {
+        // La ficha mostraba el turno como sin cobro, pero ya tiene. Se
+        // recarga (el monto queda bloqueado) en vez de cobrar de nuevo.
+        loadData()
+        showMsg(`${textoPagoPrevio(r.cobradoPrevio)} La ficha se actualizó; revisá el turno antes de cobrar.`, 'error')
         return
       }
-
-      showMsg(pagoGuardado
-        ? (FIDELIZACION_HABILITADA ? `Cobro de ${formatoPesos(monto)} registrado · puntos acreditados` : `Cobro de ${formatoPesos(monto)} registrado · turno cerrado`)
-        : 'Turno cerrado')
-      setCitaAprobarId('')
-      loadData()
-    } catch {
-      if (pagoGuardado) {
+      const m = mensajeCobro(r, FIDELIZACION_HABILITADA)!
+      if (m.cerrarFormulario) {
         setCitaAprobarId('')
         loadData()
-        showMsg(`El cobro de ${formatoPesos(monto)} quedó registrado, pero algo falló después. Revisá el turno antes de volver a cobrarlo.`, 'error')
-      } else {
-        showMsg('No se pudo completar la operación. No se registró ningún cobro; probá de nuevo.', 'error')
       }
+      showMsg(m.texto, m.tono === 'exito' ? undefined : 'error')
     } finally {
       setProcesandoPuntos(false)
     }
