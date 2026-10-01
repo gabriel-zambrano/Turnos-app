@@ -15,7 +15,7 @@ const NAV = [
   { href: '/bi',                     label: 'Analitica',    icon: 'chart' },
   { href: '/finanzas',               label: 'Finanzas',     icon: 'money' },
   { href: '/facturas',               label: 'Facturas',     icon: 'invoice' },
-  { href: '/crm',                    label: 'Fidelización', icon: 'radar' },
+  { href: '/crm',                    label: 'Retención',    icon: 'radar' },
   { href: '/admin/tratamientos',     label: 'Precios',      icon: 'trat', adminOnly: true },
   { href: '/equipo',                 label: 'Equipo',       icon: 'users', adminOnly: true },
   { href: '/configuracion',          label: 'Configuración',icon: 'settings' },

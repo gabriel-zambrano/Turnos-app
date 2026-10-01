@@ -2,26 +2,58 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
+import { FIDELIZACION_HABILITADA } from '@/lib/fidelizacion-flag'
 
+const MSG_YA_PROCESADA = 'La cita ya fue procesada para acumulación de puntos.'
+
+/**
+ * Cierra una cita como "asistió" después de un cobro.
+ *
+ * Con FIDELIZACION_HABILITADA = false NO llama a fn_aprobar_asistencia:
+ * solo marca la cita. Así ningún cobro vuelve a depender del ledger de
+ * puntos, y cobrar una cita que ya estaba aprobada (segundo pago, pago
+ * parcial, o cita marcada "asistió" antes) deja de tirar error.
+ *
+ * Con el flag en true, la RPC corre como antes, pero "ya procesada" se
+ * trata como éxito: el resultado buscado (puntos acreditados una sola vez)
+ * ya se cumplió, y devolver error inducía a reintentar el cobro.
+ */
 export async function aprobarAsistenciaAction(citaId: string) {
   const supabase = createClient()
   try {
+    if (!FIDELIZACION_HABILITADA) {
+      const { error } = await supabase
+        .from('citas')
+        .update({ estado: 'asistio' })
+        .eq('id', citaId)
+      if (error) return { success: false, error: error.message }
+      revalidar()
+      return { success: true, data: null }
+    }
+
     const { data, error } = await supabase.rpc('fn_aprobar_asistencia', {
       p_cita_id: citaId,
     })
 
     if (error) {
+      if (error.message?.includes(MSG_YA_PROCESADA)) {
+        revalidar()
+        return { success: true, data: null }
+      }
       return { success: false, error: error.message }
     }
 
-    revalidatePath(`/pacientes`)
-    revalidatePath(`/agenda`)
-    revalidatePath(`/dashboard`)
-
+    revalidar()
     return { success: true, data }
   } catch (err: any) {
     return { success: false, error: err.message || 'Error inesperado' }
   }
+}
+
+function revalidar() {
+  revalidatePath(`/pacientes`)
+  revalidatePath(`/agenda`)
+  revalidatePath(`/dashboard`)
 }
 
 export async function registrarInasistenciaAction(citaId: string, estado: 'ausente' | 'cancelado') {

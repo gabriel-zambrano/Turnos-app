@@ -15,6 +15,8 @@ import { aprobarAsistenciaAction, canjearPremioAction, ajustarPuntosManualAction
 import { registrarConsentimiento, tieneConsentimientoVigente } from '@/lib/consentimiento-datos'
 import { validarAjustePuntos } from '@/lib/ajuste-puntos'
 import { FIDELIZACION_HABILITADA } from '@/lib/fidelizacion-flag'
+import { citasPendientesDeAprobar } from '@/lib/citas-para-aprobar'
+import { formatoPesos } from '@/lib/cobro-previo'
 
 interface Paciente {
   id: string
@@ -401,10 +403,12 @@ export default function PacienteDetalle() {
   const handleAprobarAsistencia = async () => {
     if (!citaAprobarId) return
     if (montoCobrado === '' || Number(montoCobrado) <= 0) {
-      showMsg('Ingresa un monto válido para la cita', 'error')
+      showMsg('Ingresá un monto válido para el turno', 'error')
       return
     }
     setProcesandoPuntos(true)
+    const monto = Number(montoCobrado)
+    let pagoGuardado = false
     try {
       if (isMontoEditable) {
         // El cobro entra por `pagos`, no escribiendo `precio_cobrado` a mano:
@@ -415,32 +419,50 @@ export default function PacienteDetalle() {
           pacienteId: id as string,
           citaId: citaAprobarId,
           formaPago: aprobForma,
-          monto: Number(montoCobrado),
+          monto,
           requiereFactura: aprobFactura,
           origen: 'ficha_paciente',
         })
-        if (pagoErr) throw new Error(pagoErr)
+        if (pagoErr) {
+          showMsg(`No se registró el cobro. ${pagoErr}. Podés volver a intentarlo.`, 'error')
+          return
+        }
+        pagoGuardado = true
       }
-      
+
       const res = await aprobarAsistenciaAction(citaAprobarId)
       if (!res.success) {
-        throw new Error(res.error)
+        if (pagoGuardado) {
+          // El pago ya existe: se cierra el formulario para que nadie
+          // reintente y duplique el cobro.
+          setCitaAprobarId('')
+          loadData()
+          showMsg(`El cobro de ${formatoPesos(monto)} quedó registrado. No se pudo marcar el turno como asistido; hacelo desde la agenda. No vuelvas a cobrarlo.`, 'error')
+        } else {
+          showMsg('No se pudo marcar el turno como asistido. Probá de nuevo.', 'error')
+        }
+        return
       }
-      
-      showMsg('Visita aprobada y cobro registrado ✓')
+
+      showMsg(pagoGuardado
+        ? (FIDELIZACION_HABILITADA ? `Cobro de ${formatoPesos(monto)} registrado · puntos acreditados` : `Cobro de ${formatoPesos(monto)} registrado · turno cerrado`)
+        : 'Turno cerrado')
       setCitaAprobarId('')
       loadData()
-    } catch (err: any) {
-      showMsg('Error: ' + err.message, 'error')
+    } catch {
+      if (pagoGuardado) {
+        setCitaAprobarId('')
+        loadData()
+        showMsg(`El cobro de ${formatoPesos(monto)} quedó registrado, pero algo falló después. Revisá el turno antes de volver a cobrarlo.`, 'error')
+      } else {
+        showMsg('No se pudo completar la operación. No se registró ningún cobro; probá de nuevo.', 'error')
+      }
     } finally {
       setProcesandoPuntos(false)
     }
   }
 
-  const citasParaAprobar = citas.filter(c => 
-    ['pendiente', 'confirmado', 'asistio'].includes(c.estado) &&
-    !historialPuntos.some(h => h.cita_id === c.id && h.tipo_movimiento === 'gasto_tratamiento')
-  )
+  const citasParaAprobar = citasPendientesDeAprobar(citas, historialPuntos, FIDELIZACION_HABILITADA)
 
   useEffect(() => {
     if (citaAprobarId) {
@@ -1726,6 +1748,7 @@ export default function PacienteDetalle() {
                   </div>
                 </div>
 
+                {FIDELIZACION_HABILITADA && (
                 <div style={{ borderTop: '1px solid var(--border-light, #dde5ef)', paddingTop: 12 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span style={{ fontSize: 10.5, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Sistema de Puntos VIP</span>
@@ -1747,6 +1770,7 @@ export default function PacienteDetalle() {
                     }} />
                   </div>
                 </div>
+                )}
 
                 {paciente.recomendaciones && (
                   <div style={{ borderTop: '1px solid var(--border-light, #dde5ef)', paddingTop: 12 }}>
@@ -1946,12 +1970,14 @@ export default function PacienteDetalle() {
               />
             </div>
 
+            {FIDELIZACION_HABILITADA && (
             <div style={{ ...groupCss, background: 'var(--bg-input, rgba(0,0,0,0.02))', padding: 12, borderRadius: 10, border: '1px solid var(--border-light, #dde5ef)', marginTop: 8, marginBottom: 16 }}>
               <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-dark)', display: 'block' }}>Puntos de Ajuste Manual</span>
               <span style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4, display: 'block', lineHeight: 1.4 }}>
                 Los puntos y ajustes manuales se gestionan ahora desde la pestaña <strong>Club de Puntos</strong> en la ficha del paciente para mantener el historial auditado.
               </span>
             </div>
+            )}
 
             <div style={groupCss}>
               <label style={labelCss}>Indicaciones / Recomendaciones (Visible en Portal)</label>
