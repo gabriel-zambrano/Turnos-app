@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { Sidebar } from '@/components/Sidebar'
 import { Badge, Toast, PageHeader, FilterBar, SkeletonLista, SkeletonKPIs, MetricCard, ProgressRing, useBloqueoScroll, inputCss, selectCss, overlayCss, modalCss, modalTitleCss, footerCss, groupCss, labelCss, grid2Css, btnDarkCss, btnLightCss } from '@/components/UI'
 import { TRAT_STYLE, ESTADO_STYLE, hoyISO, normalizarTelefono, nombreParaSaludo, TRATAMIENTOS } from '@/lib/constants'
@@ -12,6 +12,8 @@ import { triggerConfetti } from '@/lib/confetti'
 import { FORMAS_PAGO, FORMAS_PAGO_FACTURABLES_DEFAULT, sugerirRequiereFactura } from '@/lib/pagos'
 import { registrarPago, formasFacturablesDe } from '@/lib/registrar-pago'
 import { registrarInasistenciaAction, aprobarAsistenciaAction } from '@/app/actions/fidelizacion'
+import { FIDELIZACION_HABILITADA } from '@/lib/fidelizacion-flag'
+import { cobradoDeCita, requiereConfirmarPagoExtra, textoPagoPrevio, formatoPesos } from '@/lib/cobro-previo'
 import { HeatmapSemanal } from './components/HeatmapSemanal'
 import { AccionesRapidas } from './components/AccionesRapidas'
 import { PreparacionManana } from './components/PreparacionManana'
@@ -65,6 +67,13 @@ export default function Dashboard() {
   // States for Quick Actions
   const [modalPaciente, setModalPaciente] = useState(false)
   const [modalCobro, setModalCobro] = useState(false)
+  // Un cobro desde el botón general tiene que declarar si es de un turno o
+  // no. Antes, sin elegir, quedaba como ingreso suelto ("Paciente
+  // Eventual") y después la cita se facturaba aparte.
+  const [cobModo, setCobModo] = useState<'turno' | 'sin_turno' | null>(null)
+  const [cobNombreSinTurno, setCobNombreSinTurno] = useState('')
+  const [cobPrevio, setCobPrevio] = useState<number | null>(null)
+  const cobrandoRef = useRef(false)
 
   const [modalNuevaCita, setModalNuevaCita] = useState(false)
   // Con un modal abierto, el fondo no se mueve al deslizar en el celular
@@ -123,67 +132,94 @@ export default function Dashboard() {
     }
   }
 
-  async function guardarRegistrarCobro() {
-    if (cajaCerrada) return msg('La caja está cerrada para este día', 'error')
+  async function guardarRegistrarCobro(confirmadoPagoExtra = false) {
+    if (cobrandoRef.current) return
+    if (cajaCerrada) return msg('La caja de este día está cerrada. Reabrila desde Finanzas para registrar el cobro.', 'error')
+    if (!cobModo) return msg('Elegí si el cobro es de un turno o sin turno.', 'error')
+    if (cobModo === 'turno' && !cobCitaId) return msg('Elegí el turno que se está cobrando.', 'error')
+    if (cobModo === 'sin_turno' && !cobNombreSinTurno.trim()) return msg('Escribí quién hace el pago.', 'error')
     if (!cobConcepto.trim() || cobMonto === '' || Number(cobMonto) <= 0) {
       return msg('Completá concepto y monto', 'error')
     }
     if (!tenant) return
+    cobrandoRef.current = true
     setGuardandoAccion(true)
-    
-    // Cobro ligado a una cita: entra por `pagos` para que quede la forma de
-    // pago y la intención de facturar. Escribir `precio_cobrado` a mano hacía
-    // que el cobro esquivara el criterio de facturación de la clínica.
-    let errorIngreso: { message: string } | null = null
-    let errorCita: { message: string } | null = null
+    const liberar = () => { cobrandoRef.current = false; setGuardandoAccion(false) }
+    const monto = Number(cobMonto)
 
-    if (!cobCitaId) {
-      const { error } = await supabase.from('ingresos_manuales').insert({
-        fecha: cobFecha || new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }),
-        concepto: cobConcepto.trim(),
-        monto: Number(cobMonto),
-        tenant_id: tenant.id,
-        forma_pago: cobForma,
-        requiere_factura: cobFactura,
-      })
-      errorIngreso = error
-    }
-
-    if (cobCitaId) {
-      const { error: errPago } = await registrarPago(supabase, {
-        tenantId: tenant.id,
-        pacienteId: cobPacienteId!,
-        citaId: cobCitaId,
-        formaPago: cobForma,
-        monto: Number(cobMonto),
-        requiereFactura: cobFactura,
-        origen: 'cobro_rapido',
-        nota: cobConcepto.trim(),
-      })
-
-      if (errPago) {
-        errorCita = { message: errPago }
-      } else {
-        const resAprobar = await aprobarAsistenciaAction(cobCitaId)
-        if (!resAprobar.success) {
-          errorCita = { message: resAprobar.error }
-        }
-      }
-    }
-
-    setGuardandoAccion(false)
-    if (errorIngreso || errorCita) {
-      msg('Error al registrar cobro: ' + (errorIngreso?.message || errorCita?.message), 'error')
-    } else {
+    const cerrarModal = () => {
       setModalCobro(false)
       setCobConcepto('')
       setCobMonto('')
       setCobCitaId(null)
       setCobPacienteId(null)
+      setCobModo(null)
+      setCobNombreSinTurno('')
+      setCobPrevio(null)
       setCobFecha(new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }))
-      msg('Cobro registrado correctamente ✓')
-      triggerConfetti()
+    }
+
+    if (cobModo === 'sin_turno') {
+      // Ingreso de caja sin turno ni paciente vinculado. El nombre queda en
+      // el concepto: la tabla no tiene paciente (dependencia de esquema).
+      const nombre = cobNombreSinTurno.trim()
+      const concepto = cobConcepto.includes(nombre) ? cobConcepto.trim() : `${cobConcepto.trim()} — ${nombre}`
+      const { error } = await supabase.from('ingresos_manuales').insert({
+        fecha: cobFecha || new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }),
+        concepto,
+        monto,
+        tenant_id: tenant.id,
+        forma_pago: cobForma,
+        requiere_factura: cobFactura,
+      })
+      liberar()
+      if (error) return msg(`No se registró el cobro. ${error.message}. Podés volver a intentarlo.`, 'error')
+      cerrarModal()
+      msg(`Cobro sin turno de ${formatoPesos(monto)} registrado`)
       load()
+      return
+    }
+
+    // Cobro de un turno: se verifica lo ya cobrado en el momento.
+    const previo = await cobradoDeCita(supabase, tenant.id, cobCitaId!)
+    if (previo.error) {
+      liberar()
+      return msg('No se pudo verificar si el turno ya tiene cobros. No se registró nada; probá de nuevo.', 'error')
+    }
+    if (requiereConfirmarPagoExtra(previo.total, confirmadoPagoExtra)) {
+      liberar()
+      setCobPrevio(previo.total)
+      return
+    }
+
+    const { error: errPago } = await registrarPago(supabase, {
+      tenantId: tenant.id,
+      pacienteId: cobPacienteId!,
+      citaId: cobCitaId,
+      formaPago: cobForma,
+      monto,
+      requiereFactura: cobFactura,
+      origen: 'cobro_rapido',
+      nota: cobConcepto.trim(),
+    })
+    if (errPago) {
+      liberar()
+      return msg(`No se registró el cobro. ${errPago}. Podés volver a intentarlo.`, 'error')
+    }
+
+    // El pago ya está guardado: el modal se cierra pase lo que pase, para
+    // que nadie reintente y duplique el cobro.
+    const resAprobar = await aprobarAsistenciaAction(cobCitaId!)
+    liberar()
+    cerrarModal()
+    load()
+    if (!resAprobar.success) {
+      msg(`El cobro de ${formatoPesos(monto)} quedó registrado. No se pudo marcar el turno como asistido; hacelo desde la agenda. No vuelvas a cobrarlo.`, 'error')
+    } else {
+      msg(FIDELIZACION_HABILITADA
+        ? `Cobro de ${formatoPesos(monto)} registrado · puntos acreditados`
+        : `Cobro de ${formatoPesos(monto)} registrado · turno cerrado`)
+      triggerConfetti()
     }
   }
 
@@ -685,6 +721,11 @@ export default function Dashboard() {
               onRegistrarCobro={() => {
                 setCobConcepto('')
                 setCobMonto('')
+                setCobCitaId(null)
+                setCobPacienteId(null)
+                setCobModo(null)
+                setCobNombreSinTurno('')
+                setCobPrevio(null)
                 setCobFecha(new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }))
                 setModalCobro(true)
               }}
@@ -793,6 +834,7 @@ export default function Dashboard() {
                                   setCobConcepto(`Pago ${c.tratamiento} — ${c.nombre}`)
                                   setCobMonto(c.valor || '')
                                   setCobCitaId(c.id)
+                                  setCobModo('turno'); setCobPrevio(null)
                                   setCobPacienteId(c.paciente_id ?? null)
                                   setCobForma(FORMAS_PAGO[0])
                                   setCobFactura(sugerirRequiereFactura(FORMAS_PAGO[0], formasFacturables))
@@ -802,7 +844,7 @@ export default function Dashboard() {
                                 } else {
                                   const res = await aprobarAsistenciaAction(c.id)
                                   if (!res.success) {
-                                    msg('Error al aprobar la visita: ' + res.error, 'error')
+                                    msg('No se pudo marcar el turno como asistido. Probá de nuevo; no se registró ningún cobro.', 'error')
                                   } else {
                                     setCitas(p => p.map(x => x.id === c.id ? { ...x, estado: 'asistio' as EstadoCita } : x))
                                     msg('Cita marcada como Asistió ✓')
@@ -824,6 +866,7 @@ export default function Dashboard() {
                                 setCobConcepto(`Pago ${c.tratamiento} — ${c.nombre}`)
                                 setCobMonto(c.valor || '')
                                 setCobCitaId(c.id)
+                                  setCobModo('turno'); setCobPrevio(null)
                                 setCobPacienteId(c.paciente_id ?? null)
                                 setCobForma(FORMAS_PAGO[0])
                                 setCobFactura(sugerirRequiereFactura(FORMAS_PAGO[0], formasFacturables))
@@ -908,7 +951,7 @@ export default function Dashboard() {
                                         setActiveMenuId(null);
                                         const res = await aprobarAsistenciaAction(c.id);
                                         if (!res.success) {
-                                          msg('Error: ' + res.error, 'error');
+                                          msg('No se pudo marcar el turno como asistido. Probá de nuevo; no se registró ningún cobro.', 'error');
                                         } else {
                                           setCitas(p => p.map(x => x.id === c.id ? { ...x, estado: 'asistio' as EstadoCita } : x));
                                           msg('Cita marcada como Asistió ✓');
@@ -930,7 +973,7 @@ export default function Dashboard() {
                                         setActiveMenuId(null);
                                         setCobConcepto(`Pago ${c.tratamiento} — ${c.nombre}`);
                                         setCobMonto(c.valor || '');
-                                        setCobCitaId(c.id);
+                                        setCobCitaId(c.id); setCobModo('turno'); setCobPrevio(null);
                                         setCobPacienteId(c.paciente_id ?? null);
                                         setCobForma(FORMAS_PAGO[0]);
                                         setCobFactura(sugerirRequiereFactura(FORMAS_PAGO[0], formasFacturables));
@@ -1128,8 +1171,62 @@ export default function Dashboard() {
       {modalCobro && (
         <div style={overlayCss(isMobile)} onClick={() => setModalCobro(false)}>
           <div style={modalCss(isMobile)} onClick={e => e.stopPropagation()}>
-            <div style={modalTitleCss}>Registrar cobro</div>
-            
+            <div style={modalTitleCss} id="titulo-modal-cobro">Registrar cobro</div>
+
+            {/* Modo explícito: de un turno, o sin turno. */}
+            <div role="radiogroup" aria-labelledby="titulo-modal-cobro" style={{ display: 'flex', gap: 8, marginBottom: '0.85rem' }}>
+              {([['turno', 'Cobrar turno'], ['sin_turno', 'Cobro sin turno']] as const).map(([valor, texto]) => {
+                const activo = cobModo === valor
+                return (
+                  <button key={valor} type="button" role="radio" aria-checked={activo}
+                    onClick={() => {
+                      setCobModo(valor); setCobPrevio(null)
+                      if (valor === 'sin_turno') { setCobCitaId(null); setCobPacienteId(null) }
+                    }}
+                    style={{ flex: 1, padding: '9px 10px', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                      background: activo ? 'var(--text-dark, #0a1e3d)' : 'var(--bg-input, #f8fafc)',
+                      color: activo ? 'var(--bg-card, #fff)' : 'var(--text-dark, #0a1e3d)',
+                      border: `1px solid ${activo ? 'var(--text-dark, #0a1e3d)' : 'var(--border-color, #e2e8f0)'}` }}>
+                    {texto}
+                  </button>
+                )
+              })}
+            </div>
+
+            {cobModo === 'turno' && (
+              <div style={groupCss}>
+                <label style={labelCss} htmlFor="cobro-turno">Turno *</label>
+                <select id="cobro-turno" style={selectCss} value={cobCitaId ?? ''}
+                  onChange={e => {
+                    const c = citas.find(x => x.id === e.target.value)
+                    setCobPrevio(null)
+                    if (!c) { setCobCitaId(null); setCobPacienteId(null); return }
+                    setCobCitaId(c.id)
+                    setCobPacienteId(c.paciente_id ?? null)
+                    setCobConcepto(`Pago ${c.tratamiento} — ${c.nombre}`)
+                    if (cobMonto === '') setCobMonto(c.valor || '')
+                  }}>
+                  <option value="">Elegí el turno…</option>
+                  {citas.filter(c => c.estado !== 'cancelado').map(c => (
+                    <option key={c.id} value={c.id}>
+                      {c.hora} · {c.nombre} · {c.tratamiento}{(c.precio_cobrado ?? 0) > 0 ? ` · ya cobrado ${formatoPesos(c.precio_cobrado ?? 0)}` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {cobModo === 'sin_turno' && (
+              <div style={groupCss}>
+                <label style={labelCss} htmlFor="cobro-nombre">¿Quién paga? *</label>
+                <input id="cobro-nombre" style={inputCss} value={cobNombreSinTurno}
+                  onChange={e => setCobNombreSinTurno(e.target.value)} placeholder="Nombre y apellido" />
+                <span style={{ display: 'block', fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
+                  Queda como ingreso de caja, sin turno ni ficha de paciente vinculados. Si es de un turno, elegí “Cobrar turno”.
+                </span>
+              </div>
+            )}
+
             <div style={groupCss}>
               <label style={labelCss}>Concepto *</label>
               <input style={inputCss} value={cobConcepto} onChange={e => setCobConcepto(e.target.value)} placeholder="Ej: Pago consulta — Juan P." autoFocus />
@@ -1174,10 +1271,19 @@ export default function Dashboard() {
             <div style={{display:'none'}}>
             </div>
             
+            {cobPrevio !== null && (
+              <div role="alert" style={{ padding: '10px 12px', borderRadius: 9, marginBottom: '0.85rem', fontSize: 13,
+                background: 'var(--warning-soft, #fffbeb)', border: '1px solid var(--warning-border, #fde68a)',
+                color: 'var(--warning-text, #92400e)' }}>
+                {textoPagoPrevio(cobPrevio)}
+              </div>
+            )}
+
             <div style={footerCss}>
-              <button style={btnLightCss} onClick={() => setModalCobro(false)} disabled={guardandoAccion}>Cancelar</button>
-              <button style={{ ...btnDarkCss, opacity: guardandoAccion ? 0.6 : 1 }} onClick={guardarRegistrarCobro} disabled={guardandoAccion}>
-                {guardandoAccion ? 'Registrando...' : 'Registrar'}
+              <button style={btnLightCss} onClick={() => { setModalCobro(false); setCobPrevio(null) }} disabled={guardandoAccion}>Cancelar</button>
+              <button style={{ ...btnDarkCss, opacity: guardandoAccion ? 0.6 : 1 }}
+                onClick={() => guardarRegistrarCobro(cobPrevio !== null)} disabled={guardandoAccion} aria-busy={guardandoAccion}>
+                {guardandoAccion ? 'Registrando…' : cobPrevio !== null ? 'Registrar otro pago' : 'Registrar'}
               </button>
             </div>
           </div>
