@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useRef, useState, useEffect, useCallback, useMemo } from 'react'
 import { AppShell } from '@/components/AppShell'
 import { Toast, Spinner, PageHeader, useBloqueoScroll } from '@/components/UI'
 import { createClient } from '@/lib/supabase/client'
@@ -82,6 +82,10 @@ export default function FinanzasPage() {
   const [fTipoComprobante, setFTipoComprobante] = useState('11') // Default Factura C (Monotributista)
   const [fCondicionVenta, setFCondicionVenta] = useState('Contado')
   const [facturando, setFacturando]       = useState(false)
+  // Errores y confirmaciones de la emisión, dentro del modal (sin alert/confirm).
+  const [fError, setFError] = useState<string | null>(null)
+  const [fConfirmarNoFacturable, setFConfirmarNoFacturable] = useState<{ mensaje: string; total: number } | null>(null)
+  const emitiendoRef = useRef(false)
 
   const [modalMeta, setModalMeta]       = useState(false)
   const [modalCosto, setModalCosto]     = useState(false)
@@ -295,16 +299,21 @@ export default function FinanzasPage() {
       setFTipoComprobante('6') // Factura B
     }
 
+    setFError(null)
+    setFConfirmarNoFacturable(null)
     setModalFacturar(true)
   }
 
   async function emitirFacturaElectronica(forzarNoFacturable = false) {
     if (!facturandoItem || !tenant) return
+    if (emitiendoRef.current) return
+    setFError(null)
     if (!fDocNro && fDocTipo !== 'Sin Identificar') {
-      alert('Por favor, ingresá el número de documento.')
+      setFError('Falta el número de documento del paciente. Completalo o elegí “Sin Identificar”.')
       return
     }
 
+    emitiendoRef.current = true
     setFacturando(true)
     try {
       const res = await fetch('/api/facturacion/emitir', {
@@ -323,33 +332,40 @@ export default function FinanzasPage() {
         })
       })
 
-      const data = await res.json()
+      const data = await res.json().catch(() => ({}))
 
-      // 409: el cobro no entra en el criterio de medios facturables.
-      // Se pide confirmación explícita en vez de bloquear.
+      // 409: el cobro no entra en el criterio de medios facturables. Se pide
+      // confirmación explícita, en el modal y con el monto que informa el
+      // servidor, en vez de un diálogo nativo del navegador.
       if (res.status === 409 && data.requiereConfirmacion) {
-        setFacturando(false)
-        if (confirm(`${data.error}\n\n¿Emitir la factura igual por ${fmt(data.desglose?.total ?? 0)}?`)) {
-          return emitirFacturaElectronica(true)
-        }
+        setFConfirmarNoFacturable({ mensaje: data.error || 'Este cobro no entra en tus medios facturables.', total: Number(data.desglose?.total ?? 0) })
         return
       }
 
       if (!res.ok) {
-        throw new Error(data.error || 'Error al emitir factura')
+        // No se envió nada a ARCA o ARCA lo rechazó: en ambos casos no hay
+        // factura. El cobro no se toca.
+        const motivo = data.error || `el servidor respondió ${res.status}`
+        setFError(`No se emitió la factura. El cobro sigue registrado y no se envió ningún comprobante válido. Motivo: ${motivo}`)
+        return
       }
 
+      const montoEmitido = Number(data.factura?.monto)
+      const detalleMonto = montoEmitido > 0 ? ` por ${fmt(montoEmitido)}` : ''
       msg(data.simulado
-        ? `Factura SIMULADA Nro ${data.factura.nro_comprobante} (sin validez fiscal — la plataforma aún no tiene credenciales de ARCA)`
-        : `Factura Nro ${data.factura.nro_comprobante} emitida con éxito (CAE: ${data.factura.cae}) ✓`)
+        ? `Factura SIMULADA N° ${data.factura.nro_comprobante}${detalleMonto}: sin validez fiscal (la plataforma aún no tiene credenciales de ARCA)`
+        : `Factura N° ${data.factura.nro_comprobante} emitida${detalleMonto} · CAE ${data.factura.cae}`)
+      setFConfirmarNoFacturable(null)
       setModalFacturar(false)
       load()
-    } catch (err: any) {
-      alert('Error al facturar: ' + err.message)
+    } catch {
+      setFError('No se pudo confirmar si la factura se emitió (falló la conexión). Antes de reintentar, revisá en Facturas si aparece; si aparece, no la vuelvas a emitir.')
     } finally {
+      emitiendoRef.current = false
       setFacturando(false)
     }
   }
+
 
   /**
    * Edita el precio del tratamiento de la cita.
@@ -1343,7 +1359,7 @@ export default function FinanzasPage() {
                 if (!d || (!d.esParcial && !d.nadaFacturable)) {
                   return (
                     <div style={{ display:'flex', justifyContent:'space-between', background:'#ecfdf5', padding:'8px 12px', borderRadius:8, fontSize:12, marginBottom:4 }}>
-                      <span style={{ color:'#047857' }}>Total a facturar:</span>
+                      <span style={{ color:'#047857' }}>{facturandoItem.tipo === 'cita' ? 'Cobrado:' : 'Monto del ingreso:'}</span>
                       <span style={{ fontWeight:700, color:'#10b981' }}>{fmt(facturandoItem.monto)}</span>
                     </div>
                   )
@@ -1447,20 +1463,44 @@ export default function FinanzasPage() {
               </div>
             </div>
 
+            {facturandoItem.tipo === 'cita' && (
+              <p style={{ fontSize:12, color:'var(--text-muted)', margin:'12px 0 0', lineHeight:1.45 }}>
+                El importe de la factura lo calcula el sistema con los tratamientos cargados en el turno y puede ser distinto de lo cobrado.
+                Revisá los tratamientos del turno antes de emitir.
+              </p>
+            )}
+
+            {fError && (
+              <div role="alert" style={{ marginTop:12, padding:'10px 12px', borderRadius:8, fontSize:12.5, lineHeight:1.45,
+                background:'var(--danger-soft, #fef2f2)', border:'1px solid var(--danger-border, #fecaca)', color:'var(--danger-text, #991b1b)' }}>
+                {fError}
+              </div>
+            )}
+
+            {fConfirmarNoFacturable && (
+              <div role="alert" style={{ marginTop:12, padding:'10px 12px', borderRadius:8, fontSize:12.5, lineHeight:1.45,
+                background:'var(--warning-soft, #fffbeb)', border:'1px solid var(--warning-border, #fde68a)', color:'var(--warning-text, #92400e)' }}>
+                <div>{fConfirmarNoFacturable.mensaje}</div>
+                <div style={{ marginTop:6, fontWeight:600 }}>
+                  Si confirmás, se emite ante ARCA una factura por {fmt(fConfirmarNoFacturable.total)}. Una factura emitida no se borra: solo se anula con nota de crédito.
+                </div>
+              </div>
+            )}
+
             <div style={{ display:'flex', gap:8, marginTop:'1.5rem', justifyContent:'flex-end' }}>
               <button 
-                onClick={() => setModalFacturar(false)} 
+                onClick={() => { setModalFacturar(false); setFConfirmarNoFacturable(null); setFError(null) }} 
                 disabled={facturando}
                 style={{ fontSize:13, padding:'7px 16px', borderRadius:8, border:'1px solid #e2e8f0', background:'#fff', color:'#64748b', cursor: facturando ? 'not-allowed' : 'pointer', fontFamily:'DM Sans, sans-serif' }}
               >
                 Cancelar
               </button>
               <button 
-                onClick={() => emitirFacturaElectronica()}
-                disabled={facturando} 
+                onClick={() => emitirFacturaElectronica(fConfirmarNoFacturable !== null)}
+                disabled={facturando} aria-busy={facturando}
                 style={{ fontSize:13, fontWeight:600, padding:'7px 18px', borderRadius:8, border:'none', background: facturando ? '#e2e8f0' : '#1D9E75', color: facturando ? '#94a3b8' : '#fff', cursor: facturando ? 'not-allowed' : 'pointer', fontFamily:'DM Sans, sans-serif' }}
               >
-                {facturando ? 'Emitiendo CAE...' : 'Emitir Factura'}
+                {facturando ? 'Emitiendo…' : fConfirmarNoFacturable ? `Emitir igual por ${fmt(fConfirmarNoFacturable.total)}` : 'Emitir factura'}
               </button>
             </div>
           </div>
