@@ -171,7 +171,7 @@ export default function CRMPage() {
 
   return (
     <AppShell>
-        <PageHeader title="CRM y Fidelización" sub="Retención Inteligente" />
+        <PageHeader title="Retención de pacientes" sub="Controles, cumpleaños y reactivación" />
 
         <div className="app-content" style={{ maxWidth:900, margin:'0 auto' }}>
           
