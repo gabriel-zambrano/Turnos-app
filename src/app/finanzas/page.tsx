@@ -1,7 +1,7 @@
 'use client'
 import { useRef, useState, useEffect, useCallback, useMemo } from 'react'
 import { AppShell } from '@/components/AppShell'
-import { Modal } from '@/components/ui/index'
+import { Modal, Icon } from '@/components/ui/index'
 import { Toast, Spinner, PageHeader, useBloqueoScroll } from '@/components/UI'
 import { createClient } from '@/lib/supabase/client'
 import { useTenantContext } from '@/components/TenantContext'
@@ -397,7 +397,7 @@ export default function FinanzasPage() {
 
     setEditandoPrecio(null)
     if (error) return msg('Error al actualizar: ' + error.message, 'error')
-    msg('Precio actualizado ✓')
+    msg('Precio actualizado')
     load()
   }
 
@@ -431,7 +431,7 @@ export default function FinanzasPage() {
     setSaving(false)
     if (error) return msg('Error al saldar: ' + error, 'error')
     setModalSaldar(false)
-    msg('Cobro registrado ✓')
+    msg('Cobro registrado')
     load()
   }
 
@@ -444,7 +444,7 @@ export default function FinanzasPage() {
     } else {
       await supabase.from('meta_mensual').insert({ mes: mesActual, anio: anioActual, meta_ingresos: fMeta, tenant_id: tenant.id })
     }
-    setSaving(false); setModalMeta(false); msg('Meta actualizada ✓'); load()
+    setSaving(false); setModalMeta(false); msg('Meta actualizada'); load()
   }
 
   async function agregarCosto() {
@@ -452,7 +452,7 @@ export default function FinanzasPage() {
     if (!tenant) return
     setSaving(true)
     await supabase.from('costos_fijos').insert({ nombre: fCostoNombre.trim(), monto: fCostoMonto, activo: true, tenant_id: tenant.id })
-    setSaving(false); setModalCosto(false); setFCostoNombre(''); setFCostoMonto(''); msg('Costo agregado ✓'); load()
+    setSaving(false); setModalCosto(false); setFCostoNombre(''); setFCostoMonto(''); msg('Costo agregado'); load()
   }
   async function toggleCosto(id: string, activo: boolean) {
     await supabase.from('costos_fijos').update({ activo: !activo }).eq('id', id); load()
@@ -472,7 +472,7 @@ export default function FinanzasPage() {
       fecha: fFecha, concepto: fConcepto.trim(), monto: fMonto, tenant_id: tenant.id,
       forma_pago: fIngForma, requiere_factura: fIngFactura,
     })
-    setSaving(false); setModalIngreso(false); setFConcepto(''); setFMonto(''); setFFecha(hoyAR()); msg('Ingreso registrado ✓'); load()
+    setSaving(false); setModalIngreso(false); setFConcepto(''); setFMonto(''); setFFecha(hoyAR()); msg('Ingreso registrado'); load()
   }
   async function eliminarIngreso(id: string) {
     if (cajaActiva?.estado === 'cerrada') return msg('La caja está cerrada para este día', 'error')
@@ -485,7 +485,7 @@ export default function FinanzasPage() {
     if (!tenant) return
     setSaving(true)
     await supabase.from('egresos_manuales').insert({ fecha: fFecha, concepto: fConcepto.trim(), monto: fMonto, tenant_id: tenant.id })
-    setSaving(false); setModalEgreso(false); setFConcepto(''); setFMonto(''); setFFecha(hoyAR()); msg('Egreso registrado ✓'); load()
+    setSaving(false); setModalEgreso(false); setFConcepto(''); setFMonto(''); setFFecha(hoyAR()); msg('Egreso registrado'); load()
   }
   async function eliminarEgreso(id: string) {
     if (cajaActiva?.estado === 'cerrada') return msg('La caja está cerrada para este día', 'error')
@@ -511,7 +511,7 @@ export default function FinanzasPage() {
     if (error) {
       msg('Error al abrir la caja: ' + error.message, 'error')
     } else {
-      msg('Caja abierta exitosamente ✓')
+      msg('Caja abierta exitosamente')
       setModalApertura(false)
       loadCaja()
     }
@@ -539,7 +539,7 @@ export default function FinanzasPage() {
     if (error) {
       msg('Error al cerrar la caja: ' + error.message, 'error')
     } else {
-      msg('Caja cerrada y arqueo registrado ✓')
+      msg('Caja cerrada y arqueo registrado')
       setModalCierre(false)
       loadCaja()
     }
@@ -648,7 +648,7 @@ export default function FinanzasPage() {
                   { label:'Facturado en el mes', value: fmt(totalMes),  sub:`${citasMes.length} citas atendidas`,                                      accent:'var(--success-text)' },
                   { label:'Costos Fijos',      value: fmt(totalCostos),   sub:`${costos.filter(c=>c.activo).length} ítems activos`,                     accent:'var(--danger-text)' },
                   { label:'Meta mensual',      value: metaIngresos > 0 ? fmt(metaIngresos) : '—', sub: metaIngresos > 0 ? `${Math.round(progreso)}% completado` : 'Sin meta definida', accent:'var(--accent)' },
-                  { label:'Objetivo del día',  value: restante === 0 && metaIngresos > 0 ? '✓ Cumplida' : objetivoDiario > 0 ? fmt(objetivoDiario) : '—', sub: diasRest > 0 ? `Quedan ${diasRest} días` : 'Último día del mes', accent: restante === 0 && metaIngresos > 0 ? 'var(--success-text)' : 'var(--warning-text)' },
+                  { label:'Objetivo del día',  value: restante === 0 && metaIngresos > 0 ? 'Cumplida' : objetivoDiario > 0 ? fmt(objetivoDiario) : '—', sub: diasRest > 0 ? `Quedan ${diasRest} días` : 'Último día del mes', accent: restante === 0 && metaIngresos > 0 ? 'var(--success-text)' : 'var(--warning-text)' },
                 ].map(({ label, value, sub, accent }) => (
                   <div key={label} style={{ background:'var(--bg-card)', border:'0.5px solid var(--border-color)', borderRadius:14, padding:'1rem 1.1rem' }}>
                     <div style={{ fontSize:12, fontWeight:600, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:6 }}>{label}</div>
@@ -706,7 +706,7 @@ export default function FinanzasPage() {
                   )}
                   {restante === 0 && metaIngresos > 0 && (
                     <div style={{ background:'var(--success-soft)', borderRadius:10, padding:'0.85rem 1rem', fontSize:14, color:'var(--success-text)', fontWeight:700, textAlign:'center' }}>
-                      🎉 ¡Meta del mes cumplida!
+                      <span style={{ display:'inline-flex', alignItems:'center', gap:6 }}><Icon name="check" size={16} />Meta del mes cumplida</span>
                     </div>
                   )}
                 </div>
@@ -749,7 +749,7 @@ export default function FinanzasPage() {
               </div>
             ) : !cajaActiva ? (
               <div style={{ background:'var(--bg-card)', border:'0.5px solid var(--border-color)', borderRadius:16, padding:'3rem 2rem', textAlign:'center', display:'flex', flexDirection:'column', alignItems:'center', gap:16 }}>
-                <div style={{ fontSize: 36 }}>💰</div>
+                <Icon name="money" size={32} style={{ color:'var(--accent)' }} />
                 <div style={{ fontWeight:700, fontSize:18, color:'var(--text-dark)' }}>Caja Diaria no iniciada</div>
                 <p style={{ fontSize:13, color:'var(--text-muted)', maxWidth:420, lineHeight:1.5 }}>
                   Para poder registrar cobros de turnos, ingresos manuales o egresos en esta fecha, primero debés realizar la apertura de la caja diaria.
@@ -767,9 +767,9 @@ export default function FinanzasPage() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <div style={{ fontWeight:700, fontSize:18, color:'var(--text-dark)' }}>Control de Caja</div>
                     {cajaActiva.estado === 'cerrada' ? (
-                      <span style={{ fontSize: 12, background: 'var(--danger-soft)', color: 'var(--danger-text)', padding: '2px 8px', borderRadius: 12, fontWeight: 700 }}>🔓 Cerrada</span>
+                      <span style={{ fontSize: 12, background: 'var(--danger-soft)', color: 'var(--danger-text)', padding: '2px 8px', borderRadius: 12, fontWeight: 700 }}><span style={{ display:'inline-flex', alignItems:'center', gap:6 }}><Icon name="lock" size={12} />Cerrada</span></span>
                     ) : (
-                      <span style={{ fontSize: 12, background: 'var(--success-soft)', color: 'var(--success-text)', padding: '2px 8px', borderRadius: 12, fontWeight: 700 }}>🟢 Abierta</span>
+                      <span style={{ fontSize: 12, background: 'var(--success-soft)', color: 'var(--success-text)', padding: '2px 8px', borderRadius: 12, fontWeight: 700 }}>Abierta</span>
                     )}
                   </div>
                   <div style={{ display:'flex', gap:10, alignItems: 'center' }}>
@@ -782,7 +782,7 @@ export default function FinanzasPage() {
                       </>
                     ) : (
                       <span style={{ fontSize: 12, fontWeight: 700, padding: '5px 12px', background: 'var(--danger-soft)', color: 'var(--danger-text)', borderRadius: 6, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                        🔒 Caja Cerrada para Ediciones
+                        <span style={{ display:'inline-flex', alignItems:'center', gap:6 }}><Icon name="lock" size={13} />Caja cerrada para ediciones</span>
                       </span>
                     )}
                   </div>
@@ -803,8 +803,8 @@ export default function FinanzasPage() {
                         {editandoPrecio === c.id ? (
                           <>
                             <input type="number" autoFocus defaultValue={getPrecio(c)} onChange={e => setPrecioEdit(e.target.value === '' ? '' : Number(e.target.value))} style={{ width:90, fontSize:13, padding:'4px 8px', borderRadius:7, border:'1px solid var(--success)', fontFamily:'DM Sans, sans-serif', textAlign:'right' }} />
-                            <button onClick={() => precioEdit !== '' && guardarPrecioCita(c, precioEdit as number)} style={{ fontSize:12, padding:'4px 8px', borderRadius:6, border:'none', background:'var(--success)', color:'var(--success-contrast)', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>✓</button>
-                            <button onClick={() => setEditandoPrecio(null)} style={{ fontSize:12, padding:'4px 8px', borderRadius:6, border:'0.5px solid var(--border-color)', background:'var(--bg-card)', color:'var(--text-muted)', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>×</button>
+                            <button onClick={() => precioEdit !== '' && guardarPrecioCita(c, precioEdit as number)} style={{ fontSize:12, padding:'4px 8px', borderRadius:6, border:'none', background:'var(--success)', color:'var(--success-contrast)', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }} aria-label="Guardar precio"><Icon name="check" size={14} /></button>
+                            <button onClick={() => setEditandoPrecio(null)} style={{ fontSize:12, padding:'4px 8px', borderRadius:6, border:'0.5px solid var(--border-color)', background:'var(--bg-card)', color:'var(--text-muted)', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }} aria-label="Cancelar edición"><Icon name="close" size={13} /></button>
                           </>
                         ) : (
                           <>
@@ -842,7 +842,7 @@ export default function FinanzasPage() {
                                       opacity: cajaActiva.estado === 'cerrada' ? 0.6 : 1 }}
                                     title={aviso}
                                   >
-                                    {atenuado ? 'Facturar ⚠' : parcial ? 'Facturar parcial 📄' : 'Facturar 📄'}
+                                    <span style={{ display:'inline-flex', alignItems:'center', gap:6 }}><Icon name={atenuado ? 'alert' : 'invoice'} size={13} />{parcial && !atenuado ? 'Facturar parcial' : 'Facturar'}</span>
                                   </button>
                                 )
                               }
@@ -850,7 +850,7 @@ export default function FinanzasPage() {
                             })()}
                             <div style={{ fontSize:14, fontWeight:700, color: c.precio_cobrado !== null ? 'var(--accent)' : 'var(--success-text)' }}>{fmt(getPrecio(c))}</div>
                             {cajaActiva.estado === 'abierta' && (
-                              <button onClick={() => { setEditandoPrecio(c.id); setPrecioEdit(getPrecio(c)) }} style={{ fontSize:12, padding:'2px 7px', borderRadius:5, border:'0.5px solid var(--border-color)', background:'var(--bg-card)', color:'var(--text-muted)', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>✎</button>
+                              <button onClick={() => { setEditandoPrecio(c.id); setPrecioEdit(getPrecio(c)) }} style={{ fontSize:12, padding:'2px 7px', borderRadius:5, border:'0.5px solid var(--border-color)', background:'var(--bg-card)', color:'var(--text-muted)', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }} aria-label="Editar precio"><Icon name="edit" size={13} /></button>
                             )}
                           </>
                         )}
@@ -887,7 +887,7 @@ export default function FinanzasPage() {
                                 style={{ fontSize: 12, padding: '3px 7px', borderRadius: 6, border: '1px solid var(--success)', background: 'var(--success-soft)', color: 'var(--success-text)', cursor: cajaActiva.estado === 'cerrada' ? 'not-allowed' : 'pointer', fontFamily: 'DM Sans, sans-serif', fontWeight: 600, opacity: cajaActiva.estado === 'cerrada' ? 0.6 : 1 }}
                                 title="Emitir Factura Electrónica ARCA"
                               >
-                                Facturar 📄
+                                <span style={{ display:'inline-flex', alignItems:'center', gap:6 }}><Icon name="invoice" size={13} />Facturar</span>
                               </button>
                             )
                           }
@@ -895,7 +895,7 @@ export default function FinanzasPage() {
                         })()}
                         <div style={{ fontSize:14, fontWeight:700, color:'var(--accent)' }}>{fmt(m.monto)}</div>
                         {cajaActiva.estado === 'abierta' && (
-                          <button onClick={() => eliminarIngreso(m.id)} style={{ fontSize:12, padding:'2px 8px', borderRadius:6, border:'0.5px solid var(--border-color)', background:'var(--bg-card)', color:'var(--danger-text)', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>×</button>
+                          <button onClick={() => eliminarIngreso(m.id)} style={{ fontSize:12, padding:'2px 8px', borderRadius:6, border:'0.5px solid var(--border-color)', background:'var(--bg-card)', color:'var(--danger-text)', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }} aria-label="Eliminar ingreso"><Icon name="trash" size={13} /></button>
                         )}
                       </div>
                     </div>
@@ -916,7 +916,7 @@ export default function FinanzasPage() {
                       <div style={{ display:'flex', alignItems:'center', gap:8 }}>
                         <div style={{ fontSize:14, fontWeight:700, color:'var(--danger-text)' }}>{fmt(e.monto)}</div>
                         {cajaActiva.estado === 'abierta' && (
-                          <button onClick={() => eliminarEgreso(e.id)} style={{ fontSize:12, padding:'2px 8px', borderRadius:6, border:'0.5px solid var(--border-color)', background:'var(--bg-card)', color:'var(--danger-text)', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>×</button>
+                          <button onClick={() => eliminarEgreso(e.id)} style={{ fontSize:12, padding:'2px 8px', borderRadius:6, border:'0.5px solid var(--border-color)', background:'var(--bg-card)', color:'var(--danger-text)', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }} aria-label="Eliminar egreso"><Icon name="trash" size={13} /></button>
                         )}
                       </div>
                     </div>
@@ -952,7 +952,7 @@ export default function FinanzasPage() {
                           <div style={{ padding: 10, background: diff === 0 ? 'var(--success-soft)' : 'var(--warning-soft)', borderRadius: 8, border: `0.5px solid ${diff === 0 ? 'var(--success)' : 'var(--warning)'}` }}>
                             <div style={{ fontSize: 12, color: diff === 0 ? 'var(--success-text)' : 'var(--warning-text)', fontWeight: 600 }}>DIFERENCIA</div>
                             <div style={{ fontSize: 15, fontWeight: 800, color: diff === 0 ? 'var(--success-text)' : diff > 0 ? 'var(--success-text)' : 'var(--danger-text)', marginTop: 4 }}>
-                              {diff === 0 ? 'Cuadrada ✓' : (diff > 0 ? `+${fmt(diff)} (Sobrante)` : `${fmt(diff)} (Faltante)`)}
+                              {diff === 0 ? 'Cuadrada' : (diff > 0 ? `+${fmt(diff)} (Sobrante)` : `${fmt(diff)} (Faltante)`)}
                             </div>
                           </div>
                         </div>
@@ -1220,18 +1220,18 @@ export default function FinanzasPage() {
                     let bg = 'var(--success-soft)'
                     let border = '1px solid var(--success-border)'
                     let color = 'var(--success-text)'
-                    let label = `Caja Cuadrada ✓`
+                    let label = `Caja cuadrada`
                     
                     if (dif > 0) {
                       bg = 'var(--success-soft)'
                       border = '1px solid var(--success)'
                       color = 'var(--success-text)'
-                      label = `Sobrante: +${fmt(dif)} 🟢`
+                      label = `Sobrante: +${fmt(dif)}`
                     } else if (dif < 0) {
                       bg = 'var(--danger-soft)'
                       border = '1px solid var(--danger)'
                       color = 'var(--danger-text)'
-                      label = `Faltante: -${fmt(Math.abs(dif))} 🔴`
+                      label = `Faltante: -${fmt(Math.abs(dif))}`
                     }
 
                     return (
