@@ -13,6 +13,9 @@ process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://test.supabase.co'
 process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-role-de-prueba'
 
 let respuestas: Record<string, any[]> = {}
+// Respuesta para una consulta a `pacientes` filtrada por id = <clave>. Sirve
+// para detectar si la ruta busca por id (lo que no debe hacer nunca).
+let trampaPorId: Record<string, any> = {}
 
 function encolar(tabla: string, respuesta: any) {
   respuestas[tabla] = respuestas[tabla] || []
@@ -22,17 +25,22 @@ function encolar(tabla: string, respuesta: any) {
 vi.mock('@supabase/supabase-js', () => ({
   createClient: () => ({
     from(tabla: string) {
+      const filtros: Record<string, any> = {}
+      const resolver = () => {
+        if (tabla === 'pacientes' && filtros.id && trampaPorId[filtros.id]) return trampaPorId[filtros.id]
+        return (respuestas[tabla] || []).shift() || { data: null, error: null }
+      }
       const cadena: any = {
         select: () => cadena,
         insert: () => cadena,
         update: () => cadena,
-        eq: () => cadena,
+        eq: (col: string, val: any) => { filtros[col] = val; return cadena },
         gte: () => cadena,
         lt: () => cadena,
         order: () => cadena,
         limit: () => cadena,
-        single: async () => (respuestas[tabla] || []).shift() || { data: null, error: null },
-        maybeSingle: async () => (respuestas[tabla] || []).shift() || { data: null, error: null },
+        single: async () => resolver(),
+        maybeSingle: async () => resolver(),
       }
       return cadena
     },
@@ -55,6 +63,7 @@ const ERROR_COLUMNA_TOKEN_EXPIRA = {
 describe('Portal del Paciente: Resiliencia frente a ausencia de token_expira', () => {
   beforeEach(() => {
     respuestas = {}
+    trampaPorId = {}
   })
 
   it('GET: devuelve los datos clínicos sin limpiarlos a null aunque token_expira no exista en DB', async () => {
@@ -249,3 +258,38 @@ describe('Portal del Paciente: Resiliencia frente a ausencia de token_expira', (
     expect(body.error).toBe('Paciente no encontrado o enlace inválido')
   })
 })
+
+// ── Seguridad: el portal se abre SOLO con el token secreto ──────────────────
+// El commit a1e5b2b agregó una búsqueda por id "por retrocompatibilidad". El
+// id del paciente no es secreto (aparece en /pacientes/<id>), y esta ruta es
+// pública con service_role: con un id se leían datos clínicos y se podía
+// escribir la anamnesis de cualquier paciente, sin login.
+describe('Portal del Paciente: no se accede por id', () => {
+  const ID_DE_OTRO_PACIENTE = '22222222-2222-4222-8222-222222222222'
+  const AJENO = { id: ID_DE_OTRO_PACIENTE, nombre: 'Paciente Ajeno', telefono: '1100000000', tenant_id: 'ten-1', dni_cuit: '30111222', alergias: 'Látex', antecedentes: 'Diabetes' }
+
+  beforeEach(() => {
+    respuestas = {}
+    // Si la ruta consulta pacientes por id = ID_DE_OTRO_PACIENTE, encuentra al ajeno.
+    trampaPorId = { [ID_DE_OTRO_PACIENTE]: { data: AJENO, error: null } }
+  })
+
+  it('GET con un id (no un token) devuelve 404 y no expone datos', async () => {
+    const req = new NextRequest(`https://turnos.test/api/paciente/${ID_DE_OTRO_PACIENTE}`)
+    const res = await GET(req, { params: { token: ID_DE_OTRO_PACIENTE } })
+    expect(res.status).toBe(404)
+    const body = await res.json()
+    expect(JSON.stringify(body)).not.toContain('Paciente Ajeno')
+    expect(JSON.stringify(body)).not.toContain('Látex')
+  })
+
+  it('POST con un id (no un token) devuelve 404 y no escribe', async () => {
+    const req = new NextRequest(`https://turnos.test/api/paciente/${ID_DE_OTRO_PACIENTE}`, {
+      method: 'POST',
+      body: JSON.stringify({ dni: '30111222', aceptaConsentimiento: true, firmaPng: 'data:image/png;base64,AAAA' }),
+    })
+    const res = await POST(req, { params: { token: ID_DE_OTRO_PACIENTE } })
+    expect(res.status).toBe(404)
+  })
+})
+
