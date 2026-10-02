@@ -3,6 +3,8 @@ import { createClient } from '@supabase/supabase-js'
 import { rateLimit, getClientIp } from '@/lib/rate-limit'
 import { storagePathFromUrl, BUCKET_FOTOS } from '@/lib/storage'
 import { FIDELIZACION_HABILITADA } from '@/lib/fidelizacion-flag'
+import { VERSION_CONSENTIMIENTO_DATOS, TEXTO_CONSENTIMIENTO_DATOS } from '@/lib/consentimiento-datos'
+import crypto from 'crypto'
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -36,7 +38,7 @@ export async function GET(
   const pacRes = await supabaseAdmin
     .from('pacientes')
     // token_expira: añadir la columna con la migración incluida en los fixes.
-    .select('id, nombre, telefono, tenant_id, alergias, antecedentes, progreso_plan_porcentaje, puntos_saldo_cache, recomendaciones, token_expira')
+    .select('id, nombre, telefono, tenant_id, dni_cuit, alergias, antecedentes, consentimiento_datos_en, consentimiento_datos_ver, progreso_plan_porcentaje, puntos_saldo_cache, recomendaciones, token_expira')
     .eq('token', token)
     .single()
 
@@ -52,8 +54,11 @@ export async function GET(
     }
     pac = {
       ...fallback.data,
+      dni_cuit: null,
       alergias: null,
       antecedentes: null,
+      consentimiento_datos_en: null,
+      consentimiento_datos_ver: null,
       progreso_plan_porcentaje: 0,
       puntos_saldo_cache: 0,
       recomendaciones: null,
@@ -183,13 +188,33 @@ export async function GET(
     console.error('Error checking pending feedback')
   }
 
+  let consentimientoFirmado: any = null
+  try {
+    const { data: cf } = await supabaseAdmin
+      .from('consentimientos_firmados')
+      .select('id, titulo, firmado_en, hash_sha256')
+      .eq('paciente_id', pac.id)
+      .eq('estado', 'firmado')
+      .order('firmado_en', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    if (cf) {
+      consentimientoFirmado = cf
+    }
+  } catch (err) {
+    console.error('Error fetching signed consent')
+  }
+
   const res = NextResponse.json({
     paciente: {
       id: pac.id,
       nombre: pac.nombre,
       telefono: pac.telefono,
+      dni_cuit: pac.dni_cuit || null,
       alergias: pac.alergias || null,
       antecedentes: pac.antecedentes || null,
+      consentimiento_datos_en: pac.consentimiento_datos_en || null,
+      consentimiento_datos_ver: pac.consentimiento_datos_ver || null,
       progreso_plan_porcentaje: pac.progreso_plan_porcentaje || 0,
       // Saldo del ledger de fidelización (única fuente de verdad). El portal lo
       // muestra tal cual: no debe recalcularse a partir de las asistencias, o el
@@ -201,6 +226,7 @@ export async function GET(
       ...(FIDELIZACION_HABILITADA ? { puntos: pac.puntos_saldo_cache || 0 } : {}),
       recomendaciones: pac.recomendaciones || null
     },
+    consentimientoFirmado,
     turnos: citas || [],
     historial: historial || [],
     pastTurnos: pastCitas || [],
@@ -221,4 +247,178 @@ export async function GET(
   res.headers.set('Cache-Control', 'no-store, max-age=0')
   res.headers.set('X-Robots-Tag', 'noindex, nofollow')
   return res
+}
+
+export async function POST(
+  req: NextRequest,
+  { params }: { params: { token: string } }
+) {
+  try {
+    const ip = getClientIp(req)
+    const rl = rateLimit(`paciente-anamnesis:${ip}`, 10, 60 * 1000)
+    if (!rl.ok) {
+      return NextResponse.json(
+        { error: 'Demasiadas solicitudes. Esperá un momento.' },
+        { status: 429, headers: { 'Retry-After': String(rl.retryAfterSec) } }
+      )
+    }
+
+    const { token } = params
+    if (!token || !UUID_REGEX.test(token)) {
+      return NextResponse.json({ error: 'Link inválido' }, { status: 400 })
+    }
+
+    const { data: pac, error: pacErr } = await supabaseAdmin
+      .from('pacientes')
+      .select('id, nombre, tenant_id, token_expira, dni_cuit')
+      .eq('token', token)
+      .maybeSingle()
+
+    if (pacErr || !pac) {
+      return NextResponse.json({ error: 'Paciente no encontrado o enlace inválido' }, { status: 404 })
+    }
+
+    if (pac.token_expira && new Date(pac.token_expira).getTime() < Date.now()) {
+      return NextResponse.json({ error: 'Este enlace ha expirado. Solicitá uno nuevo a tu consultorio.' }, { status: 410 })
+    }
+
+    const body = await req.json()
+    const {
+      dni,
+      alergias,
+      antecedentes,
+      medicacionHabitual,
+      contactoEmergencia,
+      aceptaConsentimiento,
+      firmaPng,
+    } = body
+
+    if (!dni || typeof dni !== 'string' || !dni.trim()) {
+      return NextResponse.json({ error: 'El número de DNI / Documento es obligatorio.' }, { status: 400 })
+    }
+
+    if (!aceptaConsentimiento) {
+      return NextResponse.json({ error: 'Debes aceptar la declaración jurada y el consentimiento legal para continuar.' }, { status: 400 })
+    }
+
+    if (!firmaPng || typeof firmaPng !== 'string' || !firmaPng.startsWith('data:image/png;base64,')) {
+      return NextResponse.json({ error: 'La firma manuscrita digital es obligatoria.' }, { status: 400 })
+    }
+
+    const firmadoEn = new Date().toISOString()
+    const fechaLegible = new Date(firmadoEn).toLocaleString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' })
+    const dniTrimmed = dni.trim()
+
+    // Preparar resumen consolidado de antecedentes y contacto
+    const antPartes: string[] = []
+    if (antecedentes && typeof antecedentes === 'string' && antecedentes.trim()) {
+      antPartes.push(antecedentes.trim())
+    }
+    if (medicacionHabitual && typeof medicacionHabitual === 'string' && medicacionHabitual.trim()) {
+      antPartes.push(`Medicación: ${medicacionHabitual.trim()}`)
+    }
+    if (contactoEmergencia && typeof contactoEmergencia === 'string' && contactoEmergencia.trim()) {
+      antPartes.push(`Emergencia: ${contactoEmergencia.trim()}`)
+    }
+    const antecedentesFinal = antPartes.length > 0 ? antPartes.join(' | ') : 'Ninguno'
+    const alergiasFinal = (alergias && typeof alergias === 'string' && alergias.trim()) ? alergias.trim() : 'Ninguna'
+
+    // Snapshot inalterable para validez legal (Ley 25.326 y 26.529)
+    const contenidoSnapshot = `
+DECLARACIÓN JURADA DE SALUD Y CONSENTIMIENTO INFORMADO DE TRATAMIENTO DE DATOS
+(Leyes Nacionales 25.326 de Protección de Datos Personales y 26.529 de Derechos del Paciente)
+
+PACIENTE: ${pac.nombre}
+DOCUMENTO (DNI/CUIT): ${dniTrimmed}
+FECHA Y HORA: ${fechaLegible}
+MODALIDAD: Firma digital remota (Portal del Paciente)
+
+--- 1. ANAMNESIS Y ANTECEDENTES DE SALUD DECLARADOS ---
+• Alergias conocidas:
+${alergiasFinal}
+
+• Condiciones médicas / Antecedentes sistémicos:
+${(antecedentes && typeof antecedentes === 'string' && antecedentes.trim()) ? antecedentes.trim() : 'Ninguno manifestado'}
+
+• Medicación habitual:
+${(medicacionHabitual && typeof medicacionHabitual === 'string' && medicacionHabitual.trim()) ? medicacionHabitual.trim() : 'No declara'}
+
+• Contacto de emergencia:
+${(contactoEmergencia && typeof contactoEmergencia === 'string' && contactoEmergencia.trim()) ? contactoEmergencia.trim() : 'No especificado'}
+
+--- 2. DECLARACIÓN JURADA DE SALUD (LEY 26.529) ---
+Declaro bajo juramento que toda la información brindada sobre mi estado de salud general, antecedentes patológicos, intervenciones previas, alergias y medicación habitual es fidedigna, completa y actualizada al día de la fecha. Me comprometo a informar al profesional actuante cualquier cambio en mi condición de salud o medicación antes del inicio de cualquier tratamiento.
+
+--- 3. CONSENTIMIENTO PARA EL TRATAMIENTO DE DATOS DE SALUD (LEY 25.326) ---
+${TEXTO_CONSENTIMIENTO_DATOS}
+
+El titular declara haber sido debidamente informado sobre los alcances del tratamiento de sus datos sensibles de salud conforme a los artículos 7, 8 y concordantes de la Ley 25.326, prestando su consentimiento expreso, libre e informado mediante firma electrónica.
+`.trim()
+
+    // Huella criptográfica SHA-256 para integridad de la firma (Ley 25.506)
+    const hashSha256 = crypto
+      .createHash('sha256')
+      .update(`${contenidoSnapshot}|${dniTrimmed}|${firmadoEn}|${firmaPng}`)
+      .digest('hex')
+
+    // 1. Actualizar ficha del paciente
+    const { error: updatePacErr } = await supabaseAdmin
+      .from('pacientes')
+      .update({
+        dni_cuit: dniTrimmed,
+        alergias: alergiasFinal,
+        antecedentes: antecedentesFinal,
+        consentimiento_datos_en: firmadoEn,
+        consentimiento_datos_ver: VERSION_CONSENTIMIENTO_DATOS,
+        consentimiento_datos_ip: ip,
+        consentimiento_datos_origen: 'paciente'
+      })
+      .eq('id', pac.id)
+
+    if (updatePacErr) {
+      console.error('Error updating paciente anamnesis:', updatePacErr)
+      return NextResponse.json({ error: 'No se pudo guardar la información de salud.' }, { status: 500 })
+    }
+
+    // 2. Registrar consentimiento firmado inalterable
+    const { data: cfData, error: cfErr } = await supabaseAdmin
+      .from('consentimientos_firmados')
+      .insert({
+        tenant_id: pac.tenant_id,
+        paciente_id: pac.id,
+        titulo: 'Declaración Jurada de Salud y Consentimiento Digital',
+        contenido_snapshot: contenidoSnapshot,
+        contexto: 'remota',
+        estado: 'firmado',
+        firmante_nombre: pac.nombre,
+        firmante_doc: dniTrimmed,
+        firma_png: firmaPng,
+        hash_sha256: hashSha256,
+        ip_firma: ip,
+        user_agent: req.headers.get('user-agent') || null,
+        solicitado_en: firmadoEn,
+        firmado_en: firmadoEn
+      })
+      .select('id, titulo, firmado_en, hash_sha256')
+      .single()
+
+    if (cfErr) {
+      console.error('Error inserting consentimiento firmado:', cfErr)
+    }
+
+    return NextResponse.json({
+      success: true,
+      paciente: {
+        dni_cuit: dniTrimmed,
+        alergias: alergiasFinal,
+        antecedentes: antecedentesFinal,
+        consentimiento_datos_en: firmadoEn,
+        consentimiento_datos_ver: VERSION_CONSENTIMIENTO_DATOS,
+      },
+      consentimiento: cfData || null,
+    })
+  } catch (err: any) {
+    console.error('POST /api/paciente/[token] error:', err?.message || err)
+    return NextResponse.json({ error: 'Error interno del servidor.' }, { status: 500 })
+  }
 }

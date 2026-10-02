@@ -11,6 +11,8 @@ export function SignaturePad({ onChange, height = 200 }: { onChange?: (dataUrl: 
   const last = useRef<{ x: number; y: number } | null>(null)
   const [vacio, setVacio] = useState(true)
 
+  const hasDrawn = useRef(false)
+
   // Ajusta el tamaño real del canvas al contenedor (nítido en pantallas retina)
   const setupCanvas = useCallback(() => {
     const canvas = canvasRef.current
@@ -58,20 +60,26 @@ export function SignaturePad({ onChange, height = 200 }: { onChange?: (dataUrl: 
     ctx.lineTo(p.x, p.y)
     ctx.stroke()
     last.current = p
-    if (vacio) setVacio(false)
+    if (!hasDrawn.current) {
+      hasDrawn.current = true
+      setVacio(false)
+    }
   }
 
   const end = () => {
     if (!drawing.current) return
     drawing.current = false
     last.current = null
-    if (onChange && canvasRef.current) onChange(vacio ? null : canvasRef.current.toDataURL('image/png'))
+    if (onChange && canvasRef.current) {
+      onChange(hasDrawn.current ? canvasRef.current.toDataURL('image/png') : null)
+    }
   }
 
   const limpiar = () => {
     const canvas = canvasRef.current
     const ctx = canvas?.getContext('2d')
     if (canvas && ctx) ctx.clearRect(0, 0, canvas.width, canvas.height)
+    hasDrawn.current = false
     setVacio(true)
     onChange?.(null)
   }
