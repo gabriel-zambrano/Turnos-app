@@ -134,6 +134,10 @@ export default function FinanzasPage() {
   const [hasCelebratedMeta, setHasCelebratedMeta]       = useState(false)
   const [showMetaModal, setShowMetaModal]               = useState(false)
 
+  // Estados interactivos para toma de decisiones y simulador de costos
+  const [simuladorDelta, setSimuladorDelta]             = useState<number>(0)
+  const [vistaDecisiones, setVistaDecisiones]           = useState<'estructura' | 'simulador' | 'tratamientos'>('estructura')
+
   // La protección de sesión la hace el middleware (src/middleware.ts) server-side
   // antes de montar esta página; no hace falta re-verificar acá (era un viaje de red extra).
   
@@ -257,6 +261,76 @@ export default function FinanzasPage() {
   const breakEvenDiario = totalCostos / diasEnMes(mesActual, anioActual)
   const progreso        = metaIngresos > 0 ? Math.min(100, (totalMes / metaIngresos) * 100) : 0
   const gananciaActual  = totalMes - totalCostos
+
+  const totalEgresosMes = egresos.reduce((s, e) => s + e.monto, 0)
+  const gananciaNetaReal = totalMes - totalCostos - totalEgresosMes
+
+  const porcentajeCargaFija = totalMes > 0 ? Math.min(100, Math.round((totalCostos / totalMes) * 100)) : 0
+  const porcentajeEgresos = totalMes > 0 ? Math.min(100, Math.round((totalEgresosMes / totalMes) * 100)) : 0
+  const porcentajeGanancia = totalMes > 0 ? Math.max(0, 100 - porcentajeCargaFija - porcentajeEgresos) : 0
+
+  // Día de liberación de costos fijos en el mes
+  const diaLiberacion = useMemo(() => {
+    if (totalCostos === 0) return 1
+    const porDia: Record<number, number> = {}
+    citasMes.forEach(c => {
+      const d = new Date(c.fecha_hora).getDate()
+      porDia[d] = (porDia[d] || 0) + getPrecio(c)
+    })
+    manuales.forEach(m => {
+      const parts = m.fecha.split('-')
+      const d = parts.length === 3 ? parseInt(parts[2], 10) : 0
+      if (d > 0) porDia[d] = (porDia[d] || 0) + m.monto
+    })
+    let acumulado = 0
+    for (let d = 1; d <= 31; d++) {
+      acumulado += (porDia[d] || 0)
+      if (acumulado >= totalCostos) return d
+    }
+    return null
+  }, [citasMes, manuales, totalCostos, getPrecio])
+
+  const diaLiberacionEstimado = useMemo(() => {
+    if (totalCostos === 0) return 1
+    const hoy = new Date().getDate()
+    const ritmo = totalMes / Math.max(1, hoy)
+    if (ritmo <= 0) return null
+    return Math.ceil(totalCostos / ritmo)
+  }, [totalCostos, totalMes])
+
+  const ticketPromedio = useMemo(() => {
+    return citasMes.length > 0 ? Math.round(totalCitasMes / citasMes.length) : 0
+  }, [citasMes.length, totalCitasMes])
+
+  const turnosParaCostos = useMemo(() => {
+    return ticketPromedio > 0 ? Math.ceil(totalCostos / ticketPromedio) : 0
+  }, [totalCostos, ticketPromedio])
+
+  const tratamientosEquivalencia = useMemo(() => {
+    if (totalCostos === 0) return []
+    const conPrecio = tratamientos.filter(t => (t.precio_base || 0) > 0)
+    if (conPrecio.length > 0) {
+      return conPrecio.slice(0, 4).map(t => ({
+        nombre: t.nombre,
+        precio: t.precio_base!,
+        cantidad: Math.ceil(totalCostos / t.precio_base!)
+      }))
+    }
+    if (ticketPromedio > 0) {
+      return [{
+        nombre: 'Turnos Promedio',
+        precio: ticketPromedio,
+        cantidad: Math.ceil(totalCostos / ticketPromedio)
+      }]
+    }
+    return []
+  }, [tratamientos, totalCostos, ticketPromedio])
+
+  // Cálculos del simulador "¿Qué pasa si...?"
+  const costosSimulados = Math.max(0, totalCostos + simuladorDelta)
+  const gananciaSimulada = totalMes - costosSimulados - totalEgresosMes
+  const breakEvenSimuladoDiario = costosSimulados / diasEnMes(mesActual, anioActual)
+  const porcentajeCargaFijaSimulada = totalMes > 0 ? Math.min(100, Math.round((costosSimulados / totalMes) * 100)) : 0
  
   useEffect(() => {
     if (metaIngresos > 0 && totalMes >= metaIngresos) {
@@ -670,103 +744,455 @@ export default function FinanzasPage() {
 
           {tab === 'resumen' && (
             <>
-              {/* KPI Cards */}
-              <div style={{ display:'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap:12, marginBottom:'1.5rem' }}>
+              {/* 1. Tarjetas Principales de Alto Impacto */}
+              <div style={{ display:'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap:12, marginBottom:'1.25rem' }}>
                 {[
-                  { label:'Facturado en el mes', value: fmt(totalMes),  sub:`${citasMes.length} citas atendidas`,                                      accent:'var(--success-text)' },
-                  { label:'Costos Fijos',      value: fmt(totalCostos),   sub:`${costos.filter(c=>c.activo).length} ítems activos`,                     accent:'var(--danger-text)' },
-                  { label:'Meta mensual',      value: metaIngresos > 0 ? fmt(metaIngresos) : '—', sub: metaIngresos > 0 ? `${Math.round(progreso)}% completado` : 'Sin meta definida', accent:'var(--accent)' },
-                  { label:'Objetivo del día',  value: restante === 0 && metaIngresos > 0 ? 'Cumplida' : objetivoDiario > 0 ? fmt(objetivoDiario) : '—', sub: diasRest > 0 ? `Quedan ${diasRest} días` : 'Último día del mes', accent: restante === 0 && metaIngresos > 0 ? 'var(--success-text)' : 'var(--warning-text)' },
-                ].map(({ label, value, sub, accent }) => (
-                  <div key={label} style={{ background:'var(--bg-card)', border:'0.5px solid var(--border-color)', borderRadius:14, padding:'1rem 1.1rem' }}>
-                    <div style={{ fontSize:12, fontWeight:600, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:6 }}>{label}</div>
-                    <div style={{ fontSize: isMobile ? 15 : 19, fontWeight:700, color:accent }}>{value}</div>
-                    <div style={{ fontSize:12, color:'var(--text-muted)', marginTop:3 }}>{sub}</div>
+                  {
+                    label: 'Facturación del Mes',
+                    value: fmt(totalMes),
+                    sub: `${citasMes.length} turnos · ${manuales.length} extras`,
+                    accent: 'var(--success-text)',
+                    tag: 'Ingresos'
+                  },
+                  {
+                    label: 'Costos Fijos Operativos',
+                    value: fmt(totalCostos),
+                    sub: `${costos.filter(c => c.activo).length} ítems activos (${porcentajeCargaFija}% fact.)`,
+                    accent: 'var(--danger-text)',
+                    tag: 'Estructura'
+                  },
+                  {
+                    label: 'Egresos Variables',
+                    value: fmt(totalEgresosMes),
+                    sub: `${egresos.length} gastos (${porcentajeEgresos}% fact.)`,
+                    accent: 'var(--warning-text)',
+                    tag: 'Gastos'
+                  },
+                  {
+                    label: 'Ganancia Líquida Neta',
+                    value: fmt(Math.abs(gananciaNetaReal)),
+                    sub: gananciaNetaReal >= 0 ? `Líquido en mano (${porcentajeGanancia}% fact.)` : 'Bajo costos operativos',
+                    accent: gananciaNetaReal >= 0 ? 'var(--success-text)' : 'var(--danger-text)',
+                    tag: gananciaNetaReal >= 0 ? 'Superávit' : 'Déficit'
+                  },
+                ].map(({ label, value, sub, accent, tag }) => (
+                  <div key={label} style={{ background:'var(--bg-card)', border:'0.5px solid var(--border-color)', borderRadius:14, padding:'1rem 1.1rem', display:'flex', flexDirection:'column', justifyContent:'space-between' }}>
+                    <div>
+                      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6 }}>
+                        <span style={{ fontSize:12, fontWeight:600, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.05em' }}>{label}</span>
+                        <span style={{ fontSize:12, fontWeight:700, padding:'1px 6px', borderRadius:6, background:'var(--bg-input)', border:'0.5px solid var(--border-color)', color:'var(--text-muted)' }}>{tag}</span>
+                      </div>
+                      <div style={{ fontSize: isMobile ? 16 : 20, fontWeight:700, color:accent, letterSpacing:'-0.02em' }}>{value}</div>
+                    </div>
+                    <div style={{ fontSize:12, color:'var(--text-muted)', marginTop:6 }}>{sub}</div>
                   </div>
                 ))}
               </div>
 
-              {/* Barra de progreso mensual */}
-              {metaIngresos > 0 && (
-                <div style={{ background:'var(--bg-card)', border:'0.5px solid var(--border-color)', borderRadius:16, padding:'1.1rem 1.4rem', marginBottom:'1.5rem' }}>
-                  <div style={{ display:'flex', justifyContent:'space-between', marginBottom:8 }}>
-                    <span style={{ fontSize:13, fontWeight:600 }}>Progreso mensual</span>
-                    <span style={{ fontSize:13, color:'var(--text-muted)' }}>{fmt(totalMes)} de {fmt(metaIngresos)}</span>
+              {/* 2. Cascada de Distribución Financiera: ¿Adónde va cada peso? */}
+              <div style={{ background:'var(--bg-card)', border:'0.5px solid var(--border-color)', borderRadius:16, padding:'1.1rem 1.35rem', marginBottom:'1.5rem' }}>
+                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12, flexWrap:'wrap', gap:8 }}>
+                  <div>
+                    <div style={{ fontSize:14, fontWeight:700, color:'var(--text-dark)' }}>Distribución de Ingresos y Carga de Estructura</div>
+                    <div style={{ fontSize:12, color:'var(--text-muted)' }}>Desglose de cada peso facturado entre estructura fija, egresos variables y ganancia real</div>
                   </div>
-                  <div style={{ height:10, background:'var(--bg-input)', borderRadius:5, overflow:'hidden', marginBottom:6 }}>
-                    <div style={{ height:'100%', width:`${progreso}%`, background: progreso >= 100 ? 'var(--success)' : progreso >= 60 ? 'var(--warning)' : 'var(--danger)', borderRadius:5, transition:'width .5s ease' }} />
+                  <div>
+                    {porcentajeCargaFija <= 30 ? (
+                      <span style={{ fontSize:12, fontWeight:700, padding:'3px 10px', borderRadius:20, background:'var(--success-soft)', color:'var(--success-text)', border:'0.5px solid var(--success-border)', display:'inline-flex', alignItems:'center', gap:5 }}>
+                        <Icon name="check" size={13} />Estructura Liviana (Óptima)
+                      </span>
+                    ) : porcentajeCargaFija <= 45 ? (
+                      <span style={{ fontSize:12, fontWeight:700, padding:'3px 10px', borderRadius:20, background:'var(--accent-soft)', color:'var(--accent)', border:'0.5px solid var(--border-color)', display:'inline-flex', alignItems:'center', gap:5 }}>
+                        <Icon name="info" size={13} />Estructura en Rango
+                      </span>
+                    ) : (
+                      <span style={{ fontSize:12, fontWeight:700, padding:'3px 10px', borderRadius:20, background:'var(--warning-soft)', color:'var(--warning-text)', border:'0.5px solid var(--warning-border)', display:'inline-flex', alignItems:'center', gap:5 }}>
+                        <Icon name="alert" size={13} />Atención: Carga Fija Alta
+                      </span>
+                    )}
                   </div>
-                  <div style={{ display:'flex', justifyContent:'space-between', fontSize:12, color:'var(--text-muted)' }}>
-                    <span>{Math.round(progreso)}% completado</span>
-                    {restante > 0 && <span>Faltan {fmt(restante)}</span>}
+                </div>
+
+                {/* Barra segmentada continua */}
+                <div style={{ height:12, background:'var(--bg-input)', borderRadius:6, display:'flex', overflow:'hidden', marginBottom:12, border:'0.5px solid var(--border-color)' }}>
+                  <div style={{ width:`${porcentajeCargaFija}%`, background:'var(--danger)', transition:'width .4s ease' }} title={`Costos Fijos: ${porcentajeCargaFija}%`} />
+                  <div style={{ width:`${porcentajeEgresos}%`, background:'var(--warning)', transition:'width .4s ease' }} title={`Egresos Variables: ${porcentajeEgresos}%`} />
+                  <div style={{ width:`${porcentajeGanancia}%`, background:'var(--success)', transition:'width .4s ease' }} title={`Ganancia Neta: ${porcentajeGanancia}%`} />
+                </div>
+
+                {/* Pastillas de detalle con montos */}
+                <div style={{ display:'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap:8 }}>
+                  <div style={{ display:'flex', alignItems:'center', gap:8, background:'var(--bg-input)', border:'0.5px solid var(--border-color)', borderRadius:8, padding:'7px 10px' }}>
+                    <div style={{ width:10, height:10, borderRadius:3, background:'var(--danger)', flexShrink:0 }} />
+                    <div style={{ flex:1, fontSize:12 }}>
+                      <span style={{ color:'var(--text-muted)' }}>Costos fijos: </span>
+                      <strong style={{ color:'var(--danger-text)' }}>{fmt(totalCostos)}</strong>
+                      <span style={{ color:'var(--text-muted)' }}> ({porcentajeCargaFija}%)</span>
+                    </div>
+                  </div>
+                  <div style={{ display:'flex', alignItems:'center', gap:8, background:'var(--bg-input)', border:'0.5px solid var(--border-color)', borderRadius:8, padding:'7px 10px' }}>
+                    <div style={{ width:10, height:10, borderRadius:3, background:'var(--warning)', flexShrink:0 }} />
+                    <div style={{ flex:1, fontSize:12 }}>
+                      <span style={{ color:'var(--text-muted)' }}>Egresos variables: </span>
+                      <strong style={{ color:'var(--warning-text)' }}>{fmt(totalEgresosMes)}</strong>
+                      <span style={{ color:'var(--text-muted)' }}> ({porcentajeEgresos}%)</span>
+                    </div>
+                  </div>
+                  <div style={{ display:'flex', alignItems:'center', gap:8, background:'var(--bg-input)', border:'0.5px solid var(--border-color)', borderRadius:8, padding:'7px 10px' }}>
+                    <div style={{ width:10, height:10, borderRadius:3, background:'var(--success)', flexShrink:0 }} />
+                    <div style={{ flex:1, fontSize:12 }}>
+                      <span style={{ color:'var(--text-muted)' }}>Ganancia neta: </span>
+                      <strong style={{ color:'var(--success-text)' }}>{fmt(gananciaNetaReal)}</strong>
+                      <span style={{ color:'var(--text-muted)' }}> ({porcentajeGanancia}%)</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 3. Selector de Perspectivas de Decisión */}
+              <div style={{ display:'flex', gap:6, marginBottom:'1rem', background:'var(--bg-input)', padding:4, borderRadius:10, width:'fit-content', border:'0.5px solid var(--border-color)', flexWrap:'wrap' }}>
+                <button
+                  type="button"
+                  onClick={() => setVistaDecisiones('estructura')}
+                  style={{
+                    padding:'6px 14px', borderRadius:8, border:'none', cursor:'pointer',
+                    fontSize:12, fontWeight:600, fontFamily:'DM Sans, sans-serif',
+                    background: vistaDecisiones === 'estructura' ? 'var(--text-dark)' : 'transparent',
+                    color: vistaDecisiones === 'estructura' ? 'var(--bg-card)' : 'var(--text-muted)',
+                    transition:'all 0.15s'
+                  }}
+                >
+                  Punto de Equilibrio y Costos Fijos
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setVistaDecisiones('simulador')}
+                  style={{
+                    padding:'6px 14px', borderRadius:8, border:'none', cursor:'pointer',
+                    fontSize:12, fontWeight:600, fontFamily:'DM Sans, sans-serif',
+                    background: vistaDecisiones === 'simulador' ? 'var(--text-dark)' : 'transparent',
+                    color: vistaDecisiones === 'simulador' ? 'var(--bg-card)' : 'var(--text-muted)',
+                    transition:'all 0.15s'
+                  }}
+                >
+                  Simulador de Decisiones ("¿Qué pasa si...?")
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setVistaDecisiones('tratamientos')}
+                  style={{
+                    padding:'6px 14px', borderRadius:8, border:'none', cursor:'pointer',
+                    fontSize:12, fontWeight:600, fontFamily:'DM Sans, sans-serif',
+                    background: vistaDecisiones === 'tratamientos' ? 'var(--text-dark)' : 'transparent',
+                    color: vistaDecisiones === 'tratamientos' ? 'var(--bg-card)' : 'var(--text-muted)',
+                    transition:'all 0.15s'
+                  }}
+                >
+                  Equivalencia en Turnos Clínicos
+                </button>
+              </div>
+
+              {/* VISTA A: ESTRUCTURA Y PUNTO DE EQUILIBRIO */}
+              {vistaDecisiones === 'estructura' && (
+                <div style={{ display:'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 340px', gap:16, alignItems:'start' }}>
+                  {/* Punto de equilibrio y Día de Liberación */}
+                  <div style={{ background:'var(--bg-card)', border:'0.5px solid var(--border-color)', borderRadius:16, padding:'1.25rem' }}>
+                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14 }}>
+                      <div style={{ fontWeight:700, fontSize:15, color:'var(--text-dark)' }}>Punto de Equilibrio Operativo</div>
+                      {metaIngresos > 0 && (
+                        <span style={{ fontSize:12, color:'var(--text-muted)' }}>Meta: {fmt(metaIngresos)}</span>
+                      )}
+                    </div>
+
+                    {/* Banner Día de Liberación */}
+                    {diaLiberacion !== null ? (
+                      <div style={{ background:'var(--success-soft)', border:'0.5px solid var(--success-border)', borderRadius:10, padding:'0.9rem 1rem', marginBottom:14, display:'flex', alignItems:'flex-start', gap:10 }}>
+                        <span style={{ color:'var(--success-text)', marginTop:2 }}><Icon name="check" size={18} /></span>
+                        <div>
+                          <div style={{ fontSize:13, fontWeight:700, color:'var(--success-text)' }}>¡Día de liberación alcanzado!</div>
+                          <div style={{ fontSize:12, color:'var(--success-text)', lineHeight:1.45, marginTop:2 }}>
+                            El día <strong>{diaLiberacion} de {MESES[mesActual - 1]}</strong> cubriste el 100% de tus costos fijos. A partir de esa fecha, cada turno atendido genera ganancia líquida pura.
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div style={{ background:'var(--accent-soft)', border:'0.5px solid var(--border-color)', borderRadius:10, padding:'0.9rem 1rem', marginBottom:14, display:'flex', alignItems:'flex-start', gap:10 }}>
+                        <span style={{ color:'var(--accent)', marginTop:2 }}><Icon name="clock" size={18} /></span>
+                        <div>
+                          <div style={{ fontSize:13, fontWeight:700, color:'var(--accent)' }}>Día de liberación proyectado</div>
+                          <div style={{ fontSize:12, color:'var(--text-dark)', lineHeight:1.45, marginTop:2 }}>
+                            A tu ritmo actual de facturación ({fmt(Math.round(totalMes / Math.max(1, new Date().getDate()))) }/día), cubrís la totalidad de tus costos fijos hacia el día <strong>{diaLiberacionEstimado ? `${diaLiberacionEstimado} de ${MESES[mesActual - 1]}` : 'próximamente'}</strong>.
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:10, marginBottom:14 }}>
+                      <div style={{ background:'var(--danger-soft)', borderRadius:10, padding:'0.85rem', textAlign:'center' }}>
+                        <div style={{ fontSize:12, color:'var(--danger-text)', fontWeight:700, marginBottom:4, textTransform:'uppercase' }}>Costos fijos</div>
+                        <div style={{ fontSize:15, fontWeight:700, color:'var(--danger-text)' }}>{fmt(totalCostos)}</div>
+                        <div style={{ fontSize:12, color:'var(--danger-text)', marginTop:2 }}>{fmt(breakEvenDiario)}/día</div>
+                      </div>
+                      <div style={{ background:'var(--accent-soft)', borderRadius:10, padding:'0.85rem', textAlign:'center' }}>
+                        <div style={{ fontSize:12, color:'var(--accent)', fontWeight:700, marginBottom:4, textTransform:'uppercase' }}>Meta mensual</div>
+                        <div style={{ fontSize:15, fontWeight:700, color:'var(--accent)' }}>{metaIngresos > 0 ? fmt(metaIngresos) : '—'}</div>
+                        <div style={{ fontSize:12, color:'var(--accent)', marginTop:2 }}>{metaIngresos > 0 ? `${fmt(metaIngresos / diasEnMes(mesActual, anioActual))}/día` : 'Sin definir'}</div>
+                      </div>
+                      <div style={{ background: gananciaNetaReal >= 0 ? 'var(--success-soft)' : 'var(--warning-soft)', borderRadius:10, padding:'0.85rem', textAlign:'center' }}>
+                        <div style={{ fontSize:12, color: gananciaNetaReal >= 0 ? 'var(--success-text)' : 'var(--danger-text)', fontWeight:700, marginBottom:4, textTransform:'uppercase' }}>{gananciaNetaReal >= 0 ? 'Ganancia Neta' : 'Déficit'}</div>
+                        <div style={{ fontSize:15, fontWeight:700, color: gananciaNetaReal >= 0 ? 'var(--success-text)' : 'var(--warning-text)' }}>{fmt(Math.abs(gananciaNetaReal))}</div>
+                        <div style={{ fontSize:12, color: gananciaNetaReal >= 0 ? 'var(--success-text)' : 'var(--warning-text)', marginTop:2 }}>{gananciaNetaReal >= 0 ? 'líquido libre' : 'bajo costos'}</div>
+                      </div>
+                    </div>
+
+                    {metaIngresos > 0 && restante > 0 && (
+                      <div style={{ background:'var(--bg-input)', borderRadius:10, padding:'0.85rem 1rem', fontSize:13, color:'var(--text-dark)', lineHeight:1.6, border:'0.5px solid var(--border-color)' }}>
+                        Para cumplir la meta necesitás facturar{' '}
+                        <strong style={{ color:'var(--accent)' }}>{fmt(objetivoDiario)}/día</strong>{' '}
+                        durante los próximos <strong>{diasRest} días</strong>.
+                        {totalCostos > 0 && <span style={{ color:'var(--text-muted)' }}>{' '}(Break-even: {fmt(breakEvenDiario)}/día para cubrir costos fijos)</span>}
+                      </div>
+                    )}
+                    {restante === 0 && metaIngresos > 0 && (
+                      <div style={{ background:'var(--success-soft)', borderRadius:10, padding:'0.85rem 1rem', fontSize:14, color:'var(--success-text)', fontWeight:700, textAlign:'center' }}>
+                        <span style={{ display:'inline-flex', alignItems:'center', gap:6 }}><Icon name="check" size={16} />Meta del mes cumplida</span>
+                      </div>
+                    )}
+
+                    {/* Barra de progreso de la meta */}
+                    {metaIngresos > 0 && (
+                      <div style={{ marginTop:14, borderTop:'0.5px solid var(--border-light)', paddingTop:12 }}>
+                        <div style={{ display:'flex', justifyContent:'space-between', fontSize:12, color:'var(--text-muted)', marginBottom:6 }}>
+                          <span>Progreso de meta mensual ({Math.round(progreso)}%)</span>
+                          <span>{fmt(totalMes)} / {fmt(metaIngresos)}</span>
+                        </div>
+                        <div style={{ height:8, background:'var(--bg-input)', borderRadius:4, overflow:'hidden', border:'0.5px solid var(--border-color)' }}>
+                          <div style={{ height:'100%', width:`${progreso}%`, background: progreso >= 100 ? 'var(--success)' : progreso >= 60 ? 'var(--warning)' : 'var(--danger)', borderRadius:4, transition:'width .5s ease' }} />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Lista de Costos Fijos */}
+                  <div style={{ background:'var(--bg-card)', border:'0.5px solid var(--border-color)', borderRadius:16, padding:'1.25rem' }}>
+                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
+                      <div>
+                        <div style={{ fontWeight:700, fontSize:15, color:'var(--text-dark)' }}>Costos Fijos</div>
+                        <div style={{ fontSize:12, color:'var(--text-muted)' }}>Tildá para incluir en el cálculo</div>
+                      </div>
+                      <button onClick={() => setModalCosto(true)}
+                        style={{ fontSize:12, fontWeight:600, padding:'5px 12px', borderRadius:8, border:'none', background:'var(--success)', color:'var(--success-contrast)', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>
+                        + Agregar
+                      </button>
+                    </div>
+                    {costos.length === 0
+                      ? <EmptyState compact icon="money" title="Sin costos fijos cargados" description="Cargá alquiler, sueldos y servicios para que el resumen calcule la ganancia real del mes." />
+                      : costos.map((c, i) => {
+                        const pctItem = totalCostos > 0 && c.activo ? Math.round((c.monto / totalCostos) * 100) : 0
+                        return (
+                          <div key={c.id} style={{ display:'flex', alignItems:'center', gap:8, padding:'9px 0', borderBottom: i < costos.length - 1 ? '0.5px solid var(--border-light)' : 'none', opacity: c.activo ? 1 : 0.45 }}>
+                            <input type="checkbox" checked={c.activo} onChange={() => toggleCosto(c.id, c.activo)} style={{ accentColor:'var(--success-text)', flexShrink:0, cursor:'pointer' }} title={c.activo ? 'Desactivar costo' : 'Activar costo'} />
+                            <div style={{ flex:1, overflow:'hidden' }}>
+                              <div style={{ fontSize:13, fontWeight:600, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{c.nombre}</div>
+                              {c.activo && totalCostos > 0 && (
+                                <div style={{ fontSize:12, color:'var(--text-muted)' }}>{pctItem}% del costo fijo total</div>
+                              )}
+                            </div>
+                            <div style={{ fontSize:13, fontWeight:700, color:'var(--danger-text)', flexShrink:0 }}>{fmt(c.monto)}</div>
+                            <button onClick={() => eliminarCosto(c.id)} style={{ fontSize:12, padding:'2px 8px', borderRadius:6, border:'0.5px solid var(--border-color)', background:'var(--bg-card)', color:'var(--danger-text)', cursor:'pointer', fontFamily:'DM Sans, sans-serif', flexShrink:0 }} title="Eliminar costo">×</button>
+                          </div>
+                        )
+                      })
+                    }
+                    {costos.length > 0 && (
+                      <div style={{ borderTop:'1px solid var(--border-light)', paddingTop:10, marginTop:8, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                        <div>
+                          <span style={{ fontSize:13, fontWeight:600 }}>Total activo</span>
+                          <div style={{ fontSize:12, color:'var(--text-muted)' }}>{costos.filter(c => c.activo).length} de {costos.length} costos</div>
+                        </div>
+                        <span style={{ fontSize:15, fontWeight:700, color:'var(--danger-text)' }}>{fmt(totalCostos)}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
 
-              <div style={{ display:'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 320px', gap:16, alignItems:'start' }}>
-                {/* Punto de equilibrio */}
-                <div style={{ background:'var(--bg-card)', border:'0.5px solid var(--border-color)', borderRadius:16, padding:'1.25rem' }}>
-                  <div style={{ fontWeight:700, fontSize:15, color:'var(--text-dark)', marginBottom:14 }}>Punto de equilibrio</div>
-                  <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:10, marginBottom:14 }}>
-                    <div style={{ background:'var(--danger-soft)', borderRadius:10, padding:'0.85rem', textAlign:'center' }}>
-                      <div style={{ fontSize:12, color:'var(--danger-text)', fontWeight:700, marginBottom:4, textTransform:'uppercase' }}>Costos fijos</div>
-                      <div style={{ fontSize:16, fontWeight:700, color:'var(--danger-text)' }}>{fmt(totalCostos)}</div>
-                      <div style={{ fontSize:12, color:'var(--danger-text)', marginTop:2 }}>{fmt(breakEvenDiario)}/día</div>
-                    </div>
-                    <div style={{ background:'var(--accent-soft)', borderRadius:10, padding:'0.85rem', textAlign:'center' }}>
-                      <div style={{ fontSize:12, color:'var(--accent)', fontWeight:700, marginBottom:4, textTransform:'uppercase' }}>Meta mensual</div>
-                      <div style={{ fontSize:16, fontWeight:700, color:'var(--accent)' }}>{metaIngresos > 0 ? fmt(metaIngresos) : '—'}</div>
-                      <div style={{ fontSize:12, color:'var(--accent)', marginTop:2 }}>{metaIngresos > 0 ? `${fmt(metaIngresos / diasEnMes(mesActual, anioActual))}/día` : 'Sin definir'}</div>
-                    </div>
-                    <div style={{ background: gananciaActual >= 0 ? 'var(--success-soft)' : 'var(--warning-soft)', borderRadius:10, padding:'0.85rem', textAlign:'center' }}>
-                      <div style={{ fontSize:12, color: gananciaActual >= 0 ? 'var(--success-text)' : 'var(--danger-text)', fontWeight:700, marginBottom:4, textTransform:'uppercase' }}>{gananciaActual >= 0 ? 'Ganancia' : 'Déficit'}</div>
-                      <div style={{ fontSize:16, fontWeight:700, color: gananciaActual >= 0 ? 'var(--success-text)' : 'var(--warning-text)' }}>{fmt(Math.abs(gananciaActual))}</div>
-                      <div style={{ fontSize:12, color: gananciaActual >= 0 ? 'var(--success-text)' : 'var(--warning-text)', marginTop:2 }}>{gananciaActual >= 0 ? 'sobre costos' : 'bajo costos'}</div>
-                    </div>
-                  </div>
-                  {metaIngresos > 0 && restante > 0 && (
-                    <div style={{ background:'var(--bg-input)', borderRadius:10, padding:'0.85rem 1rem', fontSize:13, color:'var(--text-dark)', lineHeight:1.6 }}>
-                      Para cumplir la meta necesitás facturar{' '}
-                      <strong style={{ color:'var(--accent)' }}>{fmt(objetivoDiario)}/día</strong>{' '}
-                      durante los próximos <strong>{diasRest} días</strong>.
-                      {totalCostos > 0 && <span style={{ color:'var(--text-muted)' }}>{' '}(Break-even: {fmt(breakEvenDiario)}/día para cubrir costos fijos)</span>}
-                    </div>
-                  )}
-                  {restante === 0 && metaIngresos > 0 && (
-                    <div style={{ background:'var(--success-soft)', borderRadius:10, padding:'0.85rem 1rem', fontSize:14, color:'var(--success-text)', fontWeight:700, textAlign:'center' }}>
-                      <span style={{ display:'inline-flex', alignItems:'center', gap:6 }}><Icon name="check" size={16} />Meta del mes cumplida</span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Costos fijos */}
-                <div style={{ background:'var(--bg-card)', border:'0.5px solid var(--border-color)', borderRadius:16, padding:'1.25rem' }}>
-                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
-                    <div style={{ fontWeight:700, fontSize:15, color:'var(--text-dark)' }}>Costos fijos</div>
-                    <button onClick={() => setModalCosto(true)}
-                      style={{ fontSize:12, fontWeight:600, padding:'5px 12px', borderRadius:8, border:'none', background:'var(--success)', color:'var(--success-contrast)', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>
-                      + Agregar
-                    </button>
-                  </div>
-                  {costos.length === 0
-                    ? <EmptyState compact icon="money" title="Sin costos fijos cargados" description="Cargá alquiler, sueldos y servicios para que el resumen calcule la ganancia real del mes." />
-                    : costos.map((c, i) => (
-                      <div key={c.id} style={{ display:'flex', alignItems:'center', gap:8, padding:'8px 0', borderBottom: i < costos.length - 1 ? '0.5px solid var(--border-light)' : 'none', opacity: c.activo ? 1 : 0.45 }}>
-                        <input type="checkbox" checked={c.activo} onChange={() => toggleCosto(c.id, c.activo)} style={{ accentColor:'var(--success-text)', flexShrink:0, cursor:'pointer' }} />
-                        <div style={{ flex:1, fontSize:13, fontWeight:600, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{c.nombre}</div>
-                        <div style={{ fontSize:13, fontWeight:700, color:'var(--danger-text)', flexShrink:0 }}>{fmt(c.monto)}</div>
-                        <button onClick={() => eliminarCosto(c.id)} style={{ fontSize:12, padding:'2px 8px', borderRadius:6, border:'0.5px solid var(--border-color)', background:'var(--bg-card)', color:'var(--danger-text)', cursor:'pointer', fontFamily:'DM Sans, sans-serif', flexShrink:0 }}>×</button>
+              {/* VISTA B: SIMULADOR DE DECISIONES ("¿QUÉ PASA SI...?") */}
+              {vistaDecisiones === 'simulador' && (
+                <div style={{ background:'var(--bg-card)', border:'0.5px solid var(--border-color)', borderRadius:16, padding:'1.35rem' }}>
+                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:16, flexWrap:'wrap', gap:10 }}>
+                    <div>
+                      <div style={{ fontWeight:700, fontSize:16, color:'var(--text-dark)' }}>Simulador de Decisiones sobre Costos Fijos</div>
+                      <div style={{ fontSize:13, color:'var(--text-muted)', marginTop:2 }}>
+                        Proyectá en tiempo real el impacto de contratar personal, alquilar un nuevo espacio o recortar gastos antes de tomar la decisión.
                       </div>
-                    ))
-                  }
-                  {costos.length > 0 && (
-                    <div style={{ borderTop:'1px solid var(--border-light)', paddingTop:10, marginTop:6, display:'flex', justifyContent:'space-between' }}>
-                      <span style={{ fontSize:13, fontWeight:600 }}>Total mensual</span>
-                      <span style={{ fontSize:15, fontWeight:700, color:'var(--danger-text)' }}>{fmt(totalCostos)}</span>
+                    </div>
+                    {simuladorDelta !== 0 && (
+                      <button
+                        onClick={() => setSimuladorDelta(0)}
+                        style={{ fontSize:12, fontWeight:600, padding:'5px 12px', borderRadius:8, border:'0.5px solid var(--border-color)', background:'var(--bg-input)', color:'var(--text-muted)', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}
+                      >
+                        Restablecer a 0
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Botones de presets rápidos */}
+                  <div style={{ marginBottom:16 }}>
+                    <div style={{ fontSize:12, fontWeight:700, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:8 }}>Escenarios de Prueba Rápida</div>
+                    <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+                      {[
+                        { label: '+ Asistente Dental', delta: 350000 },
+                        { label: '+ Nuevo Sillón / Espacio', delta: 250000 },
+                        { label: '+ Insumos / Software', delta: 80000 },
+                        { label: '- Optimizar Alquiler / Servicios', delta: -120000 },
+                        { label: '- Recorte de Gastos Generales', delta: -60000 },
+                      ].map(sc => (
+                        <button
+                          key={sc.label}
+                          onClick={() => setSimuladorDelta(sc.delta)}
+                          style={{
+                            fontSize:12, padding:'6px 12px', borderRadius:8, cursor:'pointer', fontFamily:'DM Sans, sans-serif', fontWeight:600,
+                            border: simuladorDelta === sc.delta ? '1px solid var(--accent)' : '0.5px solid var(--border-color)',
+                            background: simuladorDelta === sc.delta ? 'var(--accent-soft)' : 'var(--bg-input)',
+                            color: simuladorDelta === sc.delta ? 'var(--accent)' : 'var(--text-dark)',
+                            transition:'all 0.15s'
+                          }}
+                        >
+                          {sc.label} ({sc.delta > 0 ? `+${fmt(sc.delta)}` : fmt(sc.delta)})
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Slider de ajuste libre */}
+                  <div style={{ background:'var(--bg-input)', border:'0.5px solid var(--border-color)', borderRadius:12, padding:'1rem 1.25rem', marginBottom:18 }}>
+                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
+                      <span style={{ fontSize:13, fontWeight:600 }}>Variación de Costos Fijos a Simular:</span>
+                      <strong style={{ fontSize:15, color: simuladorDelta > 0 ? 'var(--danger-text)' : simuladorDelta < 0 ? 'var(--success-text)' : 'var(--text-dark)' }}>
+                        {simuladorDelta > 0 ? `+ ${fmt(simuladorDelta)}` : simuladorDelta < 0 ? `- ${fmt(Math.abs(simuladorDelta))}` : '$ 0 (Sin cambio)'}
+                      </strong>
+                    </div>
+                    <input
+                      type="range"
+                      min={-400000}
+                      max={1200000}
+                      step={20000}
+                      value={simuladorDelta}
+                      onChange={e => setSimuladorDelta(Number(e.target.value))}
+                      style={{ width:'100%', accentColor:'var(--accent)', cursor:'pointer' }}
+                    />
+                    <div style={{ display:'flex', justifyContent:'space-between', fontSize:12, color:'var(--text-muted)', marginTop:4 }}>
+                      <span>- $400.000 (Ahorro)</span>
+                      <span>$0 Actual</span>
+                      <span>+ $1.200.000 (Inversión)</span>
+                    </div>
+                  </div>
+
+                  {/* Cuadrícula Comparativa: Actual vs Simulado */}
+                  <div style={{ display:'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap:12, marginBottom:16 }}>
+                    <div style={{ background:'var(--bg-card)', border:'0.5px solid var(--border-color)', borderRadius:12, padding:'1rem' }}>
+                      <div style={{ fontSize:12, fontWeight:600, color:'var(--text-muted)', textTransform:'uppercase' }}>Nueva Estructura Fija</div>
+                      <div style={{ fontSize:18, fontWeight:700, color:'var(--danger-text)', margin:'4px 0' }}>{fmt(costosSimulados)}</div>
+                      <div style={{ fontSize:12, color:'var(--text-muted)' }}>
+                        Actual: {fmt(totalCostos)} ({simuladorDelta >= 0 ? `+${fmt(simuladorDelta)}` : `-${fmt(Math.abs(simuladorDelta))}`})
+                      </div>
+                    </div>
+
+                    <div style={{ background:'var(--bg-card)', border:'0.5px solid var(--border-color)', borderRadius:12, padding:'1rem' }}>
+                      <div style={{ fontSize:12, fontWeight:600, color:'var(--text-muted)', textTransform:'uppercase' }}>Ganancia Neta Proyectada</div>
+                      <div style={{ fontSize:18, fontWeight:700, color: gananciaSimulada >= 0 ? 'var(--success-text)' : 'var(--danger-text)', margin:'4px 0' }}>{fmt(gananciaSimulada)}</div>
+                      <div style={{ fontSize:12, color:'var(--text-muted)' }}>
+                        {simuladorDelta > 0 ? `Baja en ${fmt(simuladorDelta)}` : simuladorDelta < 0 ? `Aumenta en ${fmt(Math.abs(simuladorDelta))}` : 'Sin impacto'}
+                      </div>
+                    </div>
+
+                    <div style={{ background:'var(--bg-card)', border:'0.5px solid var(--border-color)', borderRadius:12, padding:'1rem' }}>
+                      <div style={{ fontSize:12, fontWeight:600, color:'var(--text-muted)', textTransform:'uppercase' }}>Break-Even Requerido</div>
+                      <div style={{ fontSize:18, fontWeight:700, color:'var(--accent)', margin:'4px 0' }}>{fmt(breakEvenSimuladoDiario)}/día</div>
+                      <div style={{ fontSize:12, color:'var(--text-muted)' }}>
+                        Para abrir el consultorio sin pérdida
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Diagnóstico de Decisión */}
+                  <div style={{ background:'var(--accent-soft)', border:'0.5px solid var(--border-color)', borderRadius:12, padding:'0.9rem 1.1rem', fontSize:13, lineHeight:1.55 }}>
+                    {simuladorDelta > 0 ? (
+                      <>
+                        <span style={{ fontWeight:700, color:'var(--accent)' }}>Conclusión de viabilidad: </span>
+                        Para absorber este costo extra de <strong>{fmt(simuladorDelta)}</strong> sin reducir tu ganancia neta, el consultorio necesita generar{' '}
+                        <strong>{fmt(Math.round(simuladorDelta / Math.max(1, diasRest)))} adicionales por día</strong> durante los {diasRest} días que restan del mes.
+                        {ticketPromedio > 0 && (
+                          <span> (Equivale a atender aproximadamente <strong>{Math.ceil(simuladorDelta / ticketPromedio)} turnos promedio adicionales</strong> en el mes).</span>
+                        )}
+                      </>
+                    ) : simuladorDelta < 0 ? (
+                      <>
+                        <span style={{ fontWeight:700, color:'var(--success-text)' }}>Impacto positivo directo: </span>
+                        Reducir este costo fijo aumentaría tu ganancia líquida en <strong>{fmt(Math.abs(simuladorDelta))} mensuales</strong>, bajando la presión de facturación a {fmt(breakEvenSimuladoDiario)}/día.
+                      </>
+                    ) : (
+                      <>
+                        <span style={{ fontWeight:700, color:'var(--accent)' }}>Modo simulación: </span>
+                        Elegí un escenario o desplazá el slider para ver en tiempo real cómo impactan nuevas contrataciones, alquileres o reducciones de costo en la rentabilidad de la clínica.
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* VISTA C: EQUIVALENCIA EN TRABAJO CLÍNICO */}
+              {vistaDecisiones === 'tratamientos' && (
+                <div style={{ background:'var(--bg-card)', border:'0.5px solid var(--border-color)', borderRadius:16, padding:'1.35rem' }}>
+                  <div style={{ marginBottom:16 }}>
+                    <div style={{ fontWeight:700, fontSize:16, color:'var(--text-dark)' }}>¿Cuánto trabajo de sillón paga tu estructura fija?</div>
+                    <div style={{ fontSize:13, color:'var(--text-muted)', marginTop:2 }}>
+                      Traducción de tus costos fijos mensuales ({fmt(totalCostos)}) a turnos y procedimientos odontológicos concretos.
+                    </div>
+                  </div>
+
+                  {/* Métricas base de sillón */}
+                  <div style={{ display:'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap:12, marginBottom:18 }}>
+                    <div style={{ background:'var(--bg-input)', border:'0.5px solid var(--border-color)', borderRadius:12, padding:'1rem', textAlign:'center' }}>
+                      <div style={{ fontSize:12, color:'var(--text-muted)', fontWeight:600, textTransform:'uppercase' }}>Ticket Medio por Turno</div>
+                      <div style={{ fontSize:19, fontWeight:700, color:'var(--accent)', marginTop:4 }}>{fmt(ticketPromedio)}</div>
+                      <div style={{ fontSize:12, color:'var(--text-muted)', marginTop:2 }}>Promedio de cobro en agenda</div>
+                    </div>
+                    <div style={{ background:'var(--bg-input)', border:'0.5px solid var(--border-color)', borderRadius:12, padding:'1rem', textAlign:'center' }}>
+                      <div style={{ fontSize:12, color:'var(--text-muted)', fontWeight:600, textTransform:'uppercase' }}>Turnos Necesarios</div>
+                      <div style={{ fontSize:19, fontWeight:700, color:'var(--danger-text)', marginTop:4 }}>{turnosParaCostos} turnos</div>
+                      <div style={{ fontSize:12, color:'var(--text-muted)', marginTop:2 }}>Para pagar el 100% de costos fijos</div>
+                    </div>
+                    <div style={{ background:'var(--bg-input)', border:'0.5px solid var(--border-color)', borderRadius:12, padding:'1rem', textAlign:'center' }}>
+                      <div style={{ fontSize:12, color:'var(--text-muted)', fontWeight:600, textTransform:'uppercase' }}>Ritmo de Sillón Mínimo</div>
+                      <div style={{ fontSize:19, fontWeight:700, color:'var(--warning-text)', marginTop:4 }}>{(turnosParaCostos / 22).toFixed(1)} turnos/día</div>
+                      <div style={{ fontSize:12, color:'var(--text-muted)', marginTop:2 }}>Base calculada sobre 22 días hábiles</div>
+                    </div>
+                  </div>
+
+                  {/* Equivalencias por tratamiento */}
+                  <div style={{ fontSize:12, fontWeight:700, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:10 }}>Equivalencia por Tratamiento Top</div>
+                  {tratamientosEquivalencia.length === 0 ? (
+                    <EmptyState compact icon="calendar" title="Sin tratamientos con precio cargados" description="Configurá los precios base en Tratamientos para ver cuántas prestaciones pagan tu estructura." />
+                  ) : (
+                    <div style={{ display:'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)', gap:10 }}>
+                      {tratamientosEquivalencia.map(t => (
+                        <div key={t.nombre} style={{ background:'var(--bg-input)', border:'0.5px solid var(--border-color)', borderRadius:12, padding:'1rem 1.1rem', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                          <div>
+                            <div style={{ fontSize:14, fontWeight:700, color:'var(--text-dark)' }}>{t.nombre}</div>
+                            <div style={{ fontSize:12, color:'var(--text-muted)', marginTop:2 }}>Precio base: {fmt(t.precio)}</div>
+                          </div>
+                          <div style={{ textAlign:'right' }}>
+                            <div style={{ fontSize:18, fontWeight:700, color:'var(--accent)' }}>{t.cantidad} turnos</div>
+                            <div style={{ fontSize:12, color:'var(--text-muted)' }}>cubren el costo mensual</div>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>
-              </div>
+              )}
             </>
           )}
 
