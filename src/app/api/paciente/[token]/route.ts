@@ -86,37 +86,10 @@ export async function GET(
     }
   }
 
-  // 2. Si no se encontró por token y el string es un UUID válido, intentar por id (retrocompatibilidad)
-  if (!pac && UUID_REGEX.test(cleanToken)) {
-    const pacPorId = await supabaseAdmin
-      .from('pacientes')
-      .select('id, nombre, telefono, tenant_id, dni_cuit, alergias, antecedentes, consentimiento_datos_en, consentimiento_datos_ver, progreso_plan_porcentaje, puntos_saldo_cache, recomendaciones')
-      .eq('id', cleanToken)
-      .maybeSingle()
-
-    if (pacPorId.data) {
-      pac = pacPorId.data
-    } else {
-      const fallbackId = await supabaseAdmin
-        .from('pacientes')
-        .select('id, nombre, telefono, tenant_id')
-        .eq('id', cleanToken)
-        .maybeSingle()
-      if (fallbackId.data) {
-        pac = {
-          ...fallbackId.data,
-          dni_cuit: null,
-          alergias: null,
-          antecedentes: null,
-          consentimiento_datos_en: null,
-          consentimiento_datos_ver: null,
-          progreso_plan_porcentaje: 0,
-          puntos_saldo_cache: 0,
-          recomendaciones: null,
-        }
-      }
-    }
-  }
+  // El paciente se identifica SOLO por su token secreto. Nunca por id: el id
+  // no es secreto (aparece en /pacientes/<id> de la app de la clínica) y esta
+  // ruta es pública y usa service_role. Buscar por id daba acceso sin login a
+  // datos clínicos de cualquier paciente (introducido en a1e5b2b, revertido).
 
   if (!pac) {
     return NextResponse.json({ error: 'Link inválido' }, { status: 404 })
@@ -344,18 +317,8 @@ export async function POST(
 
     if (!pacErr && pacPorToken) {
       pac = pacPorToken
-    } else if (UUID_REGEX.test(cleanToken)) {
-      // Intentar por ID si el enlace usa UUID del paciente
-      const { data: pacPorId, error: pacIdErr } = await supabaseAdmin
-        .from('pacientes')
-        .select('id, nombre, tenant_id, dni_cuit')
-        .eq('id', cleanToken)
-        .maybeSingle()
-
-      if (!pacIdErr && pacPorId) {
-        pac = pacPorId
-      }
     }
+    // Solo por token: ver la nota en GET sobre por qué nunca por id.
 
     // Si aún no se encontró, intentar select mínimo por si dni_cuit diera algún error en select
     if (!pac) {
@@ -367,15 +330,6 @@ export async function POST(
 
       if (pacMin) {
         pac = pacMin
-      } else if (UUID_REGEX.test(cleanToken)) {
-        const { data: pacMinId } = await supabaseAdmin
-          .from('pacientes')
-          .select('id, nombre, tenant_id')
-          .eq('id', cleanToken)
-          .maybeSingle()
-        if (pacMinId) {
-          pac = pacMinId
-        }
       }
     }
 
