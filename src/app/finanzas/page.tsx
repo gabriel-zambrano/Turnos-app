@@ -1,6 +1,7 @@
 'use client'
 import { useRef, useState, useEffect, useCallback, useMemo } from 'react'
 import { AppShell } from '@/components/AppShell'
+import { Modal } from '@/components/ui/index'
 import { Toast, Spinner, PageHeader, useBloqueoScroll } from '@/components/UI'
 import { createClient } from '@/lib/supabase/client'
 import { useTenantContext } from '@/components/TenantContext'
@@ -1021,9 +1022,7 @@ export default function FinanzasPage() {
 
       {/* Modals */}
       {modalMeta && (
-        <div onClick={() => setModalMeta(false)} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.4)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:200, padding:'1rem' }}>
-          <div onClick={e => e.stopPropagation()} style={{ background:'var(--bg-card)', borderRadius:16, padding:'1.5rem', width:'100%', maxWidth:360, boxShadow:'0 8px 32px rgba(0,0,0,0.12)' }}>
-            <div style={{ fontSize:16, fontWeight:700, color:'var(--text-dark)', marginBottom:'1rem' }}>Meta mensual — {MESES[mesActual - 1]}</div>
+        <Modal open onClose={() => setModalMeta(false)} title={<>Meta mensual — {MESES[mesActual - 1]}</>} maxWidth={360} dismissible={!saving}>
             <div style={{ fontSize:12, fontWeight:600, color:'var(--text-muted)', marginBottom:4 }}>Ingresos objetivo ($)</div>
             <input type="number" style={inputSt} value={fMeta} onChange={e => setFMeta(e.target.value === '' ? '' : Number(e.target.value))} placeholder="Ej: 500000" autoFocus />
             <div style={{ display:'flex', gap:8, marginTop:'1.25rem', justifyContent:'flex-end' }}>
@@ -1032,14 +1031,11 @@ export default function FinanzasPage() {
                 {saving ? 'Guardando...' : 'Guardar'}
               </button>
             </div>
-          </div>
-        </div>
+        </Modal>
       )}
 
       {modalCosto && (
-        <div onClick={() => setModalCosto(false)} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.4)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:200, padding:'1rem' }}>
-          <div onClick={e => e.stopPropagation()} style={{ background:'var(--bg-card)', borderRadius:16, padding:'1.5rem', width:'100%', maxWidth:360, boxShadow:'0 8px 32px rgba(0,0,0,0.12)' }}>
-            <div style={{ fontSize:16, fontWeight:700, color:'var(--text-dark)', marginBottom:'1rem' }}>Nuevo costo fijo</div>
+        <Modal open onClose={() => setModalCosto(false)} title="Nuevo costo fijo" maxWidth={360} dismissible={!saving}>
             <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
               <div>
                 <div style={{ fontSize:12, fontWeight:600, color:'var(--text-muted)', marginBottom:4 }}>Nombre *</div>
@@ -1056,14 +1052,11 @@ export default function FinanzasPage() {
                 {saving ? 'Guardando...' : 'Agregar'}
               </button>
             </div>
-          </div>
-        </div>
+        </Modal>
       )}
 
       {modalIngreso && (
-        <div onClick={() => setModalIngreso(false)} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.4)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:200, padding:'1rem' }}>
-          <div onClick={e => e.stopPropagation()} style={{ background:'var(--bg-card)', borderRadius:16, padding:'1.5rem', width:'100%', maxWidth:360, boxShadow:'0 8px 32px rgba(0,0,0,0.12)' }}>
-            <div style={{ fontSize:16, fontWeight:700, color:'var(--text-dark)', marginBottom:'1rem' }}>Registrar ingreso manual</div>
+        <Modal open onClose={() => setModalIngreso(false)} title="Registrar ingreso manual" maxWidth={360} dismissible={!saving}>
             <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
               <div>
                 <div style={{ fontSize:12, fontWeight:600, color:'var(--text-muted)', marginBottom:4 }}>Concepto *</div>
@@ -1098,14 +1091,11 @@ export default function FinanzasPage() {
                 {saving ? 'Guardando...' : 'Registrar'}
               </button>
             </div>
-          </div>
-        </div>
+        </Modal>
       )}
 
       {modalEgreso && (
-        <div onClick={() => setModalEgreso(false)} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.4)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:200, padding:'1rem' }}>
-          <div onClick={e => e.stopPropagation()} style={{ background:'var(--bg-card)', borderRadius:16, padding:'1.5rem', width:'100%', maxWidth:360, boxShadow:'0 8px 32px rgba(0,0,0,0.12)' }}>
-            <div style={{ fontSize:16, fontWeight:700, color:'var(--text-dark)', marginBottom:'1rem' }}>Registrar Gasto / Egreso</div>
+        <Modal open onClose={() => setModalEgreso(false)} title="Registrar Gasto / Egreso" maxWidth={360} dismissible={!saving}>
             <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
               <div>
                 <div style={{ fontSize:12, fontWeight:600, color:'var(--text-muted)', marginBottom:4 }}>Concepto *</div>
@@ -1126,14 +1116,11 @@ export default function FinanzasPage() {
                 {saving ? 'Guardando...' : 'Registrar Gasto'}
               </button>
             </div>
-          </div>
-        </div>
+        </Modal>
       )}
 
       {modalApertura && (
-        <div onClick={() => setModalApertura(false)} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.4)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:200, padding:'1rem' }}>
-          <div onClick={e => e.stopPropagation()} style={{ background:'var(--bg-card)', borderRadius:16, padding:'1.5rem', width:'100%', maxWidth:360, boxShadow:'0 8px 32px rgba(0,0,0,0.12)' }}>
-            <div style={{ fontSize:16, fontWeight:700, color:'var(--text-dark)', marginBottom:'0.5rem' }}>Abrir Caja Diaria</div>
+        <Modal open onClose={() => setModalApertura(false)} title="Abrir Caja Diaria" maxWidth={360} dismissible={!saving}>
             <p style={{ fontSize:12, color:'var(--text-muted)', marginBottom:'1rem' }}>
               Establecé el fondo inicial en efectivo para dar cambio durante la jornada.
             </p>
@@ -1149,14 +1136,11 @@ export default function FinanzasPage() {
                 {saving ? 'Abriendo...' : 'Abrir Caja'}
               </button>
             </div>
-          </div>
-        </div>
+        </Modal>
       )}
 
       {modalCierre && (
-        <div onClick={() => setModalCierre(false)} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.4)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:200, padding:'1rem' }}>
-          <div onClick={e => e.stopPropagation()} style={{ background:'var(--bg-card)', borderRadius:16, padding:'1.5rem', width:'100%', maxWidth: isMobile ? 380 : 680, boxShadow:'0 8px 32px rgba(0,0,0,0.12)', transition: 'max-width 0.2s' }}>
-            <div style={{ fontSize:16, fontWeight:700, color:'var(--text-dark)', marginBottom:'0.35rem' }}>Cierre de Caja y Arqueo</div>
+        <Modal open onClose={() => setModalCierre(false)} title="Cierre de Caja y Arqueo" maxWidth={isMobile ? 380 : 680} dismissible={!saving}>
             <p style={{ fontSize:12, color:'var(--text-muted)', marginBottom:'1.25rem' }}>
               Ingresá el total de efectivo y valores contados físicamente en la caja para registrar el arqueo.
             </p>
@@ -1287,14 +1271,11 @@ export default function FinanzasPage() {
                 {saving ? 'Cerrando...' : 'Cerrar Caja'}
               </button>
             </div>
-          </div>
-        </div>
+        </Modal>
       )}
 
       {modalSaldar && saldarCita && (
-        <div onClick={() => setModalSaldar(false)} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.4)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:200, padding:'1rem' }}>
-          <div onClick={e => e.stopPropagation()} style={{ background:'var(--bg-card)', borderRadius:16, padding:'1.5rem', width:'100%', maxWidth:380, boxShadow:'0 8px 32px rgba(0,0,0,0.12)' }}>
-            <div style={{ fontSize:16, fontWeight:700, color:'var(--text-dark)', marginBottom:'0.35rem' }}>Registrar cobro</div>
+        <Modal open onClose={() => setModalSaldar(false)} title="Registrar cobro" maxWidth={380} dismissible={!saving}>
             <p style={{ fontSize:12, color:'var(--text-muted)', marginBottom:'1.25rem' }}>
               {saldarCita.pacientes?.nombre} — {saldarCita.tipo_tratamiento}
             </p>
@@ -1335,14 +1316,11 @@ export default function FinanzasPage() {
                 {saving ? 'Registrando...' : 'Registrar cobro'}
               </button>
             </div>
-          </div>
-        </div>
+        </Modal>
       )}
 
       {modalFacturar && facturandoItem && (
-        <div onClick={() => setModalFacturar(false)} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.4)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:200, padding:'1rem' }}>
-          <div onClick={e => e.stopPropagation()} style={{ background:'var(--bg-card)', borderRadius:16, padding:'1.5rem', width:'100%', maxWidth:400, boxShadow:'0 8px 32px rgba(0,0,0,0.12)' }}>
-            <div style={{ fontSize:16, fontWeight:700, color:'var(--text-dark)', marginBottom:'0.5rem' }}>Emitir Factura Electrónica</div>
+        <Modal open onClose={() => setModalFacturar(false)} title="Emitir Factura Electrónica" maxWidth={400} dismissible={!facturando}>
             <p style={{ fontSize:12, color:'var(--text-muted)', marginBottom:'1.25rem' }}>
               Confirmá los datos del paciente para solicitar la autorización del comprobante en ARCA.
             </p>
@@ -1503,8 +1481,7 @@ export default function FinanzasPage() {
                 {facturando ? 'Emitiendo…' : fConfirmarNoFacturable ? `Emitir igual por ${fmt(fConfirmarNoFacturable.total)}` : 'Emitir factura'}
               </button>
             </div>
-          </div>
-        </div>
+        </Modal>
       )}
 
       {toast && <Toast msg={toast.msg} tipo={toast.tipo} isMobile={isMobile} />}
