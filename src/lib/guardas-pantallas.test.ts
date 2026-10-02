@@ -9,7 +9,7 @@ import path from 'path'
  *
  * Al migrar una pantalla nueva, se agrega acá.
  */
-const MIGRADAS = ['src/app/finanzas/page.tsx']
+const MIGRADAS = ['src/app/finanzas/page.tsx', 'src/app/agenda/page.tsx']
 
 for (const archivo of MIGRADAS) {
   describe(`pantalla migrada: ${archivo}`, () => {
