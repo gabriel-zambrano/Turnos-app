@@ -6,7 +6,7 @@ import { Badge, Toast, PageHeader, BtnPrimary, BtnSm, SkeletonBox, SkeletonLista
 import { initials } from '@/lib/constants'
 import { createClient } from '@/lib/supabase/client'
 import { FORMAS_PAGO, FORMAS_PAGO_FACTURABLES_DEFAULT, sugerirRequiereFactura } from '@/lib/pagos'
-import { registrarPago, formasFacturablesDe } from '@/lib/registrar-pago'
+import { formasFacturablesDe } from '@/lib/registrar-pago'
 import { urlPublicaDeClinica } from '@/lib/config'
 import { storagePathFromUrl, esImagenSoportada, BUCKET_FOTOS } from '@/lib/storage'
 import { useTenantContext } from '@/components/TenantContext'
@@ -16,7 +16,9 @@ import { registrarConsentimiento, tieneConsentimientoVigente } from '@/lib/conse
 import { validarAjustePuntos } from '@/lib/ajuste-puntos'
 import { FIDELIZACION_HABILITADA } from '@/lib/fidelizacion-flag'
 import { citasPendientesDeAprobar } from '@/lib/citas-para-aprobar'
-import { formatoPesos } from '@/lib/cobro-previo'
+import { textoPagoPrevio } from '@/lib/cobro-previo'
+import { cobrarTurno, mensajeCobro } from '@/lib/cobro-turno'
+import { Icon } from '@/components/ui'
 
 interface Paciente {
   id: string
@@ -210,6 +212,10 @@ export default function PacienteDetalle() {
 
   // Appointment check-in approval state
   const [citaAprobarId, setCitaAprobarId] = useState('')
+  // Resultado del último cobro, visible dentro de la sección. El toast dura
+  // 3,5 s abajo de la pantalla y se pierde: con dinero, el resultado tiene
+  // que quedar donde el usuario está mirando.
+  const [resultadoCobro, setResultadoCobro] = useState<{ texto: string; tono: 'exito' | 'error' } | null>(null)
   const [montoCobrado, setMontoCobrado] = useState<number | ''>('')
   const [isMontoEditable, setIsMontoEditable] = useState(false)
   const [aprobForma, setAprobForma] = useState<string>(FORMAS_PAGO[0])
@@ -401,75 +407,62 @@ export default function PacienteDetalle() {
   }
 
   const handleAprobarAsistencia = async () => {
-    if (!citaAprobarId) return
+    if (!citaAprobarId || !tenant) return
     if (montoCobrado === '' || Number(montoCobrado) <= 0) {
       showMsg('Ingresá un monto válido para el turno', 'error')
       return
     }
     setProcesandoPuntos(true)
-    const monto = Number(montoCobrado)
-    let pagoGuardado = false
     try {
-      if (isMontoEditable) {
-        // El cobro entra por `pagos`, no escribiendo `precio_cobrado` a mano:
-        // así queda la forma de pago y la intención de facturar, y el trigger
-        // mantiene la columna derivada.
-        const { error: pagoErr } = await registrarPago(supabase, {
-          tenantId: tenant!.id,
-          pacienteId: id as string,
-          citaId: citaAprobarId,
-          formaPago: aprobForma,
-          monto,
-          requiereFactura: aprobFactura,
-          origen: 'ficha_paciente',
-        })
-        if (pagoErr) {
-          showMsg(`No se registró el cobro. ${pagoErr}. Podés volver a intentarlo.`, 'error')
-          return
-        }
-        pagoGuardado = true
-      }
-
-      const res = await aprobarAsistenciaAction(citaAprobarId)
-      if (!res.success) {
-        if (pagoGuardado) {
-          // El pago ya existe: se cierra el formulario para que nadie
-          // reintente y duplique el cobro.
-          setCitaAprobarId('')
-          loadData()
-          showMsg(`El cobro de ${formatoPesos(monto)} quedó registrado. No se pudo marcar el turno como asistido; hacelo desde la agenda. No vuelvas a cobrarlo.`, 'error')
-        } else {
-          showMsg('No se pudo marcar el turno como asistido. Probá de nuevo.', 'error')
-        }
+      // Misma secuencia que Agenda y Dashboard (lib/cobro-turno). Si el turno
+      // ya tiene cobro, el monto está bloqueado y solo se cierra el turno.
+      // La Ficha no verifica la caja del día, igual que antes.
+      const r = await cobrarTurno({
+        supabase, tenantId: tenant.id,
+        citaId: citaAprobarId, pacienteId: id as string,
+        pago: isMontoEditable
+          ? { monto: Number(montoCobrado), formaPago: aprobForma, requiereFactura: aprobFactura, origen: 'ficha_paciente' }
+          : null,
+        cerrarTurno: aprobarAsistenciaAction,
+      })
+      if (r.tipo === 'requiere_confirmacion') {
+        // La ficha mostraba el turno como sin cobro, pero ya tiene. Se
+        // recarga (el monto queda bloqueado) en vez de cobrar de nuevo.
+        loadData()
+        const aviso = `${textoPagoPrevio(r.cobradoPrevio)} La ficha se actualizó; revisá el turno antes de cobrar.`
+        setResultadoCobro({ texto: aviso, tono: 'error' })
+        showMsg(aviso, 'error')
         return
       }
-
-      showMsg(pagoGuardado
-        ? (FIDELIZACION_HABILITADA ? `Cobro de ${formatoPesos(monto)} registrado · puntos acreditados` : `Cobro de ${formatoPesos(monto)} registrado · turno cerrado`)
-        : 'Turno cerrado')
-      setCitaAprobarId('')
-      loadData()
-    } catch {
-      if (pagoGuardado) {
+      const m = mensajeCobro(r, FIDELIZACION_HABILITADA)!
+      if (m.cerrarFormulario) {
         setCitaAprobarId('')
         loadData()
-        showMsg(`El cobro de ${formatoPesos(monto)} quedó registrado, pero algo falló después. Revisá el turno antes de volver a cobrarlo.`, 'error')
-      } else {
-        showMsg('No se pudo completar la operación. No se registró ningún cobro; probá de nuevo.', 'error')
       }
+      setResultadoCobro({ texto: m.texto, tono: m.tono })
+      showMsg(m.texto, m.tono === 'exito' ? undefined : 'error')
     } finally {
       setProcesandoPuntos(false)
     }
   }
 
-  const citasParaAprobar = citasPendientesDeAprobar(citas, historialPuntos, FIDELIZACION_HABILITADA)
+  // Memorizada: sin useMemo era un arreglo nuevo en cada render, el efecto de
+  // abajo corría en cada tecla y devolvía el monto al precio del tratamiento.
+  // Por eso desde la Ficha no se podía cobrar otro monto que el de lista.
+  const citasParaAprobar = useMemo(
+    () => citasPendientesDeAprobar(citas, historialPuntos, FIDELIZACION_HABILITADA),
+    [citas, historialPuntos]
+  )
 
   useEffect(() => {
     if (citaAprobarId) {
       const c = citasParaAprobar.find(x => x.id === citaAprobarId)
       if (c) {
-        setMontoCobrado(c.precio_cobrado ?? c.valor ?? '')
-        setIsMontoEditable(c.precio_cobrado === null)
+        // Misma regla que citasPendientesDeAprobar: un cobro de $ 0 (turno al
+        // que se le borraron los pagos) cuenta como sin cobro.
+        const yaCobrado = Number(c.precio_cobrado ?? 0) > 0
+        setMontoCobrado(yaCobrado ? c.precio_cobrado : (c.valor ?? ''))
+        setIsMontoEditable(!yaCobrado)
       }
     } else if (citasParaAprobar.length > 0) {
       setCitaAprobarId(citasParaAprobar[0].id)
@@ -1262,6 +1255,20 @@ export default function PacienteDetalle() {
                       Confirmá la asistencia del paciente y registrá el cobro de la cita.
                     </p>
 
+                    {resultadoCobro && (
+                      <div role="status" aria-live="polite" style={{
+                        display: 'flex', alignItems: 'flex-start', gap: 'var(--space-2)',
+                        margin: 'var(--space-2) 0 var(--space-3)', padding: 'var(--space-3)', borderRadius: 'var(--radius-sm)',
+                        fontSize: 'var(--fs-sm)', lineHeight: 1.45, fontWeight: 500,
+                        background: resultadoCobro.tono === 'exito' ? 'var(--success-soft)' : 'var(--danger-soft)',
+                        border: `1px solid ${resultadoCobro.tono === 'exito' ? 'var(--success-border)' : 'var(--danger-border)'}`,
+                        color: resultadoCobro.tono === 'exito' ? 'var(--success-text)' : 'var(--danger-text)',
+                      }}>
+                        <Icon name={resultadoCobro.tono === 'exito' ? 'check' : 'alert'} size={16} style={{ marginTop: 1 }} />
+                        <span>{resultadoCobro.texto}</span>
+                      </div>
+                    )}
+
                     {citasParaAprobar.length === 0 ? (
                       <div style={{ padding: '1.5rem', background: 'var(--bg-input, #f0f4f8)', borderRadius: 12, fontSize: 13, color: 'var(--text-muted)', textAlign: 'center' }}>
                         🎉 No hay consultas pendientes de aprobación.
@@ -1273,7 +1280,7 @@ export default function PacienteDetalle() {
                           <select 
                             style={selectCss} 
                             value={citaAprobarId} 
-                            onChange={e => setCitaAprobarId(e.target.value)}
+                            onChange={e => { setCitaAprobarId(e.target.value); setResultadoCobro(null) }}
                           >
                             {citasParaAprobar.map(c => {
                               const dateObj = new Date(c.fecha_hora)
@@ -1293,7 +1300,7 @@ export default function PacienteDetalle() {
                             type="number"
                             style={inputCss}
                             value={montoCobrado}
-                            onChange={e => setMontoCobrado(e.target.value === '' ? '' : Number(e.target.value))}
+                            onChange={e => { setMontoCobrado(e.target.value === '' ? '' : Number(e.target.value)); setResultadoCobro(null) }}
                             disabled={!isMontoEditable}
                             placeholder="Monto cobrado en la cita"
                           />

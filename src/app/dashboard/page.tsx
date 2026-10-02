@@ -10,10 +10,11 @@ import type { EstadoCita } from '@/types'
 import dynamic from 'next/dynamic'
 import { triggerConfetti } from '@/lib/confetti'
 import { FORMAS_PAGO, FORMAS_PAGO_FACTURABLES_DEFAULT, sugerirRequiereFactura } from '@/lib/pagos'
-import { registrarPago, formasFacturablesDe } from '@/lib/registrar-pago'
+import { formasFacturablesDe } from '@/lib/registrar-pago'
 import { registrarInasistenciaAction, aprobarAsistenciaAction } from '@/app/actions/fidelizacion'
 import { FIDELIZACION_HABILITADA } from '@/lib/fidelizacion-flag'
-import { cobradoDeCita, requiereConfirmarPagoExtra, textoPagoPrevio, formatoPesos } from '@/lib/cobro-previo'
+import { textoPagoPrevio, formatoPesos } from '@/lib/cobro-previo'
+import { cobrarTurno, mensajeCobro } from '@/lib/cobro-turno'
 import { HeatmapSemanal } from './components/HeatmapSemanal'
 import { AccionesRapidas } from './components/AccionesRapidas'
 import { PreparacionManana } from './components/PreparacionManana'
@@ -180,47 +181,28 @@ export default function Dashboard() {
       return
     }
 
-    // Cobro de un turno: se verifica lo ya cobrado en el momento.
-    const previo = await cobradoDeCita(supabase, tenant.id, cobCitaId!)
-    if (previo.error) {
-      liberar()
-      return msg('No se pudo verificar si el turno ya tiene cobros. No se registró nada; probá de nuevo.', 'error')
-    }
-    if (requiereConfirmarPagoExtra(previo.total, confirmadoPagoExtra)) {
-      liberar()
-      setCobPrevio(previo.total)
+    // Cobro de un turno: la misma secuencia que la Agenda (lib/cobro-turno).
+    // La caja ya se verificó arriba con el estado del día del dashboard.
+    const r = await cobrarTurno({
+      supabase, tenantId: tenant.id,
+      citaId: cobCitaId!, pacienteId: cobPacienteId!,
+      pago: { monto, formaPago: cobForma, requiereFactura: cobFactura, origen: 'cobro_rapido', nota: cobConcepto.trim() },
+      confirmadoPagoExtra,
+      cerrarTurno: aprobarAsistenciaAction,
+    })
+    liberar()
+    if (r.tipo === 'requiere_confirmacion') {
+      setCobPrevio(r.cobradoPrevio)
       return
     }
-
-    const { error: errPago } = await registrarPago(supabase, {
-      tenantId: tenant.id,
-      pacienteId: cobPacienteId!,
-      citaId: cobCitaId,
-      formaPago: cobForma,
-      monto,
-      requiereFactura: cobFactura,
-      origen: 'cobro_rapido',
-      nota: cobConcepto.trim(),
-    })
-    if (errPago) {
-      liberar()
-      return msg(`No se registró el cobro. ${errPago}. Podés volver a intentarlo.`, 'error')
+    const m = mensajeCobro(r, FIDELIZACION_HABILITADA)!
+    if (m.cerrarFormulario) {
+      // El pago está guardado: el modal se cierra pase lo que pase.
+      cerrarModal()
+      load()
     }
-
-    // El pago ya está guardado: el modal se cierra pase lo que pase, para
-    // que nadie reintente y duplique el cobro.
-    const resAprobar = await aprobarAsistenciaAction(cobCitaId!)
-    liberar()
-    cerrarModal()
-    load()
-    if (!resAprobar.success) {
-      msg(`El cobro de ${formatoPesos(monto)} quedó registrado. No se pudo marcar el turno como asistido; hacelo desde la agenda. No vuelvas a cobrarlo.`, 'error')
-    } else {
-      msg(FIDELIZACION_HABILITADA
-        ? `Cobro de ${formatoPesos(monto)} registrado · puntos acreditados`
-        : `Cobro de ${formatoPesos(monto)} registrado · turno cerrado`)
-      triggerConfetti()
-    }
+    msg(m.texto, m.tono === 'exito' ? 'ok' : 'error')
+    if (r.tipo === 'cobrado') triggerConfetti()
   }
 
   useEffect(()=>{
@@ -1241,10 +1223,14 @@ export default function Dashboard() {
                 <label style={labelCss}>Monto ($) *</label>
                 <input type="number" style={inputCss} value={cobMonto} onChange={e => setCobMonto(e.target.value === '' ? '' : Number(e.target.value))} placeholder="0" />
               </div>
-              <div style={groupCss}>
-                <label style={labelCss}>Fecha</label>
-                <input type="date" style={inputCss} value={cobFecha} onChange={e => setCobFecha(e.target.value)} />
-              </div>
+              {/* La fecha solo se guarda en el cobro sin turno; en el de un turno el
+                  pago queda con la fecha del día, así que ahí no se muestra. */}
+              {cobModo === 'sin_turno' && (
+                <div style={groupCss}>
+                  <label style={labelCss} htmlFor="cobro-fecha">Fecha</label>
+                  <input id="cobro-fecha" type="date" style={inputCss} value={cobFecha} onChange={e => setCobFecha(e.target.value)} />
+                </div>
+              )}
             </div>
 
             {/* Sin forma de pago este cobro esquivaba el criterio de

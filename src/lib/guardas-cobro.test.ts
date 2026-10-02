@@ -11,7 +11,7 @@ import path from 'path'
  * primer `await`.
  */
 const CASOS: { archivo: string; funcion: string; bloqueo: string }[] = [
-  { archivo: 'src/app/agenda/page.tsx', funcion: 'async function guardarCobroExpress', bloqueo: 'cobrandoRef.current = true' },
+  { archivo: 'src/components/cobro/CobrarTurno.tsx', funcion: 'async function confirmar', bloqueo: 'setEnCurso(true)' },
   { archivo: 'src/app/dashboard/page.tsx', funcion: 'async function guardarRegistrarCobro', bloqueo: 'cobrandoRef.current = true' },
   { archivo: 'src/components/DetalleCitaCobro.tsx', funcion: 'async function agregarPago', bloqueo: 'pagandoRef.current = true' },
   { archivo: 'src/app/pacientes/[id]/page.tsx', funcion: 'const handleAprobarAsistencia = async', bloqueo: 'setProcesandoPuntos(true)' },
@@ -45,5 +45,23 @@ describe('guarda de doble submit en cobros y facturación', () => {
     const fuente = readFileSync(path.join(process.cwd(), 'src/app/finanzas/page.tsx'), 'utf8')
     const f = cuerpo(fuente, 'async function emitirFacturaElectronica')
     expect(f).not.toMatch(/(^|[^.\w])(alert|confirm)\(/)
+  })
+
+  it('el cobro de un turno pasa por la secuencia única (lib/cobro-turno)', () => {
+    // Agenda, Dashboard y Ficha cobran turnos con cobrarTurno(). Si alguna
+    // vuelve a llamar a registrarPago() directo, se rompe la garantía de que
+    // los tres cobros se comportan igual (caja, pago previo, cierre).
+    for (const archivo of ['src/app/agenda/page.tsx', 'src/app/dashboard/page.tsx', 'src/app/pacientes/[id]/page.tsx']) {
+      const fuente = readFileSync(path.join(process.cwd(), archivo), 'utf8')
+      expect(fuente, `${archivo} llama a registrarPago() directo`).not.toMatch(/registrarPago\(/)
+      expect(fuente, `${archivo} no usa cobrarTurno`).toMatch(/cobrarTurno|<CobrarTurno/)
+    }
+  })
+
+  it('la lista de turnos de la Ficha está memorizada (si no, el monto no se puede editar)', () => {
+    // Sin useMemo la lista era un arreglo nuevo en cada render, el efecto que
+    // carga el monto corría en cada tecla y lo devolvía al precio de lista.
+    const fuente = readFileSync(path.join(process.cwd(), 'src/app/pacientes/[id]/page.tsx'), 'utf8')
+    expect(fuente).toMatch(/const citasParaAprobar = useMemo\(/)
   })
 })
