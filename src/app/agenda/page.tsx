@@ -296,7 +296,7 @@ function AgendaHeaderMobile({ fecha, vista, esHoy, onPrev, onNext, onVista, onNu
         borderRadius: 10, fontSize: 16, cursor: 'pointer', flexShrink: 0,
         fontFamily: 'DM Sans, sans-serif',
         boxShadow: '0 2px 6px rgba(239,68,68,0.05)',
-      }} aria-label="Bloquear Horario" title="Bloquear Horario">🚫</button>
+      }} aria-label="Bloquear horario" title="Bloquear horario"><Icon name="lock" size={16} /></button>
 
       <button onClick={onNueva} style={{
         width: 38, height: 38, display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -424,6 +424,10 @@ export default function Agenda() {
   // Cobro rápido: forma de pago y si se factura
   const [formasFacturables, setFormasFacturables] = useState<string[]>(FORMAS_PAGO_FACTURABLES_DEFAULT)
 
+  // Confirmaciones dentro de la app (antes: confirm() del navegador).
+  const [bloqueoABorrar, setBloqueoABorrar] = useState<{ id: string; texto: string } | null>(null)
+  const [confirmarDescartar, setConfirmarDescartar] = useState(false)
+
   function msg(m:string,tipo='ok'){setToast({msg:m,tipo});setTimeout(()=>setToast(null),3500)}
 
   const semana = getFechaSemana(fecha)
@@ -494,7 +498,7 @@ export default function Agenda() {
   }
   /** Cierra el modal de edición, avisando si se está por perder algo. */
   function cerrarEditar(){
-    if(hayCambiosSinGuardar() && !confirm('Tenés cambios sin guardar en el turno. ¿Descartarlos?')) return
+    if(hayCambiosSinGuardar()) { setConfirmarDescartar(true); return }
     setModal(null)
   }
 
@@ -548,7 +552,7 @@ export default function Agenda() {
     const {error} = await supabase.from('citas').insert({paciente_id:fPac,fecha_hora:`${fFecha}T${fHora}:00-03:00`,tipo_tratamiento:fTrat,estado:fEst,duracion_minutos:fDur,notas:fNotas||null,valor:fValor||null,sena:fSena||null,medio_pago:fMedioPago||null,tenant_id:tenant?.id})
     setSaving(false)
     if(error) return msg('Error: '+error.message,'error')
-    setModal(null);msg('Cita agendada ✓');loadCitas()
+    setModal(null);msg('Cita agendada');loadCitas()
   }
 
   async function saveEditar(){
@@ -590,7 +594,7 @@ export default function Agenda() {
       } as any
       setPropuestaProximaCita(updatedCita)
     }
-    setModal(null);msg('Cita actualizada ✓');loadCitas()
+    setModal(null);msg('Cita actualizada');loadCitas()
   }
 
   async function saveBorrar(){
@@ -632,7 +636,7 @@ export default function Agenda() {
         msg('Error al registrar inasistencia: ' + res.error, 'error')
       } else {
         setCitas(p=>p.map(c=>c.id===id?{...c,estado}:c))
-        msg('Estado actualizado ✓')
+        msg('Estado actualizado')
       }
       return
     }
@@ -685,7 +689,7 @@ export default function Agenda() {
     if (error) {
       msg('Error al agendar propuesta: ' + error.message, 'error')
     } else {
-      msg('Próxima cita pre-agendada con éxito ✓')
+      msg('Próxima cita pre-agendada con éxito')
       const waMsg = `Hola *${propuestaProximaCita.nombre.trim().split(' ')[0]}* 👋\nTe confirmamos tu próximo turno de *${propuestaProximaCita.tratamiento}* para el *${fechaDest.split('-').reverse().join('/')}* a las *${propuestaProximaCita.hora} hs*.\n\n🗓️ Podés sumarlo a tu calendario haciendo clic aquí:\nhttps://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(`Turno Odontológico - ${propuestaProximaCita.tratamiento}`)}&dates=${new Date(`${fechaDest}T${propuestaProximaCita.hora}:00-03:00`).toISOString().replace(/-|:|\.\d\d\d/g, '')}/${new Date(new Date(`${fechaDest}T${propuestaProximaCita.hora}:00-03:00`).getTime() + propuestaProximaCita.duracion * 60000).toISOString().replace(/-|:|\.\d\d\d/g, '')}&details=${encodeURIComponent(`Turno para ${propuestaProximaCita.tratamiento}.`)}`
       
       setWhatsappCita({
@@ -742,7 +746,7 @@ export default function Agenda() {
       return msg('Error al mover cita: ' + error.message, 'error')
     }
 
-    msg('Cita reprogramada ✓')
+    msg('Cita reprogramada')
     loadCitas()
   }
 
@@ -785,11 +789,12 @@ export default function Agenda() {
     const {error} = await supabase.from("bloqueos").insert({fecha:fBloqFecha, hora_inicio:fBloqDesde, hora_fin:fBloqHasta, motivo:fBloqMotivo||null, tenant_id:tenant.id})
     setSaving(false)
     if (error) return msg("Error: "+error.message, "error")
-    setModal(null); msg("Horario bloqueado ✓"); loadBloqueos(semana[0], semana[5])
+    setModal(null); msg("Horario bloqueado"); loadBloqueos(semana[0], semana[5])
   }
 
   async function deletBloqueo(id: string) {
-    await supabase.from("bloqueos").delete().eq("id", id)
+    const { error } = await supabase.from("bloqueos").delete().eq("id", id)
+    if (error) return msg("No se pudo eliminar el bloqueo. Probá de nuevo.", 'error')
     setBloqueos(p => p.filter(b => b.id !== id))
     msg("Bloqueo eliminado")
   }
@@ -942,7 +947,7 @@ export default function Agenda() {
                       }}
                       className="quick-action-btn"
                     >
-                      <span style={{color: 'var(--danger-text)'}}>🚫</span> Bloquear
+                      <Icon name="lock" size={14} style={{ color: 'var(--danger-text)' }} /> Bloquear
                     </button>
                     <BtnPrimary onClick={()=>openNueva()} disabled={cajaCerrada}>
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -973,7 +978,7 @@ export default function Agenda() {
               fontSize: 13,
               fontWeight: 500
             }}>
-              <span style={{ fontSize: 16 }}>🔒</span>
+              <Icon name="lock" size={16} />
               <div>
                 <strong>Caja diaria cerrada:</strong> La agenda está en modo consulta para esta fecha. No se pueden agendar, mover ni modificar citas.
               </div>
@@ -1022,7 +1027,7 @@ export default function Agenda() {
                       borderRadius: 16,
                       border: '1px dashed var(--border-light)'
                     }}>
-                      🚫 No hay citas agendadas para este día.
+                      <EmptyState compact icon="calendar" title="No hay turnos este día" description="Pasá a la vista Día y tocá un horario libre para agendar." />
                     </div>
                   ) : (
                     citasDelDia(fecha).map(c => {
@@ -1030,7 +1035,7 @@ export default function Agenda() {
                       const es = ESTADO_STYLE[c.estado]||ESTADO_STYLE.pendiente
                       const isSobreturno = c.totalCols && c.totalCols > 1
                       return (
-                        <div key={c.id} onClick={() => openEditar(c)}
+                        <div key={c.id} role="button" tabIndex={0} aria-label={`Abrir turno de ${c.nombre} a las ${c.hora}`} onClick={() => openEditar(c)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openEditar(c) } }}
                           style={{
                             background: 'var(--bg-card, rgba(255,255,255,0.7))',
                             backdropFilter: 'blur(10px)',
@@ -1080,13 +1085,13 @@ export default function Agenda() {
                           </div>
                           <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-dark)' }}>{c.nombre}</div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-muted)', flexWrap: 'wrap' }}>
-                            <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}>🦷 {c.tratamiento}</span>
+                            <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}>{c.tratamiento}</span>
                             <span>•</span>
                             <span>⏱️ {c.duracion} min</span>
                             {c.valor && (
                               <>
                                 <span>•</span>
-                                <span style={{ fontWeight: 600, color: 'var(--text-dark)' }}>💰 ${c.valor}</span>
+                                <span style={{ fontWeight: 600, color: 'var(--text-dark)' }}>${c.valor}</span>
                               </>
                             )}
                           </div>
@@ -1101,7 +1106,7 @@ export default function Agenda() {
                               border: '1px solid var(--border-lighter)',
                               marginTop: 4 
                             }}>
-                              📝 {c.notas}
+                              <span style={{ display:'inline-flex', alignItems:'center', gap:4 }}><Icon name="file" size={12} />{c.notas}</span>
                             </div>
                           )}
                         </div>
@@ -1370,9 +1375,11 @@ export default function Agenda() {
                         const top = (bh - HORA_INICIO + bm/60) * SLOT_H
                         const height = ((eh + em/60) - (bh + bm/60)) * SLOT_H
                         return (
-                          <div key={b.id} onClick={e=>{e.stopPropagation();if(confirm('¿Eliminar este bloqueo?'))deletBloqueo(b.id)}}
+                          <div key={b.id} role="button" tabIndex={0} aria-label={`Eliminar bloqueo ${b.motivo||''} ${b.hora_inicio.slice(0,5)} a ${b.hora_fin.slice(0,5)}`}
+                            onClick={e=>{e.stopPropagation();setBloqueoABorrar({ id: b.id, texto: `${b.motivo||'Bloqueo'} de ${b.hora_inicio.slice(0,5)} a ${b.hora_fin.slice(0,5)}` })}}
+                            onKeyDown={e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();e.stopPropagation();setBloqueoABorrar({ id: b.id, texto: `${b.motivo||'Bloqueo'} de ${b.hora_inicio.slice(0,5)} a ${b.hora_fin.slice(0,5)}` })}}}
                             style={{position:'absolute',top,left:2,right:2,height:Math.max(height-2,18),background:'repeating-linear-gradient(45deg, var(--border-light, #e0e0e0), var(--border-light, #e0e0e0) 4px, var(--bg-card, #f0f0f0) 4px, var(--bg-card, #f0f0f0) 8px)',borderRadius:6,cursor:'pointer',display:'flex',alignItems:'center',padding:'0 8px',zIndex:1}}>
-                            <span style={{fontSize:12,fontWeight:600,color:'var(--text-muted, #888)'}}>🚫 {b.motivo||'Bloqueado'} {b.hora_inicio.slice(0,5)}–{b.hora_fin.slice(0,5)}</span>
+                            <span style={{fontSize:12,fontWeight:600,color:'var(--text-muted, #888)'}}>{b.motivo||'Bloqueado'} {b.hora_inicio.slice(0,5)}–{b.hora_fin.slice(0,5)}</span>
                           </div>
                         )
                       })}
@@ -1478,7 +1485,7 @@ export default function Agenda() {
                                   lineHeight: 1.1,
                                   marginTop: 2
                                 }}>{c.nombre}</div>
-                                {hCard>60&&<div style={{fontSize:12.5,color:colorVar,opacity:0.8,marginTop:2,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',fontWeight:500}}>🦷 {c.tratamiento}</div>}
+                                {hCard>60&&<div style={{fontSize:12.5,color:colorVar,opacity:0.8,marginTop:2,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',fontWeight:500}}>{c.tratamiento}</div>}
                               </>
                             ) : (
                               <>
@@ -1528,7 +1535,7 @@ export default function Agenda() {
                                           onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.03)'}
                                           onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
                                         >
-                                          ✓ Asistió
+                                          <span style={{ display:'inline-flex', alignItems:'center', gap:4 }}><Icon name="check" size={12} />Asistió</span>
                                         </button>
                                         <button 
                                           onClick={(e) => { e.stopPropagation(); cambiarEstado(c.id, 'cancelado') }}
@@ -1536,7 +1543,7 @@ export default function Agenda() {
                                           onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.03)'}
                                           onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
                                         >
-                                          ✗ Faltó
+                                          <span style={{ display:'inline-flex', alignItems:'center', gap:4 }}><Icon name="close" size={12} />Faltó</span>
                                         </button>
                                       </div>
                                     )}
@@ -1582,7 +1589,7 @@ export default function Agenda() {
                                         <>
                                           <span>•</span>
                                           <span style={{fontWeight: 600, display: 'flex', alignItems: 'center', gap: 1}}>
-                                            💰 ${c.valor}
+                                            ${c.valor}
                                           </span>
                                         </>
                                       )}
@@ -1598,7 +1605,7 @@ export default function Agenda() {
                                             onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.03)'}
                                             onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
                                           >
-                                            ✓ Asistió
+                                            <span style={{ display:'inline-flex', alignItems:'center', gap:4 }}><Icon name="check" size={12} />Asistió</span>
                                           </button>
                                           <button 
                                             onClick={(e) => { e.stopPropagation(); cambiarEstado(c.id, 'cancelado') }}
@@ -1606,7 +1613,7 @@ export default function Agenda() {
                                             onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.03)'}
                                             onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
                                           >
-                                            ✗ Faltó
+                                            <span style={{ display:'inline-flex', alignItems:'center', gap:4 }}><Icon name="close" size={12} />Faltó</span>
                                           </button>
                                         </div>
                                       ) : (
@@ -1624,7 +1631,7 @@ export default function Agenda() {
                                               onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.03)'}
                                               onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
                                             >
-                                              💰 Cobrar
+                                              <span style={{ display:'inline-flex', alignItems:'center', gap:4 }}><Icon name="money" size={13} />Cobrar</span>
                                             </button>
                                           )}
                                           {(hCard > 68 || isHovered) && c.notas && (
@@ -1642,7 +1649,7 @@ export default function Agenda() {
                                               paddingTop: isHovered ? 4 : 0,
                                               width: '100%'
                                             }} title={c.notas}>
-                                              📝 {c.notas}
+                                              <span style={{ display:'inline-flex', alignItems:'center', gap:4 }}><Icon name="file" size={12} />{c.notas}</span>
                                             </div>
                                           )}
                                         </div>
@@ -1684,7 +1691,7 @@ export default function Agenda() {
 
             {sel?.telefono && (
               <div style={{ fontSize: 13, color: 'var(--text-muted-darker)', marginBottom: 15, display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-                <span>📞 <a href={`tel:${sel.telefono}`} style={{ color: 'var(--accent)', textDecoration: 'none', fontWeight: 600 }}>{sel.telefono}</a></span>
+                <span style={{ display:'inline-flex', alignItems:'center', gap:4 }}><Icon name="phone" size={13} /><a href={`tel:${sel.telefono}`} style={{ color: 'var(--accent)', textDecoration: 'none', fontWeight: 600 }}>{sel.telefono}</a></span>
                 <button
                   disabled={enviandoWA}
                   style={{
@@ -1831,7 +1838,7 @@ export default function Agenda() {
                     onClick={()=>{setModal(null);setTimeout(()=>openCobroExpress(sel),50)}}
                     disabled={saving}
                   >
-                    💰 Cobrar
+                    <span style={{ display:'inline-flex', alignItems:'center', gap:4 }}><Icon name="money" size={13} />Cobrar</span>
                   </button>
                 )}
               </div>
@@ -1860,8 +1867,8 @@ export default function Agenda() {
         const safeY = Math.max(64, Math.min(menuPos.y, window.innerHeight - MENU_H - (isMobile ? 72 : 8)))
         return(
         <div style={{position:'fixed',top:safeY,left:safeX,zIndex:1000,background:'var(--bg-card)',borderRadius:10,boxShadow:'0 4px 20px rgba(0,0,0,0.15)',padding:'0.5rem',display:'flex',flexDirection:'column',gap:4,minWidth:180}} onClick={e=>e.stopPropagation()}>
-          <button style={{padding:'0.6rem 1rem',borderRadius:7,border:'none',background:'var(--bg-input)',cursor:'pointer',textAlign:'left',fontSize:13,fontWeight:500}} onClick={()=>{setMenuPos(null);openNueva(menuPos.f,menuPos.h)}}>📅 Nueva cita</button>
-          <button style={{padding:'0.6rem 1rem',borderRadius:7,border:'none',background:'var(--bg-input)',cursor:'pointer',textAlign:'left',fontSize:13,fontWeight:500}} onClick={()=>{setMenuPos(null);setFBloqFecha(menuPos.f);setFBloqDesde(menuPos.h);setFBloqHasta(menuPos.h>='12:00'?'20:00':'12:00');setFBloqMotivo('');setModal('bloqueo')}}>🚫 Bloquear horario</button>
+          <button style={{padding:'0.6rem 1rem',borderRadius:7,border:'none',background:'var(--bg-input)',cursor:'pointer',textAlign:'left',fontSize:13,fontWeight:500}} onClick={()=>{setMenuPos(null);openNueva(menuPos.f,menuPos.h)}}>Nueva cita</button>
+          <button style={{padding:'0.6rem 1rem',borderRadius:7,border:'none',background:'var(--bg-input)',cursor:'pointer',textAlign:'left',fontSize:13,fontWeight:500}} onClick={()=>{setMenuPos(null);setFBloqFecha(menuPos.f);setFBloqDesde(menuPos.h);setFBloqHasta(menuPos.h>='12:00'?'20:00':'12:00');setFBloqMotivo('');setModal('bloqueo')}}>Bloquear horario</button>
         </div>
         )
       })()}
@@ -1944,7 +1951,7 @@ export default function Agenda() {
                       onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.01)'}
                       onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
                     >
-                      <span>📅 En 3 semanas</span>
+                      <span>En 3 semanas</span>
                       <span style={{fontSize: 12, opacity: 0.9}}>{formatFechaPropuesta(fFecha3)} · {propuestaProximaCita.hora}hs</span>
                     </button>
 
@@ -1969,7 +1976,7 @@ export default function Agenda() {
                       onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.01)'}
                       onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
                     >
-                      <span>📅 En 4 semanas</span>
+                      <span>En 4 semanas</span>
                       <span style={{fontSize: 12, opacity: 0.9}}>{formatFechaPropuesta(fFecha4)} · {propuestaProximaCita.hora}hs</span>
                     </button>
                   </>
@@ -2016,6 +2023,27 @@ export default function Agenda() {
           </div>
         </Modal>
       )}
+
+      <ConfirmDialog
+        open={!!bloqueoABorrar}
+        title="Eliminar bloqueo"
+        confirmLabel="Eliminar bloqueo"
+        onConfirm={async () => { if (bloqueoABorrar) await deletBloqueo(bloqueoABorrar.id); setBloqueoABorrar(null) }}
+        onCancel={() => setBloqueoABorrar(null)}
+      >
+        Vas a eliminar el bloqueo <strong>{bloqueoABorrar?.texto}</strong>. Ese horario vuelve a quedar disponible para turnos.
+      </ConfirmDialog>
+
+      <ConfirmDialog
+        open={confirmarDescartar}
+        title="Descartar cambios"
+        confirmLabel="Descartar cambios"
+        cancelLabel="Seguir editando"
+        onConfirm={() => { setConfirmarDescartar(false); setModal(null) }}
+        onCancel={() => setConfirmarDescartar(false)}
+      >
+        Tenés cambios sin guardar en este turno. Si salís, se pierden.
+      </ConfirmDialog>
 
       {toast&&<Toast msg={toast.msg} tipo={toast.tipo} isMobile={isMobile}/>}
     </div>
