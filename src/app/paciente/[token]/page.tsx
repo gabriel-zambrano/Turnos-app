@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
-import { triggerConfetti } from '@/lib/confetti'
+import { SuccessModal } from '@/components/SuccessModal'
 import { ProgressRing } from '@/components/ProgressRing'
 import { FIDELIZACION_HABILITADA } from '@/lib/fidelizacion-flag'
 import { SignaturePad } from '@/components/SignaturePad'
@@ -135,6 +135,14 @@ export default function PacientePage() {
   const [firmaDigital, setFirmaDigital] = useState<string | null>(null)
   const [enviandoAnamnesis, setEnviandoAnamnesis] = useState(false)
   const [anamnesisError, setAnamnesisError] = useState('')
+  const [successModal, setSuccessModal] = useState<{
+    open: boolean
+    badge?: string
+    title: string
+    description: string
+    detail?: string
+    detailIcon?: string
+  } | null>(null)
 
   function toggleAlergia(alergia: string) {
     if (alergia === 'Ninguna alergia conocida') {
@@ -226,8 +234,15 @@ export default function PacientePage() {
       const d = await res.json()
       if (!res.ok) throw new Error(d.error || 'Error al guardar la declaración.')
 
-      triggerConfetti()
       setShowAnamnesisModal(false)
+      setSuccessModal({
+        open: true,
+        badge: 'FICHA Y CONSENTIMIENTO AL DÍA',
+        title: '¡Declaración jurada guardada con éxito!',
+        description: 'Tus antecedentes de salud y el consentimiento para tu atención médica quedaron registrados y protegidos con tu firma digital.',
+        detail: 'Documento sellado digitalmente conforme a las Leyes 25.326 y 26.529 con huella de integridad SHA-256 e IP de auditoría.',
+        detailIcon: '🔒',
+      })
       setPaciente(prev => prev ? {
         ...prev,
         dni_cuit: d.paciente.dni_cuit,
@@ -297,7 +312,14 @@ export default function PacientePage() {
       if (res.ok) {
         setFeedbackPendiente(null)
         setShowFeedbackModal(false)
-        triggerConfetti()
+        setSuccessModal({
+          open: true,
+          badge: 'CONTROL POST-VISITA',
+          title: '¡Muchas gracias por tus respuestas!',
+          description: 'Tu valoración y estado fueron informados a tu odontólogo para acompañar tu recuperación tras la consulta.',
+          detail: 'Agradecemos tu tiempo. Tus comentarios nos ayudan a seguir brindando una atención médica de excelencia.',
+          detailIcon: '✨',
+        })
       } else {
         const d = await res.json()
         alert('Error: ' + d.error)
@@ -2372,6 +2394,19 @@ export default function PacientePage() {
             )}
           </div>
         </div>
+      )}
+
+      {successModal && (
+        <SuccessModal
+          open={successModal.open}
+          onClose={() => setSuccessModal(null)}
+          badge={successModal.badge}
+          title={successModal.title}
+          description={successModal.description}
+          detail={successModal.detail}
+          detailIcon={successModal.detailIcon}
+          accentColor={primaryColor}
+        />
       )}
 
       <style>{`

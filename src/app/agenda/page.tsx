@@ -8,7 +8,6 @@ import { TRAT_STYLE, ESTADO_STYLE, TRATAMIENTOS, ESTADOS, DURACIONES, horasDispo
 import { createClient } from '@/lib/supabase/client'
 import type { EstadoCita, TipoTratamiento } from '@/types'
 import { useTenantContext } from '@/components/TenantContext'
-import { triggerConfetti } from '@/lib/confetti'
 import { FORMAS_PAGO_FACTURABLES_DEFAULT } from '@/lib/pagos'
 import { formasFacturablesDe } from '@/lib/registrar-pago'
 import { registrarInasistenciaAction, aprobarAsistenciaAction } from '@/app/actions/fidelizacion'
@@ -548,7 +547,6 @@ export default function Agenda() {
     const {error} = await supabase.from('citas').insert({paciente_id:fPac,fecha_hora:`${fFecha}T${fHora}:00-03:00`,tipo_tratamiento:fTrat,estado:fEst,duracion_minutos:fDur,notas:fNotas||null,valor:fValor||null,sena:fSena||null,medio_pago:fMedioPago||null,tenant_id:tenant?.id})
     setSaving(false)
     if(error) return msg('Error: '+error.message,'error')
-    if(fEst === 'asistio') triggerConfetti()
     setModal(null);msg('Cita agendada ✓');loadCitas()
   }
 
@@ -580,7 +578,6 @@ export default function Agenda() {
     setSaving(false)
     if(error) return msg('Error: '+error.message,'error')
     if(fEst === 'asistio') {
-      triggerConfetti()
       const updatedCita: Cita = {
         ...sel,
         fecha: fFecha,
@@ -653,7 +650,6 @@ export default function Agenda() {
           } else {
             setCitas(p=>p.map(c=>c.id===id?{...c,estado}:c))
             msg(FIDELIZACION_HABILITADA ? 'Turno cerrado · puntos acreditados' : 'Turno cerrado')
-            triggerConfetti()
             setPropuestaProximaCita(cita)
           }
           return
@@ -1914,7 +1910,6 @@ export default function Agenda() {
             msg(m.texto, m.tono === 'exito' ? 'ok' : 'error')
             loadCitas()
             if (r.tipo === 'cobrado' && sel) {
-              triggerConfetti()
               setPropuestaProximaCita(sel)
             }
           }}
