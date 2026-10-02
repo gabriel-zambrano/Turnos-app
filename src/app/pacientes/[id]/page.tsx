@@ -18,7 +18,7 @@ import { FIDELIZACION_HABILITADA } from '@/lib/fidelizacion-flag'
 import { citasPendientesDeAprobar } from '@/lib/citas-para-aprobar'
 import { textoPagoPrevio } from '@/lib/cobro-previo'
 import { cobrarTurno, mensajeCobro } from '@/lib/cobro-turno'
-import { Icon } from '@/components/ui'
+import { Icon } from '@/components/ui/index'
 
 interface Paciente {
   id: string

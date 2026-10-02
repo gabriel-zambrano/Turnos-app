@@ -1,7 +1,7 @@
 'use client'
 import React, { useEffect, useRef, useState } from 'react'
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { Modal, FormField, Button } from '@/components/ui'
+import { Modal, FormField, Button } from '@/components/ui/index'
 import { inputCss, selectCss } from '@/components/UI'
 import { FORMAS_PAGO, sugerirRequiereFactura } from '@/lib/pagos'
 import { cobrarTurno, mensajeCobro, type ResultadoCobro, type MensajeCobro } from '@/lib/cobro-turno'

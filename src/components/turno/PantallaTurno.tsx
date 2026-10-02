@@ -29,10 +29,33 @@ export function formatearTurno(iso: string) {
   }
 }
 
-const TEXTO = '#0a1e3d'
+/** Countdown amigable para la tarjeta tipo Apple Wallet */
+export function calcularCountdown(fechaHoraIso: string): string | null {
+  const dt = new Date(fechaHoraIso).getTime()
+  const now = Date.now()
+  const diffMs = dt - now
+  if (diffMs < 0) return null
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
+  const diffDays = Math.floor(diffHours / 24)
+
+  if (diffDays === 0) {
+    if (diffHours === 0) {
+      const diffMins = Math.max(1, Math.floor(diffMs / (1000 * 60)))
+      return `En ${diffMins} min`
+    }
+    return `Hoy (en ${diffHours} h)`
+  }
+  if (diffDays === 1) return 'Mañana'
+  if (diffDays < 7) return `En ${diffDays} días`
+  const weeks = Math.floor(diffDays / 7)
+  return `En ${weeks} ${weeks === 1 ? 'semana' : 'semanas'}`
+}
+
+const TEXTO = '#0A2540'
 const SUAVE = '#64748b'
-const ACENTO = '#185FA5'
-const VERDE = '#138A6B'
+const ACENTO = '#0F4C5C'
+const VERDE = '#0F5145'
+const VERDE_BG = '#E0F2F1'
 const AMBAR = '#EF9F27'
 
 export const marco: React.CSSProperties = {
@@ -41,18 +64,18 @@ export const marco: React.CSSProperties = {
   alignItems: 'center',
   justifyContent: 'center',
   padding: '1.5rem',
-  background: '#FAF9F6',
-  fontFamily: 'DM Sans, system-ui, sans-serif',
+  background: '#f4f7fb',
+  fontFamily: 'DM Sans, -apple-system, BlinkMacSystemFont, system-ui, sans-serif',
 }
 
 export const tarjeta: React.CSSProperties = {
   width: '100%',
   maxWidth: 420,
   background: '#fff',
-  borderRadius: 28,
+  borderRadius: 24,
   padding: '2rem 1.5rem',
-  border: '1px solid rgba(10,30,61,0.05)',
-  boxShadow: '0 20px 45px rgba(10,30,61,0.06)',
+  border: '1px solid rgba(15, 30, 61, 0.08)',
+  boxShadow: '0 12px 35px rgba(10, 37, 64, 0.05)',
   textAlign: 'center',
 }
 
@@ -75,6 +98,7 @@ const boton: React.CSSProperties = {
   textDecoration: 'none',
   cursor: 'pointer',
   border: '1px solid transparent',
+  transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
 }
 
 export function PantallaError({ mensaje }: { mensaje: string }) {
@@ -110,6 +134,7 @@ export function PantallaTurno({
   yaConfirmo?: boolean
 }) {
   const { dia, fecha, hora } = formatearTurno(turno.fechaHora)
+  const countdown = calcularCountdown(turno.fechaHora)
   const clinica = turno.clinica || 'tu consultorio'
   const confirmado = turno.estado === 'confirmado' || yaConfirmo
 
@@ -138,17 +163,44 @@ export function PantallaTurno({
           {clinica}
         </div>
 
-        <div style={{ margin: '1.5rem 0 0.35rem', fontSize: 15, color: SUAVE, fontWeight: 600, textTransform: 'capitalize' }}>
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 8, marginTop: 12 }}>
+          {countdown ? (
+            <span style={{ display: 'inline-block', padding: '3px 10px', borderRadius: 20, background: 'rgba(15,76,92,0.08)', color: ACENTO, fontSize: 12, fontWeight: 700 }}>
+              ⏱️ {countdown}
+            </span>
+          ) : null}
+          {confirmado ? (
+            <span style={{ display: 'inline-block', padding: '3px 10px', borderRadius: 20, background: VERDE_BG, color: VERDE, fontSize: 12, fontWeight: 700 }}>
+              ✓ Confirmado
+            </span>
+          ) : (
+            <span style={{ display: 'inline-block', padding: '3px 10px', borderRadius: 20, background: 'rgba(239,159,39,0.12)', color: AMBAR, fontSize: 12, fontWeight: 700 }}>
+              Pendiente
+            </span>
+          )}
+        </div>
+
+        <div style={{ margin: '1.25rem 0 0.25rem', fontSize: 15, color: SUAVE, fontWeight: 600, textTransform: 'capitalize' }}>
           {dia} {fecha}
         </div>
-        <div className="kpi-numeral" style={{ fontSize: 46, fontWeight: 600, color: TEXTO, lineHeight: 1.05, letterSpacing: '-0.03em' }}>
+        <div className="kpi-numeral" style={{ fontSize: 48, fontWeight: 700, color: TEXTO, lineHeight: 1.05, letterSpacing: '-0.03em', fontFamily: "'SFMono-Regular', Menlo, Consolas, monospace" }}>
           {hora}
         </div>
-        <div style={{ display: 'inline-block', marginTop: 12, padding: '5px 14px', borderRadius: 20, background: 'rgba(24,95,165,0.08)', color: ACENTO, fontSize: 13.5, fontWeight: 700 }}>
+        <div style={{ display: 'inline-block', marginTop: 12, padding: '5px 14px', borderRadius: 20, background: 'rgba(15,76,92,0.08)', color: ACENTO, fontSize: 13.5, fontWeight: 700 }}>
           {turno.tratamiento}
         </div>
         {turno.direccion ? (
-          <div style={{ marginTop: 14, fontSize: 13.5, color: SUAVE, lineHeight: 1.5 }}>{turno.direccion}</div>
+          <div style={{ marginTop: 14 }}>
+            <div style={{ fontSize: 13.5, color: SUAVE, lineHeight: 1.5 }}>📍 {turno.direccion}</div>
+            <a
+              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(turno.direccion)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ display: 'inline-block', marginTop: 6, fontSize: 12.5, color: ACENTO, fontWeight: 600, textDecoration: 'none' }}
+            >
+              Cómo llegar en Google Maps &rarr;
+            </a>
+          </div>
         ) : null}
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: '1.75rem' }}>
