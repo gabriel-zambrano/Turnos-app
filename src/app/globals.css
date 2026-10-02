@@ -883,3 +883,6 @@ input, select, textarea, button {
 @media (pointer: coarse) {
   .dd-btn--md, .dd-btn--sm { min-height: 44px; }
 }
+
+/* Pantallas de montos: dígitos de ancho fijo (tabular) para comparar cifras de un vistazo. */
+.dd-cifras { font-variant-numeric: tabular-nums; }

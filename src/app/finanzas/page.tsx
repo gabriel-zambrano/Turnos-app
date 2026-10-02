@@ -2,6 +2,7 @@
 import { useRef, useState, useEffect, useCallback, useMemo } from 'react'
 import { AppShell } from '@/components/AppShell'
 import { Modal, Icon, EmptyState, ErrorState } from '@/components/ui/index'
+import { cobradoSinFacturar } from '@/lib/cobrado-sin-facturar'
 import { Toast, Spinner, PageHeader, useBloqueoScroll } from '@/components/UI'
 import { createClient } from '@/lib/supabase/client'
 import { useTenantContext } from '@/components/TenantContext'
@@ -12,7 +13,7 @@ import { registrarPago, formasFacturablesDe } from '@/lib/registrar-pago'
 interface Tratamiento  { id: string; nombre: string; precio_base: number | null }
 interface CostoFijo    { id: string; nombre: string; monto: number; activo: boolean }
 interface MetaMensual  { id: string; mes: number; anio: number; meta_ingresos: number }
-interface IngresoManual { id: string; fecha: string; concepto: string; monto: number }
+interface IngresoManual { id: string; fecha: string; concepto: string; monto: number; requiere_factura?: boolean | null }
 interface EgresoManual  { id: string; fecha: string; concepto: string; monto: number }
 interface CitaAsistida { id: string; paciente_id: string; fecha_hora: string; tipo_tratamiento: string; precio_cobrado: number | null; sena: number | null; valor: number | null; pacientes: { nombre: string; telefono: string; dni_cuit?: string | null; tipo_documento?: string | null } | null }
 
@@ -569,6 +570,8 @@ export default function FinanzasPage() {
   })
 
   // Data para Caja Diaria
+  // Cobros del mes marcados para facturar y sin factura (por fecha del turno).
+  const sinFacturar = cobradoSinFacturar(citasMes, pagosPorCita, manuales, facturas)
   const citasDia = citasMes.filter(c => c.fecha_hora.startsWith(fechaCaja))
   const ingresosDia = manuales.filter(m => m.fecha === fechaCaja)
   const egresosDia = egresos.filter(e => e.fecha === fechaCaja)
@@ -631,6 +634,9 @@ export default function FinanzasPage() {
 
   return (
     <AppShell>
+      {/* Montos con dígitos de ancho fijo: las columnas de cifras se alinean y
+          los totales no "saltan" al cambiar. display: contents no altera el layout. */}
+      <div className="dd-cifras" style={{ display:'contents' }}>
         <PageHeader
           title="Finanzas Operativas"
           sub={`${MESES[mesActual - 1]} ${anioActual}`}
@@ -763,6 +769,20 @@ export default function FinanzasPage() {
             </>
           )}
 
+          {tab === 'caja' && sinFacturar.cantidad > 0 && (
+            <div role="status" style={{
+              display:'flex', alignItems:'flex-start', gap:'var(--space-3)', marginBottom:'var(--space-4)',
+              padding:'var(--space-3) var(--space-4)', borderRadius:'var(--radius-md)', fontSize:'var(--fs-sm)', lineHeight:1.45,
+              background:'var(--warning-soft)', border:'1px solid var(--warning-border)', color:'var(--warning-text)',
+            }}>
+              <Icon name="invoice" size={18} style={{ marginTop:1 }} />
+              <span>
+                <strong>{sinFacturar.cantidad === 1 ? '1 cobro' : `${sinFacturar.cantidad} cobros`} de {MESES[mesActual - 1]} marcados para facturar todavía no tienen factura</strong>
+                {' '}({fmt(sinFacturar.monto)}). Están en la caja del día de cada turno.
+              </span>
+            </div>
+          )}
+
           {tab === 'caja' && (
             cajaLoading ? (
               <div style={{ background:'var(--bg-card)', border:'0.5px solid var(--border-color)', borderRadius:16, padding:'3rem 1.25rem', textAlign:'center' }}>
@@ -794,7 +814,7 @@ export default function FinanzasPage() {
                     )}
                   </div>
                   <div style={{ display:'flex', gap:10, alignItems: 'center' }}>
-                    <input type="date" value={fechaCaja} onChange={e => setFechaCaja(e.target.value)} style={{ ...inputSt, width: 'auto', padding: '5px 10px' }} />
+                    <input type="date" aria-label="Día de la caja" title="Se listan los turnos con fecha de este día, aunque se hayan cobrado otro día" value={fechaCaja} onChange={e => setFechaCaja(e.target.value)} style={{ ...inputSt, width: 'auto', padding: '5px 10px' }} />
                     {cajaActiva.estado === 'abierta' ? (
                       <>
                         <button onClick={() => { setFFecha(fechaCaja); setModalIngreso(true) }} style={{ fontSize:12, fontWeight:600, padding:'6px 12px', borderRadius:8, border:'none', background:'var(--success)', color:'var(--success-contrast)', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>+ Ingreso</button>
@@ -1502,6 +1522,7 @@ export default function FinanzasPage() {
       )}
 
       {toast && <Toast msg={toast.msg} tipo={toast.tipo} isMobile={isMobile} />}
+      </div>
     </AppShell>
   )
 }
