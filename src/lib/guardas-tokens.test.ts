@@ -28,6 +28,7 @@ const SEMANTICOS = [
   '--danger', '--danger-soft', '--danger-border', '--danger-text',
   '--info', '--info-soft', '--text-muted', '--text-subtle',
   '--est-ausente-bg', '--est-ausente-color', '--shadow-pop', '--shadow-modal',
+  '--success-contrast', '--danger-contrast', '--warning-contrast', '--warning-solid',
 ]
 
 function lum(hex: string) {
@@ -71,4 +72,21 @@ describe('foco visible', () => {
   it('se respeta prefers-reduced-motion', () => {
     expect(css).toContain('prefers-reduced-motion: reduce')
   })
+})
+
+describe('texto sobre fondos sólidos ≥ 4,5:1', () => {
+  const pares: [string, string][] = [
+    ['--accent-contrast', '--accent'], ['--success-contrast', '--success'],
+    ['--danger-contrast', '--danger'], ['--warning-contrast', '--warning-solid'],
+  ]
+  for (const [tema, b] of [['claro', root], ['oscuro', dark]] as const) {
+    for (const [texto, fondo] of pares) {
+      it(`${texto} sobre ${fondo} en tema ${tema}`, () => {
+        const t = valor(b, texto)!, f = valor(b, fondo)!
+        expect(t).toMatch(/^#[0-9a-fA-F]{6}$/)
+        expect(f).toMatch(/^#[0-9a-fA-F]{6}$/)
+        expect(contraste(t, f), `${t} sobre ${f}`).toBeGreaterThanOrEqual(4.5)
+      })
+    }
+  }
 })
