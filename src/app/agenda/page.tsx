@@ -13,6 +13,7 @@ import { formasFacturablesDe } from '@/lib/registrar-pago'
 import { registrarInasistenciaAction, aprobarAsistenciaAction } from '@/app/actions/fidelizacion'
 import { FIDELIZACION_HABILITADA } from '@/lib/fidelizacion-flag'
 import { CobrarTurno } from '@/components/cobro/CobrarTurno'
+import { Modal, ConfirmDialog, Icon, EmptyState } from '@/components/ui/index'
 import dynamic from 'next/dynamic'
 
 // Lazy-load: el modal solo se descarga cuando el usuario lo abre, no en la carga inicial.
@@ -1679,18 +1680,7 @@ export default function Agenda() {
 
       {/* Modal editar */}
       {modal==='editar'&&(
-        <div style={overlayCss(isMobile)} onClick={cerrarEditar}>
-          <div style={modalCss(isMobile)} onClick={e=>e.stopPropagation()}>
-            <div style={{...modalTitleCss, display:'flex', justifyContent:'space-between', alignItems:'center', gap:8,
-              position:'sticky', top:'-1.75rem', zIndex:2, background:'var(--bg-modal, rgba(255,255,255,0.97))',
-              backdropFilter:'blur(8px)', margin:'-1.75rem -1.75rem 1.25rem', padding:'1.25rem 1.75rem 0.9rem'}}>
-              <span style={{overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{sel?.nombre}</span>
-              {/* Salida explícita: en el celular el margen para tocar fuera
-                  del sheet es angosto y se cierra sin querer. */}
-              <button onClick={cerrarEditar} aria-label="Cerrar"
-                style={{border:'none', background:'transparent', fontSize:24, lineHeight:1,
-                  color:'var(--text-muted-darker, #4a6080)', cursor:'pointer', padding:'0 4px', minHeight:36}}>×</button>
-            </div>
+        <Modal open onClose={cerrarEditar} title={sel?.nombre ?? 'Turno'} dismissible={!saving}>
 
             {sel?.telefono && (
               <div style={{ fontSize: 13, color: 'var(--text-muted-darker)', marginBottom: 15, display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -1850,23 +1840,19 @@ export default function Agenda() {
                 <button style={{...btnDarkCss,opacity:saving?.6:1, flex:isMobile?1:undefined}} onClick={saveEditar} disabled={saving}>{saving?'Guardando...':'Guardar'}</button>
               </div>
             </div>
-          </div>
-        </div>
+        </Modal>
       )}
 
       {/* Modal borrar */}
-      {modal==='borrar'&&(
-        <div style={overlayCss(isMobile)} onClick={()=>setModal(null)}>
-          <div style={{...modalCss(isMobile),maxWidth:380}} onClick={e=>e.stopPropagation()}>
-            <div style={modalTitleCss}>Eliminar cita</div>
-            <p style={{fontSize:14,color:'var(--text-muted)',marginBottom:'1.5rem'}}>Vas a eliminar la cita de <strong>{sel?.nombre}</strong> a las <strong>{sel?.hora}</strong>.</p>
-            <div style={footerCss}>
-              <button style={btnLightCss} onClick={()=>setModal(null)} disabled={saving}>Cancelar</button>
-              <button style={{...btnRedCss,opacity:saving?.6:1}} onClick={saveBorrar} disabled={saving}>{saving?'Eliminando...':'Sí, eliminar'}</button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmDialog
+        open={modal==='borrar' && !!sel}
+        title="Eliminar turno"
+        confirmLabel="Eliminar turno"
+        onConfirm={saveBorrar}
+        onCancel={()=>setModal(null)}
+      >
+        Vas a eliminar el turno de <strong>{sel?.nombre}</strong> del {sel?.fecha?.split('-').reverse().join('/')} a las <strong>{sel?.hora}</strong>. No se puede deshacer.
+      </ConfirmDialog>
       {/* Menu flotante slot */}
       {menuPos&&(()=> {
         const MENU_W = 188, MENU_H = 96
@@ -1881,9 +1867,7 @@ export default function Agenda() {
       })()}
       {/* Modal bloqueo */}
       {modal==='bloqueo'&&(
-        <div style={overlayCss(isMobile)} onClick={()=>setModal(null)}>
-          <div style={{...modalCss(isMobile),maxWidth:400}} onClick={e=>e.stopPropagation()}>
-            <div style={modalTitleCss}>Bloquear horario</div>
+        <Modal open onClose={()=>setModal(null)} title="Bloquear horario" maxWidth={400} dismissible={!saving}>
             <div style={groupCss}><label style={labelCss}>Fecha</label><input type="date" style={{...selectCss}} value={fBloqFecha} onChange={e=>setFBloqFecha(e.target.value)}/></div>
             <div style={grid2Css}>
               <div style={groupCss}><label style={labelCss}>Desde</label><input type="time" style={{...selectCss}} value={fBloqDesde} onChange={e=>setFBloqDesde(e.target.value)}/></div>
@@ -1894,8 +1878,7 @@ export default function Agenda() {
               <button style={btnLightCss} onClick={()=>setModal(null)} disabled={saving}>Cancelar</button>
               <button style={{...btnDarkCss,opacity:saving?0.6:1}} onClick={saveBloqueo} disabled={saving}>{saving?'Guardando...':'Bloquear'}</button>
             </div>
-          </div>
-        </div>
+        </Modal>
       )}
       {/* Modal cobrar */}
       {tenant && (
@@ -1917,11 +1900,7 @@ export default function Agenda() {
       )}
       {/* Modal de Pre-agendamiento */}
       {propuestaProximaCita && (
-        <div style={overlayCss(isMobile)} onClick={() => setPropuestaProximaCita(null)}>
-          <div style={{...modalCss(isMobile), maxWidth: 440, padding: '24px 20px'}} onClick={e => e.stopPropagation()}>
-            <div style={{...modalTitleCss, textAlign: 'center', marginBottom: 12}}>
-              🔄 Pre-agendar Próxima Visita
-            </div>
+        <Modal open onClose={() => setPropuestaProximaCita(null)} title="Pre-agendar próxima visita" maxWidth={440}>
             
             <p style={{fontSize: 14, color: 'var(--text-dark, #0a1e3d)', textAlign: 'center', marginBottom: 20, lineHeight: 1.5}}>
               ¿Querés pre-agendar el próximo control para <strong>{propuestaProximaCita.nombre}</strong>?
@@ -2007,21 +1986,13 @@ export default function Agenda() {
                 No pre-agendar próximo control
               </button>
             </div>
-          </div>
-        </div>
+        </Modal>
       )}
 
       {/* MODAL: WhatsApp Confirmation */}
       {whatsappCita && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(10,30,61,0.5)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 4000, padding: 16 }}>
-          <div className="slide-up" style={{ background: 'var(--bg-card)', borderRadius: 20, width: '100%', maxWidth: 360, overflow: 'hidden', boxShadow: '0 20px 40px rgba(10,30,61,0.15)', padding: '2rem 1.5rem', textAlign: 'center' }}>
-            <div style={{ width: 60, height: 60, borderRadius: '50%', background: 'var(--success-soft)', margin: '0 auto 16px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" style={{ color: 'var(--success-text)' }} strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
-            </div>
-            <h3 style={{ margin: '0 0 8px 0', fontSize: 18, color: 'var(--text-dark)' }}>¡Turno agendado!</h3>
-            <p style={{ margin: '0 0 20px 0', fontSize: 14, color: 'var(--text-muted-darker)', lineHeight: 1.5 }}>
-              ¿Querés enviarle un mensaje por WhatsApp al paciente para que lo sume a su calendario?
-            </p>
+        <Modal open onClose={() => setWhatsappCita(null)} title="Turno agendado" description="¿Querés enviarle un WhatsApp al paciente para que lo sume a su calendario?" maxWidth={360}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
             
             <a
               href={`https://wa.me/${whatsappCita.telefono.replace(/\D/g, '')}?text=${encodeURIComponent(whatsappCita.mensajeWA)}`}
@@ -2043,7 +2014,7 @@ export default function Agenda() {
               Cerrar
             </button>
           </div>
-        </div>
+        </Modal>
       )}
 
       {toast&&<Toast msg={toast.msg} tipo={toast.tipo} isMobile={isMobile}/>}
