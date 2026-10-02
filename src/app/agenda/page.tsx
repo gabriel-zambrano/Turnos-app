@@ -13,6 +13,8 @@ import { formasFacturablesDe } from '@/lib/registrar-pago'
 import { registrarInasistenciaAction, aprobarAsistenciaAction } from '@/app/actions/fidelizacion'
 import { FIDELIZACION_HABILITADA } from '@/lib/fidelizacion-flag'
 import { CobrarTurno } from '@/components/cobro/CobrarTurno'
+import { Modal, ConfirmDialog, Icon, EmptyState, Button } from '@/components/ui/index'
+import { turnosSinCerrar, ahoraEnArgentina } from '@/lib/turnos-sin-cerrar'
 import dynamic from 'next/dynamic'
 
 // Lazy-load: el modal solo se descarga cuando el usuario lo abre, no en la carga inicial.
@@ -196,7 +198,7 @@ function WeekStrip({ fechas, fechaActiva, fechasConCitas, onSelect, hoy }: {
             alignItems: 'center', justifyContent: 'center',
             border: 'none', background: 'transparent', cursor: 'pointer', padding: 0,
           }}>
-            <span style={{ fontSize: 10, fontWeight: 500, color: activo ? 'var(--text-dark, #0a1e3d)' : 'var(--text-muted, #aab8c8)', lineHeight: 1, marginBottom: 3 }}>
+            <span style={{ fontSize: 12, fontWeight: 500, color: activo ? 'var(--text-dark, #0a1e3d)' : 'var(--text-muted, #aab8c8)', lineHeight: 1, marginBottom: 3 }}>
               {DIAS_STRIP[i]}
             </span>
             <div style={{
@@ -208,17 +210,17 @@ function WeekStrip({ fechas, fechaActiva, fechasConCitas, onSelect, hoy }: {
               <span style={{
                 fontSize: 14,
                 fontWeight: activo || esHoy ? 700 : 400,
-                color: activo ? 'var(--bg-app, #fff)' : esHoy ? '#10B981' : 'var(--text-dark, #333)',
+                color: activo ? 'var(--bg-app, #fff)' : esHoy ? 'var(--success-text)' : 'var(--text-dark, #333)',
                 lineHeight: 1,
               }}>{numDia}</span>
             </div>
             <span style={{
-              fontSize: 9, color: 'var(--text-muted, #aab8c8)', lineHeight: 1, marginTop: 2,
+              fontSize: 12, color: 'var(--text-muted, #aab8c8)', lineHeight: 1, marginTop: 2,
               visibility: esSemanaCurrent ? 'hidden' : 'visible',
             }}>{mes}</span>
             <div style={{
               width: 4, height: 4, borderRadius: '50%',
-              background: tieneCita ? '#388ADD' : 'transparent',
+              background: tieneCita ? 'var(--accent)' : 'transparent',
               marginTop: 2,
             }} />
           </button>
@@ -266,7 +268,7 @@ function AgendaHeaderMobile({ fecha, vista, esHoy, onPrev, onNext, onVista, onNu
       }}>
         {esHoy ? (
           <>
-            <span style={{ fontSize: 13, fontWeight: 600, color: '#10B981' }}>Hoy</span>
+            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--success-text)' }}>Hoy</span>
             <span style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-dark, #0a1e3d)', lineHeight: 1 }}>{diaNum}</span>
           </>
         ) : (
@@ -283,7 +285,7 @@ function AgendaHeaderMobile({ fecha, vista, esHoy, onPrev, onNext, onVista, onNu
 
       <div style={{display:'flex',background:'rgba(15, 30, 61, 0.04)',borderRadius:8,overflow:'hidden',marginRight:4,height:32,border:'1px solid var(--border-light, rgba(15, 30, 61, 0.06))',padding:2,flexShrink:0}}>
         {(['semana','dia','lista'] as const).map(v=>(
-          <button key={v} onClick={()=>onVista(v)} style={{padding:'0 9px',fontSize:11,borderRadius:6,border:'none',cursor:'pointer',background:vista===v?'var(--bg-card, #fff)':'transparent',color:vista===v?'var(--text-dark, #0a1e3d)':'var(--text-muted, #687e96)',fontWeight:vista===v?700:500,boxShadow:vista===v?'0 1px 3px rgba(10,30,61,0.08)':undefined,fontFamily:'DM Sans, sans-serif'}}>{v==='semana'?'Sem':v==='dia'?'Día':'Lista'}</button>
+          <button key={v} onClick={()=>onVista(v)} style={{padding:'0 9px',fontSize:12,borderRadius:6,border:'none',cursor:'pointer',background:vista===v?'var(--bg-card, #fff)':'transparent',color:vista===v?'var(--text-dark, #0a1e3d)':'var(--text-muted, #687e96)',fontWeight:vista===v?700:500,boxShadow:vista===v?'0 1px 3px rgba(10,30,61,0.08)':undefined,fontFamily:'DM Sans, sans-serif'}}>{v==='semana'?'Sem':v==='dia'?'Día':'Lista'}</button>
         ))}
       </div>
 
@@ -291,11 +293,11 @@ function AgendaHeaderMobile({ fecha, vista, esHoy, onPrev, onNext, onVista, onNu
         width: 38, height: 38, display: 'flex', alignItems: 'center', justifyContent: 'center',
         border: '1px solid var(--border-color, rgba(239,68,68,0.15))',
         background: 'var(--bg-card, #fff)',
-        color: '#ef4444',
+        color: 'var(--danger-text)',
         borderRadius: 10, fontSize: 16, cursor: 'pointer', flexShrink: 0,
         fontFamily: 'DM Sans, sans-serif',
         boxShadow: '0 2px 6px rgba(239,68,68,0.05)',
-      }} aria-label="Bloquear Horario" title="Bloquear Horario">🚫</button>
+      }} aria-label="Bloquear horario" title="Bloquear horario"><Icon name="lock" size={16} /></button>
 
       <button onClick={onNueva} style={{
         width: 38, height: 38, display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -423,6 +425,11 @@ export default function Agenda() {
   // Cobro rápido: forma de pago y si se factura
   const [formasFacturables, setFormasFacturables] = useState<string[]>(FORMAS_PAGO_FACTURABLES_DEFAULT)
 
+  // Confirmaciones dentro de la app (antes: confirm() del navegador).
+  const [bloqueoABorrar, setBloqueoABorrar] = useState<{ id: string; texto: string } | null>(null)
+  const [confirmarDescartar, setConfirmarDescartar] = useState(false)
+  const [cierreAbierto, setCierreAbierto] = useState(false)
+
   function msg(m:string,tipo='ok'){setToast({msg:m,tipo});setTimeout(()=>setToast(null),3500)}
 
   const semana = getFechaSemana(fecha)
@@ -493,7 +500,7 @@ export default function Agenda() {
   }
   /** Cierra el modal de edición, avisando si se está por perder algo. */
   function cerrarEditar(){
-    if(hayCambiosSinGuardar() && !confirm('Tenés cambios sin guardar en el turno. ¿Descartarlos?')) return
+    if(hayCambiosSinGuardar()) { setConfirmarDescartar(true); return }
     setModal(null)
   }
 
@@ -547,7 +554,7 @@ export default function Agenda() {
     const {error} = await supabase.from('citas').insert({paciente_id:fPac,fecha_hora:`${fFecha}T${fHora}:00-03:00`,tipo_tratamiento:fTrat,estado:fEst,duracion_minutos:fDur,notas:fNotas||null,valor:fValor||null,sena:fSena||null,medio_pago:fMedioPago||null,tenant_id:tenant?.id})
     setSaving(false)
     if(error) return msg('Error: '+error.message,'error')
-    setModal(null);msg('Cita agendada ✓');loadCitas()
+    setModal(null);msg('Cita agendada');loadCitas()
   }
 
   async function saveEditar(){
@@ -589,7 +596,7 @@ export default function Agenda() {
       } as any
       setPropuestaProximaCita(updatedCita)
     }
-    setModal(null);msg('Cita actualizada ✓');loadCitas()
+    setModal(null);msg('Cita actualizada');loadCitas()
   }
 
   async function saveBorrar(){
@@ -628,10 +635,10 @@ export default function Agenda() {
     if (estado === 'ausente' || estado === 'cancelado') {
       const res = await registrarInasistenciaAction(id, estado as any)
       if (!res.success) {
-        msg('Error al registrar inasistencia: ' + res.error, 'error')
+        msg('No se pudo registrar la inasistencia. Probá de nuevo.', 'error')
       } else {
         setCitas(p=>p.map(c=>c.id===id?{...c,estado}:c))
-        msg('Estado actualizado ✓')
+        msg('Estado actualizado')
       }
       return
     }
@@ -657,8 +664,9 @@ export default function Agenda() {
       }
     }
 
-    // For other states (pendiente, confirmado, completado)
-    await supabase.from('citas').update({estado}).eq('id',id)
+    // Otros estados (pendiente, confirmado, completado)
+    const { error: errEstado } = await supabase.from('citas').update({estado}).eq('id',id)
+    if (errEstado) return msg('No se pudo cambiar el estado del turno. Probá de nuevo.', 'error')
     setCitas(p=>p.map(c=>c.id===id?{...c,estado}:c))
     msg('Estado actualizado')
   }
@@ -684,8 +692,9 @@ export default function Agenda() {
     if (error) {
       msg('Error al agendar propuesta: ' + error.message, 'error')
     } else {
-      msg('Próxima cita pre-agendada con éxito ✓')
-      const waMsg = `Hola *${propuestaProximaCita.nombre.trim().split(' ')[0]}* 👋\nTe confirmamos tu próximo turno de *${propuestaProximaCita.tratamiento}* para el *${fechaDest.split('-').reverse().join('/')}* a las *${propuestaProximaCita.hora} hs*.\n\n🗓️ Podés sumarlo a tu calendario haciendo clic aquí:\nhttps://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(`Turno Odontológico - ${propuestaProximaCita.tratamiento}`)}&dates=${new Date(`${fechaDest}T${propuestaProximaCita.hora}:00-03:00`).toISOString().replace(/-|:|\.\d\d\d/g, '')}/${new Date(new Date(`${fechaDest}T${propuestaProximaCita.hora}:00-03:00`).getTime() + propuestaProximaCita.duracion * 60000).toISOString().replace(/-|:|\.\d\d\d/g, '')}&details=${encodeURIComponent(`Turno para ${propuestaProximaCita.tratamiento}.`)}`
+      msg('Próxima cita pre-agendada con éxito')
+    // Emojis del mensaje al paciente como códigos Unicode: son contenido del WhatsApp, no íconos de la interfaz.
+      const waMsg = `Hola *${propuestaProximaCita.nombre.trim().split(' ')[0]}* \uD83D\uDC4B\nTe confirmamos tu próximo turno de *${propuestaProximaCita.tratamiento}* para el *${fechaDest.split('-').reverse().join('/')}* a las *${propuestaProximaCita.hora} hs*.\n\n\uD83D\uDDD3\uFE0F Podés sumarlo a tu calendario haciendo clic aquí:\nhttps://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(`Turno Odontológico - ${propuestaProximaCita.tratamiento}`)}&dates=${new Date(`${fechaDest}T${propuestaProximaCita.hora}:00-03:00`).toISOString().replace(/-|:|\.\d\d\d/g, '')}/${new Date(new Date(`${fechaDest}T${propuestaProximaCita.hora}:00-03:00`).getTime() + propuestaProximaCita.duracion * 60000).toISOString().replace(/-|:|\.\d\d\d/g, '')}&details=${encodeURIComponent(`Turno para ${propuestaProximaCita.tratamiento}.`)}`
       
       setWhatsappCita({
         telefono: propuestaProximaCita.telefono,
@@ -741,7 +750,7 @@ export default function Agenda() {
       return msg('Error al mover cita: ' + error.message, 'error')
     }
 
-    msg('Cita reprogramada ✓')
+    msg('Cita reprogramada')
     loadCitas()
   }
 
@@ -784,11 +793,12 @@ export default function Agenda() {
     const {error} = await supabase.from("bloqueos").insert({fecha:fBloqFecha, hora_inicio:fBloqDesde, hora_fin:fBloqHasta, motivo:fBloqMotivo||null, tenant_id:tenant.id})
     setSaving(false)
     if (error) return msg("Error: "+error.message, "error")
-    setModal(null); msg("Horario bloqueado ✓"); loadBloqueos(semana[0], semana[5])
+    setModal(null); msg("Horario bloqueado"); loadBloqueos(semana[0], semana[5])
   }
 
   async function deletBloqueo(id: string) {
-    await supabase.from("bloqueos").delete().eq("id", id)
+    const { error } = await supabase.from("bloqueos").delete().eq("id", id)
+    if (error) return msg("No se pudo eliminar el bloqueo. Probá de nuevo.", 'error')
     setBloqueos(p => p.filter(b => b.id !== id))
     msg("Bloqueo eliminado")
   }
@@ -804,6 +814,8 @@ export default function Agenda() {
   const hoy = hoyISO()
   const semana7 = getFechaSemana7(fecha)
   const fechasConCitas = new Set(citas.map(c => c.fecha))
+  // Turnos de la semana cargada que ya pasaron y siguen sin cerrar.
+  const sinCerrar = turnosSinCerrar(citas, ahoraEnArgentina())
   const ahoraTop = (ahora.getHours() * 60 + ahora.getMinutes() - HORA_INICIO * 60) / 60 * SLOT_H
 
   return (
@@ -941,7 +953,7 @@ export default function Agenda() {
                       }}
                       className="quick-action-btn"
                     >
-                      <span style={{color: '#ef4444'}}>🚫</span> Bloquear
+                      <Icon name="lock" size={14} style={{ color: 'var(--danger-text)' }} /> Bloquear
                     </button>
                     <BtnPrimary onClick={()=>openNueva()} disabled={cajaCerrada}>
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -954,25 +966,38 @@ export default function Agenda() {
 
         <div style={{padding: isMobile ? '0.75rem' : '1.5rem 2rem 0'}}>
           <AvisoPedidosOnline />
+          {sinCerrar.length > 0 && (
+            <div role="status" style={{
+              display:'flex', alignItems:'center', gap:'var(--space-3)', flexWrap:'wrap', marginBottom:'var(--space-3)',
+              padding:'var(--space-2) var(--space-3)', borderRadius:'var(--radius-md)', fontSize:'var(--fs-sm)',
+              background:'var(--warning-soft)', border:'1px solid var(--warning-border)', color:'var(--warning-text)',
+            }}>
+              <Icon name="clock" size={16} />
+              <span style={{ flex:1, minWidth:200 }}>
+                <strong>{sinCerrar.length === 1 ? '1 turno de esta semana ya pasó' : `${sinCerrar.length} turnos de esta semana ya pasaron`}</strong> y {sinCerrar.length === 1 ? 'sigue' : 'siguen'} sin cerrar.
+              </span>
+              <Button size="sm" variant="secondary" onClick={() => setCierreAbierto(true)}>Revisar</Button>
+            </div>
+          )}
         </div>
 
         <div style={{padding: isMobile ? 0 : '1.5rem 2rem'}}>
           {/* Caja Cerrada Warning Banner */}
           {cajaCerrada && (
             <div style={{
-              background: '#fef2f2',
-              border: '1px solid #fee2e2',
+              background: 'var(--danger-soft)',
+              border: '1px solid var(--danger-border)',
               borderRadius: 12,
               padding: '12px 16px',
               margin: isMobile ? '0.75rem' : '0 0 16px 0',
               display: 'flex',
               alignItems: 'center',
               gap: 10,
-              color: '#991b1b',
+              color: 'var(--danger-text)',
               fontSize: 13,
               fontWeight: 500
             }}>
-              <span style={{ fontSize: 16 }}>🔒</span>
+              <Icon name="lock" size={16} />
               <div>
                 <strong>Caja diaria cerrada:</strong> La agenda está en modo consulta para esta fecha. No se pueden agendar, mover ni modificar citas.
               </div>
@@ -1021,7 +1046,7 @@ export default function Agenda() {
                       borderRadius: 16,
                       border: '1px dashed var(--border-light)'
                     }}>
-                      🚫 No hay citas agendadas para este día.
+                      <EmptyState compact icon="calendar" title="No hay turnos este día" description="Pasá a la vista Día y tocá un horario libre para agendar." />
                     </div>
                   ) : (
                     citasDelDia(fecha).map(c => {
@@ -1029,13 +1054,13 @@ export default function Agenda() {
                       const es = ESTADO_STYLE[c.estado]||ESTADO_STYLE.pendiente
                       const isSobreturno = c.totalCols && c.totalCols > 1
                       return (
-                        <div key={c.id} onClick={() => openEditar(c)}
+                        <div key={c.id} role="button" tabIndex={0} aria-label={`Abrir turno de ${c.nombre} a las ${c.hora}`} onClick={() => openEditar(c)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openEditar(c) } }}
                           style={{
                             background: 'var(--bg-card, rgba(255,255,255,0.7))',
                             backdropFilter: 'blur(10px)',
                             borderRadius: 14,
                             border: '1px solid var(--border-light)',
-                            borderLeft: `5px solid ${isSobreturno ? '#EF9F27' : `var(--trat-${c.tratamiento}-border, ${tc.dot})`}`,
+                            borderLeft: `5px solid ${isSobreturno ? 'var(--warning)' : `var(--trat-${c.tratamiento}-border, ${tc.dot})`}`,
                             padding: '16px 18px',
                             display: 'flex',
                             flexDirection: 'column',
@@ -1051,8 +1076,8 @@ export default function Agenda() {
                               position: 'absolute',
                               top: 12,
                               right: 16,
-                              background: 'linear-gradient(135deg, #F59E0B, #D97706)',
-                              color: '#fff',
+                              background: 'linear-gradient(135deg, var(--warning), var(--warning-solid))',
+                              color: 'var(--warning-contrast)',
                               fontSize: '8px',
                               fontWeight: 800,
                               padding: '2px 6px',
@@ -1068,7 +1093,7 @@ export default function Agenda() {
                             </span>
                           )}
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span style={{ fontSize: 14, fontWeight: 800, color: isSobreturno ? '#78350F' : `var(--trat-${c.tratamiento}-color, ${tc.color})` }}>
+                            <span style={{ fontSize: 14, fontWeight: 800, color: isSobreturno ? 'var(--warning-text)' : `var(--trat-${c.tratamiento}-color, ${tc.color})` }}>
                               ⏱️ {c.hora} hs
                             </span>
                             {!isSobreturno && (
@@ -1079,13 +1104,13 @@ export default function Agenda() {
                           </div>
                           <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-dark)' }}>{c.nombre}</div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-muted)', flexWrap: 'wrap' }}>
-                            <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}>🦷 {c.tratamiento}</span>
+                            <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}>{c.tratamiento}</span>
                             <span>•</span>
                             <span>⏱️ {c.duracion} min</span>
                             {c.valor && (
                               <>
                                 <span>•</span>
-                                <span style={{ fontWeight: 600, color: 'var(--text-dark)' }}>💰 ${c.valor}</span>
+                                <span style={{ fontWeight: 600, color: 'var(--text-dark)' }}>${c.valor}</span>
                               </>
                             )}
                           </div>
@@ -1100,7 +1125,7 @@ export default function Agenda() {
                               border: '1px solid var(--border-lighter)',
                               marginTop: 4 
                             }}>
-                              📝 {c.notas}
+                              <span style={{ display:'inline-flex', alignItems:'center', gap:4 }}><Icon name="file" size={12} />{c.notas}</span>
                             </div>
                           )}
                         </div>
@@ -1135,13 +1160,13 @@ export default function Agenda() {
                           transition: 'background 0.2s ease',
                         }}
                       >
-                        <div style={{fontSize:10,fontWeight:600,color:'var(--text-muted, #999)',textTransform:'uppercase',letterSpacing:1.5}}>{label}</div>
+                        <div style={{fontSize:12,fontWeight:600,color:'var(--text-muted, #999)',textTransform:'uppercase',letterSpacing:1.5}}>{label}</div>
                         <div style={{
                           width:34,
                           height:34,
                           borderRadius:'50%',
-                          background:esHoy?'linear-gradient(135deg, var(--text-dark, #0f1e2b), #185FA5)':'transparent',
-                          color:esHoy?'#fff':'var(--text-dark, #1a1a1a)',
+                          background:esHoy?'linear-gradient(135deg, var(--text-dark, #0f1e2b), var(--accent))':'transparent',
+                          color:esHoy?'var(--bg-card)':'var(--text-dark, #1a1a1a)',
                           fontWeight:700,
                           fontSize:15,
                           display:'flex',
@@ -1159,8 +1184,8 @@ export default function Agenda() {
                               width:5,
                               height:5,
                               borderRadius:'50%',
-                              background:'#10B981',
-                              boxShadow: '0 0 8px #10B981',
+                              background:'var(--success)',
+                              boxShadow: '0 0 8px var(--success)',
                             }}/>
                           )}
                         </div>
@@ -1176,7 +1201,7 @@ export default function Agenda() {
                   <div style={{borderRight:'1px solid var(--border-color, #e2e8ed)',position:'relative',height:totalH}}>
                     {horas.map(h=>(
                       <div key={h} style={{position:'absolute',top:(h-HORA_INICIO)*SLOT_H,left:0,right:0,height:SLOT_H,borderTop:'1px solid var(--border-lighter, #f0f0f0)',paddingTop:4}}>
-                        <span style={{fontSize:10,fontWeight:500,color:'var(--text-muted, #bbb)',paddingLeft:8}}>{String(h).padStart(2,'0')}:00</span>
+                        <span style={{fontSize:12,fontWeight:500,color:'var(--text-muted, #bbb)',paddingLeft:8}}>{String(h).padStart(2,'0')}:00</span>
                       </div>
                     ))}
                   </div>
@@ -1330,7 +1355,7 @@ export default function Agenda() {
                       })()}
                       {/* Hora actual */}
                       {f===hoy&&ahoraTop>=0&&ahoraTop<=totalH&&(
-                        <div style={{position:'absolute',top:ahoraTop,left:0,right:0,height:2,background:'#ef4444',zIndex:5,pointerEvents:'none'}}>
+                        <div style={{position:'absolute',top:ahoraTop,left:0,right:0,height:2,background:'var(--danger)',zIndex:5,pointerEvents:'none'}}>
                           {/* Pulsating dot indicator */}
                           <div style={{
                             position:'absolute',
@@ -1339,7 +1364,7 @@ export default function Agenda() {
                             width:10,
                             height:10,
                             borderRadius:'50%',
-                            background:'#ef4444',
+                            background:'var(--danger)',
                             boxShadow: '0 0 0 3px rgba(239, 68, 68, 0.35)',
                           }}/>
                           {/* Floating time label overlaying the timeline */}
@@ -1348,8 +1373,8 @@ export default function Agenda() {
                               position: 'absolute',
                               left: -52,
                               top: -8,
-                              background: '#ef4444',
-                              color: '#fff',
+                              background: 'var(--danger)',
+                              color: 'var(--danger-contrast)',
                               fontSize: '9px',
                               fontWeight: 700,
                               padding: '2px 5px',
@@ -1369,9 +1394,11 @@ export default function Agenda() {
                         const top = (bh - HORA_INICIO + bm/60) * SLOT_H
                         const height = ((eh + em/60) - (bh + bm/60)) * SLOT_H
                         return (
-                          <div key={b.id} onClick={e=>{e.stopPropagation();if(confirm('¿Eliminar este bloqueo?'))deletBloqueo(b.id)}}
+                          <div key={b.id} role="button" tabIndex={0} aria-label={`Eliminar bloqueo ${b.motivo||''} ${b.hora_inicio.slice(0,5)} a ${b.hora_fin.slice(0,5)}`}
+                            onClick={e=>{e.stopPropagation();setBloqueoABorrar({ id: b.id, texto: `${b.motivo||'Bloqueo'} de ${b.hora_inicio.slice(0,5)} a ${b.hora_fin.slice(0,5)}` })}}
+                            onKeyDown={e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();e.stopPropagation();setBloqueoABorrar({ id: b.id, texto: `${b.motivo||'Bloqueo'} de ${b.hora_inicio.slice(0,5)} a ${b.hora_fin.slice(0,5)}` })}}}
                             style={{position:'absolute',top,left:2,right:2,height:Math.max(height-2,18),background:'repeating-linear-gradient(45deg, var(--border-light, #e0e0e0), var(--border-light, #e0e0e0) 4px, var(--bg-card, #f0f0f0) 4px, var(--bg-card, #f0f0f0) 8px)',borderRadius:6,cursor:'pointer',display:'flex',alignItems:'center',padding:'0 8px',zIndex:1}}>
-                            <span style={{fontSize:10,fontWeight:600,color:'var(--text-muted, #888)'}}>🚫 {b.motivo||'Bloqueado'} {b.hora_inicio.slice(0,5)}–{b.hora_fin.slice(0,5)}</span>
+                            <span style={{fontSize:12,fontWeight:600,color:'var(--text-muted, #888)'}}>{b.motivo||'Bloqueado'} {b.hora_inicio.slice(0,5)}–{b.hora_fin.slice(0,5)}</span>
                           </div>
                         )
                       })}
@@ -1393,7 +1420,7 @@ export default function Agenda() {
 
                         const bgVar = isOrtodoncia ? undefined : `var(--trat-${c.tratamiento}-bg, ${tc.bg})`
                         const colorVar = isSobreturno ? 'var(--text-dark)' : `var(--trat-${c.tratamiento}-color, ${tc.color})`
-                        const borderLeftColor = isSobreturno ? '#EF9F27' : `var(--trat-${c.tratamiento}-border, ${tc.dot})`
+                        const borderLeftColor = isSobreturno ? 'var(--warning)' : `var(--trat-${c.tratamiento}-border, ${tc.dot})`
 
                         return(
                           <div key={c.id} data-cita="1"
@@ -1433,8 +1460,8 @@ export default function Agenda() {
                                 position: 'absolute',
                                 top: 2,
                                 right: 2,
-                                background: 'linear-gradient(135deg, #F59E0B, #D97706)',
-                                color: '#fff',
+                                background: 'linear-gradient(135deg, var(--warning), var(--warning-solid))',
+                                color: 'var(--warning-contrast)',
                                 fontSize: '7.5px',
                                 fontWeight: 800,
                                 padding: '1px 4px',
@@ -1454,7 +1481,7 @@ export default function Agenda() {
                             {isMobile ? (
                               <>
                                 <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-                                  <span style={{fontSize:10,fontWeight:800,color:isSobreturno ? '#B45309' : colorVar,lineHeight:1}}>{c.hora}</span>
+                                  <span style={{fontSize:12,fontWeight:800,color:isSobreturno ? 'var(--warning-text)' : colorVar,lineHeight:1}}>{c.hora}</span>
                                   <span style={{
                                     width:6,
                                     height:6,
@@ -1467,7 +1494,7 @@ export default function Agenda() {
                                 <div style={{
                                   fontSize: isMobile ? (isSobreturno ? 10.5 : 12) : 12,
                                   fontWeight: 700,
-                                  color: isSobreturno ? '#78350F' : colorVar,
+                                  color: isSobreturno ? 'var(--warning-text)' : colorVar,
                                   overflow: 'hidden',
                                   textOverflow: 'ellipsis',
                                   display: '-webkit-box',
@@ -1477,7 +1504,7 @@ export default function Agenda() {
                                   lineHeight: 1.1,
                                   marginTop: 2
                                 }}>{c.nombre}</div>
-                                {hCard>60&&<div style={{fontSize:9.5,color:colorVar,opacity:0.8,marginTop:2,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',fontWeight:500}}>🦷 {c.tratamiento}</div>}
+                                {hCard>60&&<div style={{fontSize:12.5,color:colorVar,opacity:0.8,marginTop:2,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',fontWeight:500}}>{c.tratamiento}</div>}
                               </>
                             ) : (
                               <>
@@ -1486,9 +1513,9 @@ export default function Agenda() {
                                     display: 'flex',
                                     alignItems: 'center',
                                     gap: 4,
-                                    fontSize: 11,
+                                    fontSize: 12,
                                     fontWeight: 700,
-                                    color: isSobreturno ? '#78350F' : colorVar,
+                                    color: isSobreturno ? 'var(--warning-text)' : colorVar,
                                     height: '100%',
                                     whiteSpace: 'nowrap',
                                     overflow: 'hidden',
@@ -1498,15 +1525,15 @@ export default function Agenda() {
                                     <span style={{opacity: 0.5}}>•</span>
                                     <span style={{textOverflow: 'ellipsis', overflow: 'hidden'}}>{c.nombre}</span>
                                     <span style={{opacity: 0.5}}>•</span>
-                                    <span style={{fontSize: 9.5, fontWeight: 500, opacity: 0.8}}>{c.tratamiento}</span>
+                                    <span style={{fontSize: 12.5, fontWeight: 500, opacity: 0.8}}>{c.tratamiento}</span>
                                   </div>
                                 ) : activeHeight <= 54 ? (
                                   <>
-                                    <div style={{fontSize: 12.5, fontWeight: 700, color: isSobreturno ? '#78350F' : colorVar, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', lineHeight: 1.25}}>
+                                    <div style={{fontSize: 12.5, fontWeight: 700, color: isSobreturno ? 'var(--warning-text)' : colorVar, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', lineHeight: 1.25}}>
                                       <span style={{fontWeight: 800, marginRight: 4}}>{c.hora}</span>
                                       {c.nombre}
                                     </div>
-                                    <div style={{fontSize: 10, color: isSobreturno ? '#B45309' : colorVar, opacity: 0.8, marginTop: 2, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'}}>
+                                    <div style={{fontSize: 12, color: isSobreturno ? 'var(--warning-text)' : colorVar, opacity: 0.8, marginTop: 2, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'}}>
                                       <span>{c.tratamiento}</span>
                                       <span>•</span>
                                       <span>{c.duracion}m</span>
@@ -1523,19 +1550,19 @@ export default function Agenda() {
                                       <div style={{marginTop: 5, display: 'flex', gap: 4, width: '100%', position: 'relative', zIndex: 10}} onClick={e => e.stopPropagation()}>
                                         <button 
                                           onClick={(e) => { e.stopPropagation(); cambiarEstado(c.id, 'asistio') }}
-                                          style={{ flex: 1, border: 'none', background: '#E1F5EE', color: '#085041', borderRadius: 6, padding: '2px 4px', fontSize: 9.5, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'transform 0.1s' }}
+                                          style={{ flex: 1, border: 'none', background: 'var(--success-soft)', color: 'var(--success-text)', borderRadius: 6, padding: '2px 4px', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'transform 0.1s' }}
                                           onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.03)'}
                                           onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
                                         >
-                                          ✓ Asistió
+                                          <span style={{ display:'inline-flex', alignItems:'center', gap:4 }}><Icon name="check" size={12} />Asistió</span>
                                         </button>
                                         <button 
                                           onClick={(e) => { e.stopPropagation(); cambiarEstado(c.id, 'cancelado') }}
-                                          style={{ flex: 1, border: 'none', background: '#FAECE7', color: '#712B13', borderRadius: 6, padding: '2px 4px', fontSize: 9.5, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'transform 0.1s' }}
+                                          style={{ flex: 1, border: 'none', background: 'var(--danger-soft)', color: 'var(--danger-text)', borderRadius: 6, padding: '2px 4px', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'transform 0.1s' }}
                                           onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.03)'}
                                           onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
                                         >
-                                          ✗ Faltó
+                                          <span style={{ display:'inline-flex', alignItems:'center', gap:4 }}><Icon name="close" size={12} />Faltó</span>
                                         </button>
                                       </div>
                                     )}
@@ -1545,7 +1572,7 @@ export default function Agenda() {
                                     <div style={{
                                        fontSize: 13,
                                        fontWeight: 700,
-                                       color: isSobreturno ? '#78350F' : colorVar,
+                                       color: isSobreturno ? 'var(--warning-text)' : colorVar,
                                        display: 'flex',
                                        alignItems: 'flex-start',
                                        justifyContent: 'space-between',
@@ -1570,7 +1597,7 @@ export default function Agenda() {
                                          marginTop: 4
                                        }}/>
                                      </div>
-                                    <div style={{fontSize: 10.5, color: isSobreturno ? '#B45309' : colorVar, opacity: 0.85, marginTop: 3, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap'}}>
+                                    <div style={{fontSize: 12.5, color: isSobreturno ? 'var(--warning-text)' : colorVar, opacity: 0.85, marginTop: 3, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap'}}>
                                       <span style={{display: 'flex', alignItems: 'center', gap: 2}}>
                                         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M15 3v18M3 9h18M3 15h18"/></svg>
                                         {c.tratamiento}
@@ -1581,7 +1608,7 @@ export default function Agenda() {
                                         <>
                                           <span>•</span>
                                           <span style={{fontWeight: 600, display: 'flex', alignItems: 'center', gap: 1}}>
-                                            💰 ${c.valor}
+                                            ${c.valor}
                                           </span>
                                         </>
                                       )}
@@ -1593,19 +1620,19 @@ export default function Agenda() {
                                         <div style={{display: 'flex', gap: 4, width: '100%', position: 'relative', zIndex: 10}} onClick={e => e.stopPropagation()}>
                                           <button 
                                             onClick={(e) => { e.stopPropagation(); cambiarEstado(c.id, 'asistio') }}
-                                            style={{ flex: 1, border: 'none', background: '#E1F5EE', color: '#085041', borderRadius: 6, padding: '3px 6px', fontSize: 10, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2, transition: 'transform 0.1s' }}
+                                            style={{ flex: 1, border: 'none', background: 'var(--success-soft)', color: 'var(--success-text)', borderRadius: 6, padding: '3px 6px', fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2, transition: 'transform 0.1s' }}
                                             onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.03)'}
                                             onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
                                           >
-                                            ✓ Asistió
+                                            <span style={{ display:'inline-flex', alignItems:'center', gap:4 }}><Icon name="check" size={12} />Asistió</span>
                                           </button>
                                           <button 
                                             onClick={(e) => { e.stopPropagation(); cambiarEstado(c.id, 'cancelado') }}
-                                            style={{ flex: 1, border: 'none', background: '#FAECE7', color: '#712B13', borderRadius: 6, padding: '3px 6px', fontSize: 10, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2, transition: 'transform 0.1s' }}
+                                            style={{ flex: 1, border: 'none', background: 'var(--danger-soft)', color: 'var(--danger-text)', borderRadius: 6, padding: '3px 6px', fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2, transition: 'transform 0.1s' }}
                                             onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.03)'}
                                             onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
                                           >
-                                            ✗ Faltó
+                                            <span style={{ display:'inline-flex', alignItems:'center', gap:4 }}><Icon name="close" size={12} />Faltó</span>
                                           </button>
                                         </div>
                                       ) : (
@@ -1619,17 +1646,17 @@ export default function Agenda() {
                                                 e.stopPropagation()
                                                 openCobroExpress(c)
                                               }}
-                                              style={{ border: 'none', background: '#138A6B', color: '#fff', borderRadius: 6, padding: '2px 6px', fontSize: 9.5, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 2, transition: 'transform 0.1s' }}
+                                              style={{ border: 'none', background: 'var(--success)', color: 'var(--success-contrast)', borderRadius: 6, padding: '2px 6px', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 2, transition: 'transform 0.1s' }}
                                               onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.03)'}
                                               onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
                                             >
-                                              💰 Cobrar
+                                              <span style={{ display:'inline-flex', alignItems:'center', gap:4 }}><Icon name="money" size={13} />Cobrar</span>
                                             </button>
                                           )}
                                           {(hCard > 68 || isHovered) && c.notas && (
                                             <div style={{
-                                              fontSize: 9,
-                                              color: isSobreturno ? '#B45309' : colorVar,
+                                              fontSize: 12,
+                                              color: isSobreturno ? 'var(--warning-text)' : colorVar,
                                               opacity: 0.75,
                                               fontStyle: 'italic',
                                               marginTop: 4,
@@ -1641,7 +1668,7 @@ export default function Agenda() {
                                               paddingTop: isHovered ? 4 : 0,
                                               width: '100%'
                                             }} title={c.notas}>
-                                              📝 {c.notas}
+                                              <span style={{ display:'inline-flex', alignItems:'center', gap:4 }}><Icon name="file" size={12} />{c.notas}</span>
                                             </div>
                                           )}
                                         </div>
@@ -1679,29 +1706,18 @@ export default function Agenda() {
 
       {/* Modal editar */}
       {modal==='editar'&&(
-        <div style={overlayCss(isMobile)} onClick={cerrarEditar}>
-          <div style={modalCss(isMobile)} onClick={e=>e.stopPropagation()}>
-            <div style={{...modalTitleCss, display:'flex', justifyContent:'space-between', alignItems:'center', gap:8,
-              position:'sticky', top:'-1.75rem', zIndex:2, background:'var(--bg-modal, rgba(255,255,255,0.97))',
-              backdropFilter:'blur(8px)', margin:'-1.75rem -1.75rem 1.25rem', padding:'1.25rem 1.75rem 0.9rem'}}>
-              <span style={{overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{sel?.nombre}</span>
-              {/* Salida explícita: en el celular el margen para tocar fuera
-                  del sheet es angosto y se cierra sin querer. */}
-              <button onClick={cerrarEditar} aria-label="Cerrar"
-                style={{border:'none', background:'transparent', fontSize:24, lineHeight:1,
-                  color:'var(--text-muted-darker, #4a6080)', cursor:'pointer', padding:'0 4px', minHeight:36}}>×</button>
-            </div>
+        <Modal open onClose={cerrarEditar} title={sel?.nombre ?? 'Turno'} dismissible={!saving}>
 
             {sel?.telefono && (
               <div style={{ fontSize: 13, color: 'var(--text-muted-darker)', marginBottom: 15, display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-                <span>📞 <a href={`tel:${sel.telefono}`} style={{ color: '#185FA5', textDecoration: 'none', fontWeight: 600 }}>{sel.telefono}</a></span>
+                <span style={{ display:'inline-flex', alignItems:'center', gap:4 }}><Icon name="phone" size={13} /><a href={`tel:${sel.telefono}`} style={{ color: 'var(--accent)', textDecoration: 'none', fontWeight: 600 }}>{sel.telefono}</a></span>
                 <button
                   disabled={enviandoWA}
                   style={{
                     background: 'rgba(18, 140, 126, 0.08)',
                     border: '1px solid rgba(18, 140, 126, 0.15)',
                     borderRadius: 8,
-                    color: '#128C7E',
+                    color: 'var(--success-text)',
                     cursor: enviandoWA ? 'not-allowed' : 'pointer',
                     fontSize: 12,
                     fontWeight: 600,
@@ -1829,7 +1845,7 @@ export default function Agenda() {
               borderTop:'1px solid var(--border-color, #e2e8ed)'}}>
               <div style={{display:'flex', gap: 6}}>
                 <button
-                  style={{...btnLightCss, color: '#D85A30', borderColor: 'rgba(216,90,48,0.3)', padding: '0.55rem 0.85rem'}}
+                  style={{...btnLightCss, color: 'var(--danger-text)', borderColor: 'rgba(216,90,48,0.3)', padding: '0.55rem 0.85rem'}}
                   onClick={()=>{setModal(null);setTimeout(()=>{setSel(sel);setModal('borrar')},50)}}
                   disabled={saving}
                 >
@@ -1837,11 +1853,11 @@ export default function Agenda() {
                 </button>
                 {sel?.estado==='asistio'&&!sel?.precio_cobrado&&(
                   <button 
-                    style={{...btnDarkCss, background: '#138A6B', borderColor: '#138A6B', color: '#fff', padding: '0.55rem 0.85rem'}} 
+                    style={{...btnDarkCss, background: 'var(--success)', borderColor: 'var(--success)', color: 'var(--success-contrast)', padding: '0.55rem 0.85rem'}} 
                     onClick={()=>{setModal(null);setTimeout(()=>openCobroExpress(sel),50)}}
                     disabled={saving}
                   >
-                    💰 Cobrar
+                    <span style={{ display:'inline-flex', alignItems:'center', gap:4 }}><Icon name="money" size={13} />Cobrar</span>
                   </button>
                 )}
               </div>
@@ -1850,40 +1866,34 @@ export default function Agenda() {
                 <button style={{...btnDarkCss,opacity:saving?.6:1, flex:isMobile?1:undefined}} onClick={saveEditar} disabled={saving}>{saving?'Guardando...':'Guardar'}</button>
               </div>
             </div>
-          </div>
-        </div>
+        </Modal>
       )}
 
       {/* Modal borrar */}
-      {modal==='borrar'&&(
-        <div style={overlayCss(isMobile)} onClick={()=>setModal(null)}>
-          <div style={{...modalCss(isMobile),maxWidth:380}} onClick={e=>e.stopPropagation()}>
-            <div style={modalTitleCss}>Eliminar cita</div>
-            <p style={{fontSize:14,color:'#666',marginBottom:'1.5rem'}}>Vas a eliminar la cita de <strong>{sel?.nombre}</strong> a las <strong>{sel?.hora}</strong>.</p>
-            <div style={footerCss}>
-              <button style={btnLightCss} onClick={()=>setModal(null)} disabled={saving}>Cancelar</button>
-              <button style={{...btnRedCss,opacity:saving?.6:1}} onClick={saveBorrar} disabled={saving}>{saving?'Eliminando...':'Sí, eliminar'}</button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmDialog
+        open={modal==='borrar' && !!sel}
+        title="Eliminar turno"
+        confirmLabel="Eliminar turno"
+        onConfirm={saveBorrar}
+        onCancel={()=>setModal(null)}
+      >
+        Vas a eliminar el turno de <strong>{sel?.nombre}</strong> del {sel?.fecha?.split('-').reverse().join('/')} a las <strong>{sel?.hora}</strong>. No se puede deshacer.
+      </ConfirmDialog>
       {/* Menu flotante slot */}
       {menuPos&&(()=> {
         const MENU_W = 188, MENU_H = 96
         const safeX = Math.max(8, Math.min(menuPos.x, window.innerWidth  - MENU_W - 8))
         const safeY = Math.max(64, Math.min(menuPos.y, window.innerHeight - MENU_H - (isMobile ? 72 : 8)))
         return(
-        <div style={{position:'fixed',top:safeY,left:safeX,zIndex:1000,background:'#fff',borderRadius:10,boxShadow:'0 4px 20px rgba(0,0,0,0.15)',padding:'0.5rem',display:'flex',flexDirection:'column',gap:4,minWidth:180}} onClick={e=>e.stopPropagation()}>
-          <button style={{padding:'0.6rem 1rem',borderRadius:7,border:'none',background:'#f5f5f5',cursor:'pointer',textAlign:'left',fontSize:13,fontWeight:500}} onClick={()=>{setMenuPos(null);openNueva(menuPos.f,menuPos.h)}}>📅 Nueva cita</button>
-          <button style={{padding:'0.6rem 1rem',borderRadius:7,border:'none',background:'#f5f5f5',cursor:'pointer',textAlign:'left',fontSize:13,fontWeight:500}} onClick={()=>{setMenuPos(null);setFBloqFecha(menuPos.f);setFBloqDesde(menuPos.h);setFBloqHasta(menuPos.h>='12:00'?'20:00':'12:00');setFBloqMotivo('');setModal('bloqueo')}}>🚫 Bloquear horario</button>
+        <div style={{position:'fixed',top:safeY,left:safeX,zIndex:1000,background:'var(--bg-card)',borderRadius:10,boxShadow:'0 4px 20px rgba(0,0,0,0.15)',padding:'0.5rem',display:'flex',flexDirection:'column',gap:4,minWidth:180}} onClick={e=>e.stopPropagation()}>
+          <button style={{padding:'0.6rem 1rem',borderRadius:7,border:'none',background:'var(--bg-input)',cursor:'pointer',textAlign:'left',fontSize:13,fontWeight:500}} onClick={()=>{setMenuPos(null);openNueva(menuPos.f,menuPos.h)}}>Nueva cita</button>
+          <button style={{padding:'0.6rem 1rem',borderRadius:7,border:'none',background:'var(--bg-input)',cursor:'pointer',textAlign:'left',fontSize:13,fontWeight:500}} onClick={()=>{setMenuPos(null);setFBloqFecha(menuPos.f);setFBloqDesde(menuPos.h);setFBloqHasta(menuPos.h>='12:00'?'20:00':'12:00');setFBloqMotivo('');setModal('bloqueo')}}>Bloquear horario</button>
         </div>
         )
       })()}
       {/* Modal bloqueo */}
       {modal==='bloqueo'&&(
-        <div style={overlayCss(isMobile)} onClick={()=>setModal(null)}>
-          <div style={{...modalCss(isMobile),maxWidth:400}} onClick={e=>e.stopPropagation()}>
-            <div style={modalTitleCss}>Bloquear horario</div>
+        <Modal open onClose={()=>setModal(null)} title="Bloquear horario" maxWidth={400} dismissible={!saving}>
             <div style={groupCss}><label style={labelCss}>Fecha</label><input type="date" style={{...selectCss}} value={fBloqFecha} onChange={e=>setFBloqFecha(e.target.value)}/></div>
             <div style={grid2Css}>
               <div style={groupCss}><label style={labelCss}>Desde</label><input type="time" style={{...selectCss}} value={fBloqDesde} onChange={e=>setFBloqDesde(e.target.value)}/></div>
@@ -1894,8 +1904,7 @@ export default function Agenda() {
               <button style={btnLightCss} onClick={()=>setModal(null)} disabled={saving}>Cancelar</button>
               <button style={{...btnDarkCss,opacity:saving?0.6:1}} onClick={saveBloqueo} disabled={saving}>{saving?'Guardando...':'Bloquear'}</button>
             </div>
-          </div>
-        </div>
+        </Modal>
       )}
       {/* Modal cobrar */}
       {tenant && (
@@ -1917,11 +1926,7 @@ export default function Agenda() {
       )}
       {/* Modal de Pre-agendamiento */}
       {propuestaProximaCita && (
-        <div style={overlayCss(isMobile)} onClick={() => setPropuestaProximaCita(null)}>
-          <div style={{...modalCss(isMobile), maxWidth: 440, padding: '24px 20px'}} onClick={e => e.stopPropagation()}>
-            <div style={{...modalTitleCss, textAlign: 'center', marginBottom: 12}}>
-              🔄 Pre-agendar Próxima Visita
-            </div>
+        <Modal open onClose={() => setPropuestaProximaCita(null)} title="Pre-agendar próxima visita" maxWidth={440}>
             
             <p style={{fontSize: 14, color: 'var(--text-dark, #0a1e3d)', textAlign: 'center', marginBottom: 20, lineHeight: 1.5}}>
               ¿Querés pre-agendar el próximo control para <strong>{propuestaProximaCita.nombre}</strong>?
@@ -1950,9 +1955,9 @@ export default function Agenda() {
                       style={{
                         padding: '14px 16px',
                         borderRadius: 12,
-                        border: `1px solid ${tenant?.secondaryColor || '#185FA5'}40`,
-                        background: `linear-gradient(135deg, ${(tenant?.secondaryColor || '#185FA5')}08, ${(tenant?.secondaryColor || '#185FA5')}18)`,
-                        color: tenant?.secondaryColor || '#185FA5',
+                        border: `1px solid ${tenant?.secondaryColor || 'var(--accent)'}40`,
+                        background: `linear-gradient(135deg, ${(tenant?.secondaryColor || 'var(--accent)')}08, ${(tenant?.secondaryColor || 'var(--accent)')}18)`,
+                        color: tenant?.secondaryColor || 'var(--accent)',
                         fontWeight: 700,
                         fontSize: 13.5,
                         cursor: 'pointer',
@@ -1965,7 +1970,7 @@ export default function Agenda() {
                       onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.01)'}
                       onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
                     >
-                      <span>📅 En 3 semanas</span>
+                      <span>En 3 semanas</span>
                       <span style={{fontSize: 12, opacity: 0.9}}>{formatFechaPropuesta(fFecha3)} · {propuestaProximaCita.hora}hs</span>
                     </button>
 
@@ -1975,9 +1980,9 @@ export default function Agenda() {
                       style={{
                         padding: '14px 16px',
                         borderRadius: 12,
-                        border: `1px solid ${tenant?.secondaryColor || '#185FA5'}40`,
-                        background: `linear-gradient(135deg, ${(tenant?.secondaryColor || '#185FA5')}08, ${(tenant?.secondaryColor || '#185FA5')}18)`,
-                        color: tenant?.secondaryColor || '#185FA5',
+                        border: `1px solid ${tenant?.secondaryColor || 'var(--accent)'}40`,
+                        background: `linear-gradient(135deg, ${(tenant?.secondaryColor || 'var(--accent)')}08, ${(tenant?.secondaryColor || 'var(--accent)')}18)`,
+                        color: tenant?.secondaryColor || 'var(--accent)',
                         fontWeight: 700,
                         fontSize: 13.5,
                         cursor: 'pointer',
@@ -1990,7 +1995,7 @@ export default function Agenda() {
                       onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.01)'}
                       onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
                     >
-                      <span>📅 En 4 semanas</span>
+                      <span>En 4 semanas</span>
                       <span style={{fontSize: 12, opacity: 0.9}}>{formatFechaPropuesta(fFecha4)} · {propuestaProximaCita.hora}hs</span>
                     </button>
                   </>
@@ -2007,21 +2012,13 @@ export default function Agenda() {
                 No pre-agendar próximo control
               </button>
             </div>
-          </div>
-        </div>
+        </Modal>
       )}
 
       {/* MODAL: WhatsApp Confirmation */}
       {whatsappCita && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(10,30,61,0.5)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 4000, padding: 16 }}>
-          <div className="slide-up" style={{ background: '#fff', borderRadius: 20, width: '100%', maxWidth: 360, overflow: 'hidden', boxShadow: '0 20px 40px rgba(10,30,61,0.15)', padding: '2rem 1.5rem', textAlign: 'center' }}>
-            <div style={{ width: 60, height: 60, borderRadius: '50%', background: '#E1F5EE', margin: '0 auto 16px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#1D9E75" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
-            </div>
-            <h3 style={{ margin: '0 0 8px 0', fontSize: 18, color: '#0a1e3d' }}>¡Turno agendado!</h3>
-            <p style={{ margin: '0 0 20px 0', fontSize: 14, color: '#4a6080', lineHeight: 1.5 }}>
-              ¿Querés enviarle un mensaje por WhatsApp al paciente para que lo sume a su calendario?
-            </p>
+        <Modal open onClose={() => setWhatsappCita(null)} title="Turno agendado" description="¿Querés enviarle un WhatsApp al paciente para que lo sume a su calendario?" maxWidth={360}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
             
             <a
               href={`https://wa.me/${whatsappCita.telefono.replace(/\D/g, '')}?text=${encodeURIComponent(whatsappCita.mensajeWA)}`}
@@ -2029,7 +2026,7 @@ export default function Agenda() {
               rel="noopener noreferrer"
               style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%',
-                padding: '0.8rem 1rem', borderRadius: 12, border: 'none', background: '#25D366', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'DM Sans, sans-serif', boxShadow: '0 4px 12px rgba(37,211,102,0.25)', textDecoration: 'none', marginBottom: 12
+                padding: '0.8rem 1rem', borderRadius: 12, border: 'none', background: 'var(--success)', color: 'var(--success-contrast)', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'DM Sans, sans-serif', boxShadow: '0 4px 12px rgba(37,211,102,0.25)', textDecoration: 'none', marginBottom: 12
               }}
               onClick={() => setWhatsappCita(null)}
             >
@@ -2038,13 +2035,57 @@ export default function Agenda() {
             </a>
             <button 
               onClick={() => setWhatsappCita(null)}
-              style={{ width: '100%', padding: '0.8rem 1rem', borderRadius: 12, border: 'none', background: '#f4f7fb', color: '#687e96', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
+              style={{ width: '100%', padding: '0.8rem 1rem', borderRadius: 12, border: 'none', background: 'var(--bg-app)', color: 'var(--text-muted)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
             >
               Cerrar
             </button>
           </div>
-        </div>
+        </Modal>
       )}
+
+      <Modal open={cierreAbierto} onClose={() => setCierreAbierto(false)} title="Turnos sin cerrar"
+        description="Ya pasaron y siguen como pendiente o confirmado. Marcá cada uno: si asistió se abre el cobro, como en la agenda." maxWidth={520}>
+        {sinCerrar.length === 0 ? (
+          <EmptyState compact icon="check" title="No quedan turnos sin cerrar esta semana" />
+        ) : (
+          <div style={{ display:'flex', flexDirection:'column', gap:'var(--space-2)' }}>
+            {sinCerrar.map(c => (
+              <div key={c.id} style={{ display:'flex', alignItems:'center', gap:'var(--space-3)', flexWrap:'wrap',
+                padding:'var(--space-2) var(--space-3)', borderRadius:'var(--radius-sm)', border:'1px solid var(--border-color)' }}>
+                <div style={{ flex:1, minWidth:180 }}>
+                  <div style={{ fontWeight:600, color:'var(--text-dark)', fontSize:'var(--fs-md)' }}>{c.nombre}</div>
+                  <div style={{ color:'var(--text-muted)', fontSize:'var(--fs-xs)' }}>
+                    {c.fecha.split('-').reverse().join('/')} · {c.hora.slice(0,5)} · {c.tratamiento}
+                  </div>
+                </div>
+                <Button size="sm" variant="primary" icon="check" onClick={() => { setCierreAbierto(false); cambiarEstado(c.id, 'asistio') }}>Asistió</Button>
+                <Button size="sm" variant="secondary" icon="close" onClick={() => cambiarEstado(c.id, 'cancelado')}>Faltó</Button>
+              </div>
+            ))}
+          </div>
+        )}
+      </Modal>
+
+      <ConfirmDialog
+        open={!!bloqueoABorrar}
+        title="Eliminar bloqueo"
+        confirmLabel="Eliminar bloqueo"
+        onConfirm={async () => { if (bloqueoABorrar) await deletBloqueo(bloqueoABorrar.id); setBloqueoABorrar(null) }}
+        onCancel={() => setBloqueoABorrar(null)}
+      >
+        Vas a eliminar el bloqueo <strong>{bloqueoABorrar?.texto}</strong>. Ese horario vuelve a quedar disponible para turnos.
+      </ConfirmDialog>
+
+      <ConfirmDialog
+        open={confirmarDescartar}
+        title="Descartar cambios"
+        confirmLabel="Descartar cambios"
+        cancelLabel="Seguir editando"
+        onConfirm={() => { setConfirmarDescartar(false); setModal(null) }}
+        onCancel={() => setConfirmarDescartar(false)}
+      >
+        Tenés cambios sin guardar en este turno. Si salís, se pierden.
+      </ConfirmDialog>
 
       {toast&&<Toast msg={toast.msg} tipo={toast.tipo} isMobile={isMobile}/>}
     </div>
