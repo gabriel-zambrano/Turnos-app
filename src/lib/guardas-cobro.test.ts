@@ -57,4 +57,11 @@ describe('guarda de doble submit en cobros y facturación', () => {
       expect(fuente, `${archivo} no usa cobrarTurno`).toMatch(/cobrarTurno|<CobrarTurno/)
     }
   })
+
+  it('la lista de turnos de la Ficha está memorizada (si no, el monto no se puede editar)', () => {
+    // Sin useMemo la lista era un arreglo nuevo en cada render, el efecto que
+    // carga el monto corría en cada tecla y lo devolvía al precio de lista.
+    const fuente = readFileSync(path.join(process.cwd(), 'src/app/pacientes/[id]/page.tsx'), 'utf8')
+    expect(fuente).toMatch(/const citasParaAprobar = useMemo\(/)
+  })
 })

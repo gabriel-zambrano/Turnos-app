@@ -438,14 +438,23 @@ export default function PacienteDetalle() {
     }
   }
 
-  const citasParaAprobar = citasPendientesDeAprobar(citas, historialPuntos, FIDELIZACION_HABILITADA)
+  // Memorizada: sin useMemo era un arreglo nuevo en cada render, el efecto de
+  // abajo corría en cada tecla y devolvía el monto al precio del tratamiento.
+  // Por eso desde la Ficha no se podía cobrar otro monto que el de lista.
+  const citasParaAprobar = useMemo(
+    () => citasPendientesDeAprobar(citas, historialPuntos, FIDELIZACION_HABILITADA),
+    [citas, historialPuntos]
+  )
 
   useEffect(() => {
     if (citaAprobarId) {
       const c = citasParaAprobar.find(x => x.id === citaAprobarId)
       if (c) {
-        setMontoCobrado(c.precio_cobrado ?? c.valor ?? '')
-        setIsMontoEditable(c.precio_cobrado === null)
+        // Misma regla que citasPendientesDeAprobar: un cobro de $ 0 (turno al
+        // que se le borraron los pagos) cuenta como sin cobro.
+        const yaCobrado = Number(c.precio_cobrado ?? 0) > 0
+        setMontoCobrado(yaCobrado ? c.precio_cobrado : (c.valor ?? ''))
+        setIsMontoEditable(!yaCobrado)
       }
     } else if (citasParaAprobar.length > 0) {
       setCitaAprobarId(citasParaAprobar[0].id)
