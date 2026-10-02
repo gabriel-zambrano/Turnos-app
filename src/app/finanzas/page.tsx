@@ -17,8 +17,8 @@ interface CitaAsistida { id: string; paciente_id: string; fecha_hora: string; ti
 
 const inputSt: React.CSSProperties = {
   fontSize: 13, padding: '7px 10px', borderRadius: 8,
-  border: '1px solid #e2e8f0', fontFamily: 'DM Sans, sans-serif',
-  color: '#0a1e3d', width: '100%', boxSizing: 'border-box', outline: 'none',
+  border: '1px solid var(--border-color)', fontFamily: 'DM Sans, sans-serif',
+  color: 'var(--text-dark)', width: '100%', boxSizing: 'border-box', outline: 'none',
 }
 
 function fmt(n: number) {
@@ -552,8 +552,8 @@ export default function FinanzasPage() {
   const tabBtn = (t: typeof tab) => ({
     padding: '0.45rem 1rem', borderRadius: 8, border: 'none', cursor: 'pointer',
     fontSize: 13, fontWeight: 600, fontFamily: 'DM Sans, sans-serif',
-    background: tab === t ? '#0f1e2b' : 'transparent',
-    color: tab === t ? '#fff' : '#64748b',
+    background: tab === t ? 'var(--text-dark)' : 'transparent',
+    color: tab === t ? 'var(--bg-card)' : 'var(--text-muted)',
     transition: 'all 0.15s'
   })
 
@@ -625,7 +625,7 @@ export default function FinanzasPage() {
           sub={`${MESES[mesActual - 1]} ${anioActual}`}
           right={
             <button onClick={() => { setFMeta(metaIngresos || ''); setModalMeta(true) }}
-              style={{ fontSize:12, padding:'6px 14px', borderRadius:8, border:'0.5px solid #138A6B', background:'#E1F5EE', color:'#085041', cursor:'pointer', fontWeight:600, fontFamily:'DM Sans, sans-serif' }}>
+              style={{ fontSize:12, padding:'6px 14px', borderRadius:8, border:'0.5px solid var(--success)', background:'var(--success-soft)', color:'var(--success-text)', cursor:'pointer', fontWeight:600, fontFamily:'DM Sans, sans-serif' }}>
               {metaIngresos > 0 ? `Meta: ${fmt(metaIngresos)}` : '+ Fijar meta mensual'}
             </button>
           }
@@ -633,10 +633,10 @@ export default function FinanzasPage() {
 
         <div className="app-content" style={{ maxWidth:1100, margin:'0 auto' }}>
           
-          <div className="tabs-scroll" style={{ display: 'flex', gap: 4, background: '#f1f5f9', borderRadius: 10, padding: 4, marginBottom: '1.5rem', width: 'fit-content' }}>
+          <div className="tabs-scroll" style={{ display: 'flex', gap: 4, background: 'var(--bg-input)', borderRadius: 10, padding: 4, marginBottom: '1.5rem', width: 'fit-content' }}>
             <button onClick={() => setTab('resumen')} style={tabBtn('resumen')}>Resumen Mensual</button>
             <button onClick={() => setTab('caja')} style={tabBtn('caja')}>Caja Diaria</button>
-            <button onClick={() => setTab('deudores')} style={tabBtn('deudores')}>Deudores <span style={{background:'#ef4444', color:'#fff', padding:'2px 6px', borderRadius:10, fontSize:10, marginLeft:6}}>{deudores.length}</span></button>
+            <button onClick={() => setTab('deudores')} style={tabBtn('deudores')}>Deudores <span style={{background:'var(--danger)', color:'var(--danger-contrast)', padding:'2px 6px', borderRadius:10, fontSize:12, marginLeft:6}}>{deudores.length}</span></button>
           </div>
 
           {tab === 'resumen' && (
@@ -644,30 +644,30 @@ export default function FinanzasPage() {
               {/* KPI Cards */}
               <div style={{ display:'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap:12, marginBottom:'1.5rem' }}>
                 {[
-                  { label:'Facturado en el mes', value: fmt(totalMes),  sub:`${citasMes.length} citas atendidas`,                                      accent:'#1D9E75' },
-                  { label:'Costos Fijos',      value: fmt(totalCostos),   sub:`${costos.filter(c=>c.activo).length} ítems activos`,                     accent:'#D85A30' },
-                  { label:'Meta mensual',      value: metaIngresos > 0 ? fmt(metaIngresos) : '—', sub: metaIngresos > 0 ? `${Math.round(progreso)}% completado` : 'Sin meta definida', accent:'#378ADD' },
-                  { label:'Objetivo del día',  value: restante === 0 && metaIngresos > 0 ? '✓ Cumplida' : objetivoDiario > 0 ? fmt(objetivoDiario) : '—', sub: diasRest > 0 ? `Quedan ${diasRest} días` : 'Último día del mes', accent: restante === 0 && metaIngresos > 0 ? '#1D9E75' : '#EF9F27' },
+                  { label:'Facturado en el mes', value: fmt(totalMes),  sub:`${citasMes.length} citas atendidas`,                                      accent:'var(--success-text)' },
+                  { label:'Costos Fijos',      value: fmt(totalCostos),   sub:`${costos.filter(c=>c.activo).length} ítems activos`,                     accent:'var(--danger-text)' },
+                  { label:'Meta mensual',      value: metaIngresos > 0 ? fmt(metaIngresos) : '—', sub: metaIngresos > 0 ? `${Math.round(progreso)}% completado` : 'Sin meta definida', accent:'var(--accent)' },
+                  { label:'Objetivo del día',  value: restante === 0 && metaIngresos > 0 ? '✓ Cumplida' : objetivoDiario > 0 ? fmt(objetivoDiario) : '—', sub: diasRest > 0 ? `Quedan ${diasRest} días` : 'Último día del mes', accent: restante === 0 && metaIngresos > 0 ? 'var(--success-text)' : 'var(--warning-text)' },
                 ].map(({ label, value, sub, accent }) => (
-                  <div key={label} style={{ background:'#fff', border:'0.5px solid #e8e8e8', borderRadius:14, padding:'1rem 1.1rem' }}>
-                    <div style={{ fontSize:11, fontWeight:600, color:'#94a3b8', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:6 }}>{label}</div>
+                  <div key={label} style={{ background:'var(--bg-card)', border:'0.5px solid var(--border-color)', borderRadius:14, padding:'1rem 1.1rem' }}>
+                    <div style={{ fontSize:12, fontWeight:600, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:6 }}>{label}</div>
                     <div style={{ fontSize: isMobile ? 15 : 19, fontWeight:700, color:accent }}>{value}</div>
-                    <div style={{ fontSize:11, color:'#94a3b8', marginTop:3 }}>{sub}</div>
+                    <div style={{ fontSize:12, color:'var(--text-muted)', marginTop:3 }}>{sub}</div>
                   </div>
                 ))}
               </div>
 
               {/* Barra de progreso mensual */}
               {metaIngresos > 0 && (
-                <div style={{ background:'#fff', border:'0.5px solid #e8e8e8', borderRadius:16, padding:'1.1rem 1.4rem', marginBottom:'1.5rem' }}>
+                <div style={{ background:'var(--bg-card)', border:'0.5px solid var(--border-color)', borderRadius:16, padding:'1.1rem 1.4rem', marginBottom:'1.5rem' }}>
                   <div style={{ display:'flex', justifyContent:'space-between', marginBottom:8 }}>
                     <span style={{ fontSize:13, fontWeight:600 }}>Progreso mensual</span>
-                    <span style={{ fontSize:13, color:'#888' }}>{fmt(totalMes)} de {fmt(metaIngresos)}</span>
+                    <span style={{ fontSize:13, color:'var(--text-muted)' }}>{fmt(totalMes)} de {fmt(metaIngresos)}</span>
                   </div>
-                  <div style={{ height:10, background:'#f0f0ee', borderRadius:5, overflow:'hidden', marginBottom:6 }}>
-                    <div style={{ height:'100%', width:`${progreso}%`, background: progreso >= 100 ? '#1D9E75' : progreso >= 60 ? '#EF9F27' : '#D85A30', borderRadius:5, transition:'width .5s ease' }} />
+                  <div style={{ height:10, background:'var(--bg-input)', borderRadius:5, overflow:'hidden', marginBottom:6 }}>
+                    <div style={{ height:'100%', width:`${progreso}%`, background: progreso >= 100 ? 'var(--success)' : progreso >= 60 ? 'var(--warning)' : 'var(--danger)', borderRadius:5, transition:'width .5s ease' }} />
                   </div>
-                  <div style={{ display:'flex', justifyContent:'space-between', fontSize:11, color:'#aaa' }}>
+                  <div style={{ display:'flex', justifyContent:'space-between', fontSize:12, color:'var(--text-muted)' }}>
                     <span>{Math.round(progreso)}% completado</span>
                     {restante > 0 && <span>Faltan {fmt(restante)}</span>}
                   </div>
@@ -676,64 +676,64 @@ export default function FinanzasPage() {
 
               <div style={{ display:'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 320px', gap:16, alignItems:'start' }}>
                 {/* Punto de equilibrio */}
-                <div style={{ background:'#fff', border:'0.5px solid #e8e8e8', borderRadius:16, padding:'1.25rem' }}>
-                  <div style={{ fontWeight:700, fontSize:15, color:'#0a1e3d', marginBottom:14 }}>Punto de equilibrio</div>
+                <div style={{ background:'var(--bg-card)', border:'0.5px solid var(--border-color)', borderRadius:16, padding:'1.25rem' }}>
+                  <div style={{ fontWeight:700, fontSize:15, color:'var(--text-dark)', marginBottom:14 }}>Punto de equilibrio</div>
                   <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:10, marginBottom:14 }}>
-                    <div style={{ background:'#FAECE7', borderRadius:10, padding:'0.85rem', textAlign:'center' }}>
-                      <div style={{ fontSize:10, color:'#D85A30', fontWeight:700, marginBottom:4, textTransform:'uppercase' }}>Costos fijos</div>
-                      <div style={{ fontSize:16, fontWeight:700, color:'#712B13' }}>{fmt(totalCostos)}</div>
-                      <div style={{ fontSize:10, color:'#D85A30', marginTop:2 }}>{fmt(breakEvenDiario)}/día</div>
+                    <div style={{ background:'var(--danger-soft)', borderRadius:10, padding:'0.85rem', textAlign:'center' }}>
+                      <div style={{ fontSize:12, color:'var(--danger-text)', fontWeight:700, marginBottom:4, textTransform:'uppercase' }}>Costos fijos</div>
+                      <div style={{ fontSize:16, fontWeight:700, color:'var(--danger-text)' }}>{fmt(totalCostos)}</div>
+                      <div style={{ fontSize:12, color:'var(--danger-text)', marginTop:2 }}>{fmt(breakEvenDiario)}/día</div>
                     </div>
-                    <div style={{ background:'#E6F1FB', borderRadius:10, padding:'0.85rem', textAlign:'center' }}>
-                      <div style={{ fontSize:10, color:'#378ADD', fontWeight:700, marginBottom:4, textTransform:'uppercase' }}>Meta mensual</div>
-                      <div style={{ fontSize:16, fontWeight:700, color:'#0C447C' }}>{metaIngresos > 0 ? fmt(metaIngresos) : '—'}</div>
-                      <div style={{ fontSize:10, color:'#378ADD', marginTop:2 }}>{metaIngresos > 0 ? `${fmt(metaIngresos / diasEnMes(mesActual, anioActual))}/día` : 'Sin definir'}</div>
+                    <div style={{ background:'var(--accent-soft)', borderRadius:10, padding:'0.85rem', textAlign:'center' }}>
+                      <div style={{ fontSize:12, color:'var(--accent)', fontWeight:700, marginBottom:4, textTransform:'uppercase' }}>Meta mensual</div>
+                      <div style={{ fontSize:16, fontWeight:700, color:'var(--accent)' }}>{metaIngresos > 0 ? fmt(metaIngresos) : '—'}</div>
+                      <div style={{ fontSize:12, color:'var(--accent)', marginTop:2 }}>{metaIngresos > 0 ? `${fmt(metaIngresos / diasEnMes(mesActual, anioActual))}/día` : 'Sin definir'}</div>
                     </div>
-                    <div style={{ background: gananciaActual >= 0 ? '#E1F5EE' : '#FAEEDA', borderRadius:10, padding:'0.85rem', textAlign:'center' }}>
-                      <div style={{ fontSize:10, color: gananciaActual >= 0 ? '#085041' : '#633806', fontWeight:700, marginBottom:4, textTransform:'uppercase' }}>{gananciaActual >= 0 ? 'Ganancia' : 'Déficit'}</div>
-                      <div style={{ fontSize:16, fontWeight:700, color: gananciaActual >= 0 ? '#1D9E75' : '#EF9F27' }}>{fmt(Math.abs(gananciaActual))}</div>
-                      <div style={{ fontSize:10, color: gananciaActual >= 0 ? '#1D9E75' : '#EF9F27', marginTop:2 }}>{gananciaActual >= 0 ? 'sobre costos' : 'bajo costos'}</div>
+                    <div style={{ background: gananciaActual >= 0 ? 'var(--success-soft)' : 'var(--warning-soft)', borderRadius:10, padding:'0.85rem', textAlign:'center' }}>
+                      <div style={{ fontSize:12, color: gananciaActual >= 0 ? 'var(--success-text)' : 'var(--danger-text)', fontWeight:700, marginBottom:4, textTransform:'uppercase' }}>{gananciaActual >= 0 ? 'Ganancia' : 'Déficit'}</div>
+                      <div style={{ fontSize:16, fontWeight:700, color: gananciaActual >= 0 ? 'var(--success-text)' : 'var(--warning-text)' }}>{fmt(Math.abs(gananciaActual))}</div>
+                      <div style={{ fontSize:12, color: gananciaActual >= 0 ? 'var(--success-text)' : 'var(--warning-text)', marginTop:2 }}>{gananciaActual >= 0 ? 'sobre costos' : 'bajo costos'}</div>
                     </div>
                   </div>
                   {metaIngresos > 0 && restante > 0 && (
-                    <div style={{ background:'#f8fafc', borderRadius:10, padding:'0.85rem 1rem', fontSize:13, color:'#0a1e3d', lineHeight:1.6 }}>
+                    <div style={{ background:'var(--bg-input)', borderRadius:10, padding:'0.85rem 1rem', fontSize:13, color:'var(--text-dark)', lineHeight:1.6 }}>
                       Para cumplir la meta necesitás facturar{' '}
-                      <strong style={{ color:'#378ADD' }}>{fmt(objetivoDiario)}/día</strong>{' '}
+                      <strong style={{ color:'var(--accent)' }}>{fmt(objetivoDiario)}/día</strong>{' '}
                       durante los próximos <strong>{diasRest} días</strong>.
-                      {totalCostos > 0 && <span style={{ color:'#94a3b8' }}>{' '}(Break-even: {fmt(breakEvenDiario)}/día para cubrir costos fijos)</span>}
+                      {totalCostos > 0 && <span style={{ color:'var(--text-muted)' }}>{' '}(Break-even: {fmt(breakEvenDiario)}/día para cubrir costos fijos)</span>}
                     </div>
                   )}
                   {restante === 0 && metaIngresos > 0 && (
-                    <div style={{ background:'#E1F5EE', borderRadius:10, padding:'0.85rem 1rem', fontSize:14, color:'#085041', fontWeight:700, textAlign:'center' }}>
+                    <div style={{ background:'var(--success-soft)', borderRadius:10, padding:'0.85rem 1rem', fontSize:14, color:'var(--success-text)', fontWeight:700, textAlign:'center' }}>
                       🎉 ¡Meta del mes cumplida!
                     </div>
                   )}
                 </div>
 
                 {/* Costos fijos */}
-                <div style={{ background:'#fff', border:'0.5px solid #e8e8e8', borderRadius:16, padding:'1.25rem' }}>
+                <div style={{ background:'var(--bg-card)', border:'0.5px solid var(--border-color)', borderRadius:16, padding:'1.25rem' }}>
                   <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
-                    <div style={{ fontWeight:700, fontSize:15, color:'#0a1e3d' }}>Costos fijos</div>
+                    <div style={{ fontWeight:700, fontSize:15, color:'var(--text-dark)' }}>Costos fijos</div>
                     <button onClick={() => setModalCosto(true)}
-                      style={{ fontSize:12, fontWeight:600, padding:'5px 12px', borderRadius:8, border:'none', background:'#138A6B', color:'#fff', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>
+                      style={{ fontSize:12, fontWeight:600, padding:'5px 12px', borderRadius:8, border:'none', background:'var(--success)', color:'var(--success-contrast)', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>
                       + Agregar
                     </button>
                   </div>
                   {costos.length === 0
-                    ? <div style={{ textAlign:'center', color:'#ccc', padding:'1.5rem', fontSize:13 }}>Sin costos registrados</div>
+                    ? <div style={{ textAlign:'center', color:'var(--text-muted)', padding:'1.5rem', fontSize:13 }}>Sin costos registrados</div>
                     : costos.map((c, i) => (
-                      <div key={c.id} style={{ display:'flex', alignItems:'center', gap:8, padding:'8px 0', borderBottom: i < costos.length - 1 ? '0.5px solid #f0f0f0' : 'none', opacity: c.activo ? 1 : 0.45 }}>
-                        <input type="checkbox" checked={c.activo} onChange={() => toggleCosto(c.id, c.activo)} style={{ accentColor:'#138A6B', flexShrink:0, cursor:'pointer' }} />
+                      <div key={c.id} style={{ display:'flex', alignItems:'center', gap:8, padding:'8px 0', borderBottom: i < costos.length - 1 ? '0.5px solid var(--border-light)' : 'none', opacity: c.activo ? 1 : 0.45 }}>
+                        <input type="checkbox" checked={c.activo} onChange={() => toggleCosto(c.id, c.activo)} style={{ accentColor:'var(--success-text)', flexShrink:0, cursor:'pointer' }} />
                         <div style={{ flex:1, fontSize:13, fontWeight:600, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{c.nombre}</div>
-                        <div style={{ fontSize:13, fontWeight:700, color:'#D85A30', flexShrink:0 }}>{fmt(c.monto)}</div>
-                        <button onClick={() => eliminarCosto(c.id)} style={{ fontSize:12, padding:'2px 8px', borderRadius:6, border:'0.5px solid #e2e8f0', background:'#fff', color:'#D85A30', cursor:'pointer', fontFamily:'DM Sans, sans-serif', flexShrink:0 }}>×</button>
+                        <div style={{ fontSize:13, fontWeight:700, color:'var(--danger-text)', flexShrink:0 }}>{fmt(c.monto)}</div>
+                        <button onClick={() => eliminarCosto(c.id)} style={{ fontSize:12, padding:'2px 8px', borderRadius:6, border:'0.5px solid var(--border-color)', background:'var(--bg-card)', color:'var(--danger-text)', cursor:'pointer', fontFamily:'DM Sans, sans-serif', flexShrink:0 }}>×</button>
                       </div>
                     ))
                   }
                   {costos.length > 0 && (
-                    <div style={{ borderTop:'1px solid #f0f0ee', paddingTop:10, marginTop:6, display:'flex', justifyContent:'space-between' }}>
+                    <div style={{ borderTop:'1px solid var(--border-light)', paddingTop:10, marginTop:6, display:'flex', justifyContent:'space-between' }}>
                       <span style={{ fontSize:13, fontWeight:600 }}>Total mensual</span>
-                      <span style={{ fontSize:15, fontWeight:700, color:'#D85A30' }}>{fmt(totalCostos)}</span>
+                      <span style={{ fontSize:15, fontWeight:700, color:'var(--danger-text)' }}>{fmt(totalCostos)}</span>
                     </div>
                   )}
                 </div>
@@ -743,44 +743,44 @@ export default function FinanzasPage() {
 
           {tab === 'caja' && (
             cajaLoading ? (
-              <div style={{ background:'#fff', border:'0.5px solid #e8e8e8', borderRadius:16, padding:'3rem 1.25rem', textAlign:'center' }}>
+              <div style={{ background:'var(--bg-card)', border:'0.5px solid var(--border-color)', borderRadius:16, padding:'3rem 1.25rem', textAlign:'center' }}>
                 <Spinner />
               </div>
             ) : !cajaActiva ? (
-              <div style={{ background:'#fff', border:'0.5px solid #e8e8e8', borderRadius:16, padding:'3rem 2rem', textAlign:'center', display:'flex', flexDirection:'column', alignItems:'center', gap:16 }}>
+              <div style={{ background:'var(--bg-card)', border:'0.5px solid var(--border-color)', borderRadius:16, padding:'3rem 2rem', textAlign:'center', display:'flex', flexDirection:'column', alignItems:'center', gap:16 }}>
                 <div style={{ fontSize: 36 }}>💰</div>
-                <div style={{ fontWeight:700, fontSize:18, color:'#0a1e3d' }}>Caja Diaria no iniciada</div>
-                <p style={{ fontSize:13, color:'#64748b', maxWidth:420, lineHeight:1.5 }}>
+                <div style={{ fontWeight:700, fontSize:18, color:'var(--text-dark)' }}>Caja Diaria no iniciada</div>
+                <p style={{ fontSize:13, color:'var(--text-muted)', maxWidth:420, lineHeight:1.5 }}>
                   Para poder registrar cobros de turnos, ingresos manuales o egresos en esta fecha, primero debés realizar la apertura de la caja diaria.
                 </p>
                 <div style={{ display:'flex', alignItems:'center', gap:10, marginTop:8, flexWrap:'wrap', justifyContent:'center' }}>
                   <input type="date" value={fechaCaja} onChange={e => setFechaCaja(e.target.value)} style={{ ...inputSt, width: 'auto', padding: '6px 12px' }} />
-                  <button onClick={() => { setMAperturaVal(0); setModalApertura(true) }} style={{ fontSize:13, fontWeight:600, padding:'8px 18px', borderRadius:8, border:'none', background:'#138A6B', color:'#fff', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>
+                  <button onClick={() => { setMAperturaVal(0); setModalApertura(true) }} style={{ fontSize:13, fontWeight:600, padding:'8px 18px', borderRadius:8, border:'none', background:'var(--success)', color:'var(--success-contrast)', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>
                     Abrir Caja Diaria
                   </button>
                 </div>
               </div>
             ) : (
-              <div style={{ background:'#fff', border:'0.5px solid #e8e8e8', borderRadius:16, padding:'1.25rem' }}>
+              <div style={{ background:'var(--bg-card)', border:'0.5px solid var(--border-color)', borderRadius:16, padding:'1.25rem' }}>
                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16, flexWrap:'wrap', gap:10 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <div style={{ fontWeight:700, fontSize:18, color:'#0a1e3d' }}>Control de Caja</div>
+                    <div style={{ fontWeight:700, fontSize:18, color:'var(--text-dark)' }}>Control de Caja</div>
                     {cajaActiva.estado === 'cerrada' ? (
-                      <span style={{ fontSize: 10, background: '#fee2e2', color: '#ef4444', padding: '2px 8px', borderRadius: 12, fontWeight: 700 }}>🔓 Cerrada</span>
+                      <span style={{ fontSize: 12, background: 'var(--danger-soft)', color: 'var(--danger-text)', padding: '2px 8px', borderRadius: 12, fontWeight: 700 }}>🔓 Cerrada</span>
                     ) : (
-                      <span style={{ fontSize: 10, background: '#d1fae5', color: '#065f46', padding: '2px 8px', borderRadius: 12, fontWeight: 700 }}>🟢 Abierta</span>
+                      <span style={{ fontSize: 12, background: 'var(--success-soft)', color: 'var(--success-text)', padding: '2px 8px', borderRadius: 12, fontWeight: 700 }}>🟢 Abierta</span>
                     )}
                   </div>
                   <div style={{ display:'flex', gap:10, alignItems: 'center' }}>
                     <input type="date" value={fechaCaja} onChange={e => setFechaCaja(e.target.value)} style={{ ...inputSt, width: 'auto', padding: '5px 10px' }} />
                     {cajaActiva.estado === 'abierta' ? (
                       <>
-                        <button onClick={() => { setFFecha(fechaCaja); setModalIngreso(true) }} style={{ fontSize:12, fontWeight:600, padding:'6px 12px', borderRadius:8, border:'none', background:'#10b981', color:'#fff', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>+ Ingreso</button>
-                        <button onClick={() => { setFFecha(fechaCaja); setModalEgreso(true) }} style={{ fontSize:12, fontWeight:600, padding:'6px 12px', borderRadius:8, border:'none', background:'#ef4444', color:'#fff', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>- Egreso</button>
-                        <button onClick={() => { setMCierreVal(''); setCajaObs(''); setModalCierre(true) }} style={{ fontSize:12, fontWeight:600, padding:'6px 12px', borderRadius:8, border:'1px solid #ef4444', background:'#fee2e2', color:'#ef4444', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>Cerrar Caja (Arqueo)</button>
+                        <button onClick={() => { setFFecha(fechaCaja); setModalIngreso(true) }} style={{ fontSize:12, fontWeight:600, padding:'6px 12px', borderRadius:8, border:'none', background:'var(--success)', color:'var(--success-contrast)', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>+ Ingreso</button>
+                        <button onClick={() => { setFFecha(fechaCaja); setModalEgreso(true) }} style={{ fontSize:12, fontWeight:600, padding:'6px 12px', borderRadius:8, border:'none', background:'var(--danger)', color:'var(--danger-contrast)', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>- Egreso</button>
+                        <button onClick={() => { setMCierreVal(''); setCajaObs(''); setModalCierre(true) }} style={{ fontSize:12, fontWeight:600, padding:'6px 12px', borderRadius:8, border:'1px solid var(--danger)', background:'var(--danger-soft)', color:'var(--danger-text)', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>Cerrar Caja (Arqueo)</button>
                       </>
                     ) : (
-                      <span style={{ fontSize: 11, fontWeight: 700, padding: '5px 12px', background: '#fee2e2', color: '#ef4444', borderRadius: 6, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                      <span style={{ fontSize: 12, fontWeight: 700, padding: '5px 12px', background: 'var(--danger-soft)', color: 'var(--danger-text)', borderRadius: 6, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                         🔒 Caja Cerrada para Ediciones
                       </span>
                     )}
@@ -789,21 +789,21 @@ export default function FinanzasPage() {
 
                 {/* Ingresos List */}
                 <div style={{ marginBottom: 20 }}>
-                  <div style={{ fontSize:12, fontWeight:700, color:'#10b981', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:8, borderBottom:'1px solid #f0f0f0', paddingBottom:4 }}>Ingresos (+ {fmt(totalCitasDia + totalIngresosDia)})</div>
-                  {citasDia.length === 0 && ingresosDia.length === 0 && <div style={{ fontSize:13, color:'#94a3b8', padding:'8px 0' }}>Sin ingresos en este día</div>}
+                  <div style={{ fontSize:12, fontWeight:700, color:'var(--success-text)', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:8, borderBottom:'1px solid var(--border-light)', paddingBottom:4 }}>Ingresos (+ {fmt(totalCitasDia + totalIngresosDia)})</div>
+                  {citasDia.length === 0 && ingresosDia.length === 0 && <div style={{ fontSize:13, color:'var(--text-muted)', padding:'8px 0' }}>Sin ingresos en este día</div>}
                   
                   {citasDia.map(c => (
-                    <div key={c.id} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'8px 0', borderBottom:'0.5px solid #f0f0f0' }}>
+                    <div key={c.id} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'8px 0', borderBottom:'0.5px solid var(--border-light)' }}>
                       <div>
-                        <div style={{ fontSize:13, fontWeight:600 }}>{c.pacientes?.nombre || 'Paciente'} <span style={{fontWeight:400, color:'#888'}}>({c.tipo_tratamiento})</span></div>
-                        <div style={{ fontSize:11, color:'#aaa' }}>Turno Asistido</div>
+                        <div style={{ fontSize:13, fontWeight:600 }}>{c.pacientes?.nombre || 'Paciente'} <span style={{fontWeight:400, color:'var(--text-muted)'}}>({c.tipo_tratamiento})</span></div>
+                        <div style={{ fontSize:12, color:'var(--text-muted)' }}>Turno Asistido</div>
                       </div>
                       <div style={{ display:'flex', alignItems:'center', gap:6 }}>
                         {editandoPrecio === c.id ? (
                           <>
-                            <input type="number" autoFocus defaultValue={getPrecio(c)} onChange={e => setPrecioEdit(e.target.value === '' ? '' : Number(e.target.value))} style={{ width:90, fontSize:13, padding:'4px 8px', borderRadius:7, border:'1px solid #1D9E75', fontFamily:'DM Sans, sans-serif', textAlign:'right' }} />
-                            <button onClick={() => precioEdit !== '' && guardarPrecioCita(c, precioEdit as number)} style={{ fontSize:11, padding:'4px 8px', borderRadius:6, border:'none', background:'#1D9E75', color:'#fff', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>✓</button>
-                            <button onClick={() => setEditandoPrecio(null)} style={{ fontSize:11, padding:'4px 8px', borderRadius:6, border:'0.5px solid #e2e8f0', background:'#fff', color:'#888', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>×</button>
+                            <input type="number" autoFocus defaultValue={getPrecio(c)} onChange={e => setPrecioEdit(e.target.value === '' ? '' : Number(e.target.value))} style={{ width:90, fontSize:13, padding:'4px 8px', borderRadius:7, border:'1px solid var(--success)', fontFamily:'DM Sans, sans-serif', textAlign:'right' }} />
+                            <button onClick={() => precioEdit !== '' && guardarPrecioCita(c, precioEdit as number)} style={{ fontSize:12, padding:'4px 8px', borderRadius:6, border:'none', background:'var(--success)', color:'var(--success-contrast)', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>✓</button>
+                            <button onClick={() => setEditandoPrecio(null)} style={{ fontSize:12, padding:'4px 8px', borderRadius:6, border:'0.5px solid var(--border-color)', background:'var(--bg-card)', color:'var(--text-muted)', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>×</button>
                           </>
                         ) : (
                           <>
@@ -816,7 +816,7 @@ export default function FinanzasPage() {
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     title={fac.simulada ? 'Factura de prueba, sin validez fiscal — clic para ver el PDF' : `CAE: ${fac.cae} — clic para ver el PDF`}
-                                    style={{ fontSize: 10, background: fac.simulada ? '#fef3c7' : '#d1fae5', color: fac.simulada ? '#92400e' : '#065f46', padding: '3px 8px', borderRadius: 12, fontWeight: 700, marginRight: 4, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 3 }}
+                                    style={{ fontSize: 12, background: fac.simulada ? 'var(--warning-soft)' : 'var(--success-soft)', color: fac.simulada ? 'var(--warning-text)' : 'var(--success-text)', padding: '3px 8px', borderRadius: 12, fontWeight: 700, marginRight: 4, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 3 }}
                                   >
                                     {fac.simulada ? 'Simulada' : 'Facturado'} N°{fac.nro_comprobante} ⬇
                                   </a>
@@ -834,10 +834,10 @@ export default function FinanzasPage() {
                                   <button
                                     onClick={() => abrirModalFacturar(c, 'cita')}
                                     disabled={cajaActiva.estado === 'cerrada'}
-                                    style={{ fontSize: 10, padding: '3px 7px', borderRadius: 6, marginRight: 4, cursor: cajaActiva.estado === 'cerrada' ? 'not-allowed' : 'pointer', fontFamily: 'DM Sans, sans-serif', fontWeight: 600,
-                                      border: `1px solid ${atenuado ? '#cbd5e1' : parcial ? '#EF9F27' : '#1D9E75'}`,
-                                      background: atenuado ? '#f8fafc' : parcial ? '#fffbeb' : '#ecfdf5',
-                                      color: atenuado ? '#94a3b8' : parcial ? '#92400e' : '#1D9E75',
+                                    style={{ fontSize: 12, padding: '3px 7px', borderRadius: 6, marginRight: 4, cursor: cajaActiva.estado === 'cerrada' ? 'not-allowed' : 'pointer', fontFamily: 'DM Sans, sans-serif', fontWeight: 600,
+                                      border: `1px solid ${atenuado ? 'var(--border-color)' : parcial ? 'var(--warning)' : 'var(--success)'}`,
+                                      background: atenuado ? 'var(--bg-input)' : parcial ? 'var(--warning-soft)' : 'var(--success-soft)',
+                                      color: atenuado ? 'var(--text-muted)' : parcial ? 'var(--warning-text)' : 'var(--success-text)',
                                       opacity: cajaActiva.estado === 'cerrada' ? 0.6 : 1 }}
                                     title={aviso}
                                   >
@@ -847,9 +847,9 @@ export default function FinanzasPage() {
                               }
                               return null;
                             })()}
-                            <div style={{ fontSize:14, fontWeight:700, color: c.precio_cobrado !== null ? '#378ADD' : '#1D9E75' }}>{fmt(getPrecio(c))}</div>
+                            <div style={{ fontSize:14, fontWeight:700, color: c.precio_cobrado !== null ? 'var(--accent)' : 'var(--success-text)' }}>{fmt(getPrecio(c))}</div>
                             {cajaActiva.estado === 'abierta' && (
-                              <button onClick={() => { setEditandoPrecio(c.id); setPrecioEdit(getPrecio(c)) }} style={{ fontSize:11, padding:'2px 7px', borderRadius:5, border:'0.5px solid #e2e8f0', background:'#fff', color:'#94a3b8', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>✎</button>
+                              <button onClick={() => { setEditandoPrecio(c.id); setPrecioEdit(getPrecio(c)) }} style={{ fontSize:12, padding:'2px 7px', borderRadius:5, border:'0.5px solid var(--border-color)', background:'var(--bg-card)', color:'var(--text-muted)', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>✎</button>
                             )}
                           </>
                         )}
@@ -858,10 +858,10 @@ export default function FinanzasPage() {
                   ))}
                   
                   {ingresosDia.map(m => (
-                    <div key={m.id} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'8px 0', borderBottom:'0.5px solid #f0f0f0' }}>
+                    <div key={m.id} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'8px 0', borderBottom:'0.5px solid var(--border-light)' }}>
                       <div>
                         <div style={{ fontSize:13, fontWeight:600 }}>{m.concepto}</div>
-                        <div style={{ fontSize:11, color:'#aaa' }}>Ingreso Manual</div>
+                        <div style={{ fontSize:12, color:'var(--text-muted)' }}>Ingreso Manual</div>
                       </div>
                       <div style={{ display:'flex', alignItems:'center', gap:8 }}>
                         {(() => {
@@ -873,7 +873,7 @@ export default function FinanzasPage() {
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 title={fac.simulada ? 'Factura de prueba, sin validez fiscal — clic para ver el PDF' : `CAE: ${fac.cae} — clic para ver el PDF`}
-                                style={{ fontSize: 10, background: fac.simulada ? '#fef3c7' : '#d1fae5', color: fac.simulada ? '#92400e' : '#065f46', padding: '3px 8px', borderRadius: 12, fontWeight: 700, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 3 }}
+                                style={{ fontSize: 12, background: fac.simulada ? 'var(--warning-soft)' : 'var(--success-soft)', color: fac.simulada ? 'var(--warning-text)' : 'var(--success-text)', padding: '3px 8px', borderRadius: 12, fontWeight: 700, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 3 }}
                               >
                                 {fac.simulada ? 'Simulada' : 'Facturado'} N°{fac.nro_comprobante} ⬇
                               </a>
@@ -883,7 +883,7 @@ export default function FinanzasPage() {
                               <button 
                                 onClick={() => abrirModalFacturar(m, 'ingreso')} 
                                 disabled={cajaActiva.estado === 'cerrada'}
-                                style={{ fontSize: 10, padding: '3px 7px', borderRadius: 6, border: '1px solid #1D9E75', background: '#ecfdf5', color: '#1D9E75', cursor: cajaActiva.estado === 'cerrada' ? 'not-allowed' : 'pointer', fontFamily: 'DM Sans, sans-serif', fontWeight: 600, opacity: cajaActiva.estado === 'cerrada' ? 0.6 : 1 }}
+                                style={{ fontSize: 12, padding: '3px 7px', borderRadius: 6, border: '1px solid var(--success)', background: 'var(--success-soft)', color: 'var(--success-text)', cursor: cajaActiva.estado === 'cerrada' ? 'not-allowed' : 'pointer', fontFamily: 'DM Sans, sans-serif', fontWeight: 600, opacity: cajaActiva.estado === 'cerrada' ? 0.6 : 1 }}
                                 title="Emitir Factura Electrónica ARCA"
                               >
                                 Facturar 📄
@@ -892,9 +892,9 @@ export default function FinanzasPage() {
                           }
                           return null;
                         })()}
-                        <div style={{ fontSize:14, fontWeight:700, color:'#378ADD' }}>{fmt(m.monto)}</div>
+                        <div style={{ fontSize:14, fontWeight:700, color:'var(--accent)' }}>{fmt(m.monto)}</div>
                         {cajaActiva.estado === 'abierta' && (
-                          <button onClick={() => eliminarIngreso(m.id)} style={{ fontSize:12, padding:'2px 8px', borderRadius:6, border:'0.5px solid #e2e8f0', background:'#fff', color:'#D85A30', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>×</button>
+                          <button onClick={() => eliminarIngreso(m.id)} style={{ fontSize:12, padding:'2px 8px', borderRadius:6, border:'0.5px solid var(--border-color)', background:'var(--bg-card)', color:'var(--danger-text)', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>×</button>
                         )}
                       </div>
                     </div>
@@ -903,19 +903,19 @@ export default function FinanzasPage() {
 
                 {/* Egresos List */}
                 <div style={{ marginBottom: 20 }}>
-                  <div style={{ fontSize:12, fontWeight:700, color:'#ef4444', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:8, borderBottom:'1px solid #f0f0f0', paddingBottom:4 }}>Egresos (- {fmt(totalEgresosDia)})</div>
-                  {egresosDia.length === 0 && <div style={{ fontSize:13, color:'#94a3b8', padding:'8px 0' }}>Sin egresos en este día</div>}
+                  <div style={{ fontSize:12, fontWeight:700, color:'var(--danger-text)', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:8, borderBottom:'1px solid var(--border-light)', paddingBottom:4 }}>Egresos (- {fmt(totalEgresosDia)})</div>
+                  {egresosDia.length === 0 && <div style={{ fontSize:13, color:'var(--text-muted)', padding:'8px 0' }}>Sin egresos en este día</div>}
                   
                   {egresosDia.map(e => (
-                    <div key={e.id} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'8px 0', borderBottom:'0.5px solid #f0f0f0' }}>
+                    <div key={e.id} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'8px 0', borderBottom:'0.5px solid var(--border-light)' }}>
                       <div>
                         <div style={{ fontSize:13, fontWeight:600 }}>{e.concepto}</div>
-                        <div style={{ fontSize:11, color:'#aaa' }}>Gasto Diario</div>
+                        <div style={{ fontSize:12, color:'var(--text-muted)' }}>Gasto Diario</div>
                       </div>
                       <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                        <div style={{ fontSize:14, fontWeight:700, color:'#ef4444' }}>{fmt(e.monto)}</div>
+                        <div style={{ fontSize:14, fontWeight:700, color:'var(--danger-text)' }}>{fmt(e.monto)}</div>
                         {cajaActiva.estado === 'abierta' && (
-                          <button onClick={() => eliminarEgreso(e.id)} style={{ fontSize:12, padding:'2px 8px', borderRadius:6, border:'0.5px solid #e2e8f0', background:'#fff', color:'#D85A30', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>×</button>
+                          <button onClick={() => eliminarEgreso(e.id)} style={{ fontSize:12, padding:'2px 8px', borderRadius:6, border:'0.5px solid var(--border-color)', background:'var(--bg-card)', color:'var(--danger-text)', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>×</button>
                         )}
                       </div>
                     </div>
@@ -924,39 +924,39 @@ export default function FinanzasPage() {
 
                 {/* Balance / Arqueo Summary */}
                 {cajaActiva.estado === 'abierta' ? (
-                  <div style={{ background: cajaDia >= 0 ? '#ecfdf5' : '#fef2f2', padding: '1rem', borderRadius: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: `1px solid ${cajaDia >= 0 ? '#10b981' : '#ef4444'}` }}>
-                    <div style={{ fontSize: 14, fontWeight: 700, color: cajaDia >= 0 ? '#065f46' : '#991b1b' }}>CAJA DEL DÍA (SISTEMA)</div>
-                    <div style={{ fontSize: 24, fontWeight: 800, color: cajaDia >= 0 ? '#10b981' : '#ef4444' }}>{fmt(cajaDia + cajaActiva.monto_apertura)}</div>
+                  <div style={{ background: cajaDia >= 0 ? 'var(--success-soft)' : 'var(--danger-soft)', padding: '1rem', borderRadius: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: `1px solid ${cajaDia >= 0 ? 'var(--success)' : 'var(--danger)'}` }}>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: cajaDia >= 0 ? 'var(--success-text)' : 'var(--danger-text)' }}>CAJA DEL DÍA (SISTEMA)</div>
+                    <div style={{ fontSize: 24, fontWeight: 800, color: cajaDia >= 0 ? 'var(--success-text)' : 'var(--danger-text)' }}>{fmt(cajaDia + cajaActiva.monto_apertura)}</div>
                   </div>
                 ) : (
                   (() => {
                     const totalSistema = cajaDia + cajaActiva.monto_apertura
                     const diff = (cajaActiva.monto_cierre_declarado ?? 0) - totalSistema
                     return (
-                      <div style={{ background: '#f8fafc', padding: '1.25rem', borderRadius: 14, border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: 12 }}>
-                        <div style={{ fontWeight: 700, fontSize: 14, color: '#0a1e3d' }}>Resumen del Arqueo de Caja</div>
+                      <div style={{ background: 'var(--bg-input)', padding: '1.25rem', borderRadius: 14, border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: 12 }}>
+                        <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text-dark)' }}>Resumen del Arqueo de Caja</div>
                         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(4, 1fr)', gap: 12 }}>
-                          <div style={{ padding: 10, background: '#fff', borderRadius: 8, border: '0.5px solid #e2e8f0' }}>
-                            <div style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>MONTO APERTURA</div>
-                            <div style={{ fontSize: 15, fontWeight: 700, color: '#0a1e3d', marginTop: 4 }}>{fmt(cajaActiva.monto_apertura)}</div>
+                          <div style={{ padding: 10, background: 'var(--bg-card)', borderRadius: 8, border: '0.5px solid var(--border-color)' }}>
+                            <div style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600 }}>MONTO APERTURA</div>
+                            <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-dark)', marginTop: 4 }}>{fmt(cajaActiva.monto_apertura)}</div>
                           </div>
-                          <div style={{ padding: 10, background: '#fff', borderRadius: 8, border: '0.5px solid #e2e8f0' }}>
-                            <div style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>SISTEMA (CALCULADO)</div>
-                            <div style={{ fontSize: 15, fontWeight: 700, color: '#0a1e3d', marginTop: 4 }}>{fmt(totalSistema)}</div>
+                          <div style={{ padding: 10, background: 'var(--bg-card)', borderRadius: 8, border: '0.5px solid var(--border-color)' }}>
+                            <div style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600 }}>SISTEMA (CALCULADO)</div>
+                            <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-dark)', marginTop: 4 }}>{fmt(totalSistema)}</div>
                           </div>
-                          <div style={{ padding: 10, background: '#fff', borderRadius: 8, border: '0.5px solid #e2e8f0' }}>
-                            <div style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>CONTADO (DECLARADO)</div>
-                            <div style={{ fontSize: 15, fontWeight: 700, color: '#0a1e3d', marginTop: 4 }}>{fmt(cajaActiva.monto_cierre_declarado ?? 0)}</div>
+                          <div style={{ padding: 10, background: 'var(--bg-card)', borderRadius: 8, border: '0.5px solid var(--border-color)' }}>
+                            <div style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600 }}>CONTADO (DECLARADO)</div>
+                            <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-dark)', marginTop: 4 }}>{fmt(cajaActiva.monto_cierre_declarado ?? 0)}</div>
                           </div>
-                          <div style={{ padding: 10, background: diff === 0 ? '#ecfdf5' : '#fffbeb', borderRadius: 8, border: `0.5px solid ${diff === 0 ? '#10b981' : '#f59e0b'}` }}>
-                            <div style={{ fontSize: 11, color: diff === 0 ? '#065f46' : '#92400e', fontWeight: 600 }}>DIFERENCIA</div>
-                            <div style={{ fontSize: 15, fontWeight: 800, color: diff === 0 ? '#10b981' : diff > 0 ? '#10b981' : '#ef4444', marginTop: 4 }}>
+                          <div style={{ padding: 10, background: diff === 0 ? 'var(--success-soft)' : 'var(--warning-soft)', borderRadius: 8, border: `0.5px solid ${diff === 0 ? 'var(--success)' : 'var(--warning)'}` }}>
+                            <div style={{ fontSize: 12, color: diff === 0 ? 'var(--success-text)' : 'var(--warning-text)', fontWeight: 600 }}>DIFERENCIA</div>
+                            <div style={{ fontSize: 15, fontWeight: 800, color: diff === 0 ? 'var(--success-text)' : diff > 0 ? 'var(--success-text)' : 'var(--danger-text)', marginTop: 4 }}>
                               {diff === 0 ? 'Cuadrada ✓' : (diff > 0 ? `+${fmt(diff)} (Sobrante)` : `${fmt(diff)} (Faltante)`)}
                             </div>
                           </div>
                         </div>
                         {cajaActiva.observaciones && (
-                          <div style={{ fontSize: 12, color: '#475569', fontStyle: 'italic', padding: '8px 12px', background: '#fff', border: '0.5px solid #e2e8f0', borderRadius: 8 }}>
+                          <div style={{ fontSize: 12, color: 'var(--text-muted-darker)', fontStyle: 'italic', padding: '8px 12px', background: 'var(--bg-card)', border: '0.5px solid var(--border-color)', borderRadius: 8 }}>
                             <strong>Observaciones del Cierre:</strong> {cajaActiva.observaciones}
                           </div>
                         )}
@@ -969,13 +969,13 @@ export default function FinanzasPage() {
           )}
 
           {tab === 'deudores' && (
-            <div style={{ background:'#fff', border:'0.5px solid #e8e8e8', borderRadius:16, padding:'1.25rem' }}>
-              <div style={{ fontWeight:700, fontSize:18, color:'#0a1e3d', marginBottom:16 }}>Pacientes con Saldo Pendiente</div>
+            <div style={{ background:'var(--bg-card)', border:'0.5px solid var(--border-color)', borderRadius:16, padding:'1.25rem' }}>
+              <div style={{ fontWeight:700, fontSize:18, color:'var(--text-dark)', marginBottom:16 }}>Pacientes con Saldo Pendiente</div>
               
               {deudores.length === 0 ? (
-                <div style={{ textAlign:'center', color:'#94a3b8', padding:'3rem 1rem' }}>
+                <div style={{ textAlign:'center', color:'var(--text-muted)', padding:'3rem 1rem' }}>
                   <div style={{ fontSize:40, marginBottom:10 }}>🎉</div>
-                  <div style={{ fontSize:15, fontWeight:600, color:'#0f1e2b' }}>¡Excelente!</div>
+                  <div style={{ fontSize:15, fontWeight:600, color:'var(--text-dark)' }}>¡Excelente!</div>
                   <div style={{ fontSize:13 }}>No hay pacientes con deudas registradas.</div>
                 </div>
               ) : (
@@ -987,24 +987,24 @@ export default function FinanzasPage() {
                     const wpUrl = pac?.telefono ? `https://wa.me/${pac.telefono.replace(/\D/g, '')}?text=${mensaje}` : null
 
                     return (
-                      <div key={c.id} style={{ display:'flex', flexWrap:'wrap', alignItems:'center', justifyContent:'space-between', padding:'1rem', borderRadius:12, border:'1px solid #e2e8f0', background:'#f8fafc', gap:10 }}>
+                      <div key={c.id} style={{ display:'flex', flexWrap:'wrap', alignItems:'center', justifyContent:'space-between', padding:'1rem', borderRadius:12, border:'1px solid var(--border-color)', background:'var(--bg-input)', gap:10 }}>
                         <div style={{ display: 'flex', flexDirection:'column', gap:4 }}>
-                          <div style={{ fontSize:14, fontWeight:700, color:'#0f1e2b' }}>{pac?.nombre}</div>
-                          <div style={{ fontSize:12, color:'#64748b' }}>Tratamiento: <strong>{c.tipo_tratamiento}</strong> ({new Date(c.fecha_hora).toLocaleDateString('es-AR')})</div>
-                          <div style={{ fontSize:12, color:'#64748b' }}>Costo Total: {fmt(c.valor ?? 0)} · Abonado: {fmt((c.sena ?? 0) + (c.precio_cobrado ?? 0))}</div>
+                          <div style={{ fontSize:14, fontWeight:700, color:'var(--text-dark)' }}>{pac?.nombre}</div>
+                          <div style={{ fontSize:12, color:'var(--text-muted)' }}>Tratamiento: <strong>{c.tipo_tratamiento}</strong> ({new Date(c.fecha_hora).toLocaleDateString('es-AR')})</div>
+                          <div style={{ fontSize:12, color:'var(--text-muted)' }}>Costo Total: {fmt(c.valor ?? 0)} · Abonado: {fmt((c.sena ?? 0) + (c.precio_cobrado ?? 0))}</div>
                         </div>
                         <div style={{ display:'flex', alignItems:'center', gap:16 }}>
                           <div style={{ textAlign:'right' }}>
-                            <div style={{ fontSize:11, fontWeight:700, color:'#ef4444', textTransform:'uppercase' }}>Deuda</div>
-                            <div style={{ fontSize:18, fontWeight:800, color:'#ef4444' }}>{fmt(deuda)}</div>
+                            <div style={{ fontSize:12, fontWeight:700, color:'var(--danger-text)', textTransform:'uppercase' }}>Deuda</div>
+                            <div style={{ fontSize:18, fontWeight:800, color:'var(--danger-text)' }}>{fmt(deuda)}</div>
                           </div>
                           <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
                             {wpUrl && (
-                              <a href={wpUrl} target="_blank" rel="noreferrer" style={{ fontSize:12, fontWeight:600, padding:'6px 12px', borderRadius:8, background:'#25D366', color:'#fff', textDecoration:'none', textAlign:'center' }}>
+                              <a href={wpUrl} target="_blank" rel="noreferrer" style={{ fontSize:12, fontWeight:600, padding:'6px 12px', borderRadius:8, background:'var(--success)', color:'var(--success-contrast)', textDecoration:'none', textAlign:'center' }}>
                                 Reclamar
                               </a>
                             )}
-                            <button onClick={() => abrirSaldar(c)} style={{ fontSize:12, fontWeight:600, padding:'6px 12px', borderRadius:8, border:'1px solid #e2e8f0', background:'#fff', color:'#0f1e2b', cursor:'pointer' }}>
+                            <button onClick={() => abrirSaldar(c)} style={{ fontSize:12, fontWeight:600, padding:'6px 12px', borderRadius:8, border:'1px solid var(--border-color)', background:'var(--bg-card)', color:'var(--text-dark)', cursor:'pointer' }}>
                               Saldar Deuda
                             </button>
                           </div>
@@ -1022,13 +1022,13 @@ export default function FinanzasPage() {
       {/* Modals */}
       {modalMeta && (
         <div onClick={() => setModalMeta(false)} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.4)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:200, padding:'1rem' }}>
-          <div onClick={e => e.stopPropagation()} style={{ background:'#fff', borderRadius:16, padding:'1.5rem', width:'100%', maxWidth:360, boxShadow:'0 8px 32px rgba(0,0,0,0.12)' }}>
-            <div style={{ fontSize:16, fontWeight:700, color:'#0a1e3d', marginBottom:'1rem' }}>Meta mensual — {MESES[mesActual - 1]}</div>
-            <div style={{ fontSize:12, fontWeight:600, color:'#64748b', marginBottom:4 }}>Ingresos objetivo ($)</div>
+          <div onClick={e => e.stopPropagation()} style={{ background:'var(--bg-card)', borderRadius:16, padding:'1.5rem', width:'100%', maxWidth:360, boxShadow:'0 8px 32px rgba(0,0,0,0.12)' }}>
+            <div style={{ fontSize:16, fontWeight:700, color:'var(--text-dark)', marginBottom:'1rem' }}>Meta mensual — {MESES[mesActual - 1]}</div>
+            <div style={{ fontSize:12, fontWeight:600, color:'var(--text-muted)', marginBottom:4 }}>Ingresos objetivo ($)</div>
             <input type="number" style={inputSt} value={fMeta} onChange={e => setFMeta(e.target.value === '' ? '' : Number(e.target.value))} placeholder="Ej: 500000" autoFocus />
             <div style={{ display:'flex', gap:8, marginTop:'1.25rem', justifyContent:'flex-end' }}>
-              <button onClick={() => setModalMeta(false)} style={{ fontSize:13, padding:'7px 16px', borderRadius:8, border:'1px solid #e2e8f0', background:'#fff', color:'#64748b', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>Cancelar</button>
-              <button onClick={guardarMeta} disabled={saving} style={{ fontSize:13, fontWeight:600, padding:'7px 18px', borderRadius:8, border:'none', background: saving ? '#e2e8f0' : '#138A6B', color: saving ? '#94a3b8' : '#fff', cursor: saving ? 'not-allowed' : 'pointer', fontFamily:'DM Sans, sans-serif' }}>
+              <button onClick={() => setModalMeta(false)} style={{ fontSize:13, padding:'7px 16px', borderRadius:8, border:'1px solid var(--border-color)', background:'var(--bg-card)', color:'var(--text-muted)', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>Cancelar</button>
+              <button onClick={guardarMeta} disabled={saving} style={{ fontSize:13, fontWeight:600, padding:'7px 18px', borderRadius:8, border:'none', background: saving ? 'var(--border-color)' : 'var(--success)', color: saving ? 'var(--text-muted)' : 'var(--success-contrast)', cursor: saving ? 'not-allowed' : 'pointer', fontFamily:'DM Sans, sans-serif' }}>
                 {saving ? 'Guardando...' : 'Guardar'}
               </button>
             </div>
@@ -1038,21 +1038,21 @@ export default function FinanzasPage() {
 
       {modalCosto && (
         <div onClick={() => setModalCosto(false)} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.4)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:200, padding:'1rem' }}>
-          <div onClick={e => e.stopPropagation()} style={{ background:'#fff', borderRadius:16, padding:'1.5rem', width:'100%', maxWidth:360, boxShadow:'0 8px 32px rgba(0,0,0,0.12)' }}>
-            <div style={{ fontSize:16, fontWeight:700, color:'#0a1e3d', marginBottom:'1rem' }}>Nuevo costo fijo</div>
+          <div onClick={e => e.stopPropagation()} style={{ background:'var(--bg-card)', borderRadius:16, padding:'1.5rem', width:'100%', maxWidth:360, boxShadow:'0 8px 32px rgba(0,0,0,0.12)' }}>
+            <div style={{ fontSize:16, fontWeight:700, color:'var(--text-dark)', marginBottom:'1rem' }}>Nuevo costo fijo</div>
             <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
               <div>
-                <div style={{ fontSize:12, fontWeight:600, color:'#64748b', marginBottom:4 }}>Nombre *</div>
+                <div style={{ fontSize:12, fontWeight:600, color:'var(--text-muted)', marginBottom:4 }}>Nombre *</div>
                 <input style={inputSt} value={fCostoNombre} onChange={e => setFCostoNombre(e.target.value)} placeholder="Ej: Alquiler consultorio" autoFocus />
               </div>
               <div>
-                <div style={{ fontSize:12, fontWeight:600, color:'#64748b', marginBottom:4 }}>Monto mensual ($) *</div>
+                <div style={{ fontSize:12, fontWeight:600, color:'var(--text-muted)', marginBottom:4 }}>Monto mensual ($) *</div>
                 <input type="number" style={inputSt} value={fCostoMonto} onChange={e => setFCostoMonto(e.target.value === '' ? '' : Number(e.target.value))} placeholder="Ej: 150000" />
               </div>
             </div>
             <div style={{ display:'flex', gap:8, marginTop:'1.25rem', justifyContent:'flex-end' }}>
-              <button onClick={() => setModalCosto(false)} style={{ fontSize:13, padding:'7px 16px', borderRadius:8, border:'1px solid #e2e8f0', background:'#fff', color:'#64748b', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>Cancelar</button>
-              <button onClick={agregarCosto} disabled={saving} style={{ fontSize:13, fontWeight:600, padding:'7px 18px', borderRadius:8, border:'none', background: saving ? '#e2e8f0' : '#138A6B', color: saving ? '#94a3b8' : '#fff', cursor: saving ? 'not-allowed' : 'pointer', fontFamily:'DM Sans, sans-serif' }}>
+              <button onClick={() => setModalCosto(false)} style={{ fontSize:13, padding:'7px 16px', borderRadius:8, border:'1px solid var(--border-color)', background:'var(--bg-card)', color:'var(--text-muted)', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>Cancelar</button>
+              <button onClick={agregarCosto} disabled={saving} style={{ fontSize:13, fontWeight:600, padding:'7px 18px', borderRadius:8, border:'none', background: saving ? 'var(--border-color)' : 'var(--success)', color: saving ? 'var(--text-muted)' : 'var(--success-contrast)', cursor: saving ? 'not-allowed' : 'pointer', fontFamily:'DM Sans, sans-serif' }}>
                 {saving ? 'Guardando...' : 'Agregar'}
               </button>
             </div>
@@ -1062,39 +1062,39 @@ export default function FinanzasPage() {
 
       {modalIngreso && (
         <div onClick={() => setModalIngreso(false)} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.4)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:200, padding:'1rem' }}>
-          <div onClick={e => e.stopPropagation()} style={{ background:'#fff', borderRadius:16, padding:'1.5rem', width:'100%', maxWidth:360, boxShadow:'0 8px 32px rgba(0,0,0,0.12)' }}>
-            <div style={{ fontSize:16, fontWeight:700, color:'#0a1e3d', marginBottom:'1rem' }}>Registrar ingreso manual</div>
+          <div onClick={e => e.stopPropagation()} style={{ background:'var(--bg-card)', borderRadius:16, padding:'1.5rem', width:'100%', maxWidth:360, boxShadow:'0 8px 32px rgba(0,0,0,0.12)' }}>
+            <div style={{ fontSize:16, fontWeight:700, color:'var(--text-dark)', marginBottom:'1rem' }}>Registrar ingreso manual</div>
             <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
               <div>
-                <div style={{ fontSize:12, fontWeight:600, color:'#64748b', marginBottom:4 }}>Concepto *</div>
+                <div style={{ fontSize:12, fontWeight:600, color:'var(--text-muted)', marginBottom:4 }}>Concepto *</div>
                 <input style={inputSt} value={fConcepto} onChange={e => setFConcepto(e.target.value)} placeholder="Ej: Pago efectivo extra" autoFocus />
               </div>
               <div>
-                <div style={{ fontSize:12, fontWeight:600, color:'#64748b', marginBottom:4 }}>Monto ($) *</div>
+                <div style={{ fontSize:12, fontWeight:600, color:'var(--text-muted)', marginBottom:4 }}>Monto ($) *</div>
                 <input type="number" style={inputSt} value={fMonto} onChange={e => setFMonto(e.target.value === '' ? '' : Number(e.target.value))} placeholder="0" />
               </div>
               <div>
-                <div style={{ fontSize:12, fontWeight:600, color:'#64748b', marginBottom:4 }}>Fecha</div>
+                <div style={{ fontSize:12, fontWeight:600, color:'var(--text-muted)', marginBottom:4 }}>Fecha</div>
                 <input type="date" style={inputSt} value={fFecha} onChange={e => setFFecha(e.target.value)} />
               </div>
               <div>
-                <div style={{ fontSize:12, fontWeight:600, color:'#64748b', marginBottom:4 }}>Forma de pago</div>
+                <div style={{ fontSize:12, fontWeight:600, color:'var(--text-muted)', marginBottom:4 }}>Forma de pago</div>
                 <select style={inputSt} value={fIngForma}
                   onChange={e => { setFIngForma(e.target.value); setFIngFactura(sugerirRequiereFactura(e.target.value, formasFacturables)) }}>
                   {FORMAS_PAGO.map(f => <option key={f} value={f}>{f}</option>)}
                 </select>
               </div>
               <label style={{ display:'flex', alignItems:'center', gap:9, cursor:'pointer', padding:'10px 12px', borderRadius:9,
-                background: fIngFactura ? 'rgba(29,158,117,0.08)' : '#f8fafc',
-                border:`1px solid ${fIngFactura ? 'rgba(29,158,117,0.3)' : '#e2e8f0'}` }}>
+                background: fIngFactura ? 'var(--success-soft)' : 'var(--bg-input)',
+                border:`1px solid ${fIngFactura ? 'var(--success-border)' : 'var(--border-color)'}` }}>
                 <input type="checkbox" checked={fIngFactura} onChange={e => setFIngFactura(e.target.checked)}
-                  style={{ width:17, height:17, accentColor:'#1D9E75', cursor:'pointer' }} />
-                <span style={{ fontSize:13, color:'#0a1e3d', fontWeight:500 }}>Facturar este ingreso</span>
+                  style={{ width:17, height:17, accentColor:'var(--success-text)', cursor:'pointer' }} />
+                <span style={{ fontSize:13, color:'var(--text-dark)', fontWeight:500 }}>Facturar este ingreso</span>
               </label>
             </div>
             <div style={{ display:'flex', gap:8, marginTop:'1.25rem', justifyContent:'flex-end' }}>
-              <button onClick={() => setModalIngreso(false)} style={{ fontSize:13, padding:'7px 16px', borderRadius:8, border:'1px solid #e2e8f0', background:'#fff', color:'#64748b', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>Cancelar</button>
-              <button onClick={agregarIngreso} disabled={saving} style={{ fontSize:13, fontWeight:600, padding:'7px 18px', borderRadius:8, border:'none', background: saving ? '#e2e8f0' : '#138A6B', color: saving ? '#94a3b8' : '#fff', cursor: saving ? 'not-allowed' : 'pointer', fontFamily:'DM Sans, sans-serif' }}>
+              <button onClick={() => setModalIngreso(false)} style={{ fontSize:13, padding:'7px 16px', borderRadius:8, border:'1px solid var(--border-color)', background:'var(--bg-card)', color:'var(--text-muted)', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>Cancelar</button>
+              <button onClick={agregarIngreso} disabled={saving} style={{ fontSize:13, fontWeight:600, padding:'7px 18px', borderRadius:8, border:'none', background: saving ? 'var(--border-color)' : 'var(--success)', color: saving ? 'var(--text-muted)' : 'var(--success-contrast)', cursor: saving ? 'not-allowed' : 'pointer', fontFamily:'DM Sans, sans-serif' }}>
                 {saving ? 'Guardando...' : 'Registrar'}
               </button>
             </div>
@@ -1104,25 +1104,25 @@ export default function FinanzasPage() {
 
       {modalEgreso && (
         <div onClick={() => setModalEgreso(false)} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.4)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:200, padding:'1rem' }}>
-          <div onClick={e => e.stopPropagation()} style={{ background:'#fff', borderRadius:16, padding:'1.5rem', width:'100%', maxWidth:360, boxShadow:'0 8px 32px rgba(0,0,0,0.12)' }}>
-            <div style={{ fontSize:16, fontWeight:700, color:'#0a1e3d', marginBottom:'1rem' }}>Registrar Gasto / Egreso</div>
+          <div onClick={e => e.stopPropagation()} style={{ background:'var(--bg-card)', borderRadius:16, padding:'1.5rem', width:'100%', maxWidth:360, boxShadow:'0 8px 32px rgba(0,0,0,0.12)' }}>
+            <div style={{ fontSize:16, fontWeight:700, color:'var(--text-dark)', marginBottom:'1rem' }}>Registrar Gasto / Egreso</div>
             <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
               <div>
-                <div style={{ fontSize:12, fontWeight:600, color:'#64748b', marginBottom:4 }}>Concepto *</div>
+                <div style={{ fontSize:12, fontWeight:600, color:'var(--text-muted)', marginBottom:4 }}>Concepto *</div>
                 <input style={inputSt} value={fConcepto} onChange={e => setFConcepto(e.target.value)} placeholder="Ej: Compra de guantes" autoFocus />
               </div>
               <div>
-                <div style={{ fontSize:12, fontWeight:600, color:'#64748b', marginBottom:4 }}>Monto ($) *</div>
+                <div style={{ fontSize:12, fontWeight:600, color:'var(--text-muted)', marginBottom:4 }}>Monto ($) *</div>
                 <input type="number" style={inputSt} value={fMonto} onChange={e => setFMonto(e.target.value === '' ? '' : Number(e.target.value))} placeholder="0" />
               </div>
               <div>
-                <div style={{ fontSize:12, fontWeight:600, color:'#64748b', marginBottom:4 }}>Fecha</div>
+                <div style={{ fontSize:12, fontWeight:600, color:'var(--text-muted)', marginBottom:4 }}>Fecha</div>
                 <input type="date" style={inputSt} value={fFecha} onChange={e => setFFecha(e.target.value)} />
               </div>
             </div>
             <div style={{ display:'flex', gap:8, marginTop:'1.25rem', justifyContent:'flex-end' }}>
-              <button onClick={() => setModalEgreso(false)} style={{ fontSize:13, padding:'7px 16px', borderRadius:8, border:'1px solid #e2e8f0', background:'#fff', color:'#64748b', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>Cancelar</button>
-              <button onClick={agregarEgreso} disabled={saving} style={{ fontSize:13, fontWeight:600, padding:'7px 18px', borderRadius:8, border:'none', background: saving ? '#e2e8f0' : '#ef4444', color: saving ? '#94a3b8' : '#fff', cursor: saving ? 'not-allowed' : 'pointer', fontFamily:'DM Sans, sans-serif' }}>
+              <button onClick={() => setModalEgreso(false)} style={{ fontSize:13, padding:'7px 16px', borderRadius:8, border:'1px solid var(--border-color)', background:'var(--bg-card)', color:'var(--text-muted)', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>Cancelar</button>
+              <button onClick={agregarEgreso} disabled={saving} style={{ fontSize:13, fontWeight:600, padding:'7px 18px', borderRadius:8, border:'none', background: saving ? 'var(--border-color)' : 'var(--danger)', color: saving ? 'var(--text-muted)' : 'var(--danger-contrast)', cursor: saving ? 'not-allowed' : 'pointer', fontFamily:'DM Sans, sans-serif' }}>
                 {saving ? 'Guardando...' : 'Registrar Gasto'}
               </button>
             </div>
@@ -1132,20 +1132,20 @@ export default function FinanzasPage() {
 
       {modalApertura && (
         <div onClick={() => setModalApertura(false)} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.4)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:200, padding:'1rem' }}>
-          <div onClick={e => e.stopPropagation()} style={{ background:'#fff', borderRadius:16, padding:'1.5rem', width:'100%', maxWidth:360, boxShadow:'0 8px 32px rgba(0,0,0,0.12)' }}>
-            <div style={{ fontSize:16, fontWeight:700, color:'#0a1e3d', marginBottom:'0.5rem' }}>Abrir Caja Diaria</div>
-            <p style={{ fontSize:12, color:'#64748b', marginBottom:'1rem' }}>
+          <div onClick={e => e.stopPropagation()} style={{ background:'var(--bg-card)', borderRadius:16, padding:'1.5rem', width:'100%', maxWidth:360, boxShadow:'0 8px 32px rgba(0,0,0,0.12)' }}>
+            <div style={{ fontSize:16, fontWeight:700, color:'var(--text-dark)', marginBottom:'0.5rem' }}>Abrir Caja Diaria</div>
+            <p style={{ fontSize:12, color:'var(--text-muted)', marginBottom:'1rem' }}>
               Establecé el fondo inicial en efectivo para dar cambio durante la jornada.
             </p>
             <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
               <div>
-                <div style={{ fontSize:12, fontWeight:600, color:'#64748b', marginBottom:4 }}>Monto Inicial (Efectivo) *</div>
+                <div style={{ fontSize:12, fontWeight:600, color:'var(--text-muted)', marginBottom:4 }}>Monto Inicial (Efectivo) *</div>
                 <input type="number" style={inputSt} value={mAperturaVal} onChange={e => setMAperturaVal(e.target.value === '' ? '' : Number(e.target.value))} placeholder="0" autoFocus />
               </div>
             </div>
             <div style={{ display:'flex', gap:8, marginTop:'1.25rem', justifyContent:'flex-end' }}>
-              <button onClick={() => setModalApertura(false)} style={{ fontSize:13, padding:'7px 16px', borderRadius:8, border:'1px solid #e2e8f0', background:'#fff', color:'#64748b', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>Cancelar</button>
-              <button onClick={abrirCaja} disabled={saving} style={{ fontSize:13, fontWeight:600, padding:'7px 18px', borderRadius:8, border:'none', background: saving ? '#e2e8f0' : '#138A6B', color: saving ? '#94a3b8' : '#fff', cursor: saving ? 'not-allowed' : 'pointer', fontFamily:'DM Sans, sans-serif' }}>
+              <button onClick={() => setModalApertura(false)} style={{ fontSize:13, padding:'7px 16px', borderRadius:8, border:'1px solid var(--border-color)', background:'var(--bg-card)', color:'var(--text-muted)', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>Cancelar</button>
+              <button onClick={abrirCaja} disabled={saving} style={{ fontSize:13, fontWeight:600, padding:'7px 18px', borderRadius:8, border:'none', background: saving ? 'var(--border-color)' : 'var(--success)', color: saving ? 'var(--text-muted)' : 'var(--success-contrast)', cursor: saving ? 'not-allowed' : 'pointer', fontFamily:'DM Sans, sans-serif' }}>
                 {saving ? 'Abriendo...' : 'Abrir Caja'}
               </button>
             </div>
@@ -1155,55 +1155,55 @@ export default function FinanzasPage() {
 
       {modalCierre && (
         <div onClick={() => setModalCierre(false)} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.4)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:200, padding:'1rem' }}>
-          <div onClick={e => e.stopPropagation()} style={{ background:'#fff', borderRadius:16, padding:'1.5rem', width:'100%', maxWidth: isMobile ? 380 : 680, boxShadow:'0 8px 32px rgba(0,0,0,0.12)', transition: 'max-width 0.2s' }}>
-            <div style={{ fontSize:16, fontWeight:700, color:'#0a1e3d', marginBottom:'0.35rem' }}>Cierre de Caja y Arqueo</div>
-            <p style={{ fontSize:12, color:'#64748b', marginBottom:'1.25rem' }}>
+          <div onClick={e => e.stopPropagation()} style={{ background:'var(--bg-card)', borderRadius:16, padding:'1.5rem', width:'100%', maxWidth: isMobile ? 380 : 680, boxShadow:'0 8px 32px rgba(0,0,0,0.12)', transition: 'max-width 0.2s' }}>
+            <div style={{ fontSize:16, fontWeight:700, color:'var(--text-dark)', marginBottom:'0.35rem' }}>Cierre de Caja y Arqueo</div>
+            <p style={{ fontSize:12, color:'var(--text-muted)', marginBottom:'1.25rem' }}>
               Ingresá el total de efectivo y valores contados físicamente en la caja para registrar el arqueo.
             </p>
             
             <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 20 }}>
               
               {/* Panel Izquierdo: Desglose Sistema */}
-              <div style={{ background: '#f8fafc', padding: '12px 14px', borderRadius: 12, border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: 10 }}>
-                <div style={{ fontSize: 11.5, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em', borderBottom: '1px solid #e2e8f0', paddingBottom: 6 }}>
+              <div style={{ background: 'var(--bg-input)', padding: '12px 14px', borderRadius: 12, border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--text-muted-darker)', textTransform: 'uppercase', letterSpacing: '0.04em', borderBottom: '1px solid var(--border-color)', paddingBottom: 6 }}>
                   Cálculo del Sistema
                 </div>
                 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 12.5 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', color: '#64748b' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-muted)' }}>
                     <span>Fondo Inicial (Apertura):</span>
-                    <span style={{ fontWeight: 600, color: '#334155' }}>{fmt(cajaActiva?.monto_apertura ?? 0)}</span>
+                    <span style={{ fontWeight: 600, color: 'var(--text-dark)' }}>{fmt(cajaActiva?.monto_apertura ?? 0)}</span>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', color: '#64748b' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-muted)' }}>
                     <span>Cobros por Turnos:</span>
-                    <span style={{ fontWeight: 600, color: '#334155' }}>+{fmt(totalCitasDia)}</span>
+                    <span style={{ fontWeight: 600, color: 'var(--text-dark)' }}>+{fmt(totalCitasDia)}</span>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', color: '#64748b' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-muted)' }}>
                     <span>Ingresos Manuales:</span>
-                    <span style={{ fontWeight: 600, color: '#334155' }}>+{fmt(totalIngresosDia)}</span>
+                    <span style={{ fontWeight: 600, color: 'var(--text-dark)' }}>+{fmt(totalIngresosDia)}</span>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', color: '#64748b' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-muted)' }}>
                     <span>Gastos (Egresos):</span>
-                    <span style={{ fontWeight: 600, color: '#ef4444' }}>-{fmt(totalEgresosDia)}</span>
+                    <span style={{ fontWeight: 600, color: 'var(--danger-text)' }}>-{fmt(totalEgresosDia)}</span>
                   </div>
                   
-                  <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #e2e8f0', paddingTop: 8, marginTop: 4, fontWeight: 700, fontSize: 13.5, color: '#0a1e3d' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border-color)', paddingTop: 8, marginTop: 4, fontWeight: 700, fontSize: 13.5, color: 'var(--text-dark)' }}>
                     <span>Total Estimado:</span>
                     <span>{fmt(cajaDia + (cajaActiva?.monto_apertura ?? 0))}</span>
                   </div>
                 </div>
 
                 {/* Desglose por Forma de Pago */}
-                <div style={{ borderTop: '1px dashed #cbd5e1', paddingTop: 8, marginTop: 4 }}>
-                  <div style={{ fontSize: 10.5, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6 }}>
+                <div style={{ borderTop: '1px dashed var(--border-color)', paddingTop: 8, marginTop: 4 }}>
+                  <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6 }}>
                     Detalle por Medio de Pago:
                   </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 11.5 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12.5 }}>
                     {Object.entries(desgloseFormasPago).length === 0 ? (
-                      <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>Sin movimientos registrados.</span>
+                      <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>Sin movimientos registrados.</span>
                     ) : (
                       Object.entries(desgloseFormasPago).map(([forma, monto]) => (
-                        <div key={forma} style={{ display: 'flex', justifyContent: 'space-between', color: '#475569' }}>
+                        <div key={forma} style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-muted-darker)' }}>
                           <span>{forma}:</span>
                           <span style={{ fontWeight: 600 }}>{fmt(monto)}</span>
                         </div>
@@ -1216,7 +1216,7 @@ export default function FinanzasPage() {
               {/* Panel Derecho: Formulario e Discrepancia */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 <div>
-                  <div style={{ fontSize:12, fontWeight:600, color:'#64748b', marginBottom:4 }}>Efectivo Contado Físicamente *</div>
+                  <div style={{ fontSize:12, fontWeight:600, color:'var(--text-muted)', marginBottom:4 }}>Efectivo Contado Físicamente *</div>
                   <input 
                     type="number" 
                     style={inputSt} 
@@ -1233,20 +1233,20 @@ export default function FinanzasPage() {
                     const totalSistema = cajaDia + (cajaActiva?.monto_apertura ?? 0)
                     const dif = Number(mCierreVal) - totalSistema
                     
-                    let bg = '#E6F4EA'
-                    let border = '1px solid #34A853'
-                    let color = '#137333'
+                    let bg = 'var(--success-soft)'
+                    let border = '1px solid var(--success-border)'
+                    let color = 'var(--success-text)'
                     let label = `Caja Cuadrada ✓`
                     
                     if (dif > 0) {
-                      bg = '#E6F4EA'
-                      border = '1px solid #10B981'
-                      color = '#065F46'
+                      bg = 'var(--success-soft)'
+                      border = '1px solid var(--success)'
+                      color = 'var(--success-text)'
                       label = `Sobrante: +${fmt(dif)} 🟢`
                     } else if (dif < 0) {
-                      bg = '#FCE8E6'
-                      border = '1px solid #EF4444'
-                      color = '#C5221F'
+                      bg = 'var(--danger-soft)'
+                      border = '1px solid var(--danger)'
+                      color = 'var(--danger-text)'
                       label = `Faltante: -${fmt(Math.abs(dif))} 🔴`
                     }
 
@@ -1269,7 +1269,7 @@ export default function FinanzasPage() {
                 )}
 
                 <div>
-                  <div style={{ fontSize:12, fontWeight:600, color:'#64748b', marginBottom:4 }}>Observaciones / Notas de Cierre</div>
+                  <div style={{ fontSize:12, fontWeight:600, color:'var(--text-muted)', marginBottom:4 }}>Observaciones / Notas de Cierre</div>
                   <textarea 
                     style={{ ...inputSt, resize: 'none', height: 75 }} 
                     value={cajaObs} 
@@ -1281,9 +1281,9 @@ export default function FinanzasPage() {
 
             </div>
 
-            <div style={{ display:'flex', gap:8, marginTop:'1.5rem', justifyContent:'flex-end', borderTop: '1px solid #f1f5f9', paddingTop: '12px' }}>
-              <button onClick={() => setModalCierre(false)} style={{ fontSize:13, padding:'7px 16px', borderRadius:8, border:'1px solid #e2e8f0', background:'#fff', color:'#64748b', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>Cancelar</button>
-              <button onClick={cerrarCaja} disabled={saving} style={{ fontSize:13, fontWeight:600, padding:'7px 18px', borderRadius:8, border:'none', background: saving ? '#e2e8f0' : '#ef4444', color: saving ? '#94a3b8' : '#fff', cursor: saving ? 'not-allowed' : 'pointer', fontFamily:'DM Sans, sans-serif' }}>
+            <div style={{ display:'flex', gap:8, marginTop:'1.5rem', justifyContent:'flex-end', borderTop: '1px solid var(--border-light)', paddingTop: '12px' }}>
+              <button onClick={() => setModalCierre(false)} style={{ fontSize:13, padding:'7px 16px', borderRadius:8, border:'1px solid var(--border-color)', background:'var(--bg-card)', color:'var(--text-muted)', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>Cancelar</button>
+              <button onClick={cerrarCaja} disabled={saving} style={{ fontSize:13, fontWeight:600, padding:'7px 18px', borderRadius:8, border:'none', background: saving ? 'var(--border-color)' : 'var(--danger)', color: saving ? 'var(--text-muted)' : 'var(--danger-contrast)', cursor: saving ? 'not-allowed' : 'pointer', fontFamily:'DM Sans, sans-serif' }}>
                 {saving ? 'Cerrando...' : 'Cerrar Caja'}
               </button>
             </div>
@@ -1293,20 +1293,20 @@ export default function FinanzasPage() {
 
       {modalSaldar && saldarCita && (
         <div onClick={() => setModalSaldar(false)} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.4)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:200, padding:'1rem' }}>
-          <div onClick={e => e.stopPropagation()} style={{ background:'#fff', borderRadius:16, padding:'1.5rem', width:'100%', maxWidth:380, boxShadow:'0 8px 32px rgba(0,0,0,0.12)' }}>
-            <div style={{ fontSize:16, fontWeight:700, color:'#0a1e3d', marginBottom:'0.35rem' }}>Registrar cobro</div>
-            <p style={{ fontSize:12, color:'#64748b', marginBottom:'1.25rem' }}>
+          <div onClick={e => e.stopPropagation()} style={{ background:'var(--bg-card)', borderRadius:16, padding:'1.5rem', width:'100%', maxWidth:380, boxShadow:'0 8px 32px rgba(0,0,0,0.12)' }}>
+            <div style={{ fontSize:16, fontWeight:700, color:'var(--text-dark)', marginBottom:'0.35rem' }}>Registrar cobro</div>
+            <p style={{ fontSize:12, color:'var(--text-muted)', marginBottom:'1.25rem' }}>
               {saldarCita.pacientes?.nombre} — {saldarCita.tipo_tratamiento}
             </p>
 
             <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
               <div>
-                <div style={{ fontSize:12, fontWeight:600, color:'#64748b', marginBottom:4 }}>Monto</div>
+                <div style={{ fontSize:12, fontWeight:600, color:'var(--text-muted)', marginBottom:4 }}>Monto</div>
                 <input type="number" inputMode="decimal" style={inputSt} value={saldarMonto}
                   onChange={e => setSaldarMonto(e.target.value === '' ? '' : Number(e.target.value))} />
               </div>
               <div>
-                <div style={{ fontSize:12, fontWeight:600, color:'#64748b', marginBottom:4 }}>Forma de pago</div>
+                <div style={{ fontSize:12, fontWeight:600, color:'var(--text-muted)', marginBottom:4 }}>Forma de pago</div>
                 <select style={inputSt} value={saldarForma}
                   onChange={e => { setSaldarForma(e.target.value); setSaldarFactura(sugerirRequiereFactura(e.target.value, formasFacturables)) }}>
                   {FORMAS_PAGO.map(f => <option key={f} value={f}>{f}</option>)}
@@ -1314,13 +1314,13 @@ export default function FinanzasPage() {
               </div>
 
               <label style={{ display:'flex', alignItems:'center', gap:9, cursor:'pointer', padding:'10px 12px', borderRadius:9,
-                background: saldarFactura ? 'rgba(29,158,117,0.08)' : '#f8fafc',
-                border:`1px solid ${saldarFactura ? 'rgba(29,158,117,0.3)' : '#e2e8f0'}` }}>
+                background: saldarFactura ? 'var(--success-soft)' : 'var(--bg-input)',
+                border:`1px solid ${saldarFactura ? 'var(--success-border)' : 'var(--border-color)'}` }}>
                 <input type="checkbox" checked={saldarFactura} onChange={e => setSaldarFactura(e.target.checked)}
-                  style={{ width:17, height:17, accentColor:'#1D9E75', cursor:'pointer' }} />
-                <span style={{ fontSize:13, color:'#0a1e3d', fontWeight:500 }}>
+                  style={{ width:17, height:17, accentColor:'var(--success-text)', cursor:'pointer' }} />
+                <span style={{ fontSize:13, color:'var(--text-dark)', fontWeight:500 }}>
                   Facturar este cobro
-                  <span style={{ display:'block', fontSize:11, color:'#64748b', fontWeight:400, marginTop:1 }}>
+                  <span style={{ display:'block', fontSize:12, color:'var(--text-muted)', fontWeight:400, marginTop:1 }}>
                     {sugerirRequiereFactura(saldarForma, formasFacturables)
                       ? `${saldarForma} se factura según tu configuración`
                       : `${saldarForma} no se factura, salvo que el paciente lo pida`}
@@ -1330,8 +1330,8 @@ export default function FinanzasPage() {
             </div>
 
             <div style={{ display:'flex', gap:8, marginTop:'1.25rem', justifyContent:'flex-end' }}>
-              <button onClick={() => setModalSaldar(false)} style={{ fontSize:13, padding:'7px 16px', borderRadius:8, border:'1px solid #e2e8f0', background:'#fff', color:'#64748b', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>Cancelar</button>
-              <button onClick={confirmarSaldar} disabled={saving} style={{ fontSize:13, fontWeight:600, padding:'7px 18px', borderRadius:8, border:'none', background: saving ? '#e2e8f0' : '#1D9E75', color: saving ? '#94a3b8' : '#fff', cursor: saving ? 'not-allowed' : 'pointer', fontFamily:'DM Sans, sans-serif' }}>
+              <button onClick={() => setModalSaldar(false)} style={{ fontSize:13, padding:'7px 16px', borderRadius:8, border:'1px solid var(--border-color)', background:'var(--bg-card)', color:'var(--text-muted)', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>Cancelar</button>
+              <button onClick={confirmarSaldar} disabled={saving} style={{ fontSize:13, fontWeight:600, padding:'7px 18px', borderRadius:8, border:'none', background: saving ? 'var(--border-color)' : 'var(--success)', color: saving ? 'var(--text-muted)' : 'var(--success-contrast)', cursor: saving ? 'not-allowed' : 'pointer', fontFamily:'DM Sans, sans-serif' }}>
                 {saving ? 'Registrando...' : 'Registrar cobro'}
               </button>
             </div>
@@ -1341,16 +1341,16 @@ export default function FinanzasPage() {
 
       {modalFacturar && facturandoItem && (
         <div onClick={() => setModalFacturar(false)} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.4)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:200, padding:'1rem' }}>
-          <div onClick={e => e.stopPropagation()} style={{ background:'#fff', borderRadius:16, padding:'1.5rem', width:'100%', maxWidth:400, boxShadow:'0 8px 32px rgba(0,0,0,0.12)' }}>
-            <div style={{ fontSize:16, fontWeight:700, color:'#0a1e3d', marginBottom:'0.5rem' }}>Emitir Factura Electrónica</div>
-            <p style={{ fontSize:12, color:'#64748b', marginBottom:'1.25rem' }}>
+          <div onClick={e => e.stopPropagation()} style={{ background:'var(--bg-card)', borderRadius:16, padding:'1.5rem', width:'100%', maxWidth:400, boxShadow:'0 8px 32px rgba(0,0,0,0.12)' }}>
+            <div style={{ fontSize:16, fontWeight:700, color:'var(--text-dark)', marginBottom:'0.5rem' }}>Emitir Factura Electrónica</div>
+            <p style={{ fontSize:12, color:'var(--text-muted)', marginBottom:'1.25rem' }}>
               Confirmá los datos del paciente para solicitar la autorización del comprobante en ARCA.
             </p>
 
             <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
-              <div style={{ display:'flex', justifyContent:'space-between', background:'#f8fafc', padding:'8px 12px', borderRadius:8, fontSize:12 }}>
-                <span style={{ color:'#64748b' }}>Concepto:</span>
-                <span style={{ fontWeight:600, color:'#0a1e3d' }}>{facturandoItem.concepto}</span>
+              <div style={{ display:'flex', justifyContent:'space-between', background:'var(--bg-input)', padding:'8px 12px', borderRadius:8, fontSize:12 }}>
+                <span style={{ color:'var(--text-muted)' }}>Concepto:</span>
+                <span style={{ fontWeight:600, color:'var(--text-dark)' }}>{facturandoItem.concepto}</span>
               </div>
               {(() => {
                 const d = facturandoItem.tipo === 'cita' ? desgloseDeCita(facturandoItem.id) : null
@@ -1358,9 +1358,9 @@ export default function FinanzasPage() {
                 // Sin pagos cargados se factura el total, como siempre.
                 if (!d || (!d.esParcial && !d.nadaFacturable)) {
                   return (
-                    <div style={{ display:'flex', justifyContent:'space-between', background:'#ecfdf5', padding:'8px 12px', borderRadius:8, fontSize:12, marginBottom:4 }}>
-                      <span style={{ color:'#047857' }}>{facturandoItem.tipo === 'cita' ? 'Cobrado:' : 'Monto del ingreso:'}</span>
-                      <span style={{ fontWeight:700, color:'#10b981' }}>{fmt(facturandoItem.monto)}</span>
+                    <div style={{ display:'flex', justifyContent:'space-between', background:'var(--success-soft)', padding:'8px 12px', borderRadius:8, fontSize:12, marginBottom:4 }}>
+                      <span style={{ color:'var(--success-text)' }}>{facturandoItem.tipo === 'cita' ? 'Cobrado:' : 'Monto del ingreso:'}</span>
+                      <span style={{ fontWeight:700, color:'var(--success-text)' }}>{fmt(facturandoItem.monto)}</span>
                     </div>
                   )
                 }
@@ -1368,19 +1368,19 @@ export default function FinanzasPage() {
                 // Cobro mixto o íntegramente no facturable: se muestra el
                 // desglose para que no haya sorpresas después de emitir.
                 return (
-                  <div style={{ background:'#fffbeb', border:'1px solid #fde68a', padding:'10px 12px', borderRadius:8, fontSize:12, marginBottom:4 }}>
-                    <div style={{ display:'flex', justifyContent:'space-between', color:'#92400e', marginBottom:4 }}>
+                  <div style={{ background:'var(--warning-soft)', border:'1px solid var(--warning-border)', padding:'10px 12px', borderRadius:8, fontSize:12, marginBottom:4 }}>
+                    <div style={{ display:'flex', justifyContent:'space-between', color:'var(--warning-text)', marginBottom:4 }}>
                       <span>Cobrado en total:</span><span>{fmt(d.total)}</span>
                     </div>
-                    <div style={{ display:'flex', justifyContent:'space-between', color:'#92400e', marginBottom:6 }}>
+                    <div style={{ display:'flex', justifyContent:'space-between', color:'var(--warning-text)', marginBottom:6 }}>
                       <span>Cobrado con {d.formasNoFacturables.join(' / ')}:</span>
                       <span>− {fmt(d.noFacturable)}</span>
                     </div>
                     <div style={{ display:'flex', justifyContent:'space-between', fontWeight:700,
-                      color: d.nadaFacturable ? '#b45309' : '#047857', borderTop:'1px solid #fde68a', paddingTop:6 }}>
+                      color: d.nadaFacturable ? 'var(--warning-text)' : 'var(--success-text)', borderTop:'1px solid var(--warning-border)', paddingTop:6 }}>
                       <span>Se factura:</span><span>{fmt(d.facturable)}</span>
                     </div>
-                    <p style={{ fontSize:11, color:'#92400e', margin:'8px 0 0', lineHeight:1.4 }}>
+                    <p style={{ fontSize:12, color:'var(--warning-text)', margin:'8px 0 0', lineHeight:1.4 }}>
                       {d.nadaFacturable
                         ? 'Esta clínica no factura estos medios de pago. Si seguís, se te va a pedir confirmación.'
                         : 'Al facturar solo una parte, el comprobante lleva un renglón único de pago parcial en vez del detalle por tratamiento.'}
@@ -1390,7 +1390,7 @@ export default function FinanzasPage() {
               })()}
 
               <div>
-                <div style={{ fontSize:12, fontWeight:600, color:'#64748b', marginBottom:4 }}>Nombre del Paciente (Razón Social) *</div>
+                <div style={{ fontSize:12, fontWeight:600, color:'var(--text-muted)', marginBottom:4 }}>Nombre del Paciente (Razón Social) *</div>
                 <input 
                   style={inputSt} 
                   value={fPacienteNombre} 
@@ -1401,7 +1401,7 @@ export default function FinanzasPage() {
 
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
                 <div>
-                  <div style={{ fontSize:12, fontWeight:600, color:'#64748b', marginBottom:4 }}>Tipo Doc.</div>
+                  <div style={{ fontSize:12, fontWeight:600, color:'var(--text-muted)', marginBottom:4 }}>Tipo Doc.</div>
                   <select 
                     style={inputSt} 
                     value={fDocTipo} 
@@ -1415,7 +1415,7 @@ export default function FinanzasPage() {
                   </select>
                 </div>
                 <div>
-                  <div style={{ fontSize:12, fontWeight:600, color:'#64748b', marginBottom:4 }}>Nro Documento</div>
+                  <div style={{ fontSize:12, fontWeight:600, color:'var(--text-muted)', marginBottom:4 }}>Nro Documento</div>
                   <input 
                     style={inputSt} 
                     value={fDocNro} 
@@ -1427,7 +1427,7 @@ export default function FinanzasPage() {
               </div>
 
               <div>
-                <div style={{ fontSize:12, fontWeight:600, color:'#64748b', marginBottom:4 }}>Tipo de Comprobante *</div>
+                <div style={{ fontSize:12, fontWeight:600, color:'var(--text-muted)', marginBottom:4 }}>Tipo de Comprobante *</div>
                 <select 
                   style={inputSt} 
                   value={fTipoComprobante} 
@@ -1446,7 +1446,7 @@ export default function FinanzasPage() {
               </div>
 
               <div>
-                <div style={{ fontSize:12, fontWeight:600, color:'#64748b', marginBottom:4 }}>Condición de venta</div>
+                <div style={{ fontSize:12, fontWeight:600, color:'var(--text-muted)', marginBottom:4 }}>Condición de venta</div>
                 <select
                   style={inputSt}
                   value={fCondicionVenta}
@@ -1491,14 +1491,14 @@ export default function FinanzasPage() {
               <button 
                 onClick={() => { setModalFacturar(false); setFConfirmarNoFacturable(null); setFError(null) }} 
                 disabled={facturando}
-                style={{ fontSize:13, padding:'7px 16px', borderRadius:8, border:'1px solid #e2e8f0', background:'#fff', color:'#64748b', cursor: facturando ? 'not-allowed' : 'pointer', fontFamily:'DM Sans, sans-serif' }}
+                style={{ fontSize:13, padding:'7px 16px', borderRadius:8, border:'1px solid var(--border-color)', background:'var(--bg-card)', color:'var(--text-muted)', cursor: facturando ? 'not-allowed' : 'pointer', fontFamily:'DM Sans, sans-serif' }}
               >
                 Cancelar
               </button>
               <button 
                 onClick={() => emitirFacturaElectronica(fConfirmarNoFacturable !== null)}
                 disabled={facturando} aria-busy={facturando}
-                style={{ fontSize:13, fontWeight:600, padding:'7px 18px', borderRadius:8, border:'none', background: facturando ? '#e2e8f0' : '#1D9E75', color: facturando ? '#94a3b8' : '#fff', cursor: facturando ? 'not-allowed' : 'pointer', fontFamily:'DM Sans, sans-serif' }}
+                style={{ fontSize:13, fontWeight:600, padding:'7px 18px', borderRadius:8, border:'none', background: facturando ? 'var(--border-color)' : 'var(--success)', color: facturando ? 'var(--text-muted)' : 'var(--success-contrast)', cursor: facturando ? 'not-allowed' : 'pointer', fontFamily:'DM Sans, sans-serif' }}
               >
                 {facturando ? 'Emitiendo…' : fConfirmarNoFacturable ? `Emitir igual por ${fmt(fConfirmarNoFacturable.total)}` : 'Emitir factura'}
               </button>
