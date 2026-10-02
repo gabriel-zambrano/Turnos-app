@@ -66,6 +66,27 @@ function formatFecha(fechaHora: string) {
   }
 }
 
+function formatCountdown(fechaHora: string): string | null {
+  const dt = new Date(fechaHora).getTime()
+  const now = Date.now()
+  const diffMs = dt - now
+  if (diffMs < 0) return null
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
+  const diffDays = Math.floor(diffHours / 24)
+
+  if (diffDays === 0) {
+    if (diffHours === 0) {
+      const diffMins = Math.max(1, Math.floor(diffMs / (1000 * 60)))
+      return `En ${diffMins} min`
+    }
+    return `Hoy (en ${diffHours} h)`
+  }
+  if (diffDays === 1) return 'Mañana'
+  if (diffDays < 7) return `En ${diffDays} días`
+  const weeks = Math.floor(diffDays / 7)
+  return `En ${weeks} ${weeks === 1 ? 'semana' : 'semanas'}`
+}
+
 function obtenerSaludo() {
   const hora = new Date().getHours()
   if (hora >= 6 && hora < 12) return 'Buenos días'
@@ -152,16 +173,39 @@ export default function PacientePage() {
   }
 
   if (loading) return (
-    <div style={{ minHeight:'100vh', display:'flex', flexDirection: 'column', alignItems:'center', justifyContent:'center', fontFamily:'DM Sans, system-ui', background: '#f8fafc' }}>
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 20 }}>
-        <div style={{ width: 44, height: 44, borderRadius: '50%', border: '3px solid rgba(24, 95, 165, 0.08)', borderTopColor: '#185FA5', animation: 'spin 1s cubic-bezier(0.68, -0.55, 0.27, 1.55) infinite' }} />
-        <div style={{ color:'#64748b', fontSize:14, fontWeight:600, letterSpacing: '0.02em', animation: 'pulse 1.5s ease-in-out infinite' }}>
-          Cargando portal de paciente...
+    <div style={{ minHeight:'100vh', display:'flex', justifyContent:'center', padding: '2.5rem 1.25rem', fontFamily:'DM Sans, system-ui', background: '#f4f7fb' }}>
+      <div style={{ width: '100%', maxWidth: 480 }}>
+        {/* Skeleton Header */}
+        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+          <div className="skeleton-shimmer" style={{ width: 140, height: 28, borderRadius: 8, margin: '0 auto' }} />
+        </div>
+        {/* Skeleton Avatar & Saludo */}
+        <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
+          <div className="skeleton-shimmer" style={{ width: 72, height: 72, borderRadius: 24, margin: '0 auto 16px' }} />
+          <div className="skeleton-shimmer" style={{ width: 100, height: 14, borderRadius: 6, margin: '0 auto 8px' }} />
+          <div className="skeleton-shimmer" style={{ width: 180, height: 26, borderRadius: 8, margin: '0 auto' }} />
+        </div>
+        {/* Skeleton Ticket Card */}
+        <div style={{ borderRadius: 22, padding: '1.5rem', background: '#fff', border: '1px solid rgba(15,30,61,0.06)', boxShadow: '0 10px 30px rgba(0,0,0,0.02)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+            <div className="skeleton-shimmer" style={{ width: 110, height: 22, borderRadius: 12 }} />
+            <div className="skeleton-shimmer" style={{ width: 80, height: 22, borderRadius: 12 }} />
+          </div>
+          <div className="skeleton-shimmer" style={{ width: '65%', height: 24, borderRadius: 8, marginBottom: 10 }} />
+          <div className="skeleton-shimmer" style={{ width: '40%', height: 16, borderRadius: 6, marginBottom: 20 }} />
+          <div className="skeleton-shimmer" style={{ width: '100%', height: 46, borderRadius: 14 }} />
         </div>
       </div>
       <style>{`
-        @keyframes spin { to { transform: rotate(360deg) } }
-        @keyframes pulse { 0%, 100% { opacity: 0.6; } 50% { opacity: 1; } }
+        .skeleton-shimmer {
+          background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%);
+          background-size: 200% 100%;
+          animation: skeleton-loading 1.6s infinite ease-in-out;
+        }
+        @keyframes skeleton-loading {
+          0% { background-position: 200% 0; }
+          100% { background-position: -200% 0; }
+        }
       `}</style>
     </div>
   )
@@ -293,23 +337,72 @@ export default function PacientePage() {
             )}
 
             {/* Próximo turno */}
-            {turnos.length > 0 && (
+            {/* Próximo turno */}
+            {turnos.length > 0 ? (
               <div style={{ marginBottom: 28 }}>
-                <h3 style={{ fontSize:15, fontWeight:800, color:'var(--portal-text-primary)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom:12 }}>Próximo turno</h3>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                  <h3 style={{ fontSize:14, fontWeight:800, color:'var(--portal-text-primary)', textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>
+                    Próximo turno
+                  </h3>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--portal-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    Pase digital
+                  </span>
+                </div>
                 <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
                   {turnos.map(t => {
                     const { dia, fecha, hora } = formatFecha(t.fecha_hora)
+                    const countdown = formatCountdown(t.fecha_hora)
                     return (
-                      <div key={t.id} className="patient-card" style={{ borderRadius:22, padding:'1.5rem', background: 'var(--portal-card-bg)' }}>
-                        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:16 }}>
+                      <div key={t.id} className="patient-card" style={{ borderRadius:22, padding:'1.5rem', background: 'var(--portal-card-bg)', border: '1px solid var(--portal-card-border)' }}>
+                        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14 }}>
                           <div>
-                            <div style={{ fontSize:18, fontWeight:800, color: 'var(--portal-text-primary)', letterSpacing: '-0.01em' }}>{dia} {fecha} · {hora} hs</div>
-                            <div style={{ display:'flex', alignItems:'center', gap:6, marginTop:6 }}>
-                              <span style={{ fontSize:14, fontWeight:600, color: 'var(--portal-text-secondary)' }}>{t.tipo_tratamiento}</span>
-                              <span style={{ fontSize:14, color:'var(--portal-text-muted)' }}>· {t.duracion_minutos} min</span>
-                            </div>
+                            {countdown ? (
+                              <span style={{ fontSize: 11.5, fontWeight: 700, background: `${secondaryColor}12`, color: secondaryColor, padding: '3px 9px', borderRadius: 12 }}>
+                                ⏱️ {countdown}
+                              </span>
+                            ) : null}
+                          </div>
+                          <div>
+                            {t.estado === 'confirmado' ? (
+                              <span style={{ fontSize: 11.5, fontWeight: 700, background: '#E0F2F1', color: '#0F5145', padding: '3px 9px', borderRadius: 12 }}>
+                                ✓ Confirmado
+                              </span>
+                            ) : (
+                              <span style={{ fontSize: 11.5, fontWeight: 700, background: '#FFF3CD', color: '#856404', padding: '3px 9px', borderRadius: 12 }}>
+                                Pendiente
+                              </span>
+                            )}
                           </div>
                         </div>
+
+                        <div style={{ marginBottom: 14 }}>
+                          <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--portal-text-secondary)', textTransform: 'capitalize' }}>
+                            {dia} {fecha}
+                          </div>
+                          <div style={{ fontSize: 32, fontWeight: 800, color: 'var(--portal-text-primary)', letterSpacing: '-0.02em', marginTop: 2, fontFamily: "'SFMono-Regular', Menlo, Monaco, Consolas, monospace" }}>
+                            {hora} <span style={{ fontSize: 18, fontWeight: 600, color: 'var(--portal-text-muted)' }}>hs</span>
+                          </div>
+                          <div style={{ display:'flex', alignItems:'center', gap:6, marginTop:6 }}>
+                            <span style={{ fontSize:14, fontWeight:600, color: 'var(--portal-text-secondary)' }}>{t.tipo_tratamiento}</span>
+                            <span style={{ fontSize:13, color:'var(--portal-text-muted)' }}>· {t.duracion_minutos} min</span>
+                          </div>
+                        </div>
+
+                        {tenant?.direccion && (
+                          <div style={{ padding: '10px 12px', background: 'rgba(10,30,61,0.02)', borderRadius: 12, marginBottom: 16 }}>
+                            <div style={{ fontSize: 12.5, color: 'var(--portal-text-secondary)', display: 'flex', alignItems: 'center', gap: 5 }}>
+                              📍 {tenant.direccion}
+                            </div>
+                            <a
+                              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(tenant.direccion)}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              style={{ display: 'inline-block', marginTop: 4, fontSize: 11.5, color: secondaryColor, fontWeight: 700, textDecoration: 'none' }}
+                            >
+                              Cómo llegar en Google Maps &rarr;
+                            </a>
+                          </div>
+                        )}
 
                         {t.estado === 'pendiente' ? (
                           <div style={{ display:'flex', flexDirection: 'column', gap:10 }}>
@@ -370,11 +463,6 @@ export default function PacientePage() {
                                 Reprogramar
                               </button>
                             </div>
-                            {/* Anchor a la ruta del servidor, no un <a download>
-                                con URL data:. iOS Safari ignora `download` en
-                                data: y Chrome en Android las bloquea, asi que
-                                en el telefono —donde el paciente abre el link—
-                                tocar el boton no hacia absolutamente nada. */}
                             <a
                               href={`/api/ics?cita=${t.id}&token=${token}`}
                               style={{ 
@@ -460,11 +548,6 @@ export default function PacientePage() {
                                 Reprogramar
                               </button>
                             </div>
-                            {/* Anchor a la ruta del servidor, no un <a download>
-                                con URL data:. iOS Safari ignora `download` en
-                                data: y Chrome en Android las bloquea, asi que
-                                en el telefono —donde el paciente abre el link—
-                                tocar el boton no hacia absolutamente nada. */}
                             <a
                               href={`/api/ics?cita=${t.id}&token=${token}`}
                               style={{ 
@@ -505,6 +588,42 @@ export default function PacientePage() {
                     )
                   })}
                 </div>
+              </div>
+            ) : (
+              <div className="patient-card" style={{ borderRadius: 22, padding: '2rem 1.5rem', textAlign: 'center', background: 'var(--portal-card-bg)', marginBottom: 28, border: '1px solid var(--portal-card-border)' }}>
+                <div style={{ width: 52, height: 52, borderRadius: '50%', background: `${secondaryColor}10`, color: secondaryColor, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
+                  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                </div>
+                <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--portal-text-primary)' }}>
+                  No tenés turnos programados
+                </div>
+                <div style={{ fontSize: 13.5, color: 'var(--portal-text-muted)', marginTop: 6, lineHeight: 1.5 }}>
+                  ¿Listo para tu próxima visita o control? Podés comunicarte con tu consultorio para coordinar un horario.
+                </div>
+                {tenant?.telefono && (
+                  <div style={{ marginTop: 16 }}>
+                    <a
+                      href={`https://wa.me/${tenant.telefono.replace(/\D/g, '')}?text=${encodeURIComponent(`Hola! Quisiera solicitar un turno en ${tenant.nombre}. Mi nombre es ${paciente?.nombre || ''}.`)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        padding: '10px 18px',
+                        background: accentColor,
+                        color: '#fff',
+                        borderRadius: 12,
+                        fontSize: 13.5,
+                        fontWeight: 700,
+                        textDecoration: 'none',
+                        boxShadow: `0 4px 12px ${accentColor}30`,
+                      }}
+                    >
+                      Pedir turno por WhatsApp &rarr;
+                    </a>
+                  </div>
+                )}
               </div>
             )}
 

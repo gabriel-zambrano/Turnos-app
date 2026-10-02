@@ -4,6 +4,8 @@ import { createClient } from '@supabase/supabase-js'
 import { createClient as createSupabaseServerClient } from '@/lib/supabase/server'
 import { APP_NAME, remitente, urlDeClinica } from '@/lib/config'
 
+import { generarEmailConfirmacionHtml } from '@/lib/email-templates'
+
 const resend = new Resend(process.env.RESEND_API_KEY)
 
 const supabaseAdmin = createClient(
@@ -40,13 +42,13 @@ export async function POST(req: NextRequest) {
 
   // Resolver branding del tenant
   const tid = tenantId || process.env.NEXT_PUBLIC_DEFAULT_TENANT_ID || ''
-  let registry: { nombre: string; direccion: string; telefono: string; custom_domain?: string | null } = {
+  let registry: { nombre: string; direccion: string; telefono: string; logourl?: string | null; custom_domain?: string | null } = {
     nombre: APP_NAME,
     direccion: '',
     telefono: '',
   }
   if (tid) {
-    const { data: dbTenant } = await supabaseAdmin.from('tenants').select('nombre, direccion, telefono, custom_domain').eq('id', tid).single()
+    const { data: dbTenant } = await supabaseAdmin.from('tenants').select('nombre, direccion, telefono, logourl, custom_domain').eq('id', tid).single()
     if (dbTenant) {
       registry = { ...registry, ...dbTenant }
     }
@@ -70,88 +72,30 @@ export async function POST(req: NextRequest) {
   // iCal / Apple Calendar
   const icsLink = `${baseUrl}/api/ics?fecha=${fecha}&hora=${encodeURIComponent(hora)}&tratamiento=${encodeURIComponent(tratamiento)}&duracion=${duracion || 30}&notas=${encodeURIComponent(notas || '')}&clinica=${encodeURIComponent(registry.nombre || '')}&direccion=${encodeURIComponent(registry.direccion || '')}`
 
+  const portalUrl = token ? `${baseUrl}/paciente/${token}` : undefined
+
+  const emailHtml = generarEmailConfirmacionHtml({
+    nombrePaciente: nombre,
+    fecha,
+    hora,
+    tratamiento,
+    duracionMinutos: duracion,
+    clinicaNombre: registry.nombre,
+    clinicaDireccion: registry.direccion,
+    clinicaTelefono: registry.telefono,
+    clinicaLogoUrl: registry.logourl || undefined,
+    googleCalendarUrl: googleLink,
+    icsCalendarUrl: icsLink,
+    outlookCalendarUrl: outlookLink,
+    portalUrl,
+    notas,
+  })
+
   const { error } = await resend.emails.send({
     from: remitente(registry.nombre),
     to: email,
     subject: `✅ Turno confirmado — ${fecha} a las ${hora}hs`,
-    html: `
-      <div style="font-family: Arial, sans-serif; max-width: 520px; margin: 0 auto; background: #f4f7fb; padding: 32px 16px;">
-        <div style="background: #fff; border-radius: 16px; padding: 32px; border: 1px solid #e8edf2;">
-          
-          <div style="text-align: center; margin-bottom: 24px;">
-            <div style="width: 56px; height: 56px; background: #E1F5EE; border-radius: 50%; margin: 0 auto 12px; line-height: 56px; font-size: 28px;">🦷</div>
-            <h1 style="font-size: 20px; font-weight: 700; color: #0f1e2b; margin: 0;">Tu turno está confirmado</h1>
-            <p style="font-size: 14px; color: #94a3b8; margin: 6px 0 0;">${registry.nombre}</p>
-          </div>
-
-          <div style="background: #f4f7fb; border-radius: 12px; padding: 20px; margin-bottom: 24px;">
-            <table width="100%" cellpadding="0" cellspacing="0">
-              <tr>
-                <td style="padding-bottom: 12px;">
-                  <span style="font-size: 18px;">📅</span>
-                  <span style="font-size: 11px; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-top: 4px;">Fecha y hora</span>
-                  <span style="font-size: 15px; font-weight: 600; color: #0f1e2b;">${fecha} a las ${hora}hs</span>
-                </td>
-              </tr>
-              <tr>
-                <td style="padding-bottom: 12px;">
-                  <span style="font-size: 18px;">🩺</span>
-                  <span style="font-size: 11px; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-top: 4px;">Tratamiento</span>
-                  <span style="font-size: 15px; font-weight: 600; color: #0f1e2b;">${tratamiento}</span>
-                </td>
-              </tr>
-              <tr>
-                <td>
-                  <span style="font-size: 18px;">📍</span>
-                  <span style="font-size: 11px; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-top: 4px;">Lugar</span>
-                  <span style="font-size: 15px; font-weight: 600; color: #0f1e2b;">${registry.direccion}</span>
-                </td>
-              </tr>
-              ${notas ? `<tr><td style="padding-top: 12px;"><span style="font-size: 18px;">📝</span><span style="font-size: 11px; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-top: 4px;">Notas</span><span style="font-size: 14px; color: #0f1e2b;">${notas}</span></td></tr>` : ''}
-            </table>
-          </div>
-
-          ${token ? `
-          <div style="text-align: center; margin-bottom: 24px;">
-            <a href="${baseUrl}/paciente/${token}" target="_blank" style="display: inline-block; text-align: center; background: #1D9E75; color: #fff; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: 700; font-size: 14px; box-shadow: 0 4px 10px rgba(29,158,117,0.2);">
-              📲 Ver o gestionar mi turno en el portal
-            </a>
-            <p style="font-size: 12px; color: #94a3b8; margin: 8px 0 0;">Podés confirmar asistencia, cancelar o reprogramar desde tu celular.</p>
-          </div>
-          ` : ''}
-
-          <p style="font-size: 13px; font-weight: 600; color: #0f1e2b; text-align: center; margin-bottom: 12px;">Guardá tu turno en el calendario:</p>
-
-          <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 16px;">
-            <tr>
-              <td style="padding-bottom: 8px;">
-                <a href="${googleLink}" target="_blank" style="display: block; text-align: center; background: #4285F4; color: #fff; text-decoration: none; padding: 12px; border-radius: 10px; font-weight: 600; font-size: 14px;">
-                  📆 Google Calendar
-                </a>
-              </td>
-            </tr>
-            <tr>
-              <td style="padding-bottom: 8px;">
-                <a href="${icsLink}" target="_blank" style="display: block; text-align: center; background: #0f1e2b; color: #fff; text-decoration: none; padding: 12px; border-radius: 10px; font-weight: 600; font-size: 14px;">
-                  🍎 Apple Calendar / iCal
-                </a>
-              </td>
-            </tr>
-            <tr>
-              <td>
-                <a href="${outlookLink}" target="_blank" style="display: block; text-align: center; background: #0078D4; color: #fff; text-decoration: none; padding: 12px; border-radius: 10px; font-weight: 600; font-size: 14px;">
-                  📧 Outlook Calendar
-                </a>
-              </td>
-            </tr>
-          </table>
-
-          <p style="font-size: 12px; color: #94a3b8; text-align: center; margin: 0;">
-            Si necesitás cancelar o reprogramar, respondé este email o llamanos.
-          </p>
-        </div>
-      </div>
-    `
+    html: emailHtml,
   })
 
   if (error) return NextResponse.json({ error }, { status: 500 })

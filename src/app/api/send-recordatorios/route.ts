@@ -5,6 +5,7 @@ import { createClient as createSupabaseServerClient } from '@/lib/supabase/serve
 import { remitente, EMAIL_FROM_RECORDATORIOS , urlDeClinica } from '@/lib/config'
 import { emitirEnlaceTurno } from '@/lib/turno-publico'
 import { esCron } from '@/lib/cron-auth'
+import { generarEmailRecordatorioHtml } from '@/lib/email-templates'
 
 
 export const dynamic = 'force-dynamic'
@@ -223,30 +224,21 @@ export async function POST(req: NextRequest) {
         const displayFromName = branding.nombre || 'DentalDesk'
         const fromEmail = remitente(displayFromName, EMAIL_FROM_RECORDATORIOS)
 
+        const emailHtml = generarEmailRecordatorioHtml({
+          nombrePaciente: paciente.nombre,
+          fechaHoraTexto: horaAR,
+          tratamiento: cita.tipo_tratamiento,
+          clinicaNombre: branding.nombre,
+          clinicaDireccion: branding.direccion || undefined,
+          clinicaLogoUrl: branding.logoUrl,
+          enlaceTurno: enlaceTurno || undefined,
+        })
+
         const { data: emailResult, error: emailError } = await resend.emails.send({
           from: fromEmail,
           to: paciente.email,
           subject: `Recordatorio de turno — ${horaAR}`,
-          html: `
-            <div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:32px 24px">
-              ${branding.logoUrl ? `<img src="${branding.logoUrl}" alt="${branding.nombre}" style="max-height:60px;margin-bottom:20px;display:block" />` : ''}
-              <h2 style="color:${branding.accentColor || '#1D9E75'};margin-bottom:8px">Recordatorio de turno</h2>
-              <p style="color:#333;font-size:15px">Hola <strong>${paciente.nombre}</strong>,</p>
-              <p style="color:#333;font-size:15px">Te recordamos que tenés un turno programado:</p>
-              <div style="background:#f4f6f8;border-radius:12px;padding:16px 20px;margin:20px 0">
-                <p style="margin:0;font-size:14px;color:#666">📅 <strong style="color:#333">${horaAR}</strong></p>
-                <p style="margin:8px 0 0;font-size:14px;color:#666">🦷 Tratamiento: <strong style="color:#333">${cita.tipo_tratamiento}</strong></p>
-                <p style="margin:8px 0 0;font-size:14px;color:#666">📍 ${branding.nombre} ${branding.direccion ? `— ${branding.direccion}` : ''}</p>
-              </div>
-              ${enlaceTurno ? `
-              <div style="text-align:center;margin:24px 0">
-                <a href="${enlaceTurno}" style="display:inline-block;background:${branding.accentColor || '#1D9E75'};color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600;font-size:15px">Confirmar y agendar</a>
-              </div>` : ''}
-              <p style="color:#888;font-size:13px">Si necesitás cancelar o reprogramar, podés hacerlo desde el link de arriba.</p>
-              <hr style="border:none;border-top:1px solid #eee;margin:24px 0"/>
-              <p style="color:#aaa;font-size:12px;text-align:center">Este es un mensaje automático de ${branding.nombre}. Por favor no respondas este email.</p>
-            </div>
-          `
+          html: emailHtml,
         })
 
         const resendId = emailResult?.id ?? null
