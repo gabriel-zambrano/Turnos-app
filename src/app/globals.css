@@ -102,7 +102,7 @@
   --focus-ring: 0 0 0 3px rgba(24, 95, 165, 0.35);
 
   /* Estados. -text es el color de texto sobre -soft (≥ 5,9:1). */
-  --success: #0f8a66;
+  --success: #0c7a5a;          /* blanco encima: 5,32:1 */
   --success-soft: #ecf8f3;
   --success-border: #a7dcc8;
   --success-text: #0b6b50;
@@ -116,6 +116,12 @@
   --danger-text: #b42318;
   --info: var(--accent);
   --info-soft: var(--accent-soft);
+  /* Texto sobre los fondos sólidos de estado (botones, contadores). En claro
+     es blanco; en oscuro los fondos son claros y el texto pasa a oscuro. */
+  --success-contrast: #ffffff;
+  --danger-contrast: #ffffff;
+  --warning-contrast: #ffffff;
+  --warning-solid: #a14a08;    /* fondo sólido de advertencia: blanco encima 6,0:1 */
 
   /* Escalas. Pasos fijos en lugar de 55 tamaños, 209 paddings y 32 radios. */
   --fs-xs: 12px;   /* mínimo de la app de la clínica */
@@ -231,6 +237,10 @@
   --danger-text: #fca5a5;         /* 9,4:1 */
   --info: var(--accent);
   --info-soft: var(--accent-soft);
+  --success-contrast: #0b1220;  /* sobre #34d399: 9,74:1 */
+  --danger-contrast: #0b1220;   /* sobre #f87171: 6,77:1 */
+  --warning-contrast: #0b1220;
+  --warning-solid: #f59e0b;     /* 8,72:1 con texto oscuro */
 
   --shadow-subtle: 0 1px 3px rgba(0, 0, 0, 0.3), 0 6px 16px rgba(0, 0, 0, 0.25);
   --shadow-card: 0 10px 30px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.2);
@@ -858,9 +868,9 @@ input, select, textarea, button {
 .dd-btn--ghost { background: transparent; color: var(--text-dark); }
 .dd-btn--ghost:hover:not(:disabled) { background: var(--accent-soft); }
 
-.dd-btn--danger { background: var(--danger); color: #ffffff; }
+.dd-btn--danger { background: var(--danger); color: var(--danger-contrast); }
 .dd-btn--danger:hover:not(:disabled) { filter: brightness(0.92); }
-[data-theme="dark"] .dd-btn--danger { color: #1a0505; }
+[data-theme="dark"] .dd-btn--danger { color: var(--danger-contrast); }
 
 .dd-btn-spinner {
   width: 14px; height: 14px; border-radius: 50%;
@@ -913,3 +923,5 @@ input, select, textarea, button {
   }
 }
 
+/* Pantallas de montos: dígitos de ancho fijo (tabular) para comparar cifras de un vistazo. */
+.dd-cifras { font-variant-numeric: tabular-nums; }
