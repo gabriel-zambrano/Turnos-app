@@ -1,7 +1,7 @@
 'use client'
 import { useRef, useState, useEffect, useCallback, useMemo } from 'react'
 import { AppShell } from '@/components/AppShell'
-import { Modal, Icon } from '@/components/ui/index'
+import { Modal, Icon, EmptyState, ErrorState } from '@/components/ui/index'
 import { Toast, Spinner, PageHeader, useBloqueoScroll } from '@/components/UI'
 import { createClient } from '@/lib/supabase/client'
 import { useTenantContext } from '@/components/TenantContext'
@@ -41,6 +41,9 @@ export default function FinanzasPage() {
   const { tenant, loading: tenantLoading } = useTenantContext()
   const [isMobile, setIsMobile] = useState(false)
   const [loading, setLoading] = useState(true)
+  // Qué consultas fallaron en la última carga. Antes se ignoraban y la
+  // pantalla mostraba totales en cero o "Sin ingresos" como si fueran reales.
+  const [errorCarga, setErrorCarga] = useState<string[] | null>(null)
   const [toast, setToast] = useState<{ msg: string; tipo: string } | null>(null)
   
   const now = new Date()
@@ -161,6 +164,13 @@ export default function FinanzasPage() {
       supabase.from('arca_config').select('*').eq('tenant_id', tenant.id).eq('activo', true).maybeSingle(),
       supabase.from('pagos').select('cita_id, forma_pago, monto, requiere_factura').eq('tenant_id', tenant.id)
     ])
+
+    const fallidas = ([
+      ['tratamientos', resTrat], ['costos fijos', resCostos], ['meta mensual', resMeta],
+      ['ingresos manuales', resManuales], ['egresos', resEgresos], ['turnos del mes', resCitas],
+      ['deudores', resDeudas], ['facturas', resFacturas], ['configuración de ARCA', resArca], ['pagos', resPagos],
+    ] as [string, { error: unknown }][]).filter(([, r]) => r.error).map(([n]) => n)
+    setErrorCarga(fallidas.length ? fallidas : null)
 
     // Agrupa los pagos por cita. Si la tabla todavía no existe (migración sin
     // aplicar), queda vacío y la pantalla se comporta como antes.
@@ -640,6 +650,17 @@ export default function FinanzasPage() {
             <button onClick={() => setTab('deudores')} style={tabBtn('deudores')}>Deudores <span style={{background:'var(--danger)', color:'var(--danger-contrast)', padding:'2px 6px', borderRadius:10, fontSize:12, marginLeft:6}}>{deudores.length}</span></button>
           </div>
 
+          {errorCarga && (
+            <div style={{ marginBottom: 'var(--space-4)' }}>
+              <ErrorState
+                title="No se pudieron cargar todos los datos de Finanzas."
+                notSaved={`Falló la carga de: ${errorCarga.join(', ')}. Los totales y listas de esta pantalla pueden estar incompletos; no tomes decisiones con estos números.`}
+                description="No se perdió ningún dato: es un problema al leerlos."
+                onRetry={load}
+              />
+            </div>
+          )}
+
           {tab === 'resumen' && (
             <>
               {/* KPI Cards */}
@@ -721,7 +742,7 @@ export default function FinanzasPage() {
                     </button>
                   </div>
                   {costos.length === 0
-                    ? <div style={{ textAlign:'center', color:'var(--text-muted)', padding:'1.5rem', fontSize:13 }}>Sin costos registrados</div>
+                    ? <EmptyState compact icon="money" title="Sin costos fijos cargados" description="Cargá alquiler, sueldos y servicios para que el resumen calcule la ganancia real del mes." />
                     : costos.map((c, i) => (
                       <div key={c.id} style={{ display:'flex', alignItems:'center', gap:8, padding:'8px 0', borderBottom: i < costos.length - 1 ? '0.5px solid var(--border-light)' : 'none', opacity: c.activo ? 1 : 0.45 }}>
                         <input type="checkbox" checked={c.activo} onChange={() => toggleCosto(c.id, c.activo)} style={{ accentColor:'var(--success-text)', flexShrink:0, cursor:'pointer' }} />
@@ -791,7 +812,7 @@ export default function FinanzasPage() {
                 {/* Ingresos List */}
                 <div style={{ marginBottom: 20 }}>
                   <div style={{ fontSize:12, fontWeight:700, color:'var(--success-text)', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:8, borderBottom:'1px solid var(--border-light)', paddingBottom:4 }}>Ingresos (+ {fmt(totalCitasDia + totalIngresosDia)})</div>
-                  {citasDia.length === 0 && ingresosDia.length === 0 && <div style={{ fontSize:13, color:'var(--text-muted)', padding:'8px 0' }}>Sin ingresos en este día</div>}
+                  {citasDia.length === 0 && ingresosDia.length === 0 && <EmptyState compact icon="calendar" title="Sin ingresos este día" description="Acá aparecen los turnos con fecha de este día y los ingresos manuales. Un turno cobrado en otra fecha figura en el día del turno." />}
                   
                   {citasDia.map(c => (
                     <div key={c.id} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'8px 0', borderBottom:'0.5px solid var(--border-light)' }}>
@@ -905,7 +926,7 @@ export default function FinanzasPage() {
                 {/* Egresos List */}
                 <div style={{ marginBottom: 20 }}>
                   <div style={{ fontSize:12, fontWeight:700, color:'var(--danger-text)', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:8, borderBottom:'1px solid var(--border-light)', paddingBottom:4 }}>Egresos (- {fmt(totalEgresosDia)})</div>
-                  {egresosDia.length === 0 && <div style={{ fontSize:13, color:'var(--text-muted)', padding:'8px 0' }}>Sin egresos en este día</div>}
+                  {egresosDia.length === 0 && <EmptyState compact icon="inbox" title="Sin egresos este día" />}
                   
                   {egresosDia.map(e => (
                     <div key={e.id} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'8px 0', borderBottom:'0.5px solid var(--border-light)' }}>
@@ -974,11 +995,7 @@ export default function FinanzasPage() {
               <div style={{ fontWeight:700, fontSize:18, color:'var(--text-dark)', marginBottom:16 }}>Pacientes con Saldo Pendiente</div>
               
               {deudores.length === 0 ? (
-                <div style={{ textAlign:'center', color:'var(--text-muted)', padding:'3rem 1rem' }}>
-                  <div style={{ fontSize:40, marginBottom:10 }}>🎉</div>
-                  <div style={{ fontSize:15, fontWeight:600, color:'var(--text-dark)' }}>¡Excelente!</div>
-                  <div style={{ fontSize:13 }}>No hay pacientes con deudas registradas.</div>
-                </div>
+                <EmptyState icon="check" title="No hay deudas pendientes" description="Ningún turno asistido tiene un saldo sin cobrar." />
               ) : (
                 <div style={{ display:'flex', flexDirection:'column', gap: 10 }}>
                   {deudores.map(c => {
