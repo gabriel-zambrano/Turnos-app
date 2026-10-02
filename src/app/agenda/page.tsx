@@ -13,7 +13,8 @@ import { formasFacturablesDe } from '@/lib/registrar-pago'
 import { registrarInasistenciaAction, aprobarAsistenciaAction } from '@/app/actions/fidelizacion'
 import { FIDELIZACION_HABILITADA } from '@/lib/fidelizacion-flag'
 import { CobrarTurno } from '@/components/cobro/CobrarTurno'
-import { Modal, ConfirmDialog, Icon, EmptyState } from '@/components/ui/index'
+import { Modal, ConfirmDialog, Icon, EmptyState, Button } from '@/components/ui/index'
+import { turnosSinCerrar, ahoraEnArgentina } from '@/lib/turnos-sin-cerrar'
 import dynamic from 'next/dynamic'
 
 // Lazy-load: el modal solo se descarga cuando el usuario lo abre, no en la carga inicial.
@@ -427,6 +428,7 @@ export default function Agenda() {
   // Confirmaciones dentro de la app (antes: confirm() del navegador).
   const [bloqueoABorrar, setBloqueoABorrar] = useState<{ id: string; texto: string } | null>(null)
   const [confirmarDescartar, setConfirmarDescartar] = useState(false)
+  const [cierreAbierto, setCierreAbierto] = useState(false)
 
   function msg(m:string,tipo='ok'){setToast({msg:m,tipo});setTimeout(()=>setToast(null),3500)}
 
@@ -633,7 +635,7 @@ export default function Agenda() {
     if (estado === 'ausente' || estado === 'cancelado') {
       const res = await registrarInasistenciaAction(id, estado as any)
       if (!res.success) {
-        msg('Error al registrar inasistencia: ' + res.error, 'error')
+        msg('No se pudo registrar la inasistencia. Probá de nuevo.', 'error')
       } else {
         setCitas(p=>p.map(c=>c.id===id?{...c,estado}:c))
         msg('Estado actualizado')
@@ -662,8 +664,9 @@ export default function Agenda() {
       }
     }
 
-    // For other states (pendiente, confirmado, completado)
-    await supabase.from('citas').update({estado}).eq('id',id)
+    // Otros estados (pendiente, confirmado, completado)
+    const { error: errEstado } = await supabase.from('citas').update({estado}).eq('id',id)
+    if (errEstado) return msg('No se pudo cambiar el estado del turno. Probá de nuevo.', 'error')
     setCitas(p=>p.map(c=>c.id===id?{...c,estado}:c))
     msg('Estado actualizado')
   }
@@ -690,7 +693,8 @@ export default function Agenda() {
       msg('Error al agendar propuesta: ' + error.message, 'error')
     } else {
       msg('Próxima cita pre-agendada con éxito')
-      const waMsg = `Hola *${propuestaProximaCita.nombre.trim().split(' ')[0]}* 👋\nTe confirmamos tu próximo turno de *${propuestaProximaCita.tratamiento}* para el *${fechaDest.split('-').reverse().join('/')}* a las *${propuestaProximaCita.hora} hs*.\n\n🗓️ Podés sumarlo a tu calendario haciendo clic aquí:\nhttps://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(`Turno Odontológico - ${propuestaProximaCita.tratamiento}`)}&dates=${new Date(`${fechaDest}T${propuestaProximaCita.hora}:00-03:00`).toISOString().replace(/-|:|\.\d\d\d/g, '')}/${new Date(new Date(`${fechaDest}T${propuestaProximaCita.hora}:00-03:00`).getTime() + propuestaProximaCita.duracion * 60000).toISOString().replace(/-|:|\.\d\d\d/g, '')}&details=${encodeURIComponent(`Turno para ${propuestaProximaCita.tratamiento}.`)}`
+    // Emojis del mensaje al paciente como códigos Unicode: son contenido del WhatsApp, no íconos de la interfaz.
+      const waMsg = `Hola *${propuestaProximaCita.nombre.trim().split(' ')[0]}* \uD83D\uDC4B\nTe confirmamos tu próximo turno de *${propuestaProximaCita.tratamiento}* para el *${fechaDest.split('-').reverse().join('/')}* a las *${propuestaProximaCita.hora} hs*.\n\n\uD83D\uDDD3\uFE0F Podés sumarlo a tu calendario haciendo clic aquí:\nhttps://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(`Turno Odontológico - ${propuestaProximaCita.tratamiento}`)}&dates=${new Date(`${fechaDest}T${propuestaProximaCita.hora}:00-03:00`).toISOString().replace(/-|:|\.\d\d\d/g, '')}/${new Date(new Date(`${fechaDest}T${propuestaProximaCita.hora}:00-03:00`).getTime() + propuestaProximaCita.duracion * 60000).toISOString().replace(/-|:|\.\d\d\d/g, '')}&details=${encodeURIComponent(`Turno para ${propuestaProximaCita.tratamiento}.`)}`
       
       setWhatsappCita({
         telefono: propuestaProximaCita.telefono,
@@ -810,6 +814,8 @@ export default function Agenda() {
   const hoy = hoyISO()
   const semana7 = getFechaSemana7(fecha)
   const fechasConCitas = new Set(citas.map(c => c.fecha))
+  // Turnos de la semana cargada que ya pasaron y siguen sin cerrar.
+  const sinCerrar = turnosSinCerrar(citas, ahoraEnArgentina())
   const ahoraTop = (ahora.getHours() * 60 + ahora.getMinutes() - HORA_INICIO * 60) / 60 * SLOT_H
 
   return (
@@ -960,6 +966,19 @@ export default function Agenda() {
 
         <div style={{padding: isMobile ? '0.75rem' : '1.5rem 2rem 0'}}>
           <AvisoPedidosOnline />
+          {sinCerrar.length > 0 && (
+            <div role="status" style={{
+              display:'flex', alignItems:'center', gap:'var(--space-3)', flexWrap:'wrap', marginBottom:'var(--space-3)',
+              padding:'var(--space-2) var(--space-3)', borderRadius:'var(--radius-md)', fontSize:'var(--fs-sm)',
+              background:'var(--warning-soft)', border:'1px solid var(--warning-border)', color:'var(--warning-text)',
+            }}>
+              <Icon name="clock" size={16} />
+              <span style={{ flex:1, minWidth:200 }}>
+                <strong>{sinCerrar.length === 1 ? '1 turno de esta semana ya pasó' : `${sinCerrar.length} turnos de esta semana ya pasaron`}</strong> y {sinCerrar.length === 1 ? 'sigue' : 'siguen'} sin cerrar.
+              </span>
+              <Button size="sm" variant="secondary" onClick={() => setCierreAbierto(true)}>Revisar</Button>
+            </div>
+          )}
         </div>
 
         <div style={{padding: isMobile ? 0 : '1.5rem 2rem'}}>
@@ -2023,6 +2042,29 @@ export default function Agenda() {
           </div>
         </Modal>
       )}
+
+      <Modal open={cierreAbierto} onClose={() => setCierreAbierto(false)} title="Turnos sin cerrar"
+        description="Ya pasaron y siguen como pendiente o confirmado. Marcá cada uno: si asistió se abre el cobro, como en la agenda." maxWidth={520}>
+        {sinCerrar.length === 0 ? (
+          <EmptyState compact icon="check" title="No quedan turnos sin cerrar esta semana" />
+        ) : (
+          <div style={{ display:'flex', flexDirection:'column', gap:'var(--space-2)' }}>
+            {sinCerrar.map(c => (
+              <div key={c.id} style={{ display:'flex', alignItems:'center', gap:'var(--space-3)', flexWrap:'wrap',
+                padding:'var(--space-2) var(--space-3)', borderRadius:'var(--radius-sm)', border:'1px solid var(--border-color)' }}>
+                <div style={{ flex:1, minWidth:180 }}>
+                  <div style={{ fontWeight:600, color:'var(--text-dark)', fontSize:'var(--fs-md)' }}>{c.nombre}</div>
+                  <div style={{ color:'var(--text-muted)', fontSize:'var(--fs-xs)' }}>
+                    {c.fecha.split('-').reverse().join('/')} · {c.hora.slice(0,5)} · {c.tratamiento}
+                  </div>
+                </div>
+                <Button size="sm" variant="primary" icon="check" onClick={() => { setCierreAbierto(false); cambiarEstado(c.id, 'asistio') }}>Asistió</Button>
+                <Button size="sm" variant="secondary" icon="close" onClick={() => cambiarEstado(c.id, 'cancelado')}>Faltó</Button>
+              </div>
+            ))}
+          </div>
+        )}
+      </Modal>
 
       <ConfirmDialog
         open={!!bloqueoABorrar}
