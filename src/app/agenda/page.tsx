@@ -196,7 +196,7 @@ function WeekStrip({ fechas, fechaActiva, fechasConCitas, onSelect, hoy }: {
             alignItems: 'center', justifyContent: 'center',
             border: 'none', background: 'transparent', cursor: 'pointer', padding: 0,
           }}>
-            <span style={{ fontSize: 10, fontWeight: 500, color: activo ? 'var(--text-dark, #0a1e3d)' : 'var(--text-muted, #aab8c8)', lineHeight: 1, marginBottom: 3 }}>
+            <span style={{ fontSize: 12, fontWeight: 500, color: activo ? 'var(--text-dark, #0a1e3d)' : 'var(--text-muted, #aab8c8)', lineHeight: 1, marginBottom: 3 }}>
               {DIAS_STRIP[i]}
             </span>
             <div style={{
@@ -208,17 +208,17 @@ function WeekStrip({ fechas, fechaActiva, fechasConCitas, onSelect, hoy }: {
               <span style={{
                 fontSize: 14,
                 fontWeight: activo || esHoy ? 700 : 400,
-                color: activo ? 'var(--bg-app, #fff)' : esHoy ? '#10B981' : 'var(--text-dark, #333)',
+                color: activo ? 'var(--bg-app, #fff)' : esHoy ? 'var(--success-text)' : 'var(--text-dark, #333)',
                 lineHeight: 1,
               }}>{numDia}</span>
             </div>
             <span style={{
-              fontSize: 9, color: 'var(--text-muted, #aab8c8)', lineHeight: 1, marginTop: 2,
+              fontSize: 12, color: 'var(--text-muted, #aab8c8)', lineHeight: 1, marginTop: 2,
               visibility: esSemanaCurrent ? 'hidden' : 'visible',
             }}>{mes}</span>
             <div style={{
               width: 4, height: 4, borderRadius: '50%',
-              background: tieneCita ? '#388ADD' : 'transparent',
+              background: tieneCita ? 'var(--accent)' : 'transparent',
               marginTop: 2,
             }} />
           </button>
@@ -266,7 +266,7 @@ function AgendaHeaderMobile({ fecha, vista, esHoy, onPrev, onNext, onVista, onNu
       }}>
         {esHoy ? (
           <>
-            <span style={{ fontSize: 13, fontWeight: 600, color: '#10B981' }}>Hoy</span>
+            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--success-text)' }}>Hoy</span>
             <span style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-dark, #0a1e3d)', lineHeight: 1 }}>{diaNum}</span>
           </>
         ) : (
@@ -283,7 +283,7 @@ function AgendaHeaderMobile({ fecha, vista, esHoy, onPrev, onNext, onVista, onNu
 
       <div style={{display:'flex',background:'rgba(15, 30, 61, 0.04)',borderRadius:8,overflow:'hidden',marginRight:4,height:32,border:'1px solid var(--border-light, rgba(15, 30, 61, 0.06))',padding:2,flexShrink:0}}>
         {(['semana','dia','lista'] as const).map(v=>(
-          <button key={v} onClick={()=>onVista(v)} style={{padding:'0 9px',fontSize:11,borderRadius:6,border:'none',cursor:'pointer',background:vista===v?'var(--bg-card, #fff)':'transparent',color:vista===v?'var(--text-dark, #0a1e3d)':'var(--text-muted, #687e96)',fontWeight:vista===v?700:500,boxShadow:vista===v?'0 1px 3px rgba(10,30,61,0.08)':undefined,fontFamily:'DM Sans, sans-serif'}}>{v==='semana'?'Sem':v==='dia'?'Día':'Lista'}</button>
+          <button key={v} onClick={()=>onVista(v)} style={{padding:'0 9px',fontSize:12,borderRadius:6,border:'none',cursor:'pointer',background:vista===v?'var(--bg-card, #fff)':'transparent',color:vista===v?'var(--text-dark, #0a1e3d)':'var(--text-muted, #687e96)',fontWeight:vista===v?700:500,boxShadow:vista===v?'0 1px 3px rgba(10,30,61,0.08)':undefined,fontFamily:'DM Sans, sans-serif'}}>{v==='semana'?'Sem':v==='dia'?'Día':'Lista'}</button>
         ))}
       </div>
 
@@ -291,7 +291,7 @@ function AgendaHeaderMobile({ fecha, vista, esHoy, onPrev, onNext, onVista, onNu
         width: 38, height: 38, display: 'flex', alignItems: 'center', justifyContent: 'center',
         border: '1px solid var(--border-color, rgba(239,68,68,0.15))',
         background: 'var(--bg-card, #fff)',
-        color: '#ef4444',
+        color: 'var(--danger-text)',
         borderRadius: 10, fontSize: 16, cursor: 'pointer', flexShrink: 0,
         fontFamily: 'DM Sans, sans-serif',
         boxShadow: '0 2px 6px rgba(239,68,68,0.05)',
@@ -941,7 +941,7 @@ export default function Agenda() {
                       }}
                       className="quick-action-btn"
                     >
-                      <span style={{color: '#ef4444'}}>🚫</span> Bloquear
+                      <span style={{color: 'var(--danger-text)'}}>🚫</span> Bloquear
                     </button>
                     <BtnPrimary onClick={()=>openNueva()} disabled={cajaCerrada}>
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -960,15 +960,15 @@ export default function Agenda() {
           {/* Caja Cerrada Warning Banner */}
           {cajaCerrada && (
             <div style={{
-              background: '#fef2f2',
-              border: '1px solid #fee2e2',
+              background: 'var(--danger-soft)',
+              border: '1px solid var(--danger-border)',
               borderRadius: 12,
               padding: '12px 16px',
               margin: isMobile ? '0.75rem' : '0 0 16px 0',
               display: 'flex',
               alignItems: 'center',
               gap: 10,
-              color: '#991b1b',
+              color: 'var(--danger-text)',
               fontSize: 13,
               fontWeight: 500
             }}>
@@ -1035,7 +1035,7 @@ export default function Agenda() {
                             backdropFilter: 'blur(10px)',
                             borderRadius: 14,
                             border: '1px solid var(--border-light)',
-                            borderLeft: `5px solid ${isSobreturno ? '#EF9F27' : `var(--trat-${c.tratamiento}-border, ${tc.dot})`}`,
+                            borderLeft: `5px solid ${isSobreturno ? 'var(--warning)' : `var(--trat-${c.tratamiento}-border, ${tc.dot})`}`,
                             padding: '16px 18px',
                             display: 'flex',
                             flexDirection: 'column',
@@ -1051,8 +1051,8 @@ export default function Agenda() {
                               position: 'absolute',
                               top: 12,
                               right: 16,
-                              background: 'linear-gradient(135deg, #F59E0B, #D97706)',
-                              color: '#fff',
+                              background: 'linear-gradient(135deg, var(--warning), var(--warning-solid))',
+                              color: 'var(--warning-contrast)',
                               fontSize: '8px',
                               fontWeight: 800,
                               padding: '2px 6px',
@@ -1068,7 +1068,7 @@ export default function Agenda() {
                             </span>
                           )}
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span style={{ fontSize: 14, fontWeight: 800, color: isSobreturno ? '#78350F' : `var(--trat-${c.tratamiento}-color, ${tc.color})` }}>
+                            <span style={{ fontSize: 14, fontWeight: 800, color: isSobreturno ? 'var(--warning-text)' : `var(--trat-${c.tratamiento}-color, ${tc.color})` }}>
                               ⏱️ {c.hora} hs
                             </span>
                             {!isSobreturno && (
@@ -1135,13 +1135,13 @@ export default function Agenda() {
                           transition: 'background 0.2s ease',
                         }}
                       >
-                        <div style={{fontSize:10,fontWeight:600,color:'var(--text-muted, #999)',textTransform:'uppercase',letterSpacing:1.5}}>{label}</div>
+                        <div style={{fontSize:12,fontWeight:600,color:'var(--text-muted, #999)',textTransform:'uppercase',letterSpacing:1.5}}>{label}</div>
                         <div style={{
                           width:34,
                           height:34,
                           borderRadius:'50%',
-                          background:esHoy?'linear-gradient(135deg, var(--text-dark, #0f1e2b), #185FA5)':'transparent',
-                          color:esHoy?'#fff':'var(--text-dark, #1a1a1a)',
+                          background:esHoy?'linear-gradient(135deg, var(--text-dark, #0f1e2b), var(--accent))':'transparent',
+                          color:esHoy?'var(--bg-card)':'var(--text-dark, #1a1a1a)',
                           fontWeight:700,
                           fontSize:15,
                           display:'flex',
@@ -1159,8 +1159,8 @@ export default function Agenda() {
                               width:5,
                               height:5,
                               borderRadius:'50%',
-                              background:'#10B981',
-                              boxShadow: '0 0 8px #10B981',
+                              background:'var(--success)',
+                              boxShadow: '0 0 8px var(--success)',
                             }}/>
                           )}
                         </div>
@@ -1176,7 +1176,7 @@ export default function Agenda() {
                   <div style={{borderRight:'1px solid var(--border-color, #e2e8ed)',position:'relative',height:totalH}}>
                     {horas.map(h=>(
                       <div key={h} style={{position:'absolute',top:(h-HORA_INICIO)*SLOT_H,left:0,right:0,height:SLOT_H,borderTop:'1px solid var(--border-lighter, #f0f0f0)',paddingTop:4}}>
-                        <span style={{fontSize:10,fontWeight:500,color:'var(--text-muted, #bbb)',paddingLeft:8}}>{String(h).padStart(2,'0')}:00</span>
+                        <span style={{fontSize:12,fontWeight:500,color:'var(--text-muted, #bbb)',paddingLeft:8}}>{String(h).padStart(2,'0')}:00</span>
                       </div>
                     ))}
                   </div>
@@ -1330,7 +1330,7 @@ export default function Agenda() {
                       })()}
                       {/* Hora actual */}
                       {f===hoy&&ahoraTop>=0&&ahoraTop<=totalH&&(
-                        <div style={{position:'absolute',top:ahoraTop,left:0,right:0,height:2,background:'#ef4444',zIndex:5,pointerEvents:'none'}}>
+                        <div style={{position:'absolute',top:ahoraTop,left:0,right:0,height:2,background:'var(--danger)',zIndex:5,pointerEvents:'none'}}>
                           {/* Pulsating dot indicator */}
                           <div style={{
                             position:'absolute',
@@ -1339,7 +1339,7 @@ export default function Agenda() {
                             width:10,
                             height:10,
                             borderRadius:'50%',
-                            background:'#ef4444',
+                            background:'var(--danger)',
                             boxShadow: '0 0 0 3px rgba(239, 68, 68, 0.35)',
                           }}/>
                           {/* Floating time label overlaying the timeline */}
@@ -1348,8 +1348,8 @@ export default function Agenda() {
                               position: 'absolute',
                               left: -52,
                               top: -8,
-                              background: '#ef4444',
-                              color: '#fff',
+                              background: 'var(--danger)',
+                              color: 'var(--danger-contrast)',
                               fontSize: '9px',
                               fontWeight: 700,
                               padding: '2px 5px',
@@ -1371,7 +1371,7 @@ export default function Agenda() {
                         return (
                           <div key={b.id} onClick={e=>{e.stopPropagation();if(confirm('¿Eliminar este bloqueo?'))deletBloqueo(b.id)}}
                             style={{position:'absolute',top,left:2,right:2,height:Math.max(height-2,18),background:'repeating-linear-gradient(45deg, var(--border-light, #e0e0e0), var(--border-light, #e0e0e0) 4px, var(--bg-card, #f0f0f0) 4px, var(--bg-card, #f0f0f0) 8px)',borderRadius:6,cursor:'pointer',display:'flex',alignItems:'center',padding:'0 8px',zIndex:1}}>
-                            <span style={{fontSize:10,fontWeight:600,color:'var(--text-muted, #888)'}}>🚫 {b.motivo||'Bloqueado'} {b.hora_inicio.slice(0,5)}–{b.hora_fin.slice(0,5)}</span>
+                            <span style={{fontSize:12,fontWeight:600,color:'var(--text-muted, #888)'}}>🚫 {b.motivo||'Bloqueado'} {b.hora_inicio.slice(0,5)}–{b.hora_fin.slice(0,5)}</span>
                           </div>
                         )
                       })}
@@ -1393,7 +1393,7 @@ export default function Agenda() {
 
                         const bgVar = isOrtodoncia ? undefined : `var(--trat-${c.tratamiento}-bg, ${tc.bg})`
                         const colorVar = isSobreturno ? 'var(--text-dark)' : `var(--trat-${c.tratamiento}-color, ${tc.color})`
-                        const borderLeftColor = isSobreturno ? '#EF9F27' : `var(--trat-${c.tratamiento}-border, ${tc.dot})`
+                        const borderLeftColor = isSobreturno ? 'var(--warning)' : `var(--trat-${c.tratamiento}-border, ${tc.dot})`
 
                         return(
                           <div key={c.id} data-cita="1"
@@ -1433,8 +1433,8 @@ export default function Agenda() {
                                 position: 'absolute',
                                 top: 2,
                                 right: 2,
-                                background: 'linear-gradient(135deg, #F59E0B, #D97706)',
-                                color: '#fff',
+                                background: 'linear-gradient(135deg, var(--warning), var(--warning-solid))',
+                                color: 'var(--warning-contrast)',
                                 fontSize: '7.5px',
                                 fontWeight: 800,
                                 padding: '1px 4px',
@@ -1454,7 +1454,7 @@ export default function Agenda() {
                             {isMobile ? (
                               <>
                                 <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-                                  <span style={{fontSize:10,fontWeight:800,color:isSobreturno ? '#B45309' : colorVar,lineHeight:1}}>{c.hora}</span>
+                                  <span style={{fontSize:12,fontWeight:800,color:isSobreturno ? 'var(--warning-text)' : colorVar,lineHeight:1}}>{c.hora}</span>
                                   <span style={{
                                     width:6,
                                     height:6,
@@ -1467,7 +1467,7 @@ export default function Agenda() {
                                 <div style={{
                                   fontSize: isMobile ? (isSobreturno ? 10.5 : 12) : 12,
                                   fontWeight: 700,
-                                  color: isSobreturno ? '#78350F' : colorVar,
+                                  color: isSobreturno ? 'var(--warning-text)' : colorVar,
                                   overflow: 'hidden',
                                   textOverflow: 'ellipsis',
                                   display: '-webkit-box',
@@ -1477,7 +1477,7 @@ export default function Agenda() {
                                   lineHeight: 1.1,
                                   marginTop: 2
                                 }}>{c.nombre}</div>
-                                {hCard>60&&<div style={{fontSize:9.5,color:colorVar,opacity:0.8,marginTop:2,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',fontWeight:500}}>🦷 {c.tratamiento}</div>}
+                                {hCard>60&&<div style={{fontSize:12.5,color:colorVar,opacity:0.8,marginTop:2,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',fontWeight:500}}>🦷 {c.tratamiento}</div>}
                               </>
                             ) : (
                               <>
@@ -1486,9 +1486,9 @@ export default function Agenda() {
                                     display: 'flex',
                                     alignItems: 'center',
                                     gap: 4,
-                                    fontSize: 11,
+                                    fontSize: 12,
                                     fontWeight: 700,
-                                    color: isSobreturno ? '#78350F' : colorVar,
+                                    color: isSobreturno ? 'var(--warning-text)' : colorVar,
                                     height: '100%',
                                     whiteSpace: 'nowrap',
                                     overflow: 'hidden',
@@ -1498,15 +1498,15 @@ export default function Agenda() {
                                     <span style={{opacity: 0.5}}>•</span>
                                     <span style={{textOverflow: 'ellipsis', overflow: 'hidden'}}>{c.nombre}</span>
                                     <span style={{opacity: 0.5}}>•</span>
-                                    <span style={{fontSize: 9.5, fontWeight: 500, opacity: 0.8}}>{c.tratamiento}</span>
+                                    <span style={{fontSize: 12.5, fontWeight: 500, opacity: 0.8}}>{c.tratamiento}</span>
                                   </div>
                                 ) : activeHeight <= 54 ? (
                                   <>
-                                    <div style={{fontSize: 12.5, fontWeight: 700, color: isSobreturno ? '#78350F' : colorVar, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', lineHeight: 1.25}}>
+                                    <div style={{fontSize: 12.5, fontWeight: 700, color: isSobreturno ? 'var(--warning-text)' : colorVar, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', lineHeight: 1.25}}>
                                       <span style={{fontWeight: 800, marginRight: 4}}>{c.hora}</span>
                                       {c.nombre}
                                     </div>
-                                    <div style={{fontSize: 10, color: isSobreturno ? '#B45309' : colorVar, opacity: 0.8, marginTop: 2, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'}}>
+                                    <div style={{fontSize: 12, color: isSobreturno ? 'var(--warning-text)' : colorVar, opacity: 0.8, marginTop: 2, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'}}>
                                       <span>{c.tratamiento}</span>
                                       <span>•</span>
                                       <span>{c.duracion}m</span>
@@ -1523,7 +1523,7 @@ export default function Agenda() {
                                       <div style={{marginTop: 5, display: 'flex', gap: 4, width: '100%', position: 'relative', zIndex: 10}} onClick={e => e.stopPropagation()}>
                                         <button 
                                           onClick={(e) => { e.stopPropagation(); cambiarEstado(c.id, 'asistio') }}
-                                          style={{ flex: 1, border: 'none', background: '#E1F5EE', color: '#085041', borderRadius: 6, padding: '2px 4px', fontSize: 9.5, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'transform 0.1s' }}
+                                          style={{ flex: 1, border: 'none', background: 'var(--success-soft)', color: 'var(--success-text)', borderRadius: 6, padding: '2px 4px', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'transform 0.1s' }}
                                           onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.03)'}
                                           onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
                                         >
@@ -1531,7 +1531,7 @@ export default function Agenda() {
                                         </button>
                                         <button 
                                           onClick={(e) => { e.stopPropagation(); cambiarEstado(c.id, 'cancelado') }}
-                                          style={{ flex: 1, border: 'none', background: '#FAECE7', color: '#712B13', borderRadius: 6, padding: '2px 4px', fontSize: 9.5, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'transform 0.1s' }}
+                                          style={{ flex: 1, border: 'none', background: 'var(--danger-soft)', color: 'var(--danger-text)', borderRadius: 6, padding: '2px 4px', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'transform 0.1s' }}
                                           onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.03)'}
                                           onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
                                         >
@@ -1545,7 +1545,7 @@ export default function Agenda() {
                                     <div style={{
                                        fontSize: 13,
                                        fontWeight: 700,
-                                       color: isSobreturno ? '#78350F' : colorVar,
+                                       color: isSobreturno ? 'var(--warning-text)' : colorVar,
                                        display: 'flex',
                                        alignItems: 'flex-start',
                                        justifyContent: 'space-between',
@@ -1570,7 +1570,7 @@ export default function Agenda() {
                                          marginTop: 4
                                        }}/>
                                      </div>
-                                    <div style={{fontSize: 10.5, color: isSobreturno ? '#B45309' : colorVar, opacity: 0.85, marginTop: 3, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap'}}>
+                                    <div style={{fontSize: 12.5, color: isSobreturno ? 'var(--warning-text)' : colorVar, opacity: 0.85, marginTop: 3, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap'}}>
                                       <span style={{display: 'flex', alignItems: 'center', gap: 2}}>
                                         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M15 3v18M3 9h18M3 15h18"/></svg>
                                         {c.tratamiento}
@@ -1593,7 +1593,7 @@ export default function Agenda() {
                                         <div style={{display: 'flex', gap: 4, width: '100%', position: 'relative', zIndex: 10}} onClick={e => e.stopPropagation()}>
                                           <button 
                                             onClick={(e) => { e.stopPropagation(); cambiarEstado(c.id, 'asistio') }}
-                                            style={{ flex: 1, border: 'none', background: '#E1F5EE', color: '#085041', borderRadius: 6, padding: '3px 6px', fontSize: 10, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2, transition: 'transform 0.1s' }}
+                                            style={{ flex: 1, border: 'none', background: 'var(--success-soft)', color: 'var(--success-text)', borderRadius: 6, padding: '3px 6px', fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2, transition: 'transform 0.1s' }}
                                             onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.03)'}
                                             onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
                                           >
@@ -1601,7 +1601,7 @@ export default function Agenda() {
                                           </button>
                                           <button 
                                             onClick={(e) => { e.stopPropagation(); cambiarEstado(c.id, 'cancelado') }}
-                                            style={{ flex: 1, border: 'none', background: '#FAECE7', color: '#712B13', borderRadius: 6, padding: '3px 6px', fontSize: 10, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2, transition: 'transform 0.1s' }}
+                                            style={{ flex: 1, border: 'none', background: 'var(--danger-soft)', color: 'var(--danger-text)', borderRadius: 6, padding: '3px 6px', fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2, transition: 'transform 0.1s' }}
                                             onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.03)'}
                                             onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
                                           >
@@ -1619,7 +1619,7 @@ export default function Agenda() {
                                                 e.stopPropagation()
                                                 openCobroExpress(c)
                                               }}
-                                              style={{ border: 'none', background: '#138A6B', color: '#fff', borderRadius: 6, padding: '2px 6px', fontSize: 9.5, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 2, transition: 'transform 0.1s' }}
+                                              style={{ border: 'none', background: 'var(--success)', color: 'var(--success-contrast)', borderRadius: 6, padding: '2px 6px', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 2, transition: 'transform 0.1s' }}
                                               onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.03)'}
                                               onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
                                             >
@@ -1628,8 +1628,8 @@ export default function Agenda() {
                                           )}
                                           {(hCard > 68 || isHovered) && c.notas && (
                                             <div style={{
-                                              fontSize: 9,
-                                              color: isSobreturno ? '#B45309' : colorVar,
+                                              fontSize: 12,
+                                              color: isSobreturno ? 'var(--warning-text)' : colorVar,
                                               opacity: 0.75,
                                               fontStyle: 'italic',
                                               marginTop: 4,
@@ -1694,14 +1694,14 @@ export default function Agenda() {
 
             {sel?.telefono && (
               <div style={{ fontSize: 13, color: 'var(--text-muted-darker)', marginBottom: 15, display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-                <span>📞 <a href={`tel:${sel.telefono}`} style={{ color: '#185FA5', textDecoration: 'none', fontWeight: 600 }}>{sel.telefono}</a></span>
+                <span>📞 <a href={`tel:${sel.telefono}`} style={{ color: 'var(--accent)', textDecoration: 'none', fontWeight: 600 }}>{sel.telefono}</a></span>
                 <button
                   disabled={enviandoWA}
                   style={{
                     background: 'rgba(18, 140, 126, 0.08)',
                     border: '1px solid rgba(18, 140, 126, 0.15)',
                     borderRadius: 8,
-                    color: '#128C7E',
+                    color: 'var(--success-text)',
                     cursor: enviandoWA ? 'not-allowed' : 'pointer',
                     fontSize: 12,
                     fontWeight: 600,
@@ -1829,7 +1829,7 @@ export default function Agenda() {
               borderTop:'1px solid var(--border-color, #e2e8ed)'}}>
               <div style={{display:'flex', gap: 6}}>
                 <button
-                  style={{...btnLightCss, color: '#D85A30', borderColor: 'rgba(216,90,48,0.3)', padding: '0.55rem 0.85rem'}}
+                  style={{...btnLightCss, color: 'var(--danger-text)', borderColor: 'rgba(216,90,48,0.3)', padding: '0.55rem 0.85rem'}}
                   onClick={()=>{setModal(null);setTimeout(()=>{setSel(sel);setModal('borrar')},50)}}
                   disabled={saving}
                 >
@@ -1837,7 +1837,7 @@ export default function Agenda() {
                 </button>
                 {sel?.estado==='asistio'&&!sel?.precio_cobrado&&(
                   <button 
-                    style={{...btnDarkCss, background: '#138A6B', borderColor: '#138A6B', color: '#fff', padding: '0.55rem 0.85rem'}} 
+                    style={{...btnDarkCss, background: 'var(--success)', borderColor: 'var(--success)', color: 'var(--success-contrast)', padding: '0.55rem 0.85rem'}} 
                     onClick={()=>{setModal(null);setTimeout(()=>openCobroExpress(sel),50)}}
                     disabled={saving}
                   >
@@ -1859,7 +1859,7 @@ export default function Agenda() {
         <div style={overlayCss(isMobile)} onClick={()=>setModal(null)}>
           <div style={{...modalCss(isMobile),maxWidth:380}} onClick={e=>e.stopPropagation()}>
             <div style={modalTitleCss}>Eliminar cita</div>
-            <p style={{fontSize:14,color:'#666',marginBottom:'1.5rem'}}>Vas a eliminar la cita de <strong>{sel?.nombre}</strong> a las <strong>{sel?.hora}</strong>.</p>
+            <p style={{fontSize:14,color:'var(--text-muted)',marginBottom:'1.5rem'}}>Vas a eliminar la cita de <strong>{sel?.nombre}</strong> a las <strong>{sel?.hora}</strong>.</p>
             <div style={footerCss}>
               <button style={btnLightCss} onClick={()=>setModal(null)} disabled={saving}>Cancelar</button>
               <button style={{...btnRedCss,opacity:saving?.6:1}} onClick={saveBorrar} disabled={saving}>{saving?'Eliminando...':'Sí, eliminar'}</button>
@@ -1873,9 +1873,9 @@ export default function Agenda() {
         const safeX = Math.max(8, Math.min(menuPos.x, window.innerWidth  - MENU_W - 8))
         const safeY = Math.max(64, Math.min(menuPos.y, window.innerHeight - MENU_H - (isMobile ? 72 : 8)))
         return(
-        <div style={{position:'fixed',top:safeY,left:safeX,zIndex:1000,background:'#fff',borderRadius:10,boxShadow:'0 4px 20px rgba(0,0,0,0.15)',padding:'0.5rem',display:'flex',flexDirection:'column',gap:4,minWidth:180}} onClick={e=>e.stopPropagation()}>
-          <button style={{padding:'0.6rem 1rem',borderRadius:7,border:'none',background:'#f5f5f5',cursor:'pointer',textAlign:'left',fontSize:13,fontWeight:500}} onClick={()=>{setMenuPos(null);openNueva(menuPos.f,menuPos.h)}}>📅 Nueva cita</button>
-          <button style={{padding:'0.6rem 1rem',borderRadius:7,border:'none',background:'#f5f5f5',cursor:'pointer',textAlign:'left',fontSize:13,fontWeight:500}} onClick={()=>{setMenuPos(null);setFBloqFecha(menuPos.f);setFBloqDesde(menuPos.h);setFBloqHasta(menuPos.h>='12:00'?'20:00':'12:00');setFBloqMotivo('');setModal('bloqueo')}}>🚫 Bloquear horario</button>
+        <div style={{position:'fixed',top:safeY,left:safeX,zIndex:1000,background:'var(--bg-card)',borderRadius:10,boxShadow:'0 4px 20px rgba(0,0,0,0.15)',padding:'0.5rem',display:'flex',flexDirection:'column',gap:4,minWidth:180}} onClick={e=>e.stopPropagation()}>
+          <button style={{padding:'0.6rem 1rem',borderRadius:7,border:'none',background:'var(--bg-input)',cursor:'pointer',textAlign:'left',fontSize:13,fontWeight:500}} onClick={()=>{setMenuPos(null);openNueva(menuPos.f,menuPos.h)}}>📅 Nueva cita</button>
+          <button style={{padding:'0.6rem 1rem',borderRadius:7,border:'none',background:'var(--bg-input)',cursor:'pointer',textAlign:'left',fontSize:13,fontWeight:500}} onClick={()=>{setMenuPos(null);setFBloqFecha(menuPos.f);setFBloqDesde(menuPos.h);setFBloqHasta(menuPos.h>='12:00'?'20:00':'12:00');setFBloqMotivo('');setModal('bloqueo')}}>🚫 Bloquear horario</button>
         </div>
         )
       })()}
@@ -1950,9 +1950,9 @@ export default function Agenda() {
                       style={{
                         padding: '14px 16px',
                         borderRadius: 12,
-                        border: `1px solid ${tenant?.secondaryColor || '#185FA5'}40`,
-                        background: `linear-gradient(135deg, ${(tenant?.secondaryColor || '#185FA5')}08, ${(tenant?.secondaryColor || '#185FA5')}18)`,
-                        color: tenant?.secondaryColor || '#185FA5',
+                        border: `1px solid ${tenant?.secondaryColor || 'var(--accent)'}40`,
+                        background: `linear-gradient(135deg, ${(tenant?.secondaryColor || 'var(--accent)')}08, ${(tenant?.secondaryColor || 'var(--accent)')}18)`,
+                        color: tenant?.secondaryColor || 'var(--accent)',
                         fontWeight: 700,
                         fontSize: 13.5,
                         cursor: 'pointer',
@@ -1975,9 +1975,9 @@ export default function Agenda() {
                       style={{
                         padding: '14px 16px',
                         borderRadius: 12,
-                        border: `1px solid ${tenant?.secondaryColor || '#185FA5'}40`,
-                        background: `linear-gradient(135deg, ${(tenant?.secondaryColor || '#185FA5')}08, ${(tenant?.secondaryColor || '#185FA5')}18)`,
-                        color: tenant?.secondaryColor || '#185FA5',
+                        border: `1px solid ${tenant?.secondaryColor || 'var(--accent)'}40`,
+                        background: `linear-gradient(135deg, ${(tenant?.secondaryColor || 'var(--accent)')}08, ${(tenant?.secondaryColor || 'var(--accent)')}18)`,
+                        color: tenant?.secondaryColor || 'var(--accent)',
                         fontWeight: 700,
                         fontSize: 13.5,
                         cursor: 'pointer',
@@ -2014,12 +2014,12 @@ export default function Agenda() {
       {/* MODAL: WhatsApp Confirmation */}
       {whatsappCita && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(10,30,61,0.5)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 4000, padding: 16 }}>
-          <div className="slide-up" style={{ background: '#fff', borderRadius: 20, width: '100%', maxWidth: 360, overflow: 'hidden', boxShadow: '0 20px 40px rgba(10,30,61,0.15)', padding: '2rem 1.5rem', textAlign: 'center' }}>
-            <div style={{ width: 60, height: 60, borderRadius: '50%', background: '#E1F5EE', margin: '0 auto 16px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#1D9E75" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+          <div className="slide-up" style={{ background: 'var(--bg-card)', borderRadius: 20, width: '100%', maxWidth: 360, overflow: 'hidden', boxShadow: '0 20px 40px rgba(10,30,61,0.15)', padding: '2rem 1.5rem', textAlign: 'center' }}>
+            <div style={{ width: 60, height: 60, borderRadius: '50%', background: 'var(--success-soft)', margin: '0 auto 16px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" style={{ color: 'var(--success-text)' }} strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
             </div>
-            <h3 style={{ margin: '0 0 8px 0', fontSize: 18, color: '#0a1e3d' }}>¡Turno agendado!</h3>
-            <p style={{ margin: '0 0 20px 0', fontSize: 14, color: '#4a6080', lineHeight: 1.5 }}>
+            <h3 style={{ margin: '0 0 8px 0', fontSize: 18, color: 'var(--text-dark)' }}>¡Turno agendado!</h3>
+            <p style={{ margin: '0 0 20px 0', fontSize: 14, color: 'var(--text-muted-darker)', lineHeight: 1.5 }}>
               ¿Querés enviarle un mensaje por WhatsApp al paciente para que lo sume a su calendario?
             </p>
             
@@ -2029,7 +2029,7 @@ export default function Agenda() {
               rel="noopener noreferrer"
               style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%',
-                padding: '0.8rem 1rem', borderRadius: 12, border: 'none', background: '#25D366', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'DM Sans, sans-serif', boxShadow: '0 4px 12px rgba(37,211,102,0.25)', textDecoration: 'none', marginBottom: 12
+                padding: '0.8rem 1rem', borderRadius: 12, border: 'none', background: 'var(--success)', color: 'var(--success-contrast)', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'DM Sans, sans-serif', boxShadow: '0 4px 12px rgba(37,211,102,0.25)', textDecoration: 'none', marginBottom: 12
               }}
               onClick={() => setWhatsappCita(null)}
             >
@@ -2038,7 +2038,7 @@ export default function Agenda() {
             </a>
             <button 
               onClick={() => setWhatsappCita(null)}
-              style={{ width: '100%', padding: '0.8rem 1rem', borderRadius: 12, border: 'none', background: '#f4f7fb', color: '#687e96', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
+              style={{ width: '100%', padding: '0.8rem 1rem', borderRadius: 12, border: 'none', background: 'var(--bg-app)', color: 'var(--text-muted)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
             >
               Cerrar
             </button>
