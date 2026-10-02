@@ -18,6 +18,7 @@ import { FIDELIZACION_HABILITADA } from '@/lib/fidelizacion-flag'
 import { citasPendientesDeAprobar } from '@/lib/citas-para-aprobar'
 import { textoPagoPrevio } from '@/lib/cobro-previo'
 import { cobrarTurno, mensajeCobro } from '@/lib/cobro-turno'
+import { Icon } from '@/components/ui'
 
 interface Paciente {
   id: string
@@ -211,6 +212,10 @@ export default function PacienteDetalle() {
 
   // Appointment check-in approval state
   const [citaAprobarId, setCitaAprobarId] = useState('')
+  // Resultado del último cobro, visible dentro de la sección. El toast dura
+  // 3,5 s abajo de la pantalla y se pierde: con dinero, el resultado tiene
+  // que quedar donde el usuario está mirando.
+  const [resultadoCobro, setResultadoCobro] = useState<{ texto: string; tono: 'exito' | 'error' } | null>(null)
   const [montoCobrado, setMontoCobrado] = useState<number | ''>('')
   const [isMontoEditable, setIsMontoEditable] = useState(false)
   const [aprobForma, setAprobForma] = useState<string>(FORMAS_PAGO[0])
@@ -424,7 +429,9 @@ export default function PacienteDetalle() {
         // La ficha mostraba el turno como sin cobro, pero ya tiene. Se
         // recarga (el monto queda bloqueado) en vez de cobrar de nuevo.
         loadData()
-        showMsg(`${textoPagoPrevio(r.cobradoPrevio)} La ficha se actualizó; revisá el turno antes de cobrar.`, 'error')
+        const aviso = `${textoPagoPrevio(r.cobradoPrevio)} La ficha se actualizó; revisá el turno antes de cobrar.`
+        setResultadoCobro({ texto: aviso, tono: 'error' })
+        showMsg(aviso, 'error')
         return
       }
       const m = mensajeCobro(r, FIDELIZACION_HABILITADA)!
@@ -432,6 +439,7 @@ export default function PacienteDetalle() {
         setCitaAprobarId('')
         loadData()
       }
+      setResultadoCobro({ texto: m.texto, tono: m.tono })
       showMsg(m.texto, m.tono === 'exito' ? undefined : 'error')
     } finally {
       setProcesandoPuntos(false)
@@ -1247,6 +1255,20 @@ export default function PacienteDetalle() {
                       Confirmá la asistencia del paciente y registrá el cobro de la cita.
                     </p>
 
+                    {resultadoCobro && (
+                      <div role="status" aria-live="polite" style={{
+                        display: 'flex', alignItems: 'flex-start', gap: 'var(--space-2)',
+                        margin: 'var(--space-2) 0 var(--space-3)', padding: 'var(--space-3)', borderRadius: 'var(--radius-sm)',
+                        fontSize: 'var(--fs-sm)', lineHeight: 1.45, fontWeight: 500,
+                        background: resultadoCobro.tono === 'exito' ? 'var(--success-soft)' : 'var(--danger-soft)',
+                        border: `1px solid ${resultadoCobro.tono === 'exito' ? 'var(--success-border)' : 'var(--danger-border)'}`,
+                        color: resultadoCobro.tono === 'exito' ? 'var(--success-text)' : 'var(--danger-text)',
+                      }}>
+                        <Icon name={resultadoCobro.tono === 'exito' ? 'check' : 'alert'} size={16} style={{ marginTop: 1 }} />
+                        <span>{resultadoCobro.texto}</span>
+                      </div>
+                    )}
+
                     {citasParaAprobar.length === 0 ? (
                       <div style={{ padding: '1.5rem', background: 'var(--bg-input, #f0f4f8)', borderRadius: 12, fontSize: 13, color: 'var(--text-muted)', textAlign: 'center' }}>
                         🎉 No hay consultas pendientes de aprobación.
@@ -1258,7 +1280,7 @@ export default function PacienteDetalle() {
                           <select 
                             style={selectCss} 
                             value={citaAprobarId} 
-                            onChange={e => setCitaAprobarId(e.target.value)}
+                            onChange={e => { setCitaAprobarId(e.target.value); setResultadoCobro(null) }}
                           >
                             {citasParaAprobar.map(c => {
                               const dateObj = new Date(c.fecha_hora)
@@ -1278,7 +1300,7 @@ export default function PacienteDetalle() {
                             type="number"
                             style={inputCss}
                             value={montoCobrado}
-                            onChange={e => setMontoCobrado(e.target.value === '' ? '' : Number(e.target.value))}
+                            onChange={e => { setMontoCobrado(e.target.value === '' ? '' : Number(e.target.value)); setResultadoCobro(null) }}
                             disabled={!isMontoEditable}
                             placeholder="Monto cobrado en la cita"
                           />
