@@ -41,14 +41,43 @@ export async function POST(req: NextRequest) {
   }
 
   // Resolver branding del tenant
-  const tid = tenantId || process.env.NEXT_PUBLIC_DEFAULT_TENANT_ID || ''
-  let registry: { nombre: string; direccion: string; telefono: string; logourl?: string | null; custom_domain?: string | null } = {
+  let resolvedTenantId = tenantId
+  if (!resolvedTenantId) {
+    const { data: userTenant } = await supabaseAdmin
+      .from('tenant_users')
+      .select('tenant_id')
+      .eq('user_id', user.id)
+      .limit(1)
+      .maybeSingle()
+    if (userTenant?.tenant_id) {
+      resolvedTenantId = userTenant.tenant_id
+    }
+  }
+
+  const tid = resolvedTenantId || process.env.NEXT_PUBLIC_DEFAULT_TENANT_ID || ''
+  let registry: {
+    nombre: string
+    direccion: string
+    telefono: string
+    logourl?: string | null
+    custom_domain?: string | null
+    primarycolor?: string | null
+    secondarycolor?: string | null
+    accentcolor?: string | null
+  } = {
     nombre: APP_NAME,
     direccion: '',
     telefono: '',
+    primarycolor: '#0F4C5C',
+    secondarycolor: '#185FA5',
+    accentcolor: '#138A6B',
   }
   if (tid) {
-    const { data: dbTenant } = await supabaseAdmin.from('tenants').select('nombre, direccion, telefono, logourl, custom_domain').eq('id', tid).single()
+    const { data: dbTenant } = await supabaseAdmin
+      .from('tenants')
+      .select('nombre, direccion, telefono, logourl, custom_domain, primarycolor, secondarycolor, accentcolor')
+      .eq('id', tid)
+      .single()
     if (dbTenant) {
       registry = { ...registry, ...dbTenant }
     }
@@ -84,6 +113,9 @@ export async function POST(req: NextRequest) {
     clinicaDireccion: registry.direccion,
     clinicaTelefono: registry.telefono,
     clinicaLogoUrl: registry.logourl || undefined,
+    primaryColor: registry.primarycolor || '#0F4C5C',
+    secondaryColor: registry.secondarycolor || '#185FA5',
+    accentColor: registry.accentcolor || '#138A6B',
     googleCalendarUrl: googleLink,
     icsCalendarUrl: icsLink,
     outlookCalendarUrl: outlookLink,

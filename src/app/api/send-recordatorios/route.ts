@@ -230,7 +230,11 @@ export async function POST(req: NextRequest) {
           tratamiento: cita.tipo_tratamiento,
           clinicaNombre: branding.nombre,
           clinicaDireccion: branding.direccion || undefined,
+          clinicaTelefono: branding.telefono || undefined,
           clinicaLogoUrl: branding.logoUrl,
+          primaryColor: branding.primaryColor || '#0F4C5C',
+          secondaryColor: branding.secondaryColor || '#185FA5',
+          accentColor: branding.accentColor || '#138A6B',
           enlaceTurno: enlaceTurno || undefined,
         })
 

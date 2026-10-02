@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { generarEmailConfirmacionHtml, generarEmailRecordatorioHtml } from './email-templates'
 
 describe('generarEmailConfirmacionHtml', () => {
-  it('genera el HTML con saludo en cabecera verde, callout de detalles y enlaces', () => {
+  it('genera el HTML con diseño ticket premium, colores del consultorio, checklist y footer oscuro', () => {
     const html = generarEmailConfirmacionHtml({
       nombrePaciente: 'Gabriel Zambrano',
       fecha: '24 de Octubre de 2026',
@@ -12,6 +12,7 @@ describe('generarEmailConfirmacionHtml', () => {
       clinicaNombre: 'Consultorio Dental Benegas',
       clinicaDireccion: 'Av. Corrientes 1234, CABA',
       clinicaTelefono: '11-4567-8900',
+      primaryColor: '#0F4C5C',
       googleCalendarUrl: 'https://calendar.google.com/test',
       icsCalendarUrl: 'https://clinica.test/api/ics?test',
       portalUrl: 'https://clinica.test/paciente/tok123',
@@ -19,16 +20,36 @@ describe('generarEmailConfirmacionHtml', () => {
     })
 
     expect(html).toContain('¡Hola, Gabriel! 👋')
-    expect(html).toContain('Consultorio Dental Benegas · Consultorio Odontológico')
-    expect(html).toContain('Tu turno está confirmado 🦷')
+    expect(html).toContain('Consultorio Dental Benegas')
+    expect(html).toContain('TURNO CONFIRMADO')
     expect(html).toContain('Limpieza Dental')
-    expect(html).toContain('14:30 hs')
+    expect(html).toContain('14:30')
     expect(html).toContain('24 de Octubre de 2026')
     expect(html).toContain('Av. Corrientes 1234, CABA')
+    expect(html).toContain('Cómo llegar →')
     expect(html).toContain('Ver mi turno en el portal →')
     expect(html).toContain('https://clinica.test/paciente/tok123')
     expect(html).toContain('Traer cepillo habitual')
-    expect(html).toContain('#455A47') // Color verde bosque de cabecera y botón
+    expect(html).toContain('ANTES DE TU VISITA')
+    expect(html).toContain('#0F172A') // Footer oscuro
+    expect(html).toContain('#0F4C5C') // Color primario de la clínica
+  })
+
+  it('soporta fecha ISO y formatea día de la semana', () => {
+    const html = generarEmailConfirmacionHtml({
+      nombrePaciente: 'Gabriel',
+      fecha: '2026-10-02',
+      hora: '12:40',
+      tratamiento: 'Ajuste de ortodoncia',
+      clinicaNombre: 'Dr. Walter Benegas',
+      clinicaDireccion: 'Av. Santa Fe 3329 1 B',
+    })
+
+    expect(html).toContain('Viernes')
+    expect(html).toContain('2 de octubre de 2026')
+    expect(html).toContain('[12:40]')
+    expect(html).toContain('Ajuste de ortodoncia')
+    expect(html).toContain('Av. Santa Fe 3329 1 B')
   })
 
   it('escapa caracteres especiales para prevenir inyección HTML', () => {
@@ -48,22 +69,24 @@ describe('generarEmailConfirmacionHtml', () => {
 })
 
 describe('generarEmailRecordatorioHtml', () => {
-  it('genera el recordatorio con estilo idéntico y CTA al turno', () => {
+  it('genera el recordatorio con estilo ticket y color de la clínica', () => {
     const html = generarEmailRecordatorioHtml({
       nombrePaciente: 'Ana García',
       fechaHoraTexto: 'Mañana a las 11:00 hs',
       tratamiento: 'Blanqueamiento',
       clinicaNombre: 'Dental Studio',
       clinicaDireccion: 'Calle 50 #120',
+      primaryColor: '#0F4C5C',
       enlaceTurno: 'https://clinica.test/t/ABC123XYZ',
     })
 
     expect(html).toContain('¡Hola, Ana! 👋')
-    expect(html).toContain('Recordatorio de tu turno 🗓️')
+    expect(html).toContain('RECORDATORIO DE TURNO')
     expect(html).toContain('Mañana a las 11:00 hs')
     expect(html).toContain('Blanqueamiento')
     expect(html).toContain('Confirmar asistencia y ver turno →')
     expect(html).toContain('https://clinica.test/t/ABC123XYZ')
-    expect(html).toContain('#455A47')
+    expect(html).toContain('#0F4C5C')
+    expect(html).toContain('#0F172A') // Footer oscuro
   })
 })
