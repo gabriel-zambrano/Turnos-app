@@ -2,14 +2,14 @@ import { describe, it, expect } from 'vitest'
 import { generarEmailConfirmacionHtml, generarEmailRecordatorioHtml } from './email-templates'
 
 describe('generarEmailConfirmacionHtml', () => {
-  it('genera el HTML con los datos principales, pre-flight checklist y enlaces', () => {
+  it('genera el HTML con saludo en cabecera verde, callout de detalles y enlaces', () => {
     const html = generarEmailConfirmacionHtml({
-      nombrePaciente: 'Juan Pérez',
+      nombrePaciente: 'Gabriel Zambrano',
       fecha: '24 de Octubre de 2026',
       hora: '14:30',
       tratamiento: 'Limpieza Dental',
       duracionMinutos: 45,
-      clinicaNombre: 'Clínica Odontológica Central',
+      clinicaNombre: 'Consultorio Dental Benegas',
       clinicaDireccion: 'Av. Corrientes 1234, CABA',
       clinicaTelefono: '11-4567-8900',
       googleCalendarUrl: 'https://calendar.google.com/test',
@@ -18,16 +18,17 @@ describe('generarEmailConfirmacionHtml', () => {
       notas: 'Traer cepillo habitual',
     })
 
-    expect(html).toContain('Todo listo, Juan. Tu turno está confirmado.')
-    expect(html).toContain('Clínica Odontológica Central')
+    expect(html).toContain('¡Hola, Gabriel! 👋')
+    expect(html).toContain('Consultorio Dental Benegas · Consultorio Odontológico')
+    expect(html).toContain('Tu turno está confirmado 🦷')
     expect(html).toContain('Limpieza Dental')
     expect(html).toContain('14:30 hs')
     expect(html).toContain('24 de Octubre de 2026')
     expect(html).toContain('Av. Corrientes 1234, CABA')
-    expect(html).toContain('Pre-Flight Checklist para tu visita')
-    expect(html).toContain('https://calendar.google.com/test')
+    expect(html).toContain('Ver mi turno en el portal →')
     expect(html).toContain('https://clinica.test/paciente/tok123')
     expect(html).toContain('Traer cepillo habitual')
+    expect(html).toContain('#455A47') // Color verde bosque de cabecera y botón
   })
 
   it('escapa caracteres especiales para prevenir inyección HTML', () => {
@@ -47,7 +48,7 @@ describe('generarEmailConfirmacionHtml', () => {
 })
 
 describe('generarEmailRecordatorioHtml', () => {
-  it('genera el recordatorio con CTA al turno', () => {
+  it('genera el recordatorio con estilo idéntico y CTA al turno', () => {
     const html = generarEmailRecordatorioHtml({
       nombrePaciente: 'Ana García',
       fechaHoraTexto: 'Mañana a las 11:00 hs',
@@ -57,10 +58,12 @@ describe('generarEmailRecordatorioHtml', () => {
       enlaceTurno: 'https://clinica.test/t/ABC123XYZ',
     })
 
-    expect(html).toContain('Recordatorio de tu turno')
-    expect(html).toContain('Hola <strong>Ana</strong>')
+    expect(html).toContain('¡Hola, Ana! 👋')
+    expect(html).toContain('Recordatorio de tu turno 🗓️')
     expect(html).toContain('Mañana a las 11:00 hs')
     expect(html).toContain('Blanqueamiento')
+    expect(html).toContain('Confirmar asistencia y ver turno →')
     expect(html).toContain('https://clinica.test/t/ABC123XYZ')
+    expect(html).toContain('#455A47')
   })
 })
