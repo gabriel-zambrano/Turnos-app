@@ -8,7 +8,6 @@ import { urlPublicaDeClinica } from '@/lib/config'
 import { useTenantContext } from '@/components/TenantContext'
 import type { EstadoCita } from '@/types'
 import dynamic from 'next/dynamic'
-import { triggerConfetti } from '@/lib/confetti'
 import { FORMAS_PAGO, FORMAS_PAGO_FACTURABLES_DEFAULT, sugerirRequiereFactura } from '@/lib/pagos'
 import { formasFacturablesDe } from '@/lib/registrar-pago'
 import { registrarInasistenciaAction, aprobarAsistenciaAction } from '@/app/actions/fidelizacion'
@@ -202,7 +201,6 @@ export default function Dashboard() {
       load()
     }
     msg(m.texto, m.tono === 'exito' ? 'ok' : 'error')
-    if (r.tipo === 'cobrado') triggerConfetti()
   }
 
   useEffect(()=>{
@@ -834,7 +832,6 @@ export default function Dashboard() {
                                   } else {
                                     setCitas(p => p.map(x => x.id === c.id ? { ...x, estado: 'asistio' as EstadoCita } : x))
                                     msg('Cita marcada como Asistió ✓')
-                                    triggerConfetti()
                                   }
                                 }
                               }}
@@ -941,7 +938,6 @@ export default function Dashboard() {
                                         } else {
                                           setCitas(p => p.map(x => x.id === c.id ? { ...x, estado: 'asistio' as EstadoCita } : x));
                                           msg('Cita marcada como Asistió ✓');
-                                          triggerConfetti();
                                         }
                                       }}
                                       className="dashboard-dropdown-item"

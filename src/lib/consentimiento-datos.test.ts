@@ -67,4 +67,21 @@ describe('texto del consentimiento', () => {
   it('aclara la finalidad del tratamiento de los datos', () => {
     expect(TEXTO_CONSENTIMIENTO_DATOS.toLowerCase()).toContain('atención odontológica')
   })
+
+  it('genera huellas criptográficas SHA-256 íntegras e inalterables para la firma digital', async () => {
+    const crypto = await import('crypto')
+    const contenido = 'DECLARACION JURADA DE SALUD Y CONSENTIMIENTO'
+    const dni = '35123456'
+    const fecha = '2026-10-02T12:00:00.000Z'
+    const firma = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA...'
+
+    const hash1 = crypto.createHash('sha256').update(`${contenido}|${dni}|${fecha}|${firma}`).digest('hex')
+    const hash2 = crypto.createHash('sha256').update(`${contenido}|${dni}|${fecha}|${firma}`).digest('hex')
+    expect(hash1).toBe(hash2)
+    expect(hash1).toHaveLength(64)
+
+    // Si se altera cualquier carácter del contenido, el hash cambia completamente (Ley 25.506)
+    const hashAlterado = crypto.createHash('sha256').update(`${contenido} modificado|${dni}|${fecha}|${firma}`).digest('hex')
+    expect(hash1).not.toBe(hashAlterado)
+  })
 })

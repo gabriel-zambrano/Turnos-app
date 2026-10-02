@@ -6,7 +6,7 @@ import { cobradoSinFacturar } from '@/lib/cobrado-sin-facturar'
 import { Toast, Spinner, PageHeader, useBloqueoScroll } from '@/components/UI'
 import { createClient } from '@/lib/supabase/client'
 import { useTenantContext } from '@/components/TenantContext'
-import { triggerConfetti } from '@/lib/confetti'
+import { SuccessModal } from '@/components/SuccessModal'
 import { desglosarFacturable, FORMAS_PAGO, FORMAS_PAGO_FACTURABLES_DEFAULT, sugerirRequiereFactura } from '@/lib/pagos'
 import { registrarPago, formasFacturablesDe } from '@/lib/registrar-pago'
 
@@ -131,7 +131,8 @@ export default function FinanzasPage() {
   
   const [editandoPrecio, setEditandoPrecio] = useState<string | null>(null)
   const [precioEdit, setPrecioEdit]       = useState<number | ''>('')
-  const [hasTriggeredConfetti, setHasTriggeredConfetti] = useState(false)
+  const [hasCelebratedMeta, setHasCelebratedMeta]       = useState(false)
+  const [showMetaModal, setShowMetaModal]               = useState(false)
 
   // La protección de sesión la hace el middleware (src/middleware.ts) server-side
   // antes de montar esta página; no hace falta re-verificar acá (era un viaje de red extra).
@@ -259,14 +260,14 @@ export default function FinanzasPage() {
  
   useEffect(() => {
     if (metaIngresos > 0 && totalMes >= metaIngresos) {
-      if (!hasTriggeredConfetti) {
-        triggerConfetti()
-        setHasTriggeredConfetti(true)
+      if (!hasCelebratedMeta) {
+        setShowMetaModal(true)
+        setHasCelebratedMeta(true)
       }
     } else {
-      setHasTriggeredConfetti(false)
+      setHasCelebratedMeta(false)
     }
-  }, [totalMes, metaIngresos, hasTriggeredConfetti])
+  }, [totalMes, metaIngresos, hasCelebratedMeta])
 
   /**
    * Qué parte del cobro de una cita entra en el criterio de medios
@@ -1519,6 +1520,19 @@ export default function FinanzasPage() {
               </button>
             </div>
         </Modal>
+      )}
+
+      {showMetaModal && (
+        <SuccessModal
+          open={showMetaModal}
+          onClose={() => setShowMetaModal(false)}
+          badge="HITO FINANCIERO ALCANZADO"
+          title="¡Objetivo mensual cumplido!"
+          description={`Felicitaciones, has alcanzado tu meta de facturación proyectada para este mes (${fmt(totalMes)} de ${fmt(metaIngresos)}).`}
+          detail="El rendimiento de la clínica superó el punto de equilibrio y los costos operativos."
+          detailIcon=""
+          primaryButtonText="Ver Métricas"
+        />
       )}
 
       {toast && <Toast msg={toast.msg} tipo={toast.tipo} isMobile={isMobile} />}

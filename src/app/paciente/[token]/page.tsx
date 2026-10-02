@@ -1,9 +1,11 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
-import { triggerConfetti } from '@/lib/confetti'
+import { SuccessModal } from '@/components/SuccessModal'
 import { ProgressRing } from '@/components/ProgressRing'
 import { FIDELIZACION_HABILITADA } from '@/lib/fidelizacion-flag'
+import { SignaturePad } from '@/components/SignaturePad'
+import { TEXTO_CONSENTIMIENTO_DATOS } from '@/lib/consentimiento-datos'
 
 interface Turno {
   id: string
@@ -18,8 +20,11 @@ interface Paciente {
   id: string
   nombre: string
   telefono: string
+  dni_cuit?: string | null
   alergias?: string | null
   antecedentes?: string | null
+  consentimiento_datos_en?: string | null
+  consentimiento_datos_ver?: string | null
   progreso_plan_porcentaje?: number
   puntos?: number
   recomendaciones?: string | null
@@ -112,6 +117,149 @@ export default function PacientePage() {
   const [satisfaccion, setSatisfaccion] = useState<number>(5)
   const [comentario, setComentario] = useState<string>('')
   const [sendingFeedback, setSendingFeedback] = useState(false)
+  const [tabActiva, setTabActiva] = useState<'turnos' | 'tratamiento'>('turnos')
+
+  // Estado para Anamnesis y Consentimiento Digital (Leyes 25.326 y 26.529)
+  const [consentimientoFirmado, setConsentimientoFirmado] = useState<{ id: string; titulo: string; firmado_en: string; hash_sha256?: string } | null>(null)
+  const [showAnamnesisModal, setShowAnamnesisModal] = useState(false)
+  const [anamnesisStep, setAnamnesisStep] = useState<1 | 2 | 3 | 4>(1)
+  const [alergiasSeleccionadas, setAlergiasSeleccionadas] = useState<string[]>([])
+  const [otraAlergia, setOtraAlergia] = useState('')
+  const [condicionesSeleccionadas, setCondicionesSeleccionadas] = useState<string[]>([])
+  const [otraCondicion, setOtraCondicion] = useState('')
+  const [medicacionHabitual, setMedicacionHabitual] = useState('')
+  const [contactoEmergencia, setContactoEmergencia] = useState('')
+  const [dniPaciente, setDniPaciente] = useState('')
+  const [aceptaConsentimiento, setAceptaConsentimiento] = useState(false)
+  const [verTextoLegalCompleto, setVerTextoLegalCompleto] = useState(false)
+  const [firmaDigital, setFirmaDigital] = useState<string | null>(null)
+  const [enviandoAnamnesis, setEnviandoAnamnesis] = useState(false)
+  const [anamnesisError, setAnamnesisError] = useState('')
+  const [successModal, setSuccessModal] = useState<{
+    open: boolean
+    badge?: string
+    title: string
+    description: string
+    detail?: string
+    detailIcon?: string
+  } | null>(null)
+
+  function toggleAlergia(alergia: string) {
+    if (alergia === 'Ninguna alergia conocida') {
+      setAlergiasSeleccionadas(['Ninguna alergia conocida'])
+      setOtraAlergia('')
+      return
+    }
+    setAlergiasSeleccionadas(prev => {
+      const sinNinguna = prev.filter(x => x !== 'Ninguna alergia conocida')
+      if (sinNinguna.includes(alergia)) {
+        return sinNinguna.filter(x => x !== alergia)
+      } else {
+        return [...sinNinguna, alergia]
+      }
+    })
+  }
+
+  function toggleCondicion(cond: string) {
+    if (cond === 'Ninguna condición previa') {
+      setCondicionesSeleccionadas(['Ninguna condición previa'])
+      setOtraCondicion('')
+      return
+    }
+    setCondicionesSeleccionadas(prev => {
+      const sinNinguna = prev.filter(x => x !== 'Ninguna condición previa')
+      if (sinNinguna.includes(cond)) {
+        return sinNinguna.filter(x => x !== cond)
+      } else {
+        return [...sinNinguna, cond]
+      }
+    })
+  }
+
+  function abrirModalAnamnesis() {
+    setAnamnesisError('')
+    setAnamnesisStep(1)
+    if (paciente?.dni_cuit) setDniPaciente(paciente.dni_cuit)
+    if (paciente?.alergias && paciente.alergias !== 'Ninguna') {
+      setOtraAlergia(paciente.alergias)
+    }
+    if (paciente?.antecedentes && paciente.antecedentes !== 'Ninguno') {
+      setOtraCondicion(paciente.antecedentes)
+    }
+    setShowAnamnesisModal(true)
+  }
+
+  async function enviarAnamnesis() {
+    if (!dniPaciente.trim()) {
+      setAnamnesisError('Ingresá tu DNI o número de documento.')
+      setAnamnesisStep(3)
+      return
+    }
+    if (!aceptaConsentimiento) {
+      setAnamnesisError('Debés marcar el casillero de consentimiento legal para continuar.')
+      setAnamnesisStep(3)
+      return
+    }
+    if (!firmaDigital) {
+      setAnamnesisError('Por favor firmá en el recuadro para validar tu declaración.')
+      setAnamnesisStep(4)
+      return
+    }
+
+    setEnviandoAnamnesis(true)
+    setAnamnesisError('')
+    try {
+      const alergiasList = alergiasSeleccionadas.filter(x => x !== 'Ninguna alergia conocida')
+      if (otraAlergia.trim()) alergiasList.push(otraAlergia.trim())
+      const alergiasTexto = alergiasList.length > 0 ? alergiasList.join(', ') : 'Ninguna'
+
+      const condList = condicionesSeleccionadas.filter(x => x !== 'Ninguna condición previa')
+      if (otraCondicion.trim()) condList.push(otraCondicion.trim())
+      const condTexto = condList.length > 0 ? condList.join(', ') : 'Ninguna'
+
+      const res = await fetch(`/api/paciente/${token}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          dni: dniPaciente.trim(),
+          alergias: alergiasTexto,
+          antecedentes: condTexto,
+          medicacionHabitual: medicacionHabitual.trim(),
+          contactoEmergencia: contactoEmergencia.trim(),
+          aceptaConsentimiento: true,
+          firmaPng: firmaDigital,
+        })
+      })
+
+      const d = await res.json()
+      if (!res.ok) throw new Error(d.error || 'Error al guardar la declaración.')
+
+      setShowAnamnesisModal(false)
+      setSuccessModal({
+        open: true,
+        badge: 'FICHA Y CONSENTIMIENTO AL DÍA',
+        title: '¡Declaración jurada guardada con éxito!',
+        description: 'Tus antecedentes de salud y el consentimiento para tu atención médica quedaron registrados y protegidos con tu firma digital.',
+        detail: 'Documento sellado digitalmente conforme a las Leyes 25.326 y 26.529 con huella de integridad SHA-256 e IP de auditoría.',
+        detailIcon: '🔒',
+      })
+      setPaciente(prev => prev ? {
+        ...prev,
+        dni_cuit: d.paciente.dni_cuit,
+        alergias: d.paciente.alergias,
+        antecedentes: d.paciente.antecedentes,
+        consentimiento_datos_en: d.paciente.consentimiento_datos_en,
+        consentimiento_datos_ver: d.paciente.consentimiento_datos_ver,
+      } : null)
+      if (d.consentimiento) {
+        setConsentimientoFirmado(d.consentimiento)
+      }
+    } catch (err: any) {
+      setAnamnesisError(err.message || 'Error al guardar.')
+    } finally {
+      setEnviandoAnamnesis(false)
+    }
+  }
 
   async function cambiarEstado(citaId: string, nuevoEstado: 'confirmado' | 'cancelado') {
     setAccion({ id: citaId, tipo: nuevoEstado })
@@ -130,6 +278,10 @@ export default function PacientePage() {
       if (!res.ok) { setError(true); setLoading(false); return }
       const data = await res.json()
       setPaciente(data.paciente)
+      if (data.paciente?.dni_cuit) {
+        setDniPaciente(data.paciente.dni_cuit)
+      }
+      setConsentimientoFirmado(data.consentimientoFirmado || null)
       setTurnos(data.turnos)
       setPastTurnos(data.pastTurnos || [])
       setFotos(data.fotos || [])
@@ -160,7 +312,14 @@ export default function PacientePage() {
       if (res.ok) {
         setFeedbackPendiente(null)
         setShowFeedbackModal(false)
-        triggerConfetti()
+        setSuccessModal({
+          open: true,
+          badge: 'CONTROL POST-VISITA',
+          title: '¡Muchas gracias por tus respuestas!',
+          description: 'Tu valoración y estado fueron informados a tu odontólogo para acompañar tu recuperación tras la consulta.',
+          detail: 'Agradecemos tu tiempo. Tus comentarios nos ayudan a seguir brindando una atención médica de excelencia.',
+          detailIcon: '✨',
+        })
       } else {
         const d = await res.json()
         alert('Error: ' + d.error)
@@ -235,6 +394,7 @@ export default function PacientePage() {
                        pastTurnos.some(t => t.tipo_tratamiento.toLowerCase().includes('ortodoncia')) || 
                        turnos.some(t => t.tipo_tratamiento.toLowerCase().includes('ortodoncia'))
   const isPrimeraVez = pastTurnos.length === 0
+  const hasTratamientoOVisitas = isOrtodoncia || pastTurnos.length > 0 || fotos.length > 0 || !!paciente?.recomendaciones || !!paciente?.consentimiento_datos_en || !!paciente?.alergias
 
   const getMesesTranscurridos = () => {
     if (pastTurnos.length === 0) return 1
@@ -336,568 +496,1018 @@ export default function PacientePage() {
               </div>
             )}
 
-            {/* Próximo turno */}
-            {/* Próximo turno */}
-            {turnos.length > 0 ? (
-              <div style={{ marginBottom: 28 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                  <h3 style={{ fontSize:14, fontWeight:800, color:'var(--portal-text-primary)', textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>
-                    Próximo turno
-                  </h3>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--portal-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                    Pase digital
-                  </span>
-                </div>
-                <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
-                  {turnos.map(t => {
-                    const { dia, fecha, hora } = formatFecha(t.fecha_hora)
-                    const countdown = formatCountdown(t.fecha_hora)
-                    return (
-                      <div key={t.id} className="patient-card" style={{ borderRadius:22, padding:'1.5rem', background: 'var(--portal-card-bg)', border: '1px solid var(--portal-card-border)' }}>
-                        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14 }}>
-                          <div>
-                            {countdown ? (
-                              <span style={{ fontSize: 11.5, fontWeight: 700, background: `${secondaryColor}12`, color: secondaryColor, padding: '3px 9px', borderRadius: 12 }}>
-                                ⏱️ {countdown}
-                              </span>
-                            ) : null}
-                          </div>
-                          <div>
-                            {t.estado === 'confirmado' ? (
-                              <span style={{ fontSize: 11.5, fontWeight: 700, background: '#E0F2F1', color: '#0F5145', padding: '3px 9px', borderRadius: 12 }}>
-                                ✓ Confirmado
-                              </span>
-                            ) : (
-                              <span style={{ fontSize: 11.5, fontWeight: 700, background: '#FFF3CD', color: '#856404', padding: '3px 9px', borderRadius: 12 }}>
-                                Pendiente
-                              </span>
-                            )}
-                          </div>
-                        </div>
-
-                        <div style={{ marginBottom: 14 }}>
-                          <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--portal-text-secondary)', textTransform: 'capitalize' }}>
-                            {dia} {fecha}
-                          </div>
-                          <div style={{ fontSize: 32, fontWeight: 800, color: 'var(--portal-text-primary)', letterSpacing: '-0.02em', marginTop: 2, fontFamily: "'SFMono-Regular', Menlo, Monaco, Consolas, monospace" }}>
-                            {hora} <span style={{ fontSize: 18, fontWeight: 600, color: 'var(--portal-text-muted)' }}>hs</span>
-                          </div>
-                          <div style={{ display:'flex', alignItems:'center', gap:6, marginTop:6 }}>
-                            <span style={{ fontSize:14, fontWeight:600, color: 'var(--portal-text-secondary)' }}>{t.tipo_tratamiento}</span>
-                            <span style={{ fontSize:13, color:'var(--portal-text-muted)' }}>· {t.duracion_minutos} min</span>
-                          </div>
-                        </div>
-
-                        {tenant?.direccion && (
-                          <div style={{ padding: '10px 12px', background: 'rgba(10,30,61,0.02)', borderRadius: 12, marginBottom: 16 }}>
-                            <div style={{ fontSize: 12.5, color: 'var(--portal-text-secondary)', display: 'flex', alignItems: 'center', gap: 5 }}>
-                              📍 {tenant.direccion}
-                            </div>
-                            <a
-                              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(tenant.direccion)}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              style={{ display: 'inline-block', marginTop: 4, fontSize: 11.5, color: secondaryColor, fontWeight: 700, textDecoration: 'none' }}
-                            >
-                              Cómo llegar en Google Maps &rarr;
-                            </a>
-                          </div>
-                        )}
-
-                        {t.estado === 'pendiente' ? (
-                          <div style={{ display:'flex', flexDirection: 'column', gap:10 }}>
-                            <div style={{ display:'flex', gap:10 }}>
-                              <button
-                                onClick={() => cambiarEstado(t.id, 'confirmado')}
-                                disabled={accion?.id===t.id}
-                                style={{ 
-                                  flex:1, 
-                                  fontSize:14, 
-                                  padding:'12px', 
-                                  borderRadius:14, 
-                                  border:'none', 
-                                  background: accentColor, 
-                                  color: '#fff', 
-                                  cursor:'pointer', 
-                                  fontWeight:700, 
-                                  fontFamily:'DM Sans, system-ui', 
-                                  boxShadow: `0 4px 12px ${accentColor}30`, 
-                                  transition:'all 0.2s ease-in-out' 
-                                }}
-                                onMouseEnter={e => {
-                                  e.currentTarget.style.transform = 'translateY(-1px)'
-                                  e.currentTarget.style.boxShadow = `0 6px 16px ${accentColor}45`
-                                }}
-                                onMouseLeave={e => {
-                                  e.currentTarget.style.transform = 'none'
-                                  e.currentTarget.style.boxShadow = `0 4px 12px ${accentColor}30`
-                                }}
-                              >
-                                {accion?.id===t.id ? 'Confirmando...' : 'Confirmar Turno'}
-                              </button>
-                              <button
-                                onClick={() => setReproConfirm(t)}
-                                disabled={accion?.id===t.id}
-                                style={{ 
-                                  flex:1, 
-                                  fontSize:14, 
-                                  padding:'12px', 
-                                  borderRadius:14, 
-                                  border:`1px solid ${secondaryColor}20`, 
-                                  background: `${secondaryColor}0a`, 
-                                  color: secondaryColor, 
-                                  cursor:'pointer', 
-                                  fontWeight:600, 
-                                  fontFamily:'DM Sans, system-ui', 
-                                  transition:'all 0.2s' 
-                                }}
-                                onMouseEnter={e => {
-                                  e.currentTarget.style.background = `${secondaryColor}12`
-                                  e.currentTarget.style.borderColor = `${secondaryColor}40`
-                                }}
-                                onMouseLeave={e => {
-                                  e.currentTarget.style.background = `${secondaryColor}0a`
-                                  e.currentTarget.style.borderColor = `${secondaryColor}20`
-                                }}
-                              >
-                                Reprogramar
-                              </button>
-                            </div>
-                            <a
-                              href={`/api/ics?cita=${t.id}&token=${token}`}
-                              style={{ 
-                                width:'100%',
-                                boxSizing:'border-box',
-                                textDecoration:'none',
-                                minHeight:44,
-                                fontSize:13, 
-                                padding:'11px', 
-                                borderRadius:14, 
-                                border:'1px solid var(--portal-card-border)', 
-                                background: 'transparent', 
-                                color: 'var(--portal-text-secondary)', 
-                                cursor:'pointer', 
-                                fontWeight:600, 
-                                fontFamily:'DM Sans, system-ui', 
-                                display: 'flex', 
-                                alignItems: 'center', 
-                                justifyContent: 'center', 
-                                gap: 8, 
-                                transition: 'all 0.2s' 
-                              }}
-                              onMouseEnter={e => {
-                                e.currentTarget.style.background = 'rgba(10,30,61,0.02)'
-                                e.currentTarget.style.borderColor = 'rgba(10,30,61,0.1)'
-                              }}
-                              onMouseLeave={e => {
-                                e.currentTarget.style.background = 'transparent'
-                                e.currentTarget.style.borderColor = 'var(--portal-card-border)'
-                              }}
-                            >
-                              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                              Agregar a mi calendario
-                            </a>
-                          </div>
-                        ) : (
-                          <div style={{ display:'flex', flexDirection: 'column', gap:10 }}>
-                            <div style={{ display:'flex', gap:10 }}>
-                              <div
-                                style={{ 
-                                  flex:1, 
-                                  fontSize:14, 
-                                  padding:'12px', 
-                                  borderRadius:14, 
-                                  background: `${accentColor}10`, 
-                                  border: `1px solid ${accentColor}25`, 
-                                  color: accentColor, 
-                                  fontWeight:700, 
-                                  fontFamily:'DM Sans, system-ui', 
-                                  display: 'flex', 
-                                  alignItems: 'center', 
-                                  justifyContent: 'center', 
-                                  gap: 6 
-                                }}
-                              >
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                                Turno Confirmado
-                              </div>
-                              <button
-                                onClick={() => setReproConfirm(t)}
-                                style={{ 
-                                  flex:1, 
-                                  fontSize:14, 
-                                  padding:'12px', 
-                                  borderRadius:14, 
-                                  border:`1px solid ${secondaryColor}20`, 
-                                  background: `${secondaryColor}0a`, 
-                                  color: secondaryColor, 
-                                  cursor:'pointer', 
-                                  fontWeight:600, 
-                                  fontFamily:'DM Sans, system-ui', 
-                                  transition:'all 0.2s' 
-                                }}
-                                onMouseEnter={e => {
-                                  e.currentTarget.style.background = `${secondaryColor}12`
-                                  e.currentTarget.style.borderColor = `${secondaryColor}40`
-                                }}
-                                onMouseLeave={e => {
-                                  e.currentTarget.style.background = `${secondaryColor}0a`
-                                  e.currentTarget.style.borderColor = `${secondaryColor}20`
-                                }}
-                              >
-                                Reprogramar
-                              </button>
-                            </div>
-                            <a
-                              href={`/api/ics?cita=${t.id}&token=${token}`}
-                              style={{ 
-                                width:'100%',
-                                boxSizing:'border-box',
-                                textDecoration:'none',
-                                minHeight:44,
-                                fontSize:13, 
-                                padding:'11px', 
-                                borderRadius:14, 
-                                border:'1px solid var(--portal-card-border)', 
-                                background: 'transparent', 
-                                color: 'var(--portal-text-secondary)', 
-                                cursor:'pointer', 
-                                fontWeight:600, 
-                                fontFamily:'DM Sans, system-ui', 
-                                display: 'flex', 
-                                alignItems: 'center', 
-                                justifyContent: 'center', 
-                                gap: 8, 
-                                transition: 'all 0.2s' 
-                              }}
-                              onMouseEnter={e => {
-                                e.currentTarget.style.background = 'rgba(10,30,61,0.02)'
-                                e.currentTarget.style.borderColor = 'rgba(10,30,61,0.1)'
-                              }}
-                              onMouseLeave={e => {
-                                e.currentTarget.style.background = 'transparent'
-                                e.currentTarget.style.borderColor = 'var(--portal-card-border)'
-                              }}
-                            >
-                              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                              Agregar a mi calendario
-                            </a>
-                          </div>
-                        )}
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
-            ) : (
-              <div className="patient-card" style={{ borderRadius: 22, padding: '2rem 1.5rem', textAlign: 'center', background: 'var(--portal-card-bg)', marginBottom: 28, border: '1px solid var(--portal-card-border)' }}>
-                <div style={{ width: 52, height: 52, borderRadius: '50%', background: `${secondaryColor}10`, color: secondaryColor, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
-                  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                </div>
-                <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--portal-text-primary)' }}>
-                  No tenés turnos programados
-                </div>
-                <div style={{ fontSize: 13.5, color: 'var(--portal-text-muted)', marginTop: 6, lineHeight: 1.5 }}>
-                  ¿Listo para tu próxima visita o control? Podés comunicarte con tu consultorio para coordinar un horario.
-                </div>
-                {tenant?.telefono && (
-                  <div style={{ marginTop: 16 }}>
-                    <a
-                      href={`https://wa.me/${tenant.telefono.replace(/\D/g, '')}?text=${encodeURIComponent(`Hola! Quisiera solicitar un turno en ${tenant.nombre}. Mi nombre es ${paciente?.nombre || ''}.`)}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
+            {/* Tarjeta de Acción: Declaración Jurada de Salud y Consentimiento Digital */}
+            {!paciente?.consentimiento_datos_en && (
+              <div 
+                className="patient-card"
+                style={{
+                  background: 'linear-gradient(135deg, rgba(15, 76, 92, 0.05) 0%, rgba(24, 95, 165, 0.04) 100%)',
+                  borderRadius: 22,
+                  padding: '1.35rem 1.25rem',
+                  marginBottom: 24,
+                  border: '1.5px solid rgba(15, 76, 92, 0.16)',
+                  boxShadow: '0 10px 28px -6px rgba(15, 76, 92, 0.08)',
+                  position: 'relative',
+                  overflow: 'hidden',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
+                  <div style={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: 14,
+                    background: `${primaryColor}14`,
+                    color: primaryColor,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: 22,
+                    flexShrink: 0
+                  }}>
+                    📋
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                      <span style={{ fontSize: 10.5, fontWeight: 800, color: primaryColor, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                        Requisito Clínico Obligatorio
+                      </span>
+                      <span className="pulse-dot-amber" />
+                    </div>
+                    <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--portal-text-primary)', letterSpacing: '-0.01em', lineHeight: 1.3 }}>
+                      Declaración de Salud y Consentimiento
+                    </div>
+                    <div style={{ fontSize: 12.5, color: 'var(--portal-text-secondary)', marginTop: 4, lineHeight: 1.5 }}>
+                      Completá tu declaración de alergias, antecedentes y firma digital antes de tu turno (Ley 25.326 y 26.529).
+                    </div>
+                    <button
+                      onClick={abrirModalAnamnesis}
                       style={{
+                        marginTop: 14,
+                        padding: '10px 18px',
+                        background: `linear-gradient(135deg, ${primaryColor}, #0F5145)`,
+                        color: '#ffffff',
+                        borderRadius: 12,
+                        fontSize: 13,
+                        fontWeight: 700,
+                        border: 'none',
+                        cursor: 'pointer',
                         display: 'inline-flex',
                         alignItems: 'center',
-                        gap: 8,
-                        padding: '10px 18px',
-                        background: accentColor,
-                        color: '#fff',
-                        borderRadius: 12,
-                        fontSize: 13.5,
-                        fontWeight: 700,
-                        textDecoration: 'none',
-                        boxShadow: `0 4px 12px ${accentColor}30`,
+                        gap: 6,
+                        boxShadow: `0 4px 14px ${primaryColor}28`,
+                        transition: 'transform 0.2s',
+                        fontFamily: 'inherit',
                       }}
+                      onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-1px)'}
+                      onMouseLeave={e => e.currentTarget.style.transform = 'none'}
                     >
-                      Pedir turno por WhatsApp &rarr;
-                    </a>
+                      <span>✍️ Completar y firmar ahora (2 min)</span>
+                      <span>&rarr;</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Badge de Verificación: Ficha de salud y consentimiento al día */}
+            {paciente?.consentimiento_datos_en && (
+              <div
+                style={{
+                  padding: '12px 16px',
+                  borderRadius: 16,
+                  background: 'rgba(16, 185, 129, 0.08)',
+                  border: '1px solid rgba(16, 185, 129, 0.22)',
+                  marginBottom: 24,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 12,
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ fontSize: 18 }}>🛡️</span>
+                  <div>
+                    <div style={{ fontSize: 12.5, fontWeight: 800, color: '#065F46' }}>
+                      Ficha de salud y consentimiento al día
+                    </div>
+                    <div style={{ fontSize: 11.5, color: '#047857', marginTop: 1 }}>
+                      Firmado digitalmente el {new Date(paciente.consentimiento_datos_en).toLocaleDateString('es-AR')}
+                    </div>
+                  </div>
+                </div>
+                {consentimientoFirmado && (
+                  <a
+                    href={`/api/consentimientos/pdf/${consentimientoFirmado.id}?token=${token}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 700,
+                      color: '#065F46',
+                      textDecoration: 'none',
+                      padding: '5px 12px',
+                      borderRadius: 10,
+                      background: '#ffffff',
+                      border: '1px solid rgba(16, 185, 129, 0.3)',
+                      whiteSpace: 'nowrap',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 4,
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
+                    }}
+                  >
+                    <span>📄</span>
+                    <span>Ver PDF</span>
+                  </a>
+                )}
+              </div>
+            )}
+
+            {/* Switcher de Pestañas Dinámicas si tiene historial o tratamiento */}
+            {hasTratamientoOVisitas && (
+              <div style={{
+                display: 'flex',
+                background: 'rgba(10, 37, 64, 0.04)',
+                padding: 4,
+                borderRadius: 16,
+                marginBottom: 24,
+                border: '1px solid rgba(10, 37, 64, 0.06)'
+              }}>
+                <button
+                  type="button"
+                  onClick={() => setTabActiva('turnos')}
+                  style={{
+                    flex: 1,
+                    padding: '10px 14px',
+                    borderRadius: 12,
+                    border: 'none',
+                    background: tabActiva === 'turnos' ? '#ffffff' : 'transparent',
+                    color: tabActiva === 'turnos' ? primaryColor : 'var(--portal-text-muted)',
+                    fontWeight: 700,
+                    fontSize: 13,
+                    cursor: 'pointer',
+                    boxShadow: tabActiva === 'turnos' ? '0 2px 8px rgba(10,37,64,0.08)' : 'none',
+                    transition: 'all 0.2s ease',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 6
+                  }}
+                >
+                  <span>🗓️</span>
+                  <span>Próximo Turno</span>
+                  {turnos.length > 0 && (
+                    <span style={{
+                      background: tabActiva === 'turnos' ? `${accentColor}18` : 'rgba(10,37,64,0.06)',
+                      color: tabActiva === 'turnos' ? accentColor : 'var(--portal-text-muted)',
+                      fontSize: 11,
+                      padding: '1px 6px',
+                      borderRadius: 8,
+                      fontWeight: 800
+                    }}>
+                      {turnos.length}
+                    </span>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTabActiva('tratamiento')}
+                  style={{
+                    flex: 1,
+                    padding: '10px 14px',
+                    borderRadius: 12,
+                    border: 'none',
+                    background: tabActiva === 'tratamiento' ? '#ffffff' : 'transparent',
+                    color: tabActiva === 'tratamiento' ? primaryColor : 'var(--portal-text-muted)',
+                    fontWeight: 700,
+                    fontSize: 13,
+                    cursor: 'pointer',
+                    boxShadow: tabActiva === 'tratamiento' ? '0 2px 8px rgba(10,37,64,0.08)' : 'none',
+                    transition: 'all 0.2s ease',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 6
+                  }}
+                >
+                  <span>📈</span>
+                  <span>Ficha e Historial</span>
+                  {pastTurnos.length > 0 && (
+                    <span style={{
+                      background: tabActiva === 'tratamiento' ? `${secondaryColor}18` : 'rgba(10,37,64,0.06)',
+                      color: tabActiva === 'tratamiento' ? secondaryColor : 'var(--portal-text-muted)',
+                      fontSize: 11,
+                      padding: '1px 6px',
+                      borderRadius: 8,
+                      fontWeight: 800
+                    }}>
+                      {pastTurnos.length}
+                    </span>
+                  )}
+                </button>
+              </div>
+            )}
+
+            {/* VISTA 1: PRÓXIMOS TURNOS */}
+            {tabActiva === 'turnos' && (
+              <div>
+                {turnos.length > 0 ? (
+                  <div style={{ marginBottom: 28 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                      <h3 style={{ fontSize:13, fontWeight:800, color:'var(--portal-text-primary)', textTransform: 'uppercase', letterSpacing: '0.06em', margin: 0 }}>
+                        Próximo turno
+                      </h3>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--portal-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                        Pase digital
+                      </span>
+                    </div>
+
+                    <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
+                      {turnos.map(t => {
+                        const { dia, fecha, hora } = formatFecha(t.fecha_hora)
+                        const countdown = formatCountdown(t.fecha_hora)
+                        return (
+                          <div
+                            key={t.id}
+                            className="patient-card"
+                            style={{
+                              borderRadius: 24,
+                              padding: '1.75rem 1.5rem',
+                              background: 'var(--portal-card-bg)',
+                              border: '1px solid var(--portal-card-border)',
+                              boxShadow: '0 16px 36px -12px rgba(10,37,64,0.08), 0 2px 8px rgba(10,37,64,0.02)',
+                              position: 'relative',
+                              overflow: 'hidden',
+                            }}
+                          >
+                            {/* Cabecera de la tarjeta: Clínica y Badge en Vivo */}
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, paddingBottom: 12, borderBottom: '1px solid rgba(10,37,64,0.05)' }}>
+                              <div style={{ fontSize: 11, fontWeight: 800, color: accentColor, textTransform: 'uppercase', letterSpacing: '0.08em', display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', background: accentColor }} />
+                                {tenant?.nombre || 'Consultorio Dental'}
+                              </div>
+                              
+                              <div>
+                                {t.estado === 'confirmado' ? (
+                                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11.5, fontWeight: 700, background: '#E0F2F1', color: '#085041', padding: '3px 10px', borderRadius: 20, border: '1px solid rgba(16,185,129,0.2)' }}>
+                                    <span className="pulse-dot-green" />
+                                    Confirmado
+                                  </span>
+                                ) : (
+                                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11.5, fontWeight: 700, background: '#FEF3C7', color: '#92400E', padding: '3px 10px', borderRadius: 20, border: '1px solid rgba(245,158,11,0.2)' }}>
+                                    <span className="pulse-dot-amber" />
+                                    Pendiente
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Countdown pill si existe */}
+                            {countdown && (
+                              <div style={{ marginBottom: 10 }}>
+                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11.5, fontWeight: 700, background: `${secondaryColor}12`, color: secondaryColor, padding: '3px 10px', borderRadius: 20 }}>
+                                  ⏱️ {countdown}
+                                </span>
+                              </div>
+                            )}
+
+                            {/* Fecha y Hora Tabular */}
+                            <div style={{ marginBottom: 16 }}>
+                              <div style={{ fontSize: 14.5, fontWeight: 700, color: 'var(--portal-text-secondary)', textTransform: 'capitalize', letterSpacing: '-0.01em' }}>
+                                {dia}, {fecha}
+                              </div>
+                              <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 4 }}>
+                                <span className="kpi-numeral" style={{ fontSize: 44, fontWeight: 800, color: 'var(--portal-text-primary)', letterSpacing: '-0.03em', fontFamily: "'SFMono-Regular', Menlo, Monaco, Consolas, monospace", lineHeight: 1 }}>
+                                  {hora}
+                                </span>
+                                <span style={{ fontSize: 18, fontWeight: 700, color: 'var(--portal-text-muted)' }}>hs</span>
+                              </div>
+
+                              {/* Chip de Tratamiento */}
+                              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 10, padding: '5px 12px', borderRadius: 20, background: `${secondaryColor}10`, color: secondaryColor, fontSize: 13, fontWeight: 700, border: `1px solid ${secondaryColor}20` }}>
+                                <span>🦷</span>
+                                <span>{t.tipo_tratamiento}</span>
+                                <span style={{ opacity: 0.6, fontSize: 11.5 }}>· {t.duracion_minutos} min</span>
+                              </div>
+                            </div>
+
+                            {/* Tarjeta de Dirección y Maps */}
+                            {tenant?.direccion && (
+                              <div style={{ padding: '10px 14px', background: 'rgba(10,37,64,0.02)', borderRadius: 14, marginBottom: 16, border: '1px solid rgba(10,37,64,0.05)' }}>
+                                <div style={{ fontSize: 12.5, color: 'var(--portal-text-secondary)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                                  <span>📍</span>
+                                  <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{tenant.direccion}</span>
+                                </div>
+                                <a
+                                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(tenant.direccion)}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 4, fontSize: 11.5, color: secondaryColor, fontWeight: 700, textDecoration: 'none' }}
+                                >
+                                  Cómo llegar en Google Maps &rarr;
+                                </a>
+                              </div>
+                            )}
+
+                            {/* Botones de Acción */}
+                            {t.estado === 'pendiente' ? (
+                              <div style={{ display:'flex', flexDirection: 'column', gap:10 }}>
+                                <div style={{ display:'flex', gap:10 }}>
+                                  <button
+                                    onClick={() => cambiarEstado(t.id, 'confirmado')}
+                                    disabled={accion?.id===t.id}
+                                    style={{ 
+                                      flex:1, 
+                                      fontSize:14, 
+                                      padding:'13px', 
+                                      borderRadius:14, 
+                                      border:'none', 
+                                      background: `linear-gradient(135deg, ${accentColor}, #0F5145)`, 
+                                      color: '#fff', 
+                                      cursor:'pointer', 
+                                      fontWeight:700, 
+                                      fontFamily:'DM Sans, system-ui', 
+                                      boxShadow: `0 6px 18px ${accentColor}35`, 
+                                      transition:'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      gap: 6
+                                    }}
+                                    onMouseEnter={e => {
+                                      e.currentTarget.style.transform = 'translateY(-1px)'
+                                      e.currentTarget.style.boxShadow = `0 8px 22px ${accentColor}45`
+                                    }}
+                                    onMouseLeave={e => {
+                                      e.currentTarget.style.transform = 'none'
+                                      e.currentTarget.style.boxShadow = `0 6px 18px ${accentColor}35`
+                                    }}
+                                  >
+                                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                                    {accion?.id===t.id ? 'Confirmando...' : 'Confirmar mi turno'}
+                                  </button>
+                                  <button
+                                    onClick={() => setReproConfirm(t)}
+                                    disabled={accion?.id===t.id}
+                                    style={{ 
+                                      flex:1, 
+                                      fontSize:14, 
+                                      padding:'13px', 
+                                      borderRadius:14, 
+                                      border:`1px solid ${secondaryColor}25`, 
+                                      background: `${secondaryColor}0a`, 
+                                      color: secondaryColor, 
+                                      cursor:'pointer', 
+                                      fontWeight:600, 
+                                      fontFamily:'DM Sans, system-ui', 
+                                      transition:'all 0.2s' 
+                                    }}
+                                    onMouseEnter={e => {
+                                      e.currentTarget.style.background = `${secondaryColor}14`
+                                      e.currentTarget.style.borderColor = `${secondaryColor}40`
+                                    }}
+                                    onMouseLeave={e => {
+                                      e.currentTarget.style.background = `${secondaryColor}0a`
+                                      e.currentTarget.style.borderColor = `${secondaryColor}25`
+                                    }}
+                                  >
+                                    Reprogramar
+                                  </button>
+                                </div>
+                                <a
+                                  href={`/api/ics?cita=${t.id}&token=${token}`}
+                                  style={{ 
+                                    width:'100%',
+                                    boxSizing:'border-box',
+                                    textDecoration:'none',
+                                    minHeight:44,
+                                    fontSize:13, 
+                                    padding:'11px', 
+                                    borderRadius:14, 
+                                    border:'1px solid var(--portal-card-border)', 
+                                    background: 'transparent', 
+                                    color: 'var(--portal-text-secondary)', 
+                                    cursor:'pointer', 
+                                    fontWeight:600, 
+                                    fontFamily:'DM Sans, system-ui', 
+                                    display: 'flex', 
+                                    alignItems: 'center', 
+                                    justifyContent: 'center', 
+                                    gap: 8, 
+                                    transition: 'all 0.2s' 
+                                  }}
+                                  onMouseEnter={e => {
+                                    e.currentTarget.style.background = 'rgba(10,30,61,0.03)'
+                                    e.currentTarget.style.borderColor = 'rgba(10,30,61,0.12)'
+                                  }}
+                                  onMouseLeave={e => {
+                                    e.currentTarget.style.background = 'transparent'
+                                    e.currentTarget.style.borderColor = 'var(--portal-card-border)'
+                                  }}
+                                >
+                                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                                  Agregar a mi calendario
+                                </a>
+                              </div>
+                            ) : (
+                              <div style={{ display:'flex', flexDirection: 'column', gap:10 }}>
+                                <div style={{ display:'flex', gap:10 }}>
+                                  <div
+                                    style={{ 
+                                      flex:1, 
+                                      fontSize:14, 
+                                      padding:'13px', 
+                                      borderRadius:14, 
+                                      background: '#E0F2F1', 
+                                      border: '1px solid rgba(16,185,129,0.25)', 
+                                      color: '#085041', 
+                                      fontWeight:700, 
+                                      fontFamily:'DM Sans, system-ui', 
+                                      display: 'flex', 
+                                      alignItems: 'center', 
+                                      justifyContent: 'center', 
+                                      gap: 6 
+                                    }}
+                                  >
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                                    Turno Confirmado
+                                  </div>
+                                  <button
+                                    onClick={() => setReproConfirm(t)}
+                                    style={{ 
+                                      flex:1, 
+                                      fontSize:14, 
+                                      padding:'13px', 
+                                      borderRadius:14, 
+                                      border:`1px solid ${secondaryColor}25`, 
+                                      background: `${secondaryColor}0a`, 
+                                      color: secondaryColor, 
+                                      cursor:'pointer', 
+                                      fontWeight:600, 
+                                      fontFamily:'DM Sans, system-ui', 
+                                      transition:'all 0.2s' 
+                                    }}
+                                    onMouseEnter={e => {
+                                      e.currentTarget.style.background = `${secondaryColor}14`
+                                      e.currentTarget.style.borderColor = `${secondaryColor}40`
+                                    }}
+                                    onMouseLeave={e => {
+                                      e.currentTarget.style.background = `${secondaryColor}0a`
+                                      e.currentTarget.style.borderColor = `${secondaryColor}25`
+                                    }}
+                                  >
+                                    Reprogramar
+                                  </button>
+                                </div>
+                                <a
+                                  href={`/api/ics?cita=${t.id}&token=${token}`}
+                                  style={{ 
+                                    width:'100%',
+                                    boxSizing:'border-box',
+                                    textDecoration:'none',
+                                    minHeight:44,
+                                    fontSize:13, 
+                                    padding:'11px', 
+                                    borderRadius:14, 
+                                    border:'1px solid var(--portal-card-border)', 
+                                    background: 'transparent', 
+                                    color: 'var(--portal-text-secondary)', 
+                                    cursor:'pointer', 
+                                    fontWeight:600, 
+                                    fontFamily:'DM Sans, system-ui', 
+                                    display: 'flex', 
+                                    alignItems: 'center', 
+                                    justifyContent: 'center', 
+                                    gap: 8, 
+                                    transition: 'all 0.2s' 
+                                  }}
+                                  onMouseEnter={e => {
+                                    e.currentTarget.style.background = 'rgba(10,30,61,0.03)'
+                                    e.currentTarget.style.borderColor = 'rgba(10,30,61,0.12)'
+                                  }}
+                                  onMouseLeave={e => {
+                                    e.currentTarget.style.background = 'transparent'
+                                    e.currentTarget.style.borderColor = 'var(--portal-card-border)'
+                                  }}
+                                >
+                                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                                  Agregar a mi calendario
+                                </a>
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="patient-card" style={{ borderRadius: 24, padding: '2.5rem 1.75rem', textAlign: 'center', background: 'var(--portal-card-bg)', marginBottom: 28, border: '1px solid var(--portal-card-border)' }}>
+                    <div style={{ width: 56, height: 56, borderRadius: '50%', background: `${secondaryColor}10`, color: secondaryColor, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px' }}>
+                      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                    </div>
+                    <div style={{ fontSize: 17, fontWeight: 800, color: 'var(--portal-text-primary)', letterSpacing: '-0.01em' }}>
+                      No tenés turnos programados
+                    </div>
+                    <div style={{ fontSize: 13.5, color: 'var(--portal-text-muted)', marginTop: 6, lineHeight: 1.55 }}>
+                      ¿Listo para tu próxima visita o control? Podés comunicarte con tu consultorio para coordinar un horario en minutos.
+                    </div>
+                    {tenant?.telefono && (
+                      <div style={{ marginTop: 18 }}>
+                        <a
+                          href={`https://wa.me/${tenant.telefono.replace(/\D/g, '')}?text=${encodeURIComponent(`Hola! Quisiera solicitar un turno en ${tenant.nombre}. Mi nombre es ${paciente?.nombre || ''}.`)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 8,
+                            padding: '11px 20px',
+                            background: accentColor,
+                            color: '#fff',
+                            borderRadius: 14,
+                            fontSize: 13.5,
+                            fontWeight: 700,
+                            textDecoration: 'none',
+                            boxShadow: `0 4px 14px ${accentColor}30`,
+                            transition: 'all 0.2s',
+                          }}
+                        >
+                          Pedir turno por WhatsApp &rarr;
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Banner de acceso rápido a ficha médica */}
+                {hasTratamientoOVisitas && (
+                  <div
+                    onClick={() => setTabActiva('tratamiento')}
+                    style={{
+                      padding: '14px 16px',
+                      borderRadius: 18,
+                      background: `${secondaryColor}0c`,
+                      border: `1px solid ${secondaryColor}20`,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      cursor: 'pointer',
+                      marginBottom: 24,
+                      transition: 'all 0.2s ease',
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-1px)'}
+                    onMouseLeave={e => e.currentTarget.style.transform = 'none'}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <span style={{ fontSize: 20 }}>📈</span>
+                      <div style={{ textAlign: 'left' }}>
+                        <div style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--portal-text-primary)' }}>
+                          Ver mi ficha clínica e historial
+                        </div>
+                        <div style={{ fontSize: 12, color: 'var(--portal-text-secondary)', marginTop: 2 }}>
+                          Progreso, fotos, indicaciones y visitas pasadas
+                        </div>
+                      </div>
+                    </div>
+                    <span style={{ fontSize: 16, color: secondaryColor, fontWeight: 800 }}>&rarr;</span>
+                  </div>
+                )}
+
+                {/* Engagement para Pacientes No Ortodoncia / Primera Vez */}
+                {!isOrtodoncia && isPrimeraVez && (
+                  <div style={{ marginBottom: 28 }}>
+                    <div style={{ marginBottom: 16, textAlign: 'center' }}>
+                      <div style={{ display: 'inline-block', padding: '5px 12px', background: `${accentColor}12`, color: accentColor, borderRadius: 20, fontSize: 12, fontWeight: 700, marginBottom: 6 }}>
+                        ¡Te esperamos!
+                      </div>
+                      <p style={{ color: 'var(--portal-text-secondary)', fontSize: 13.5, lineHeight: 1.5, margin: 0 }}>
+                        Conocé por qué nuestros pacientes nos eligen cada día.
+                      </p>
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                      <div className="patient-card" style={{ padding: '14px 16px', borderRadius: 18, background: 'var(--portal-card-bg)', display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                        <div style={{ width: 38, height: 38, borderRadius: '50%', background: 'rgba(245, 158, 11, 0.1)', color: '#F59E0B', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                        </div>
+                        <div>
+                          <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--portal-text-primary)' }}>4.9 en Google Reviews</div>
+                          <div style={{ fontSize: 12.5, color: 'var(--portal-text-secondary)', marginTop: 3, lineHeight: 1.45 }}>
+                            Atención personalizada y calidez humana. Priorizamos tu comodidad.
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="patient-card" style={{ padding: '14px 16px', borderRadius: 18, background: 'var(--portal-card-bg)', display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                        <div style={{ width: 38, height: 38, borderRadius: '50%', background: `${accentColor}12`, color: accentColor, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                        </div>
+                        <div>
+                          <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--portal-text-primary)' }}>Turnos puntuales</div>
+                          <div style={{ fontSize: 12.5, color: 'var(--portal-text-secondary)', marginTop: 3, lineHeight: 1.45 }}>
+                            Tu tiempo vale: organizamos los turnos con precisión para evitar demoras.
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
             )}
 
-            {/* Engagement para Pacientes No Ortodoncia / Primera Vez */}
-            {!isOrtodoncia && (
-              <div style={{ marginBottom: 28 }}>
-                {isPrimeraVez && (
-                  <div style={{ marginBottom: 20, textAlign: 'center' }}>
-                    <div style={{ display: 'inline-block', padding: '6px 14px', background: `${accentColor}12`, color: accentColor, borderRadius: 20, fontSize: 13, fontWeight: 700, marginBottom: 8 }}>
-                      ¡Hola, te esperamos!
+            {/* VISTA 2: TRATAMIENTO E HISTORIAL */}
+            {tabActiva === 'tratamiento' && (
+              <div>
+                {/* Puntos VIP si están habilitados */}
+                {FIDELIZACION_HABILITADA && paciente && (
+                  <div className="patient-card" style={{ 
+                    padding: '1.25rem', 
+                    borderRadius: 20, 
+                    background: 'var(--portal-card-bg)', 
+                    marginBottom: 24,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 16,
+                    borderLeft: `4px solid #EAB308`
+                  }}>
+                    <div style={{ 
+                      width: 44, 
+                      height: 44, 
+                      borderRadius: '50%', 
+                      background: 'rgba(234, 179, 8, 0.1)', 
+                      color: '#EAB308', 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      justifyContent: 'center',
+                      flexShrink: 0 
+                    }}>
+                      <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
                     </div>
-                    <p style={{ color: 'var(--portal-text-secondary)', fontSize: 14, lineHeight: 1.6, margin: 0 }}>
-                      Conocé por qué nuestros pacientes nos eligen cada día.
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--portal-text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Puntos acumulados</div>
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 2 }}>
+                        <span style={{ fontSize: 24, fontWeight: 900, color: 'var(--portal-text-primary)', letterSpacing: '-0.02em' }}>
+                          {paciente.puntos ?? 0}
+                        </span>
+                        <span style={{ fontSize: 12, fontWeight: 800, color: '#EAB308', textTransform: 'uppercase', letterSpacing: '0.02em' }}>puntos vip</span>
+                      </div>
+                      <div style={{ fontSize: 12, color: 'var(--portal-text-secondary)', marginTop: 4, lineHeight: 1.4 }}>
+                        ¡Seguí asistiendo a tus citas para sumar más y canjearlos por premios!
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Indicaciones del Odontólogo */}
+                {paciente?.recomendaciones && (
+                  <div className="patient-card" style={{ 
+                    padding: '1.25rem', 
+                    borderRadius: 20, 
+                    background: 'var(--portal-card-bg)', 
+                    marginBottom: 24,
+                    borderLeft: `4px solid ${accentColor}`
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                      <div style={{ 
+                        width: 28, 
+                        height: 28, 
+                        borderRadius: '50%', 
+                        background: `${accentColor}12`, 
+                        color: accentColor, 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'center' 
+                      }}>
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                      </div>
+                      <span style={{ fontSize: 12, fontWeight: 800, color: 'var(--portal-text-primary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                        Indicaciones de tu Odontólogo
+                      </span>
+                    </div>
+                    <p style={{ color: 'var(--portal-text-secondary)', fontSize: 13.5, lineHeight: 1.55, margin: 0, whiteSpace: 'pre-wrap', fontStyle: 'italic' }}>
+                      "{paciente.recomendaciones}"
                     </p>
                   </div>
                 )}
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                  {/* Reviews */}
-                  <div className="patient-card" style={{ padding: '16px', borderRadius: 18, background: 'var(--portal-card-bg)', display: 'flex', alignItems: 'flex-start', gap: 14 }}>
-                    <div style={{ width: 42, height: 42, borderRadius: '50%', background: 'rgba(245, 158, 11, 0.1)', color: '#F59E0B', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-                    </div>
-                    <div>
-                      <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--portal-text-primary)' }}>4.9 en Google Reviews</div>
-                      <div style={{ fontSize: 13, color: 'var(--portal-text-secondary)', marginTop: 4, lineHeight: 1.5 }}>
-                        Atención cien por ciento personalizada y calidez humana. Priorizamos tu comodidad.
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Turnos Inmediatos */}
-                  <div className="patient-card" style={{ padding: '16px', borderRadius: 18, background: 'var(--portal-card-bg)', display: 'flex', alignItems: 'flex-start', gap: 14 }}>
-                    <div style={{ width: 42, height: 42, borderRadius: '50%', background: `${accentColor}12`, color: accentColor, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                    </div>
-                    <div>
-                      <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--portal-text-primary)' }}>Turnos inmediatos</div>
-                      <div style={{ fontSize: 13, color: 'var(--portal-text-secondary)', marginTop: 4, lineHeight: 1.5 }}>
-                        Sabemos que tu tiempo vale. Ofrecemos disponibilidad rápida y sin largas esperas.
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Ubicación */}
-                  <div className="patient-card" style={{ padding: '16px', borderRadius: 18, background: 'var(--portal-card-bg)', display: 'flex', alignItems: 'flex-start', gap: 14 }}>
-                    <div style={{ width: 42, height: 42, borderRadius: '50%', background: `${secondaryColor}12`, color: secondaryColor, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                    </div>
-                    <div>
-                      <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--portal-text-primary)' }}>Ubicación premium</div>
-                      <div style={{ fontSize: 13, color: 'var(--portal-text-secondary)', marginTop: 4, lineHeight: 1.5 }}>
-                        {tenant?.direccion || ''}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div className="portal-column-side">
-            {/* Tarjeta de Puntos VIP.
-                Oculta mientras FIDELIZACION_HABILITADA sea false — el club de
-                puntos está pausado y no tiene sentido prometerle premios al
-                paciente. La API además deja de enviar el saldo.
-                Ver src/lib/fidelizacion-flag.ts. */}
-            {FIDELIZACION_HABILITADA && paciente && (
-              <div className="patient-card" style={{ 
-                padding: '1.25rem', 
-                borderRadius: 20, 
-                background: 'var(--portal-card-bg)', 
-                marginBottom: 28,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 16,
-                borderLeft: `4px solid #EAB308`
-              }}>
-                <div style={{ 
-                  width: 44, 
-                  height: 44, 
-                  borderRadius: '50%', 
-                  background: 'rgba(234, 179, 8, 0.1)', 
-                  color: '#EAB308', 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  justifyContent: 'center',
-                  flexShrink: 0 
+                {/* Ficha Médica y Declaración Jurada de Salud */}
+                <div className="patient-card" style={{ 
+                  padding: '1.35rem 1.25rem', 
+                  borderRadius: 20, 
+                  background: 'var(--portal-card-bg)', 
+                  marginBottom: 24,
+                  borderLeft: `4px solid ${primaryColor}`
                 }}>
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-                </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--portal-text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Puntos acumulados</div>
-                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 2 }}>
-                    <span style={{ fontSize: 24, fontWeight: 900, color: 'var(--portal-text-primary)', letterSpacing: '-0.02em' }}>
-                      {paciente.puntos ?? 0}
-                    </span>
-                    <span style={{ fontSize: 12, fontWeight: 800, color: '#EAB308', textTransform: 'uppercase', letterSpacing: '0.02em' }}>puntos vip</span>
-                  </div>
-                  <div style={{ fontSize: 12, color: 'var(--portal-text-secondary)', marginTop: 4, lineHeight: 1.4 }}>
-                    ¡Seguí asistiendo a tus citas para sumar más y canjearlos por premios!
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Indicaciones / Recomendaciones del Doctor */}
-            {paciente?.recomendaciones && (
-              <div className="patient-card" style={{ 
-                padding: '1.25rem', 
-                borderRadius: 20, 
-                background: 'var(--portal-card-bg)', 
-                marginBottom: 28,
-                borderLeft: `4px solid ${accentColor}`
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-                  <div style={{ 
-                    width: 28, 
-                    height: 28, 
-                    borderRadius: '50%', 
-                    background: `${accentColor}12`, 
-                    color: accentColor, 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    justifyContent: 'center' 
-                  }}>
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-                  </div>
-                  <span style={{ fontSize: 12, fontWeight: 800, color: 'var(--portal-text-primary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                    Indicaciones de tu Odontólogo
-                  </span>
-                </div>
-                <p style={{ color: 'var(--portal-text-secondary)', fontSize: 13.5, lineHeight: 1.55, margin: 0, whiteSpace: 'pre-wrap', fontStyle: 'italic' }}>
-                  "{paciente.recomendaciones}"
-                </p>
-              </div>
-            )}
-
-            {/* Progreso del tratamiento.
-                Era una barra lineal. Un anillo cuenta el mismo número como
-                avance y no como faltante, que es la lectura que corresponde a
-                un tratamiento de dos años. */}
-            {isOrtodoncia && paciente && (paciente.progreso_plan_porcentaje || 0) > 0 && (
-              <div style={{ marginBottom: 28, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14 }}>
-                <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--portal-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Progreso del tratamiento</span>
-                <ProgressRing
-                  value={paciente.progreso_plan_porcentaje || 0}
-                  from={secondaryColor}
-                  to={accentColor}
-                  sublabel="completado"
-                />
-                <div style={{ fontSize:13, color:'var(--portal-text-secondary)', fontWeight:500, display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={accentColor} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                  {getEstimadoMesesRestantes()}
-                </div>
-              </div>
-            )}
-
-            {/* Stats Grid */}
-            {isOrtodoncia && (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 14, marginBottom: 28 }}>
-                <div className="patient-card" style={{ padding: '16px', borderRadius: 18, borderLeft: `4px solid ${secondaryColor}`, background: 'var(--portal-card-bg)' }}>
-                  <div className="kpi-numeral" style={{ fontSize: 28, fontWeight: 600, color: 'var(--portal-text-primary)', letterSpacing: '-0.02em' }}>
-                    {pastTurnos.filter(pt => pt.estado === 'asistio' || pt.estado === 'completado').length}
-                  </div>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--portal-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginTop: 6 }}>
-                    Visitas totales
-                  </div>
-                </div>
-                
-                <div className="patient-card" style={{ padding: '16px', borderRadius: 18, borderLeft: `4px solid ${accentColor}`, background: 'var(--portal-card-bg)' }}>
-                  {(() => {
-                    const pastNonCanceled = pastTurnos.filter(pt => pt.estado !== 'cancelado')
-                    const attendedCount = pastNonCanceled.filter(pt => pt.estado === 'asistio' || pt.estado === 'completado').length
-                    const adherence = pastNonCanceled.length > 0 ? Math.round((attendedCount / pastNonCanceled.length) * 100) : 100
-                    return (
-                      <>
-                        <div className="kpi-numeral" style={{ fontSize: 28, fontWeight: 600, color: accentColor, letterSpacing: '-0.02em' }}>{adherence}%</div>
-                        <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--portal-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginTop: 6 }}>Adherencia</div>
-                      </>
-                    )
-                  })()}
-                </div>
-                
-                <div className="patient-card" style={{ padding: '16px', borderRadius: 18, borderLeft: `4px solid ${primaryColor}`, background: 'var(--portal-card-bg)' }}>
-                  {(() => {
-                    const pct = paciente?.progreso_plan_porcentaje || 0
-                    const elapsed = getMesesTranscurridos()
-                    const remaining = pct > 0 ? Math.max(1, Math.round(elapsed * (100 - pct) / pct)) : 0
-                    return (
-                      <>
-                        <div className="kpi-numeral" style={{ fontSize: 28, fontWeight: 600, color: 'var(--portal-text-primary)', letterSpacing: '-0.02em' }}>{remaining}</div>
-                        <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--portal-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginTop: 6 }}>Meses restantes</div>
-                      </>
-                    )
-                  })()}
-                </div>
-                
-                <div className="patient-card" style={{ padding: '16px', borderRadius: 18, borderLeft: '4px solid #94a3b8', background: 'var(--portal-card-bg)' }}>
-                  <div className="kpi-numeral" style={{ fontSize: 28, fontWeight: 600, color: 'var(--portal-text-primary)', letterSpacing: '-0.02em' }}>{fotos.length}</div>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--portal-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginTop: 6 }}>Fotos</div>
-                </div>
-              </div>
-            )}
-
-            {/* Adherence microcopy (no emojis) */}
-            {isOrtodoncia && (() => {
-              const pastNonCanceled = pastTurnos.filter(pt => pt.estado !== 'cancelado')
-              const attendedCount = pastNonCanceled.filter(pt => pt.estado === 'asistio' || pt.estado === 'completado').length
-              const adherence = pastNonCanceled.length > 0 ? Math.round((attendedCount / pastNonCanceled.length) * 100) : 100
-              let message = 'Sos de los pacientes más constantes'
-              if (adherence < 80) message = 'A seguir mejorando la regularidad'
-              else if (adherence < 90) message = 'Excelente constancia en tus visitas'
-              return (
-                <div style={{ marginBottom: 28, padding: '12px', background: `${accentColor}0e`, borderRadius: 14, fontSize: 13, fontWeight: 600, color: accentColor, textAlign: 'center', border: `1px solid ${accentColor}20` }}>
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ verticalAlign: 'middle', marginRight: 6 }}><polyline points="20 6 9 17 4 12"/></svg>
-                  {message}
-                </div>
-              )
-            })()}
-
-            {/* Fotos de progreso */}
-            {isOrtodoncia && fotos.length > 0 && (
-              <div style={{ marginBottom: 28 }}>
-                 <h3 style={{ fontSize:15, fontWeight:800, color:'var(--portal-text-primary)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom:12 }}>Fotos del proceso</h3>
-                 <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 16 }}>
-                   {fotos.length >= 2 ? (
-                     <div className="patient-card" style={{ borderRadius:20, padding:'1.25rem', background: 'var(--portal-card-bg)' }}>
-                       <div style={{ display:'flex', gap:12 }}>
-                         <div style={{ flex:1, textAlign:'center' }}>
-                           <div style={{ fontSize:11, color:'var(--portal-text-muted)', fontWeight:800, marginBottom:8, letterSpacing: '0.04em' }}>ANTES</div>
-                           <img src={fotos[0].url} alt="Antes" loading="lazy" style={{ width:'100%', aspectRatio:'4/3', objectFit:'cover', borderRadius:12, boxShadow: '0 4px 10px rgba(0,0,0,0.03)' }} />
-                         </div>
-                         <div style={{ flex:1, textAlign:'center' }}>
-                           <div style={{ fontSize:11, color:'var(--portal-text-muted)', fontWeight:800, marginBottom:8, letterSpacing: '0.04em' }}>DESPUÉS</div>
-                           <img src={fotos[fotos.length-1].url} alt="Después" loading="lazy" style={{ width:'100%', aspectRatio:'4/3', objectFit:'cover', borderRadius:12, boxShadow: '0 4px 10px rgba(0,0,0,0.03)' }} />
-                         </div>
-                       </div>
-                     </div>
-                   ) : (
-                     <div className="patient-card" style={{ borderRadius:20, padding:'1.25rem', background: 'var(--portal-card-bg)' }}>
-                       <div style={{ textAlign:'center' }}>
-                         <div style={{ fontSize:11, color:'var(--portal-text-muted)', fontWeight:800, marginBottom:8, letterSpacing: '0.04em' }}>
-                           {(fotos[0]?.tipo || 'Foto').toString().toUpperCase()}
-                         </div>
-                         <img src={fotos[0].url} alt="Foto del proceso" loading="lazy" style={{ width:'100%', aspectRatio:'4/3', objectFit:'cover', borderRadius:12, boxShadow: '0 4px 10px rgba(0,0,0,0.03)' }} />
-                       </div>
-                     </div>
-                   )}
-                 </div>
-              </div>
-            )}
-
-            {/* Últimas visitas */}
-            {pastTurnos.length > 0 && (
-              <div style={{ marginBottom: 28 }}>
-                <h3 style={{ fontSize:15, fontWeight:800, color:'var(--portal-text-primary)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom:12 }}>Últimas visitas</h3>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  {pastTurnos.slice(-3).reverse().map(pt => (
-                    <div key={pt.id} className="patient-card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderRadius:18, padding:'1rem 1.25rem', background: 'var(--portal-card-bg)' }}>
-                      <div>
-                        <div style={{ fontSize:14, fontWeight:700, color: 'var(--portal-text-primary)' }}>{pt.tipo_tratamiento}</div>
-                        <div style={{ fontSize:13, color:'var(--portal-text-muted)', marginTop:3 }}>{formatFecha(pt.fecha_hora).fecha}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <div style={{ 
+                        width: 28, 
+                        height: 28, 
+                        borderRadius: '50%', 
+                        background: `${primaryColor}14`, 
+                        color: primaryColor, 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'center',
+                        fontSize: 14
+                      }}>
+                        📋
                       </div>
-                      <div style={{ width: 26, height: 26, borderRadius: '50%', background: `${accentColor}12`, color: accentColor, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                      <span style={{ fontSize: 12, fontWeight: 800, color: 'var(--portal-text-primary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                        Ficha de Salud y Consentimiento
+                      </span>
+                    </div>
+                    {paciente?.consentimiento_datos_en ? (
+                      <span style={{ fontSize: 11, fontWeight: 700, color: '#065F46', background: '#D1FAE5', padding: '2px 8px', borderRadius: 12 }}>
+                        ✓ Al día
+                      </span>
+                    ) : (
+                      <span style={{ fontSize: 11, fontWeight: 700, color: '#92400E', background: '#FEF3C7', padding: '2px 8px', borderRadius: 12 }}>
+                        Pendiente
+                      </span>
+                    )}
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10, fontSize: 13, color: 'var(--portal-text-secondary)' }}>
+                    <div>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--portal-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        Alergias manifestadas
+                      </div>
+                      <div style={{ marginTop: 2, fontWeight: 600, color: paciente?.alergias && paciente.alergias !== 'Ninguna' ? '#DC2626' : 'var(--portal-text-primary)' }}>
+                        {paciente?.alergias || 'Sin alergias manifestadas'}
                       </div>
                     </div>
-                  ))}
+
+                    <div>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--portal-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        Condiciones y antecedentes médicos
+                      </div>
+                      <div style={{ marginTop: 2, fontWeight: 500, color: 'var(--portal-text-primary)', lineHeight: 1.4 }}>
+                        {paciente?.antecedentes || 'Sin antecedentes médicos manifestados'}
+                      </div>
+                    </div>
+
+                    {paciente?.dni_cuit && (
+                      <div>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--portal-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                          Documento de Identidad (DNI)
+                        </div>
+                        <div style={{ marginTop: 2, fontWeight: 600, color: 'var(--portal-text-primary)' }}>
+                          {paciente.dni_cuit}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div style={{ display: 'flex', gap: 10, marginTop: 16, paddingTop: 14, borderTop: '1px solid var(--portal-card-border)' }}>
+                    <button
+                      type="button"
+                      onClick={abrirModalAnamnesis}
+                      style={{
+                        flex: 1,
+                        padding: '9px 12px',
+                        borderRadius: 10,
+                        border: '1px solid var(--portal-card-border)',
+                        background: 'transparent',
+                        color: primaryColor,
+                        fontSize: 12.5,
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        fontFamily: 'inherit',
+                        transition: 'background 0.2s',
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.background = 'rgba(15,76,92,0.04)'}
+                      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                    >
+                      {paciente?.consentimiento_datos_en ? '✍️ Actualizar datos' : '✍️ Completar declaración'}
+                    </button>
+                    {consentimientoFirmado && (
+                      <a
+                        href={`/api/consentimientos/pdf/${consentimientoFirmado.id}?token=${token}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                          flex: 1,
+                          padding: '9px 12px',
+                          borderRadius: 10,
+                          border: 'none',
+                          background: `${secondaryColor}12`,
+                          color: secondaryColor,
+                          fontSize: 12.5,
+                          fontWeight: 700,
+                          textDecoration: 'none',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: 4,
+                          transition: 'background 0.2s',
+                        }}
+                        onMouseEnter={e => e.currentTarget.style.background = `${secondaryColor}20`}
+                        onMouseLeave={e => e.currentTarget.style.background = `${secondaryColor}12`}
+                      >
+                        <span>📄</span>
+                        <span>Descargar PDF</span>
+                      </a>
+                    )}
+                  </div>
                 </div>
+
+                {/* Anillo de Progreso */}
+                {isOrtodoncia && paciente && (paciente.progreso_plan_porcentaje || 0) > 0 && (
+                  <div style={{ marginBottom: 28, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14 }}>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--portal-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Progreso del tratamiento</span>
+                    <ProgressRing
+                      value={paciente.progreso_plan_porcentaje || 0}
+                      from={secondaryColor}
+                      to={accentColor}
+                      sublabel="completado"
+                    />
+                    <div style={{ fontSize:13, color:'var(--portal-text-secondary)', fontWeight:500, display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={accentColor} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                      {getEstimadoMesesRestantes()}
+                    </div>
+                  </div>
+                )}
+
+                {/* Stats Grid */}
+                {isOrtodoncia && (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 14, marginBottom: 24 }}>
+                    <div className="patient-card" style={{ padding: '16px', borderRadius: 18, borderLeft: `4px solid ${secondaryColor}`, background: 'var(--portal-card-bg)' }}>
+                      <div className="kpi-numeral" style={{ fontSize: 28, fontWeight: 600, color: 'var(--portal-text-primary)', letterSpacing: '-0.02em' }}>
+                        {pastTurnos.filter(pt => pt.estado === 'asistio' || pt.estado === 'completado').length}
+                      </div>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--portal-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginTop: 6 }}>
+                        Visitas totales
+                      </div>
+                    </div>
+                    
+                    <div className="patient-card" style={{ padding: '16px', borderRadius: 18, borderLeft: `4px solid ${accentColor}`, background: 'var(--portal-card-bg)' }}>
+                      {(() => {
+                        const pastNonCanceled = pastTurnos.filter(pt => pt.estado !== 'cancelado')
+                        const attendedCount = pastNonCanceled.filter(pt => pt.estado === 'asistio' || pt.estado === 'completado').length
+                        const adherence = pastNonCanceled.length > 0 ? Math.round((attendedCount / pastNonCanceled.length) * 100) : 100
+                        return (
+                          <>
+                            <div className="kpi-numeral" style={{ fontSize: 28, fontWeight: 600, color: accentColor, letterSpacing: '-0.02em' }}>{adherence}%</div>
+                            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--portal-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginTop: 6 }}>Adherencia</div>
+                          </>
+                        )
+                      })()}
+                    </div>
+                    
+                    <div className="patient-card" style={{ padding: '16px', borderRadius: 18, borderLeft: `4px solid ${primaryColor}`, background: 'var(--portal-card-bg)' }}>
+                      {(() => {
+                        const pct = paciente?.progreso_plan_porcentaje || 0
+                        const elapsed = getMesesTranscurridos()
+                        const remaining = pct > 0 ? Math.max(1, Math.round(elapsed * (100 - pct) / pct)) : 0
+                        return (
+                          <>
+                            <div className="kpi-numeral" style={{ fontSize: 28, fontWeight: 600, color: 'var(--portal-text-primary)', letterSpacing: '-0.02em' }}>{remaining}</div>
+                            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--portal-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginTop: 6 }}>Meses restantes</div>
+                          </>
+                        )
+                      })()}
+                    </div>
+                    
+                    <div className="patient-card" style={{ padding: '16px', borderRadius: 18, borderLeft: '4px solid #94a3b8', background: 'var(--portal-card-bg)' }}>
+                      <div className="kpi-numeral" style={{ fontSize: 28, fontWeight: 600, color: 'var(--portal-text-primary)', letterSpacing: '-0.02em' }}>{fotos.length}</div>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--portal-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginTop: 6 }}>Fotos</div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Adherence microcopy */}
+                {isOrtodoncia && (() => {
+                  const pastNonCanceled = pastTurnos.filter(pt => pt.estado !== 'cancelado')
+                  const attendedCount = pastNonCanceled.filter(pt => pt.estado === 'asistio' || pt.estado === 'completado').length
+                  const adherence = pastNonCanceled.length > 0 ? Math.round((attendedCount / pastNonCanceled.length) * 100) : 100
+                  let message = 'Sos de los pacientes más constantes'
+                  if (adherence < 80) message = 'A seguir mejorando la regularidad'
+                  else if (adherence < 90) message = 'Excelente constancia en tus visitas'
+                  return (
+                    <div style={{ marginBottom: 24, padding: '12px', background: `${accentColor}0e`, borderRadius: 14, fontSize: 13, fontWeight: 600, color: accentColor, textAlign: 'center', border: `1px solid ${accentColor}20` }}>
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ verticalAlign: 'middle', marginRight: 6 }}><polyline points="20 6 9 17 4 12"/></svg>
+                      {message}
+                    </div>
+                  )
+                })()}
+
+                {/* Fotos de progreso */}
+                {isOrtodoncia && fotos.length > 0 && (
+                  <div style={{ marginBottom: 26 }}>
+                     <h3 style={{ fontSize:14, fontWeight:800, color:'var(--portal-text-primary)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom:12 }}>Fotos del proceso</h3>
+                     <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 16 }}>
+                       {fotos.length >= 2 ? (
+                         <div className="patient-card" style={{ borderRadius:20, padding:'1.25rem', background: 'var(--portal-card-bg)' }}>
+                           <div style={{ display:'flex', gap:12 }}>
+                             <div style={{ flex:1, textAlign:'center' }}>
+                               <div style={{ fontSize:11, color:'var(--portal-text-muted)', fontWeight:800, marginBottom:8, letterSpacing: '0.04em' }}>ANTES</div>
+                               <img src={fotos[0].url} alt="Antes" loading="lazy" style={{ width:'100%', aspectRatio:'4/3', objectFit:'cover', borderRadius:12, boxShadow: '0 4px 10px rgba(0,0,0,0.03)' }} />
+                             </div>
+                             <div style={{ flex:1, textAlign:'center' }}>
+                               <div style={{ fontSize:11, color:'var(--portal-text-muted)', fontWeight:800, marginBottom:8, letterSpacing: '0.04em' }}>DESPUÉS</div>
+                               <img src={fotos[fotos.length-1].url} alt="Después" loading="lazy" style={{ width:'100%', aspectRatio:'4/3', objectFit:'cover', borderRadius:12, boxShadow: '0 4px 10px rgba(0,0,0,0.03)' }} />
+                             </div>
+                           </div>
+                         </div>
+                       ) : (
+                         <div className="patient-card" style={{ borderRadius:20, padding:'1.25rem', background: 'var(--portal-card-bg)' }}>
+                           <div style={{ textAlign:'center' }}>
+                             <div style={{ fontSize:11, color:'var(--portal-text-muted)', fontWeight:800, marginBottom:8, letterSpacing: '0.04em' }}>
+                               {(fotos[0]?.tipo || 'Foto').toString().toUpperCase()}
+                             </div>
+                             <img src={fotos[0].url} alt="Foto del proceso" loading="lazy" style={{ width:'100%', aspectRatio:'4/3', objectFit:'cover', borderRadius:12, boxShadow: '0 4px 10px rgba(0,0,0,0.03)' }} />
+                           </div>
+                         </div>
+                       )}
+                     </div>
+                  </div>
+                )}
+
+                {/* Últimas visitas */}
+                {pastTurnos.length > 0 && (
+                  <div style={{ marginBottom: 24 }}>
+                    <h3 style={{ fontSize:14, fontWeight:800, color:'var(--portal-text-primary)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom:12 }}>Últimas visitas</h3>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      {pastTurnos.slice(-4).reverse().map(pt => (
+                        <div key={pt.id} className="patient-card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderRadius:18, padding:'1rem 1.25rem', background: 'var(--portal-card-bg)' }}>
+                          <div>
+                            <div style={{ fontSize:14, fontWeight:700, color: 'var(--portal-text-primary)' }}>{pt.tipo_tratamiento}</div>
+                            <div style={{ fontSize:12.5, color:'var(--portal-text-muted)', marginTop:3 }}>{formatFecha(pt.fecha_hora).fecha}</div>
+                          </div>
+                          <div style={{ width: 28, height: 28, borderRadius: '50%', background: `${accentColor}12`, color: accentColor, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Volver a turnos */}
+                <div
+                  onClick={() => setTabActiva('turnos')}
+                  style={{
+                    padding: '14px 16px',
+                    borderRadius: 18,
+                    background: 'rgba(10,37,64,0.03)',
+                    border: '1px solid rgba(10,37,64,0.06)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-1px)'}
+                  onMouseLeave={e => e.currentTarget.style.transform = 'none'}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <span style={{ fontSize: 20 }}>🗓️</span>
+                    <div style={{ textAlign: 'left' }}>
+                      <div style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--portal-text-primary)' }}>
+                        Ver mis turnos programados
+                      </div>
+                      <div style={{ fontSize: 12, color: 'var(--portal-text-muted)', marginTop: 2 }}>
+                        Consultar fecha, horario y confirmación
+                      </div>
+                    </div>
+                  </div>
+                  <span style={{ fontSize: 16, color: primaryColor, fontWeight: 800 }}>&rarr;</span>
+                </div>
+              </div>
+            )}
+
+            {/* Botón flotante o directo de WhatsApp de la clínica */}
+            {tenant?.telefono && (
+              <div style={{ marginTop: 28, textAlign: 'center' }}>
+                <a
+                  href={`https://wa.me/${tenant.telefono.replace(/\D/g, '')}?text=${encodeURIComponent(`Hola! Me contacto desde mi portal de paciente. Mi nombre es ${paciente?.nombre || ''}.`)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    padding: '11px 20px',
+                    borderRadius: 14,
+                    background: 'rgba(37,211,102,0.1)',
+                    color: '#128C7E',
+                    fontSize: 13,
+                    fontWeight: 700,
+                    textDecoration: 'none',
+                    border: '1px solid rgba(37,211,102,0.25)',
+                    boxShadow: '0 2px 8px rgba(37,211,102,0.08)',
+                    transition: 'all 0.2s ease',
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-1px)'}
+                  onMouseLeave={e => e.currentTarget.style.transform = 'none'}
+                >
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.514 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.724-1.455L0 24zm6.59-4.846c1.66.986 3.288 1.488 4.905 1.489 5.5.003 9.975-4.47 9.979-9.967.002-2.662-1.033-5.166-2.915-7.05C16.734 1.744 14.236.703 11.58.701c-5.503 0-9.98 4.47-9.985 9.969-.001 1.776.48 3.5 1.391 5.01L1.93 21.72l6.147-1.611-.43-.255z"/></svg>
+                  <span>¿Dudas o consultas? Escribinos por WhatsApp</span>
+                </a>
               </div>
             )}
           </div>
-
         </div>
 
         <div style={{ textAlign:'center', marginTop:'3rem', fontSize:12, color:'var(--portal-text-muted)', fontWeight:600, letterSpacing: '0.02em', textTransform: 'uppercase' }}>
@@ -1178,37 +1788,656 @@ export default function PacientePage() {
         </div>
       )}
 
+      {/* Modal / Bottom Sheet Declaración Jurada de Salud y Consentimiento Digital (Leyes 25.326 y 26.529) */}
+      {showAnamnesisModal && (
+        <div className="portal-modal-overlay" onClick={() => !enviandoAnamnesis && setShowAnamnesisModal(false)}>
+          <div
+            className="portal-modal-content"
+            onClick={e => e.stopPropagation()}
+            style={{
+              maxHeight: '92vh',
+              overflowY: 'auto',
+              WebkitOverflowScrolling: 'touch',
+              padding: '1.75rem 1.5rem 2rem',
+            }}
+          >
+            {/* Grab handle */}
+            <div style={{ width: 42, height: 4, borderRadius: 4, background: '#cbd5e1', margin: '0 auto 1.25rem' }} />
+
+            {/* Stepper Header */}
+            <div style={{ textAlign: 'center', marginBottom: 20 }}>
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 800, color: primaryColor, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>
+                <span>Paso {anamnesisStep} de 4</span>
+                <span>·</span>
+                <span>{anamnesisStep === 1 ? 'Alergias' : anamnesisStep === 2 ? 'Salud General' : anamnesisStep === 3 ? 'Legal y DNI' : 'Firma'}</span>
+              </div>
+              <h2 style={{ fontSize: 19, fontWeight: 800, color: 'var(--portal-text-primary)', letterSpacing: '-0.02em', margin: '0 0 6px 0' }}>
+                {anamnesisStep === 1 && '¿Tenés alguna alergia?'}
+                {anamnesisStep === 2 && 'Condiciones médicas y salud'}
+                {anamnesisStep === 3 && 'Identificación y consentimiento'}
+                {anamnesisStep === 4 && 'Firma electrónica digital'}
+              </h2>
+              <div style={{ fontSize: 13, color: 'var(--portal-text-secondary)', lineHeight: 1.45, maxWidth: 380, margin: '0 auto' }}>
+                {anamnesisStep === 1 && 'Indicanos si sos alérgico a medicamentos, anestésicos o materiales dentales.'}
+                {anamnesisStep === 2 && 'Tu historial es fundamental para garantizar un tratamiento 100% seguro.'}
+                {anamnesisStep === 3 && 'Conforme a la Ley 25.326 y Ley 26.529 de Protección de Datos de Salud.'}
+                {anamnesisStep === 4 && 'Firmá con tu dedo o mouse para sellar tu declaración de forma digital.'}
+              </div>
+
+              {/* Progress Bar indicator */}
+              <div style={{ display: 'flex', gap: 6, marginTop: 14, justifyContent: 'center' }}>
+                {[1, 2, 3, 4].map(s => (
+                  <div
+                    key={s}
+                    style={{
+                      height: 4,
+                      width: 50,
+                      borderRadius: 4,
+                      background: s <= anamnesisStep ? primaryColor : 'rgba(10,37,64,0.1)',
+                      transition: 'background 0.3s ease',
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* Error banner if any */}
+            {anamnesisError && (
+              <div style={{ background: '#FEE2E2', border: '1px solid #FCA5A5', color: '#991B1B', borderRadius: 12, padding: '10px 14px', fontSize: 13, fontWeight: 600, marginBottom: 18, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span>⚠️</span>
+                <span>{anamnesisError}</span>
+              </div>
+            )}
+
+            {/* PASO 1: ALERGIAS */}
+            {anamnesisStep === 1 && (
+              <div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 18 }}>
+                  {[
+                    'Penicilina / Amoxicilina',
+                    'Anestésicos locales (Lidocaína / etc.)',
+                    'Látex',
+                    'Aspirina / Ibuprofeno (AINEs)',
+                    'Metales / Níquel',
+                    'Ninguna alergia conocida'
+                  ].map(alergia => {
+                    const isSelected = alergiasSeleccionadas.includes(alergia)
+                    const isNone = alergia === 'Ninguna alergia conocida'
+                    return (
+                      <button
+                        key={alergia}
+                        type="button"
+                        onClick={() => toggleAlergia(alergia)}
+                        style={{
+                          padding: '12px 14px',
+                          borderRadius: 14,
+                          border: isSelected
+                            ? `2px solid ${isNone ? '#10B981' : secondaryColor}`
+                            : '1.5px solid var(--portal-card-border)',
+                          background: isSelected
+                            ? (isNone ? '#ECFDF5' : `${secondaryColor}10`)
+                            : '#ffffff',
+                          color: isSelected
+                            ? (isNone ? '#065F46' : secondaryColor)
+                            : 'var(--portal-text-primary)',
+                          fontWeight: isSelected ? 700 : 500,
+                          fontSize: 13.5,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          textAlign: 'left',
+                          transition: 'all 0.15s ease',
+                        }}
+                      >
+                        <span>{alergia}</span>
+                        <span style={{
+                          width: 20,
+                          height: 20,
+                          borderRadius: '50%',
+                          border: isSelected ? 'none' : '1.5px solid #cbd5e1',
+                          background: isSelected ? (isNone ? '#10B981' : secondaryColor) : 'transparent',
+                          color: '#fff',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: 12,
+                          fontWeight: 800,
+                        }}>
+                          {isSelected ? '✓' : ''}
+                        </span>
+                      </button>
+                    )
+                  })}
+                </div>
+
+                <div style={{ marginBottom: 22 }}>
+                  <label style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--portal-text-secondary)', display: 'block', marginBottom: 6 }}>
+                    ¿Otra alergia o aclaración médica? (opcional)
+                  </label>
+                  <input
+                    type="text"
+                    value={otraAlergia}
+                    onChange={e => setOtraAlergia(e.target.value)}
+                    placeholder="Ej. Alergia a corticoides, yodo, analgésicos..."
+                    style={{
+                      width: '100%',
+                      boxSizing: 'border-box',
+                      fontSize: 13.5,
+                      padding: '11px 14px',
+                      borderRadius: 12,
+                      border: '1px solid var(--portal-card-border)',
+                      background: 'rgba(255,255,255,0.7)',
+                      outline: 'none',
+                      fontFamily: 'inherit',
+                      color: 'var(--portal-text-primary)',
+                    }}
+                  />
+                </div>
+
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <button
+                    type="button"
+                    onClick={() => setShowAnamnesisModal(false)}
+                    style={{
+                      flex: 1,
+                      padding: '13px',
+                      borderRadius: 12,
+                      border: '1px solid var(--portal-card-border)',
+                      background: 'transparent',
+                      color: 'var(--portal-text-secondary)',
+                      fontSize: 13,
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAnamnesisError('')
+                      setAnamnesisStep(2)
+                    }}
+                    style={{
+                      flex: 1.5,
+                      padding: '13px',
+                      borderRadius: 12,
+                      border: 'none',
+                      background: primaryColor,
+                      color: '#ffffff',
+                      fontSize: 13.5,
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      boxShadow: `0 4px 14px ${primaryColor}28`,
+                    }}
+                  >
+                    Continuar &rarr;
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* PASO 2: SALUD GENERAL Y ANTECEDENTES */}
+            {anamnesisStep === 2 && (
+              <div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 18 }}>
+                  {[
+                    'Hipertensión arterial',
+                    'Problemas cardíacos / Arritmia',
+                    'Diabetes',
+                    'Tomo anticoagulantes / Problemas de coagulación',
+                    'Tomo o tomé bifosfonatos (fijadores óseos)',
+                    'Asma / Problemas respiratorios',
+                    'Embarazo / Período de lactancia',
+                    'Ninguna condición previa'
+                  ].map(cond => {
+                    const isSelected = condicionesSeleccionadas.includes(cond)
+                    const isNone = cond === 'Ninguna condición previa'
+                    return (
+                      <button
+                        key={cond}
+                        type="button"
+                        onClick={() => toggleCondicion(cond)}
+                        style={{
+                          padding: '12px 14px',
+                          borderRadius: 14,
+                          border: isSelected
+                            ? `2px solid ${isNone ? '#10B981' : secondaryColor}`
+                            : '1.5px solid var(--portal-card-border)',
+                          background: isSelected
+                            ? (isNone ? '#ECFDF5' : `${secondaryColor}10`)
+                            : '#ffffff',
+                          color: isSelected
+                            ? (isNone ? '#065F46' : secondaryColor)
+                            : 'var(--portal-text-primary)',
+                          fontWeight: isSelected ? 700 : 500,
+                          fontSize: 13.5,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          textAlign: 'left',
+                          transition: 'all 0.15s ease',
+                        }}
+                      >
+                        <span>{cond}</span>
+                        <span style={{
+                          width: 20,
+                          height: 20,
+                          borderRadius: '50%',
+                          border: isSelected ? 'none' : '1.5px solid #cbd5e1',
+                          background: isSelected ? (isNone ? '#10B981' : secondaryColor) : 'transparent',
+                          color: '#fff',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: 12,
+                          fontWeight: 800,
+                        }}>
+                          {isSelected ? '✓' : ''}
+                        </span>
+                      </button>
+                    )
+                  })}
+                </div>
+
+                <div style={{ marginBottom: 14 }}>
+                  <label style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--portal-text-secondary)', display: 'block', marginBottom: 6 }}>
+                    ¿Tomás alguna medicación habitualmente? (opcional)
+                  </label>
+                  <input
+                    type="text"
+                    value={medicacionHabitual}
+                    onChange={e => setMedicacionHabitual(e.target.value)}
+                    placeholder="Ej. Enalapril 10mg, levotiroxina, aspirina preventiva..."
+                    style={{
+                      width: '100%',
+                      boxSizing: 'border-box',
+                      fontSize: 13.5,
+                      padding: '11px 14px',
+                      borderRadius: 12,
+                      border: '1px solid var(--portal-card-border)',
+                      background: 'rgba(255,255,255,0.7)',
+                      outline: 'none',
+                      fontFamily: 'inherit',
+                      color: 'var(--portal-text-primary)',
+                    }}
+                  />
+                </div>
+
+                <div style={{ marginBottom: 22 }}>
+                  <label style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--portal-text-secondary)', display: 'block', marginBottom: 6 }}>
+                    Contacto de emergencia (opcional)
+                  </label>
+                  <input
+                    type="text"
+                    value={contactoEmergencia}
+                    onChange={e => setContactoEmergencia(e.target.value)}
+                    placeholder="Ej. Mamá (María): 11 5555-1234"
+                    style={{
+                      width: '100%',
+                      boxSizing: 'border-box',
+                      fontSize: 13.5,
+                      padding: '11px 14px',
+                      borderRadius: 12,
+                      border: '1px solid var(--portal-card-border)',
+                      background: 'rgba(255,255,255,0.7)',
+                      outline: 'none',
+                      fontFamily: 'inherit',
+                      color: 'var(--portal-text-primary)',
+                    }}
+                  />
+                </div>
+
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAnamnesisError('')
+                      setAnamnesisStep(1)
+                    }}
+                    style={{
+                      flex: 1,
+                      padding: '13px',
+                      borderRadius: 12,
+                      border: '1px solid var(--portal-card-border)',
+                      background: 'transparent',
+                      color: 'var(--portal-text-secondary)',
+                      fontSize: 13,
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    &larr; Volver
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAnamnesisError('')
+                      setAnamnesisStep(3)
+                    }}
+                    style={{
+                      flex: 1.5,
+                      padding: '13px',
+                      borderRadius: 12,
+                      border: 'none',
+                      background: primaryColor,
+                      color: '#ffffff',
+                      fontSize: 13.5,
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      boxShadow: `0 4px 14px ${primaryColor}28`,
+                    }}
+                  >
+                    Continuar &rarr;
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* PASO 3: IDENTIFICACIÓN Y CONSENTIMIENTO LEGAL */}
+            {anamnesisStep === 3 && (
+              <div>
+                <div style={{ marginBottom: 16 }}>
+                  <label style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--portal-text-secondary)', display: 'block', marginBottom: 6 }}>
+                    DNI / Documento de Identidad *
+                  </label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={dniPaciente}
+                    onChange={e => setDniPaciente(e.target.value)}
+                    placeholder="Ej. 35894120"
+                    style={{
+                      width: '100%',
+                      boxSizing: 'border-box',
+                      fontSize: 15,
+                      fontWeight: 700,
+                      padding: '12px 14px',
+                      borderRadius: 12,
+                      border: !dniPaciente.trim() && anamnesisError ? '1.5px solid #EF4444' : '1px solid var(--portal-card-border)',
+                      background: 'rgba(255,255,255,0.7)',
+                      outline: 'none',
+                      fontFamily: 'inherit',
+                      color: 'var(--portal-text-primary)',
+                    }}
+                  />
+                  <span style={{ fontSize: 11.5, color: 'var(--portal-text-muted)', marginTop: 4, display: 'block' }}>
+                    Requerido por la Ley 26.529 para validez legal de tu historia clínica.
+                  </span>
+                </div>
+
+                {/* Recuadro de Consentimiento Legal */}
+                <div style={{
+                  background: 'rgba(10,37,64,0.03)',
+                  border: '1px solid rgba(10,37,64,0.08)',
+                  borderRadius: 14,
+                  padding: '14px',
+                  marginBottom: 16,
+                }}>
+                  <div style={{ fontSize: 12, fontWeight: 800, color: primaryColor, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span>⚖️</span>
+                    <span>Protección de Datos de Salud (Ley 25.326)</span>
+                  </div>
+                  <div style={{ fontSize: 12.5, color: 'var(--portal-text-secondary)', lineHeight: 1.5 }}>
+                    Autorizás a {tenant?.nombre || 'el consultorio'} a registrar y tratar tus datos de salud con el fin exclusivo de tu atención odontológica, turnos y pagos. Tus datos se guardan bajo secreto profesional y confidencialidad médica, y podés acceder o rectificarlos en cualquier momento.
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setVerTextoLegalCompleto(!verTextoLegalCompleto)}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: secondaryColor,
+                      fontSize: 11.5,
+                      fontWeight: 700,
+                      padding: '6px 0 0',
+                      cursor: 'pointer',
+                      textDecoration: 'underline',
+                    }}
+                  >
+                    {verTextoLegalCompleto ? 'Ocultar texto normativo completo' : 'Ver términos y texto normativo completo'}
+                  </button>
+
+                  {verTextoLegalCompleto && (
+                    <div style={{
+                      marginTop: 10,
+                      padding: '10px 12px',
+                      background: '#ffffff',
+                      borderRadius: 10,
+                      border: '1px solid #e2e8f0',
+                      fontSize: 11.5,
+                      color: '#475569',
+                      lineHeight: 1.5,
+                      whiteSpace: 'pre-wrap',
+                      maxHeight: 150,
+                      overflowY: 'auto',
+                    }}>
+                      {TEXTO_CONSENTIMIENTO_DATOS}
+                    </div>
+                  )}
+                </div>
+
+                {/* Checkbox Obligatorio */}
+                <label style={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: 12,
+                  cursor: 'pointer',
+                  padding: '12px 14px',
+                  borderRadius: 14,
+                  background: aceptaConsentimiento ? `${primaryColor}0a` : '#ffffff',
+                  border: `1.5px solid ${aceptaConsentimiento ? primaryColor : 'var(--portal-card-border)'}`,
+                  marginBottom: 22,
+                  transition: 'all 0.2s ease',
+                }}>
+                  <input
+                    type="checkbox"
+                    checked={aceptaConsentimiento}
+                    onChange={e => setAceptaConsentimiento(e.target.checked)}
+                    style={{
+                      width: 18,
+                      height: 18,
+                      accentColor: primaryColor,
+                      marginTop: 2,
+                      cursor: 'pointer',
+                    }}
+                  />
+                  <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--portal-text-primary)', lineHeight: 1.45 }}>
+                    Declaro bajo juramento que los datos aportados sobre mi salud son verdaderos (Ley 26.529), y presto mi consentimiento expreso e informado para su tratamiento médico (Ley 25.326).
+                  </span>
+                </label>
+
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAnamnesisError('')
+                      setAnamnesisStep(2)
+                    }}
+                    style={{
+                      flex: 1,
+                      padding: '13px',
+                      borderRadius: 12,
+                      border: '1px solid var(--portal-card-border)',
+                      background: 'transparent',
+                      color: 'var(--portal-text-secondary)',
+                      fontSize: 13,
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    &larr; Volver
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!dniPaciente.trim()) {
+                        setAnamnesisError('Ingresá tu número de DNI o documento.')
+                        return
+                      }
+                      if (!aceptaConsentimiento) {
+                        setAnamnesisError('Debés tildar la casilla de consentimiento para avanzar.')
+                        return
+                      }
+                      setAnamnesisError('')
+                      setAnamnesisStep(4)
+                    }}
+                    style={{
+                      flex: 1.5,
+                      padding: '13px',
+                      borderRadius: 12,
+                      border: 'none',
+                      background: primaryColor,
+                      color: '#ffffff',
+                      fontSize: 13.5,
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      boxShadow: `0 4px 14px ${primaryColor}28`,
+                    }}
+                  >
+                    Continuar a Firmar &rarr;
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* PASO 4: FIRMA DIGITAL ELECTRÓNICA */}
+            {anamnesisStep === 4 && (
+              <div>
+                <div style={{ marginBottom: 16 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                    <label style={{ fontSize: 13, fontWeight: 700, color: 'var(--portal-text-primary)' }}>
+                      Trazá tu firma manuscrita *
+                    </label>
+                    <span style={{ fontSize: 11, color: 'var(--portal-text-muted)' }}>
+                      Con dedo o mouse
+                    </span>
+                  </div>
+
+                  {/* Lienzo SignaturePad */}
+                  <div style={{ borderRadius: 14, overflow: 'hidden', border: '1px solid var(--portal-card-border)' }}>
+                    <SignaturePad onChange={setFirmaDigital} height={180} />
+                  </div>
+                </div>
+
+                {/* Sello de seguridad y validez legal */}
+                <div style={{
+                  padding: '10px 12px',
+                  borderRadius: 12,
+                  background: 'rgba(16, 185, 129, 0.08)',
+                  border: '1px solid rgba(16, 185, 129, 0.2)',
+                  fontSize: 11.5,
+                  color: '#065F46',
+                  lineHeight: 1.45,
+                  marginBottom: 20,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                }}>
+                  <span style={{ fontSize: 16 }}>🔒</span>
+                  <span>
+                    Firma electrónica amparada por la Ley 25.506. Se generará una huella de integridad SHA-256 junto con la fecha, hora e IP de conexión.
+                  </span>
+                </div>
+
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <button
+                    type="button"
+                    disabled={enviandoAnamnesis}
+                    onClick={() => {
+                      setAnamnesisError('')
+                      setAnamnesisStep(3)
+                    }}
+                    style={{
+                      flex: 1,
+                      padding: '13px',
+                      borderRadius: 12,
+                      border: '1px solid var(--portal-card-border)',
+                      background: 'transparent',
+                      color: 'var(--portal-text-secondary)',
+                      fontSize: 13,
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    &larr; Volver
+                  </button>
+                  <button
+                    type="button"
+                    disabled={enviandoAnamnesis || !firmaDigital}
+                    onClick={enviarAnamnesis}
+                    style={{
+                      flex: 1.8,
+                      padding: '13px',
+                      borderRadius: 12,
+                      border: 'none',
+                      background: `linear-gradient(135deg, ${accentColor}, #0F5145)`,
+                      color: '#ffffff',
+                      fontSize: 13.5,
+                      fontWeight: 700,
+                      cursor: (enviandoAnamnesis || !firmaDigital) ? 'not-allowed' : 'pointer',
+                      opacity: (enviandoAnamnesis || !firmaDigital) ? 0.6 : 1,
+                      boxShadow: `0 4px 14px ${accentColor}30`,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 6,
+                    }}
+                  >
+                    <span>{enviandoAnamnesis ? 'Sellando y guardando…' : 'Firmar y Enviar Declaración'}</span>
+                    {!enviandoAnamnesis && <span>✓</span>}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {successModal && (
+        <SuccessModal
+          open={successModal.open}
+          onClose={() => setSuccessModal(null)}
+          badge={successModal.badge}
+          title={successModal.title}
+          description={successModal.description}
+          detail={successModal.detail}
+          detailIcon={successModal.detailIcon}
+          accentColor={primaryColor}
+        />
+      )}
+
       <style>{`
         :root {
-          --portal-bg: #FAF9F6;
-          --portal-card-bg: rgba(255, 255, 255, 0.88);
-          --portal-card-border: rgba(10, 30, 61, 0.05);
-          --portal-text-primary: ${primaryColor};
-          --portal-text-secondary: #4a5568;
-          --portal-text-muted: #8a99ad;
-          --portal-shadow: rgba(10, 30, 61, 0.02);
+          --portal-bg: #F4F7FB;
+          --portal-card-bg: #FFFFFF;
+          --portal-card-border: rgba(15, 76, 92, 0.08);
+          --portal-text-primary: #0A2540;
+          --portal-text-secondary: #475569;
+          --portal-text-muted: #64748b;
+          --portal-shadow: rgba(10, 37, 64, 0.04);
         }
         body {
           background-color: var(--portal-bg) !important;
           color: var(--portal-text-primary) !important;
-          background-image: 
-            radial-gradient(at 0% 0%, ${secondaryColor}0f 0px, transparent 50%),
-            radial-gradient(at 100% 100%, ${accentColor}0f 0px, transparent 50%);
-          background-attachment: fixed;
+          background: radial-gradient(ellipse at 50% -10%, rgba(15, 76, 92, 0.08) 0%, rgba(244, 247, 251, 0.95) 45%, #EEF3F9 100%) !important;
+          background-attachment: fixed !important;
           transition: background-color 0.3s, color 0.3s;
         }
         .patient-card {
-          background: var(--portal-card-bg) !important;
-          border: 1px solid var(--portal-card-border) !important;
-          box-shadow: 0 10px 30px rgba(10, 30, 61, 0.02), 0 1px 3px rgba(10, 30, 61, 0.01) !important;
+          background: #ffffff !important;
+          border: 1px solid rgba(15, 76, 92, 0.08) !important;
+          box-shadow: 0 16px 36px -12px rgba(10, 37, 64, 0.08), 0 2px 8px rgba(10, 37, 64, 0.02) !important;
           backdrop-filter: blur(20px) saturate(180%);
           -webkit-backdrop-filter: blur(20px) saturate(180%);
-          transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+          transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
         }
         .patient-card:hover {
           transform: translateY(-2px);
-          box-shadow: 0 15px 35px rgba(10, 30, 61, 0.05) !important;
-          border-color: ${secondaryColor}20 !important;
+          box-shadow: 0 20px 42px -10px rgba(10, 37, 64, 0.12), 0 4px 12px rgba(10, 37, 64, 0.04) !important;
+          border-color: rgba(15, 76, 92, 0.16) !important;
         }
         
         .portal-wrapper {

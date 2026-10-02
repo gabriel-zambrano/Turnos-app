@@ -21,7 +21,8 @@ for (const archivo of MIGRADAS) {
       expect(hex, `colores fijos: ${hex.join(' ')}`).toEqual([])
     })
     it('sin emojis como íconos', () => {
-      const emojis = codigo.match(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu) ?? []
+      // RegExp con flag 'u' por constructor: el proyecto compila a ES5 y no admite /u literal.
+      const emojis = codigo.match(new RegExp('[\\u{1F300}-\\u{1FAFF}\\u{2600}-\\u{27BF}]', 'gu')) ?? []
       expect(emojis, `emojis: ${emojis.join(' ')}`).toEqual([])
     })
     it('sin alert() ni confirm() del navegador', () => {

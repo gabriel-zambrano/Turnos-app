@@ -884,5 +884,44 @@ input, select, textarea, button {
   .dd-btn--md, .dd-btn--sm { min-height: 44px; }
 }
 
+/* ── Estilos Premium para Portal del Paciente y Pase de Turno ── */
+@keyframes pulseDotGreen {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.6); }
+  70% { transform: scale(1.05); box-shadow: 0 0 0 7px rgba(16, 185, 129, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+
+@keyframes pulseDotAmber {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.6); }
+  70% { transform: scale(1.05); box-shadow: 0 0 0 7px rgba(245, 158, 11, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }
+}
+
+.pulse-dot-green {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #10b981;
+  display: inline-block;
+  flex-shrink: 0;
+  animation: pulseDotGreen 2s infinite ease-in-out;
+}
+
+.pulse-dot-amber {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #f59e0b;
+  display: inline-block;
+  flex-shrink: 0;
+  animation: pulseDotAmber 2s infinite ease-in-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pulse-dot-green, .pulse-dot-amber {
+    animation: none !important;
+  }
+}
+
 /* Pantallas de montos: dígitos de ancho fijo (tabular) para comparar cifras de un vistazo. */
 .dd-cifras { font-variant-numeric: tabular-nums; }
