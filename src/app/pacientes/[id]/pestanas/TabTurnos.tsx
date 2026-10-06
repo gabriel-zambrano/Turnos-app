@@ -22,7 +22,7 @@ export function TabTurnos({ paciente, citas, setModalTurno, cambiarEstadoCita }:
           </div>
           <button 
             onClick={() => setModalTurno(true)}
-            style={{ background: '#185FA5', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
+            style={{ background: 'var(--accent)', color: 'var(--accent-contrast)', border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
           >
             📅 Agendar Turno
           </button>
@@ -37,11 +37,11 @@ export function TabTurnos({ paciente, citas, setModalTurno, cambiarEstadoCita }:
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
               <thead>
                 <tr style={{ background: 'var(--table-header-bg)', borderBottom: '1px solid var(--border-light)' }}>
-                  <th style={{ padding: '10px 12px', textAlign: 'left', color: '#185FA5', fontWeight: 600 }}>Fecha y Hora</th>
-                  <th style={{ padding: '10px 12px', textAlign: 'left', color: '#185FA5', fontWeight: 600 }}>Tratamiento</th>
-                  <th style={{ padding: '10px 12px', textAlign: 'left', color: '#185FA5', fontWeight: 600 }}>Duración</th>
-                  <th style={{ padding: '10px 12px', textAlign: 'left', color: '#185FA5', fontWeight: 600 }}>Estado</th>
-                  <th style={{ padding: '10px 12px', textAlign: 'left', color: '#185FA5', fontWeight: 600 }}>Acción</th>
+                  <th style={{ padding: '10px 12px', textAlign: 'left', color: 'var(--accent)', fontWeight: 600 }}>Fecha y Hora</th>
+                  <th style={{ padding: '10px 12px', textAlign: 'left', color: 'var(--accent)', fontWeight: 600 }}>Tratamiento</th>
+                  <th style={{ padding: '10px 12px', textAlign: 'left', color: 'var(--accent)', fontWeight: 600 }}>Duración</th>
+                  <th style={{ padding: '10px 12px', textAlign: 'left', color: 'var(--accent)', fontWeight: 600 }}>Estado</th>
+                  <th style={{ padding: '10px 12px', textAlign: 'left', color: 'var(--accent)', fontWeight: 600 }}>Acción</th>
                 </tr>
               </thead>
               <tbody>
@@ -60,12 +60,12 @@ export function TabTurnos({ paciente, citas, setModalTurno, cambiarEstadoCita }:
                       <td style={{ padding: '12px 12px', color: 'var(--text-muted-darker)' }}>{cita.duracion_minutos} min</td>
                       <td style={{ padding: '12px 12px' }}>
                         <span style={{ 
-                          fontSize: 11, 
+                          fontSize: 12, 
                           fontWeight: 700, 
                           padding: '3px 8px', 
                           borderRadius: 6, 
-                          background: cita.estado === 'confirmado' ? '#D1E7DD' : cita.estado === 'pendiente' ? '#FFF3CD' : cita.estado === 'asistio' || cita.estado === 'completado' ? '#E6F1FB' : '#F8D7DA',
-                          color: cita.estado === 'confirmado' ? '#0A3622' : cita.estado === 'pendiente' ? '#856404' : cita.estado === 'asistio' || cita.estado === 'completado' ? '#0C447C' : '#58151C'
+                          background: cita.estado === 'confirmado' ? 'var(--est-confirmado-bg)' : cita.estado === 'pendiente' ? 'var(--est-pendiente-bg)' : cita.estado === 'asistio' || cita.estado === 'completado' ? 'var(--est-asistio-bg)' : 'var(--est-cancelado-bg)',
+                          color: cita.estado === 'confirmado' ? 'var(--est-confirmado-color)' : cita.estado === 'pendiente' ? 'var(--est-pendiente-color)' : cita.estado === 'asistio' || cita.estado === 'completado' ? 'var(--est-asistio-color)' : 'var(--est-cancelado-color)'
                         }}>
                           {cita.estado.toUpperCase()}
                         </span>

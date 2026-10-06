@@ -55,22 +55,22 @@ const ToothSVG = ({ num, estado }: { num: number; estado: string }) => {
   let strokeWidth = 1.5
 
   if (estado === 'Sano') {
-    strokeColor = "#10b981"
+    strokeColor = "var(--diente-sano)"
     fillColor = "rgba(16, 185, 129, 0.05)"
   } else if (estado === 'Caries') {
-    strokeColor = "#ef4444"
+    strokeColor = "var(--diente-caries)"
     fillColor = "rgba(239, 68, 68, 0.15)"
     strokeWidth = 2
   } else if (estado === 'Corona') {
-    strokeColor = "#f59e0b"
+    strokeColor = "var(--diente-corona)"
     fillColor = "rgba(245, 158, 11, 0.2)"
     strokeWidth = 2
   } else if (estado === 'Endodoncia') {
-    strokeColor = "#3b82f6"
+    strokeColor = "var(--diente-endodoncia)"
     fillColor = "rgba(59, 130, 246, 0.1)"
     strokeWidth = 2
   } else if (estado === 'Implante') {
-    strokeColor = "#8b5cf6"
+    strokeColor = "var(--diente-implante)"
     fillColor = "rgba(139, 92, 246, 0.1)"
     strokeWidth = 2
   } else if (estado === 'Ausente') {
@@ -92,8 +92,7 @@ const ToothSVG = ({ num, estado }: { num: number; estado: string }) => {
       {/* Silueta principal */}
       <path 
         d={dPath} 
-        fill={fillColor} 
-        stroke={strokeColor} 
+        style={{ fill: fillColor, stroke: strokeColor }}
         strokeWidth={strokeWidth} 
         strokeLinecap="round" 
         strokeLinejoin="round" 
@@ -101,15 +100,15 @@ const ToothSVG = ({ num, estado }: { num: number; estado: string }) => {
 
       {/* Renders visuales de tratamiento */}
       {estado === 'Caries' && (
-        <circle cx="16" cy="6" r="3.5" fill="#ef4444" stroke="#ffffff" strokeWidth="1" />
+        <circle cx="16" cy="6" r="3.5" style={{ fill: 'var(--diente-caries)', stroke: 'var(--bg-card)' }} strokeWidth="1" />
       )}
 
       {estado === 'Endodoncia' && (
-        <path d="M 16,8 L 16,24" stroke="#3b82f6" strokeWidth="2.5" strokeLinecap="round" />
+        <path d="M 16,8 L 16,24" style={{ stroke: 'var(--diente-endodoncia)' }} strokeWidth="2.5" strokeLinecap="round" />
       )}
 
       {estado === 'Implante' && (
-        <g stroke="#8b5cf6" strokeWidth="1.5" strokeLinecap="round">
+        <g style={{ stroke: 'var(--diente-implante)' }} strokeWidth="1.5" strokeLinecap="round">
           <path d="M 12,16 L 20,16" />
           <path d="M 13,19 L 19,19" />
           <path d="M 13,22 L 19,22" />
@@ -121,13 +120,13 @@ const ToothSVG = ({ num, estado }: { num: number; estado: string }) => {
       {estado === 'Corona' && (
         <path 
           d={isAnterior ? "M 11,2 C 11,1 13,0 16,0 C 19,0 21,1 21,2 L 20,8 C 18,9 14,9 12,8 Z" : "M 7,4 C 7,1 11,0 16,1 C 21,0 25,1 25,4 L 24,9 C 22,10 10,10 8,9 Z"} 
-          fill="#f59e0b" 
+          style={{ fill: 'var(--diente-corona)' }} 
           opacity="0.85"
         />
       )}
 
       {estado === 'Ausente' && (
-        <g stroke="#64748b" strokeWidth="2.5" strokeLinecap="round">
+        <g style={{ stroke: 'var(--diente-ausente)' }} strokeWidth="2.5" strokeLinecap="round">
           <line x1="4" y1="4" x2="28" y2="28" />
           <line x1="28" y1="4" x2="4" y2="28" />
         </g>
@@ -742,7 +741,7 @@ export default function PacienteDetalle() {
           padding: '8px 4px',
           borderRadius: 12,
           background: isSelected ? 'var(--bg-card-hover)' : 'var(--bg-card)',
-          border: isSelected ? '2px solid #185FA5' : '1px solid var(--border-light)',
+          border: isSelected ? '2px solid var(--accent)' : '1px solid var(--border-light)',
           cursor: 'pointer',
           transition: 'all 0.2s ease',
           minWidth: 50,
@@ -753,7 +752,7 @@ export default function PacienteDetalle() {
         }}
         className="interactive-item"
       >
-        <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-dark)' }}>{num}</span>
+        <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-dark)' }}>{num}</span>
         <div style={{
           width: 36,
           height: 36,
@@ -764,7 +763,7 @@ export default function PacienteDetalle() {
         }}>
           <ToothSVG num={num} estado={estado} />
         </div>
-        <span style={{ fontSize: 9, fontWeight: 600, color: info.color, textTransform: 'uppercase' }}>{info.label}</span>
+        <span style={{ fontSize: 12, fontWeight: 600, color: info.color, textTransform: 'uppercase' }}>{info.label}</span>
       </button>
     )
   }
@@ -846,7 +845,7 @@ export default function PacienteDetalle() {
         .sort((a, b) => new Date(a.fecha_hora).getTime() - new Date(b.fecha_hora).getTime())[0]
     : null
 
-  const secondaryColor = tenant?.secondaryColor || '#185FA5'
+  const secondaryColor = tenant?.secondaryColor || 'var(--accent)'
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', fontFamily: 'DM Sans, sans-serif' }}>
@@ -873,13 +872,13 @@ export default function PacienteDetalle() {
               datos. No se les puede dar por prestado: hay que pedírselo en la
               próxima visita y registrarlo desde acá. */}
           {!tieneConsentimientoVigente(paciente as any) && (
-            <div style={{ background: '#FFF3CD', border: '1px solid #ffe08a', borderRadius: 12, padding: '14px 16px', display: 'flex', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+            <div style={{ background: 'var(--warning-soft)', border: '1px solid var(--warning-border)', borderRadius: 12, padding: '14px 16px', display: 'flex', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
               <span style={{ fontSize: 18, lineHeight: 1 }}>⚠️</span>
               <div style={{ flex: 1, minWidth: 220 }}>
-                <div style={{ fontSize: 13.5, fontWeight: 700, color: '#633806', marginBottom: 3 }}>
+                <div style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--warning-text)', marginBottom: 3 }}>
                   Falta el consentimiento de datos
                 </div>
-                <div style={{ fontSize: 12.5, color: '#856404', lineHeight: 1.5 }}>
+                <div style={{ fontSize: 12.5, color: 'var(--warning-text)', lineHeight: 1.5 }}>
                   Este paciente se cargó antes de que se pidiera el consentimiento para el
                   tratamiento de sus datos de salud. Pedíselo en la próxima visita y registralo acá.
                 </div>
@@ -900,8 +899,8 @@ export default function PacienteDetalle() {
               width: 56,
               height: 56,
               borderRadius: '50%',
-              background: 'linear-gradient(135deg, #185FA5, #378ADD)',
-              color: '#fff',
+              background: 'linear-gradient(135deg, var(--accent), var(--accent))',
+              color: 'var(--accent-contrast)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -913,28 +912,28 @@ export default function PacienteDetalle() {
             </div>
             <div style={{ flex: 1, display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(5, 1fr)', gap: 16, width: '100%', textAlign: isMobile ? 'center' : 'left' }}>
               <div>
-                <span style={{ fontSize: 11, color: 'var(--text-muted)', display: 'block', fontWeight: 600, textTransform: 'uppercase' }}>Nombre Completo</span>
+                <span style={{ fontSize: 12, color: 'var(--text-muted)', display: 'block', fontWeight: 600, textTransform: 'uppercase' }}>Nombre Completo</span>
                 <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-dark)' }}>{paciente.nombre}</span>
               </div>
               <div>
-                <span style={{ fontSize: 11, color: 'var(--text-muted)', display: 'block', fontWeight: 600, textTransform: 'uppercase' }}>Teléfono</span>
+                <span style={{ fontSize: 12, color: 'var(--text-muted)', display: 'block', fontWeight: 600, textTransform: 'uppercase' }}>Teléfono</span>
                 <span style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-dark)' }}>{paciente.telefono}</span>
               </div>
               <div>
-                <span style={{ fontSize: 11, color: 'var(--text-muted)', display: 'block', fontWeight: 600, textTransform: 'uppercase' }}>Email</span>
+                <span style={{ fontSize: 12, color: 'var(--text-muted)', display: 'block', fontWeight: 600, textTransform: 'uppercase' }}>Email</span>
                 <span style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-dark)', overflow: 'hidden', textOverflow: 'ellipsis', display: 'block' }}>{paciente.email || '—'}</span>
               </div>
               <div>
-                <span style={{ fontSize: 11, color: 'var(--text-muted)', display: 'block', fontWeight: 600, textTransform: 'uppercase' }}>Edad (Nacimiento)</span>
+                <span style={{ fontSize: 12, color: 'var(--text-muted)', display: 'block', fontWeight: 600, textTransform: 'uppercase' }}>Edad (Nacimiento)</span>
                 <span style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-dark)' }}>
                   {calcEdad(paciente.fecha_nacimiento)} {paciente.fecha_nacimiento ? `(${paciente.fecha_nacimiento})` : ''}
                 </span>
               </div>
               <div>
-                <span style={{ fontSize: 11, color: 'var(--text-muted)', display: 'block', fontWeight: 600, textTransform: 'uppercase' }}>Próximo Turno</span>
+                <span style={{ fontSize: 12, color: 'var(--text-muted)', display: 'block', fontWeight: 600, textTransform: 'uppercase' }}>Próximo Turno</span>
                 {proximaCita ? (
                   <span 
-                    style={{ fontSize: 13, fontWeight: 700, color: '#185FA5', cursor: 'pointer', display: 'block', textDecoration: 'underline' }} 
+                    style={{ fontSize: 13, fontWeight: 700, color: 'var(--accent)', cursor: 'pointer', display: 'block', textDecoration: 'underline' }} 
                     onClick={() => setTabActiva('turnos')}
                     title="Haga click para ver el historial de turnos"
                   >
@@ -942,10 +941,10 @@ export default function PacienteDetalle() {
                   </span>
                 ) : (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: isMobile ? 'center' : 'flex-start', flexWrap: 'wrap', marginTop: 2 }}>
-                    <span style={{ fontSize: 12, fontWeight: 700, color: '#d97706', display: 'block' }}>⚠️ Sin turnos</span>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--warning-text)', display: 'inline-flex', alignItems: 'center', gap: 4 }}><Icon name="alert" size={12} />Sin turnos</span>
                     <button 
                       onClick={() => { setTabActiva('turnos'); setModalTurno(true); }}
-                      style={{ background: '#185FA5', border: 'none', color: '#fff', borderRadius: 6, padding: '2px 8px', fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: 'DM Sans, sans-serif' }}
+                      style={{ background: 'var(--accent)', border: 'none', color: 'var(--accent-contrast)', borderRadius: 6, padding: '2px 8px', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'DM Sans, sans-serif' }}
                     >
                       + Agendar
                     </button>
@@ -983,7 +982,7 @@ export default function PacienteDetalle() {
                         padding: '8px 14px',
                         borderRadius: 8,
                         border: 'none',
-                        background: active ? `${secondaryColor}14` : 'transparent',
+                        background: active ? `color-mix(in srgb, ${secondaryColor} 8%, transparent)` : 'transparent',
                         color: active ? secondaryColor : 'var(--text-muted-darker, #4a6080)',
                         fontSize: 12.5,
                         fontWeight: active ? 700 : 500,
@@ -1057,28 +1056,28 @@ export default function PacienteDetalle() {
                       setEditRecomendaciones(paciente.recomendaciones || '')
                       setModalFicha(true)
                     }}
-                    style={{ background: 'none', border: 'none', color: '#185FA5', fontSize: 12, fontWeight: 700, cursor: 'pointer', padding: 0 }}
+                    style={{ background: 'none', border: 'none', color: 'var(--accent)', fontSize: 12, fontWeight: 700, cursor: 'pointer', padding: 0 }}
                   >
                     ✏️ Editar Ficha
                   </button>
                 </div>
 
                 {paciente.alergias ? (
-                  <div style={{ background: '#FEE2E2', border: '1px solid #FECACA', borderRadius: 10, padding: '10px 12px', color: '#991B1B', display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                  <div style={{ background: 'var(--danger-soft)', border: '1px solid var(--danger-border)', borderRadius: 10, padding: '10px 12px', color: 'var(--danger-text)', display: 'flex', alignItems: 'flex-start', gap: 8 }}>
                     <span style={{ fontSize: 16 }}>⚠️</span>
                     <div>
-                      <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Alergias Importantes</div>
+                      <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Alergias Importantes</div>
                       <div style={{ fontSize: 13, fontWeight: 600, marginTop: 2 }}>{paciente.alergias}</div>
                     </div>
                   </div>
                 ) : (
-                  <div style={{ background: '#F0FDF4', border: '1px solid #DCFCE7', borderRadius: 10, padding: '10px 12px', color: '#166534', fontSize: 12, fontWeight: 600 }}>
+                  <div style={{ background: 'var(--success-soft)', border: '1px solid var(--success-border)', borderRadius: 10, padding: '10px 12px', color: 'var(--success-text)', fontSize: 12, fontWeight: 600 }}>
                     ✅ Sin alergias conocidas.
                   </div>
                 )}
 
                 <div>
-                  <span style={{ fontSize: 10.5, color: 'var(--text-muted)', display: 'block', fontWeight: 600, textTransform: 'uppercase' }}>Antecedentes Médicos</span>
+                  <span style={{ fontSize: 12.5, color: 'var(--text-muted)', display: 'block', fontWeight: 600, textTransform: 'uppercase' }}>Antecedentes Médicos</span>
                   <span style={{ fontSize: 13, color: 'var(--text-dark)', marginTop: 2, display: 'block', whiteSpace: 'pre-wrap', lineHeight: 1.4 }}>
                     {paciente.antecedentes || 'Sin antecedentes registrados.'}
                   </span>
@@ -1086,23 +1085,23 @@ export default function PacienteDetalle() {
 
                 <div style={{ borderTop: '1px solid var(--border-light, #dde5ef)', paddingTop: 12 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                    <span style={{ fontSize: 10.5, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Progreso del Plan</span>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: '#185FA5' }}>{paciente.progreso_plan_porcentaje || 0}%</span>
+                    <span style={{ fontSize: 12.5, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Progreso del Plan</span>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--accent)' }}>{paciente.progreso_plan_porcentaje || 0}%</span>
                   </div>
                   <div style={{ height: 8, background: 'var(--border-lighter, #f1f5f9)', borderRadius: 4, overflow: 'hidden' }}>
-                    <div style={{ height: '100%', width: `${paciente.progreso_plan_porcentaje || 0}%`, background: 'linear-gradient(90deg, #185FA5, #138A6B)', borderRadius: 4, transition: 'width 0.4s ease' }} />
+                    <div style={{ height: '100%', width: `${paciente.progreso_plan_porcentaje || 0}%`, background: 'linear-gradient(90deg, var(--accent), var(--success))', borderRadius: 4, transition: 'width 0.4s ease' }} />
                   </div>
                 </div>
 
                 {FIDELIZACION_HABILITADA && (
                 <div style={{ borderTop: '1px solid var(--border-light, #dde5ef)', paddingTop: 12 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: 10.5, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Sistema de Puntos VIP</span>
-                    <span style={{ fontSize: 15, fontWeight: 800, color: '#F59E0B', display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <span style={{ fontSize: 12.5, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Sistema de Puntos VIP</span>
+                    <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--warning-text)', display: 'flex', alignItems: 'center', gap: 4 }}>
                       🪙 {paciente.puntos_saldo_cache ?? 0} pts
                     </span>
                   </div>
-                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4, display: 'flex', flexDirection: 'column', gap: 3 }}>
+                  <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4, display: 'flex', flexDirection: 'column', gap: 3 }}>
                     <span>Total visitas asistidas: <strong>{paciente.total_visitas_asistidas ?? 0}</strong></span>
                     <span>Racha de asistencia: <strong>{paciente.visitas_consecutivas_sin_faltar ?? 0} / {configFidelizacion?.racha_objetivo ?? 3}</strong> para bonus (+{configFidelizacion?.racha_bonus_puntos ?? 150} pts)</span>
                   </div>
@@ -1110,7 +1109,7 @@ export default function PacienteDetalle() {
                     <div style={{ 
                       height: '100%', 
                       width: `${Math.min(100, ((paciente.visitas_consecutivas_sin_faltar ?? 0) / (configFidelizacion?.racha_objetivo ?? 3)) * 100)}%`, 
-                      background: 'linear-gradient(90deg, #F59E0B, #EF9F27)', 
+                      background: 'linear-gradient(90deg, var(--warning), var(--warning))', 
                       borderRadius: 3, 
                       transition: 'width 0.4s ease' 
                     }} />
@@ -1120,7 +1119,7 @@ export default function PacienteDetalle() {
 
                 {paciente.recomendaciones && (
                   <div style={{ borderTop: '1px solid var(--border-light, #dde5ef)', paddingTop: 12 }}>
-                    <span style={{ fontSize: 10.5, color: 'var(--text-muted)', display: 'block', fontWeight: 600, textTransform: 'uppercase' }}>Indicaciones para el portal</span>
+                    <span style={{ fontSize: 12.5, color: 'var(--text-muted)', display: 'block', fontWeight: 600, textTransform: 'uppercase' }}>Indicaciones para el portal</span>
                     <span style={{ fontSize: 12.5, color: 'var(--text-dark)', marginTop: 2, display: 'block', fontStyle: 'italic', whiteSpace: 'pre-wrap' }}>
                       "{paciente.recomendaciones}"
                     </span>
@@ -1138,7 +1137,7 @@ export default function PacienteDetalle() {
                   {dienteSel ? (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                       <div style={{ background: 'var(--bg-input)', padding: 12, borderRadius: 12, border: '1px solid var(--border-light)' }}>
-                        <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600 }}>ESTADO ACTUAL</div>
+                        <div style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600 }}>ESTADO ACTUAL</div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
                           <span style={{ fontSize: 16 }}>{ESTADOS_INFO[getDienteEstadoActual(dienteSel)]?.icon}</span>
                           <span style={{ fontSize: 14, fontWeight: 700, color: ESTADOS_INFO[getDienteEstadoActual(dienteSel)]?.color }}>
@@ -1319,7 +1318,7 @@ export default function PacienteDetalle() {
             {FIDELIZACION_HABILITADA && (
             <div style={{ ...groupCss, background: 'var(--bg-input, rgba(0,0,0,0.02))', padding: 12, borderRadius: 10, border: '1px solid var(--border-light, #dde5ef)', marginTop: 8, marginBottom: 16 }}>
               <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-dark)', display: 'block' }}>Puntos de Ajuste Manual</span>
-              <span style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4, display: 'block', lineHeight: 1.4 }}>
+              <span style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4, display: 'block', lineHeight: 1.4 }}>
                 Los puntos y ajustes manuales se gestionan ahora desde la pestaña <strong>Club de Puntos</strong> en la ficha del paciente para mantener el historial auditado.
               </span>
             </div>
@@ -1455,7 +1454,7 @@ export default function PacienteDetalle() {
                 style={{ ...inputCss, padding: '10px' }} 
                 disabled={uploadingFoto}
               />
-              {uploadingFoto && <div style={{ fontSize: 12, color: '#185FA5', marginTop: 8, fontWeight: 600 }}>Subiendo foto, por favor espera...</div>}
+              {uploadingFoto && <div style={{ fontSize: 12, color: 'var(--accent)', marginTop: 8, fontWeight: 600 }}>Subiendo foto, por favor espera...</div>}
             </div>
 
             <div style={footerCss}>
@@ -1467,18 +1466,18 @@ export default function PacienteDetalle() {
 
       {modalConsent && (
         <div onClick={() => setModalConsent(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: '1rem' }}>
-          <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 16, padding: '1.5rem', width: '100%', maxWidth: 520, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 8px 32px rgba(0,0,0,0.12)' }}>
-            <div style={{ fontSize: 16, fontWeight: 700, color: '#0a1e3d', marginBottom: '1rem' }}>Nuevo consentimiento</div>
+          <div onClick={e => e.stopPropagation()} style={{ background: 'var(--bg-card)', borderRadius: 16, padding: '1.5rem', width: '100%', maxWidth: 520, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 8px 32px rgba(0,0,0,0.12)' }}>
+            <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-dark)', marginBottom: '1rem' }}>Nuevo consentimiento</div>
 
             <div style={{ marginBottom: 14 }}>
-              <label style={{ fontSize: 12, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 4 }}>Plantilla</label>
+              <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>Plantilla</label>
               <select value={cPlantillaId} onChange={e => setCPlantillaId(e.target.value)} style={{ ...inputCss, width: '100%' }}>
                 {plantillas.map(p => <option key={p.id} value={p.id}>{p.titulo}</option>)}
               </select>
             </div>
 
             {plantillas.find(p => p.id === cPlantillaId) && (
-              <div style={{ fontSize: 12.5, color: '#475569', lineHeight: 1.5, whiteSpace: 'pre-wrap', background: '#f8fafc', border: '1px solid #e8edf2', borderRadius: 10, padding: '0.9rem', maxHeight: 180, overflowY: 'auto', marginBottom: 16 }}>
+              <div style={{ fontSize: 12.5, color: 'var(--text-muted-darker)', lineHeight: 1.5, whiteSpace: 'pre-wrap', background: 'var(--bg-input)', border: '1px solid var(--border-light)', borderRadius: 10, padding: '0.9rem', maxHeight: 180, overflowY: 'auto', marginBottom: 16 }}>
                 {plantillas.find(p => p.id === cPlantillaId)?.contenido}
               </div>
             )}
@@ -1486,7 +1485,7 @@ export default function PacienteDetalle() {
             {/* Selector de modo */}
             <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
               {(['presencial', 'remota'] as const).map(m => (
-                <button key={m} onClick={() => { setCModo(m); setLinkRemoto('') }} style={{ flex: 1, padding: '10px', borderRadius: 10, border: cModo === m ? '1.5px solid #1D9E75' : '1px solid #e2e8f0', background: cModo === m ? '#ecfdf5' : '#fff', color: cModo === m ? '#1D9E75' : '#64748b', fontWeight: 700, fontSize: 12.5, cursor: 'pointer', fontFamily: 'DM Sans, sans-serif' }}>
+                <button key={m} onClick={() => { setCModo(m); setLinkRemoto('') }} style={{ flex: 1, padding: '10px', borderRadius: 10, border: cModo === m ? '1.5px solid var(--success)' : '1px solid var(--border-color)', background: cModo === m ? 'var(--success-soft)' : 'var(--bg-card)', color: cModo === m ? 'var(--success-text)' : 'var(--text-muted)', fontWeight: 700, fontSize: 12.5, cursor: 'pointer', fontFamily: 'DM Sans, sans-serif' }}>
                   {m === 'presencial' ? '✍️ Firma presencial' : '🔗 Enviar link'}
                 </button>
               ))}
@@ -1494,25 +1493,25 @@ export default function PacienteDetalle() {
 
             {cModo === 'presencial' ? (
               <div style={{ marginBottom: 12 }}>
-                <label style={{ fontSize: 12, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 6 }}>Firma del paciente</label>
+                <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', display: 'block', marginBottom: 6 }}>Firma del paciente</label>
                 <SignaturePad onChange={setCFirma} />
               </div>
             ) : linkRemoto ? (
-              <div style={{ background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: 10, padding: '0.9rem', marginBottom: 12 }}>
-                <div style={{ fontSize: 12, color: '#065f46', fontWeight: 600, marginBottom: 6 }}>Link generado — compartilo con el paciente:</div>
-                <div style={{ fontSize: 11, color: '#0a1e3d', wordBreak: 'break-all', background: '#fff', padding: '8px 10px', borderRadius: 8, border: '1px solid #d1fae5' }}>{linkRemoto}</div>
-                <button onClick={() => { navigator.clipboard?.writeText(linkRemoto); showMsg('Link copiado ✓') }} style={{ marginTop: 8, fontSize: 12, fontWeight: 600, padding: '6px 12px', borderRadius: 8, border: 'none', background: '#1D9E75', color: '#fff', cursor: 'pointer', fontFamily: 'DM Sans, sans-serif' }}>Copiar link</button>
+              <div style={{ background: 'var(--success-soft)', border: '1px solid var(--success-border)', borderRadius: 10, padding: '0.9rem', marginBottom: 12 }}>
+                <div style={{ fontSize: 12, color: 'var(--success-text)', fontWeight: 600, marginBottom: 6 }}>Link generado — compartilo con el paciente:</div>
+                <div style={{ fontSize: 12, color: 'var(--text-dark)', wordBreak: 'break-all', background: 'var(--bg-card)', padding: '8px 10px', borderRadius: 8, border: '1px solid var(--success-border)' }}>{linkRemoto}</div>
+                <button onClick={() => { navigator.clipboard?.writeText(linkRemoto); showMsg('Link copiado ✓') }} style={{ marginTop: 8, fontSize: 12, fontWeight: 600, padding: '6px 12px', borderRadius: 8, border: 'none', background: 'var(--success)', color: 'var(--success-contrast)', cursor: 'pointer', fontFamily: 'DM Sans, sans-serif' }}>Copiar link</button>
               </div>
             ) : (
-              <p style={{ fontSize: 12.5, color: '#64748b', marginBottom: 12, lineHeight: 1.5 }}>
+              <p style={{ fontSize: 12.5, color: 'var(--text-muted)', marginBottom: 12, lineHeight: 1.5 }}>
                 Se generará un link seguro para que el paciente firme desde su propio celular.
               </p>
             )}
 
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: '1rem' }}>
-              <button onClick={() => setModalConsent(false)} style={{ fontSize: 13, padding: '7px 16px', borderRadius: 8, border: '1px solid #e2e8f0', background: '#fff', color: '#64748b', cursor: 'pointer', fontFamily: 'DM Sans, sans-serif' }}>Cerrar</button>
+              <button onClick={() => setModalConsent(false)} style={{ fontSize: 13, padding: '7px 16px', borderRadius: 8, border: '1px solid var(--border-color)', background: 'var(--bg-card)', color: 'var(--text-muted)', cursor: 'pointer', fontFamily: 'DM Sans, sans-serif' }}>Cerrar</button>
               {!linkRemoto && (
-                <button onClick={guardarConsentimiento} disabled={cGuardando} style={{ fontSize: 13, fontWeight: 600, padding: '7px 18px', borderRadius: 8, border: 'none', background: cGuardando ? '#94a3b8' : '#1D9E75', color: '#fff', cursor: cGuardando ? 'not-allowed' : 'pointer', fontFamily: 'DM Sans, sans-serif' }}>
+                <button onClick={guardarConsentimiento} disabled={cGuardando} style={{ fontSize: 13, fontWeight: 600, padding: '7px 18px', borderRadius: 8, border: 'none', background: cGuardando ? 'var(--bg-input)' : 'var(--success)', color: cGuardando ? 'var(--text-muted)' : 'var(--success-contrast)', cursor: cGuardando ? 'not-allowed' : 'pointer', fontFamily: 'DM Sans, sans-serif' }}>
                   {cGuardando ? 'Guardando…' : cModo === 'presencial' ? 'Registrar firma' : 'Generar link'}
                 </button>
               )}
@@ -1523,30 +1522,30 @@ export default function PacienteDetalle() {
 
       {modalCuidados && (
         <div onClick={() => setModalCuidados(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: '1rem' }}>
-          <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 16, padding: '1.5rem', width: '100%', maxWidth: 420, boxShadow: '0 8px 32px rgba(0,0,0,0.12)' }}>
-            <div style={{ fontSize: 16, fontWeight: 700, color: '#0a1e3d', marginBottom: 6 }}>Enviar cuidados posteriores</div>
-            <p style={{ fontSize: 12.5, color: '#64748b', marginBottom: '1rem', lineHeight: 1.5 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: 'var(--bg-card)', borderRadius: 16, padding: '1.5rem', width: '100%', maxWidth: 420, boxShadow: '0 8px 32px rgba(0,0,0,0.12)' }}>
+            <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-dark)', marginBottom: 6 }}>Enviar cuidados posteriores</div>
+            <p style={{ fontSize: 12.5, color: 'var(--text-muted)', marginBottom: '1rem', lineHeight: 1.5 }}>
               Se envía por email a <strong>{paciente.nombre}</strong>{paciente.email ? ` (${paciente.email})` : ''} el instructivo del tratamiento elegido.
             </p>
             {!paciente.email ? (
-              <div style={{ background: '#fef3c7', color: '#92400e', padding: '10px 12px', borderRadius: 8, fontSize: 12.5, marginBottom: 12 }}>
+              <div style={{ background: 'var(--warning-soft)', color: 'var(--warning-text)', padding: '10px 12px', borderRadius: 8, fontSize: 12.5, marginBottom: 12 }}>
                 Este paciente no tiene email cargado. Agregá su email en la ficha para poder enviarle los cuidados.
               </div>
             ) : tratamientosCuidados.length === 0 ? (
-              <div style={{ background: '#f1f5f9', color: '#64748b', padding: '10px 12px', borderRadius: 8, fontSize: 12.5, marginBottom: 12 }}>
+              <div style={{ background: 'var(--bg-input)', color: 'var(--text-muted)', padding: '10px 12px', borderRadius: 8, fontSize: 12.5, marginBottom: 12 }}>
                 Todavía no cargaste cuidados posteriores en ningún tratamiento. Cargalos en <strong>Precios</strong>.
               </div>
             ) : (
               <div style={{ marginBottom: 14 }}>
-                <label style={{ fontSize: 12, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 4 }}>Tratamiento</label>
+                <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>Tratamiento</label>
                 <select value={cuidTratId} onChange={e => setCuidTratId(e.target.value)} style={{ ...inputCss, width: '100%' }}>
                   {tratamientosCuidados.map(t => <option key={t.id} value={t.id}>{t.nombre}</option>)}
                 </select>
               </div>
             )}
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: '0.5rem' }}>
-              <button onClick={() => setModalCuidados(false)} style={{ fontSize: 13, padding: '7px 16px', borderRadius: 8, border: '1px solid #e2e8f0', background: '#fff', color: '#64748b', cursor: 'pointer', fontFamily: 'DM Sans, sans-serif' }}>Cerrar</button>
-              <button onClick={enviarCuidados} disabled={enviandoCuidados || !paciente.email || tratamientosCuidados.length === 0} style={{ fontSize: 13, fontWeight: 600, padding: '7px 18px', borderRadius: 8, border: 'none', background: (enviandoCuidados || !paciente.email || !tratamientosCuidados.length) ? '#94a3b8' : '#1D9E75', color: '#fff', cursor: enviandoCuidados ? 'wait' : 'pointer', fontFamily: 'DM Sans, sans-serif' }}>
+              <button onClick={() => setModalCuidados(false)} style={{ fontSize: 13, padding: '7px 16px', borderRadius: 8, border: '1px solid var(--border-color)', background: 'var(--bg-card)', color: 'var(--text-muted)', cursor: 'pointer', fontFamily: 'DM Sans, sans-serif' }}>Cerrar</button>
+              <button onClick={enviarCuidados} disabled={enviandoCuidados || !paciente.email || tratamientosCuidados.length === 0} style={{ fontSize: 13, fontWeight: 600, padding: '7px 18px', borderRadius: 8, border: 'none', background: (enviandoCuidados || !paciente.email || !tratamientosCuidados.length) ? 'var(--bg-input)' : 'var(--success)', color: (enviandoCuidados || !paciente.email || !tratamientosCuidados.length) ? 'var(--text-muted)' : 'var(--success-contrast)', cursor: enviandoCuidados ? 'wait' : 'pointer', fontFamily: 'DM Sans, sans-serif' }}>
                 {enviandoCuidados ? 'Enviando…' : 'Enviar email'}
               </button>
             </div>
