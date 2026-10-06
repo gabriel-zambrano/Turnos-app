@@ -45,7 +45,7 @@ export function TabConsentimientos({ consentimientos, abrirModalConsent, tenant,
                   <span style={{ fontSize: 12.5, background: 'var(--success-soft)', color: 'var(--success-text)', padding: '2px 8px', borderRadius: 10, fontWeight: 700 }}>Firmado</span>
                 ) : (
                   <button
-                    onClick={() => { const l = `${urlPublicaDeClinica(tenant)}/firmar/${c.token_firma}`; navigator.clipboard?.writeText(l); showMsg('Link copiado ✓') }}
+                    onClick={() => { const l = `${urlPublicaDeClinica(tenant)}/firmar/${c.token_firma}`; navigator.clipboard?.writeText(l); showMsg('Link copiado') }}
                     style={{ fontSize: 12.5, padding: '4px 9px', borderRadius: 8, border: '1px solid var(--border-color)', background: 'var(--bg-card)', color: 'var(--text-muted)', cursor: 'pointer', fontFamily: 'DM Sans, sans-serif', fontWeight: 600 }}
                   >Copiar link</button>
                 )}

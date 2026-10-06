@@ -1,4 +1,5 @@
 'use client'
+import { Icon } from '@/components/ui/index'
 import type { Dispatch, SetStateAction } from 'react'
 import type { Paciente } from '../tipos'
 
@@ -24,7 +25,7 @@ export function TabTurnos({ paciente, citas, setModalTurno, cambiarEstadoCita }:
             onClick={() => setModalTurno(true)}
             style={{ background: 'var(--accent)', color: 'var(--accent-contrast)', border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
           >
-            📅 Agendar Turno
+            <Icon name="plus" size={14} />Agendar turno
           </button>
         </div>
 

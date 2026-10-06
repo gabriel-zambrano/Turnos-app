@@ -23,7 +23,7 @@ export function TabOdontograma({ renderTooth, historial }: TabOdontogramaProps) 
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', fontSize: 12, borderBottom: '1px solid var(--border-light)', paddingBottom: 10 }}>
             {Object.entries(ESTADOS_INFO).map(([key, value]) => (
               <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                <span>{value.icon}</span>
+                <span aria-hidden="true" style={{ width: 10, height: 10, borderRadius: 999, display: 'inline-block', flexShrink: 0, background: `var(--diente-${key.toLowerCase()})` }} />
                 <span style={{ fontWeight: 600, color: 'var(--text-dark)' }}>{value.label}</span>
               </div>
             ))}

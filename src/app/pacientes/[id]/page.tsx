@@ -241,7 +241,7 @@ export default function PacienteDetalle() {
       })
       const d = await res.json()
       if (!res.ok) throw new Error(d.error || 'Error al enviar')
-      showMsg(`Cuidados enviados a ${d.email} ✓`)
+      showMsg(`Cuidados enviados a ${d.email}`)
       setModalCuidados(false)
     } catch (err: any) {
       showMsg(err.message, 'error')
@@ -300,7 +300,7 @@ export default function PacienteDetalle() {
         progreso_plan_porcentaje: editProgreso,
         recomendaciones: editRecomendaciones.trim() || null
       } : null)
-      showMsg('Datos del paciente actualizados ✓')
+      showMsg('Datos del paciente actualizados')
     }
   }
 
@@ -320,7 +320,7 @@ export default function PacienteDetalle() {
           notas: nuevoTurnoNotas.trim() || null
         })
       if (error) throw error
-      showMsg('Turno agendado con éxito ✓')
+      showMsg('Turno agendado con éxito')
       setModalTurno(false)
       setNuevoTurnoNotas('')
       loadData()
@@ -337,7 +337,7 @@ export default function PacienteDetalle() {
       if (!res.success) {
         showMsg('Error al registrar inasistencia: ' + res.error, 'error')
       } else {
-        showMsg(`Turno marcado como ${nuevoEstado === 'ausente' ? 'Ausente' : 'Cancelado'} ✓`)
+        showMsg(`Turno marcado como ${nuevoEstado === 'ausente' ? 'Ausente' : 'Cancelado'}`)
         loadData()
       }
       return
@@ -360,7 +360,7 @@ export default function PacienteDetalle() {
     if (error) {
       showMsg('Error al actualizar estado: ' + error.message, 'error')
     } else {
-      showMsg('Estado de cita actualizado ✓')
+      showMsg('Estado de cita actualizado')
       loadData()
     }
   }
@@ -499,9 +499,9 @@ export default function PacienteDetalle() {
       if (cModo === 'remota') {
         const link = `${urlPublicaDeClinica(tenant)}/firmar/${d.consentimiento.token_firma}`
         setLinkRemoto(link)
-        showMsg('Link de firma generado ✓')
+        showMsg('Link de firma generado')
       } else {
-        showMsg('Consentimiento firmado ✓')
+        showMsg('Consentimiento firmado')
         setModalConsent(false)
       }
       loadConsentimientos()
@@ -655,7 +655,7 @@ export default function PacienteDetalle() {
 
       if (error) throw error
 
-      showMsg(`Registro del diente ${dienteSel} actualizado ✓`)
+      showMsg(`Registro del diente ${dienteSel} actualizado`)
       setModalRegistro(false)
       setNotasEstado('')
       loadData()
@@ -713,7 +713,7 @@ export default function PacienteDetalle() {
 
       if (dbError) throw dbError
 
-      showMsg('Foto guardada correctamente ✓')
+      showMsg('Foto guardada correctamente')
       setModalFoto(false)
       loadData()
     } catch (err: any) {
@@ -792,7 +792,7 @@ export default function PacienteDetalle() {
       .eq('id', paciente.id)
     setGuardandoConsentimiento(false)
     if (error) return showMsg('Error al registrar el consentimiento: ' + error.message, 'error')
-    showMsg('Consentimiento registrado ✓')
+    showMsg('Consentimiento registrado')
     loadData()
   }
 
@@ -826,7 +826,7 @@ export default function PacienteDetalle() {
       <div style={{ display: 'flex', minHeight: '100vh', fontFamily: 'DM Sans, sans-serif' }}>
         <Sidebar />
         <main style={{ marginLeft: isMobile ? 0 : 'var(--sidebar-width, 240px)', flex: 1, padding: '2rem', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ fontSize: 40, marginBottom: 12 }}>🔍</div>
+          <Icon name="search" size={36} style={{ color: 'var(--text-muted)', marginBottom: 12 }} />
           <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-dark)' }}>Paciente no encontrado</div>
           <button style={{ ...btnDarkCss, marginTop: 16 }} onClick={() => router.push('/pacientes')}>Volver a Pacientes</button>
         </main>
@@ -857,7 +857,7 @@ export default function PacienteDetalle() {
           right={
             <div style={{ display: 'flex', gap: 8 }}>
               <button style={btnLightCss} onClick={abrirModalCuidados} title="Enviar cuidados posteriores por email">
-                📧 Enviar cuidados
+                <Icon name="mail" size={14} />Enviar cuidados
               </button>
               <button style={btnLightCss} onClick={() => router.push('/pacientes')}>
                 ← Pacientes
@@ -873,7 +873,7 @@ export default function PacienteDetalle() {
               próxima visita y registrarlo desde acá. */}
           {!tieneConsentimientoVigente(paciente as any) && (
             <div style={{ background: 'var(--warning-soft)', border: '1px solid var(--warning-border)', borderRadius: 12, padding: '14px 16px', display: 'flex', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-              <span style={{ fontSize: 18, lineHeight: 1 }}>⚠️</span>
+              <Icon name="alert" size={18} />
               <div style={{ flex: 1, minWidth: 220 }}>
                 <div style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--warning-text)', marginBottom: 3 }}>
                   Falta el consentimiento de datos
@@ -937,7 +937,7 @@ export default function PacienteDetalle() {
                     onClick={() => setTabActiva('turnos')}
                     title="Haga click para ver el historial de turnos"
                   >
-                    📅 {new Date(proximaCita.fecha_hora).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })} a las {new Date(proximaCita.fecha_hora).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })} hs
+                    <Icon name="calendar" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />{new Date(proximaCita.fecha_hora).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })} a las {new Date(proximaCita.fecha_hora).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })} hs
                   </span>
                 ) : (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: isMobile ? 'center' : 'flex-start', flexWrap: 'wrap', marginTop: 2 }}>
@@ -962,16 +962,16 @@ export default function PacienteDetalle() {
               {/* Tab Selector Bar */}
               <div className="glass-card" style={{ padding: '8px 12px', display: 'flex', gap: 6, overflowX: 'auto', position: 'sticky', top: 58, zIndex: 10, background: 'var(--bg-card, #fff)', borderBottom: '1px solid var(--border-light, rgba(56,138,221,0.12))' }}>
                 {[
-                  { id: 'odontograma', label: '🦷 Odontograma & Tratamientos' },
-                  { id: 'turnos', label: `📅 Turnos (${citas.length})` },
+                  { id: 'odontograma', label: 'Odontograma y tratamientos' },
+                  { id: 'turnos', label: `Turnos (${citas.length})` },
                   // Con fidelización apagada la pestaña sigue existiendo: adentro
                   // vive la aprobación de visita, que es donde se registra el
                   // cobro y se decide la facturación. Cambia el nombre, no el rol.
                   { id: 'fidelizacion', label: FIDELIZACION_HABILITADA
-                      ? `🪙 Club de Puntos (${paciente.puntos_saldo_cache ?? 0} pts)`
-                      : '💰 Cobros y Visitas' },
-                  { id: 'fotos', label: `📷 Evolución Visual (${fotos.length})` },
-                  { id: 'consentimientos', label: '✍️ Consentimientos' }
+                      ? `Club de puntos (${paciente.puntos_saldo_cache ?? 0} pts)`
+                      : 'Cobros y visitas' },
+                  { id: 'fotos', label: `Evolución visual (${fotos.length})` },
+                  { id: 'consentimientos', label: 'Consentimientos' }
                 ].map(tab => {
                   const active = tabActiva === tab.id
                   return (
@@ -1056,15 +1056,15 @@ export default function PacienteDetalle() {
                       setEditRecomendaciones(paciente.recomendaciones || '')
                       setModalFicha(true)
                     }}
-                    style={{ background: 'none', border: 'none', color: 'var(--accent)', fontSize: 12, fontWeight: 700, cursor: 'pointer', padding: 0 }}
+                    style={{ background: 'none', border: 'none', color: 'var(--accent)', fontSize: 12, fontWeight: 700, cursor: 'pointer', padding: 0, display: 'inline-flex', alignItems: 'center', gap: 4 }}
                   >
-                    ✏️ Editar Ficha
+                    <Icon name="edit" size={14} />Editar ficha
                   </button>
                 </div>
 
                 {paciente.alergias ? (
                   <div style={{ background: 'var(--danger-soft)', border: '1px solid var(--danger-border)', borderRadius: 10, padding: '10px 12px', color: 'var(--danger-text)', display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-                    <span style={{ fontSize: 16 }}>⚠️</span>
+                    <Icon name="alert" size={16} />
                     <div>
                       <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Alergias Importantes</div>
                       <div style={{ fontSize: 13, fontWeight: 600, marginTop: 2 }}>{paciente.alergias}</div>
@@ -1072,7 +1072,7 @@ export default function PacienteDetalle() {
                   </div>
                 ) : (
                   <div style={{ background: 'var(--success-soft)', border: '1px solid var(--success-border)', borderRadius: 10, padding: '10px 12px', color: 'var(--success-text)', fontSize: 12, fontWeight: 600 }}>
-                    ✅ Sin alergias conocidas.
+                    <Icon name="check" size={14} style={{ verticalAlign: '-2px', marginRight: 4 }} />Sin alergias conocidas.
                   </div>
                 )}
 
@@ -1098,7 +1098,7 @@ export default function PacienteDetalle() {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span style={{ fontSize: 12.5, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Sistema de Puntos VIP</span>
                     <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--warning-text)', display: 'flex', alignItems: 'center', gap: 4 }}>
-                      🪙 {paciente.puntos_saldo_cache ?? 0} pts
+                      {paciente.puntos_saldo_cache ?? 0} pts
                     </span>
                   </div>
                   <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4, display: 'flex', flexDirection: 'column', gap: 3 }}>
@@ -1139,7 +1139,7 @@ export default function PacienteDetalle() {
                       <div style={{ background: 'var(--bg-input)', padding: 12, borderRadius: 12, border: '1px solid var(--border-light)' }}>
                         <div style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600 }}>ESTADO ACTUAL</div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
-                          <span style={{ fontSize: 16 }}>{ESTADOS_INFO[getDienteEstadoActual(dienteSel)]?.icon}</span>
+                          <span aria-hidden="true" style={{ width: 10, height: 10, borderRadius: 999, display: 'inline-block', flexShrink: 0, background: `var(--diente-${getDienteEstadoActual(dienteSel).toLowerCase()})` }} />
                           <span style={{ fontSize: 14, fontWeight: 700, color: ESTADOS_INFO[getDienteEstadoActual(dienteSel)]?.color }}>
                             {getDienteEstadoActual(dienteSel)}
                           </span>
@@ -1486,7 +1486,7 @@ export default function PacienteDetalle() {
             <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
               {(['presencial', 'remota'] as const).map(m => (
                 <button key={m} onClick={() => { setCModo(m); setLinkRemoto('') }} style={{ flex: 1, padding: '10px', borderRadius: 10, border: cModo === m ? '1.5px solid var(--success)' : '1px solid var(--border-color)', background: cModo === m ? 'var(--success-soft)' : 'var(--bg-card)', color: cModo === m ? 'var(--success-text)' : 'var(--text-muted)', fontWeight: 700, fontSize: 12.5, cursor: 'pointer', fontFamily: 'DM Sans, sans-serif' }}>
-                  {m === 'presencial' ? '✍️ Firma presencial' : '🔗 Enviar link'}
+                  {m === 'presencial' ? 'Firma presencial' : 'Enviar link'}
                 </button>
               ))}
             </div>
@@ -1500,7 +1500,7 @@ export default function PacienteDetalle() {
               <div style={{ background: 'var(--success-soft)', border: '1px solid var(--success-border)', borderRadius: 10, padding: '0.9rem', marginBottom: 12 }}>
                 <div style={{ fontSize: 12, color: 'var(--success-text)', fontWeight: 600, marginBottom: 6 }}>Link generado — compartilo con el paciente:</div>
                 <div style={{ fontSize: 12, color: 'var(--text-dark)', wordBreak: 'break-all', background: 'var(--bg-card)', padding: '8px 10px', borderRadius: 8, border: '1px solid var(--success-border)' }}>{linkRemoto}</div>
-                <button onClick={() => { navigator.clipboard?.writeText(linkRemoto); showMsg('Link copiado ✓') }} style={{ marginTop: 8, fontSize: 12, fontWeight: 600, padding: '6px 12px', borderRadius: 8, border: 'none', background: 'var(--success)', color: 'var(--success-contrast)', cursor: 'pointer', fontFamily: 'DM Sans, sans-serif' }}>Copiar link</button>
+                <button onClick={() => { navigator.clipboard?.writeText(linkRemoto); showMsg('Link copiado') }} style={{ marginTop: 8, fontSize: 12, fontWeight: 600, padding: '6px 12px', borderRadius: 8, border: 'none', background: 'var(--success)', color: 'var(--success-contrast)', cursor: 'pointer', fontFamily: 'DM Sans, sans-serif' }}>Copiar link</button>
               </div>
             ) : (
               <p style={{ fontSize: 12.5, color: 'var(--text-muted)', marginBottom: 12, lineHeight: 1.5 }}>

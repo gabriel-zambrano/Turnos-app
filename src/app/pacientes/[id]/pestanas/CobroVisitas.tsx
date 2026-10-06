@@ -50,7 +50,7 @@ export function CobroVisitas({ resultadoCobro, setResultadoCobro, citasParaAprob
 
       {citasParaAprobar.length === 0 ? (
         <div style={{ padding: '1.5rem', background: 'var(--bg-input, #f0f4f8)', borderRadius: 12, fontSize: 13, color: 'var(--text-muted)', textAlign: 'center' }}>
-          🎉 No hay consultas pendientes de aprobación.
+          No hay turnos pendientes de cerrar o cobrar.
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 6 }}>

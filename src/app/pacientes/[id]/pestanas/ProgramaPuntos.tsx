@@ -102,7 +102,7 @@ export function ProgramaPuntos({ configFidelizacion, premios, isMobile, paciente
                       const res = await canjearPremioAction(paciente.id, p.id)
                       setProcesandoCanje(null)
                       if (res.success) {
-                        showMsg('Canje realizado con éxito ✓')
+                        showMsg('Canje realizado con éxito')
                         loadData()
                       } else {
                         showMsg('Error en canje: ' + res.error, 'error')
@@ -181,7 +181,7 @@ export function ProgramaPuntos({ configFidelizacion, premios, isMobile, paciente
             )
             setProcesandoAjuste(false)
             if (res.success) {
-              showMsg('Ajuste aplicado correctamente ✓')
+              showMsg('Ajuste aplicado correctamente')
               setAjustePuntosMonto('')
               setAjustePuntosNota('')
               loadData()
