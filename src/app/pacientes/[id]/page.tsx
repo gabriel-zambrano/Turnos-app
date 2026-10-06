@@ -16,9 +16,10 @@ import { registrarConsentimiento, tieneConsentimientoVigente } from '@/lib/conse
 import { validarAjustePuntos } from '@/lib/ajuste-puntos'
 import { FIDELIZACION_HABILITADA } from '@/lib/fidelizacion-flag'
 import { citasPendientesDeAprobar } from '@/lib/citas-para-aprobar'
-import { textoPagoPrevio } from '@/lib/cobro-previo'
+import { textoPagoPrevio, formatoPesos } from '@/lib/cobro-previo'
 import { cobrarTurno, mensajeCobro } from '@/lib/cobro-turno'
 import { Icon, Modal } from '@/components/ui/index'
+import { saldoPendiente } from '@/lib/saldo-pendiente'
 import { CobroVisitas } from './pestanas/CobroVisitas'
 import { ProgramaPuntos } from './pestanas/ProgramaPuntos'
 
@@ -408,6 +409,9 @@ export default function PacienteDetalle() {
   // Memorizada: sin useMemo era un arreglo nuevo en cada render, el efecto de
   // abajo corría en cada tecla y devolvía el monto al precio del tratamiento.
   // Por eso desde la Ficha no se podía cobrar otro monto que el de lista.
+  // Saldo de turnos asistidos sin cobrar del todo (lib/saldo-pendiente).
+  const saldo = useMemo(() => saldoPendiente(citas), [citas])
+
   const citasParaAprobar = useMemo(
     () => citasPendientesDeAprobar(citas, historialPuntos, FIDELIZACION_HABILITADA),
     [citas, historialPuntos]
@@ -953,6 +957,28 @@ export default function PacienteDetalle() {
               </div>
             </div>
           </div>
+
+          {/* Alertas del paciente, siempre a la vista: lo que no puede pasar
+              desapercibido al atender. Solo aparece si hay algo. */}
+          {(paciente.alergias || saldo.monto > 0) && (
+            <div role="status" style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)', marginTop: -8 }}>
+              {paciente.alergias && (
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 'var(--radius-pill)',
+                  background: 'var(--danger-soft)', border: '1px solid var(--danger-border)', color: 'var(--danger-text)',
+                  fontSize: 'var(--fs-sm)', fontWeight: 600 }}>
+                  <Icon name="alert" size={14} />Alergias: {paciente.alergias}
+                </span>
+              )}
+              {saldo.monto > 0 && (
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 'var(--radius-pill)',
+                  background: 'var(--warning-soft)', border: '1px solid var(--warning-border)', color: 'var(--warning-text)',
+                  fontSize: 'var(--fs-sm)', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
+                  <Icon name="money" size={14} />Saldo pendiente: {formatoPesos(saldo.monto)}
+                  <span style={{ fontWeight: 400 }}>({saldo.turnos === 1 ? '1 turno' : `${saldo.turnos} turnos`})</span>
+                </span>
+              )}
+            </div>
+          )}
 
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '3fr 2fr', gap: 20 }}>
             
