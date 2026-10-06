@@ -36,3 +36,6 @@ export interface PacienteFoto {
   tipo: string
   creado_en: string
 }
+
+/** Resultado del último cobro, visible dentro de la sección de cobro. */
+export type ResultadoCobroFicha = { texto: string; tono: 'exito' | 'error' } | null
