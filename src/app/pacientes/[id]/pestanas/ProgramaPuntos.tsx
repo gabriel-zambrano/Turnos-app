@@ -1,4 +1,6 @@
 'use client'
+import { useState } from 'react'
+import { ConfirmDialog } from '@/components/ui/index'
 import type { Dispatch, SetStateAction } from 'react'
 import type { Paciente } from '../tipos'
 import { btnDarkCss, groupCss, labelCss, selectCss, inputCss } from '@/components/UI'
@@ -29,8 +31,36 @@ export interface ProgramaPuntosProps {
 }
 
 export function ProgramaPuntos({ configFidelizacion, premios, isMobile, paciente, procesandoCanje, setProcesandoCanje, showMsg, loadData, ajustePuntosTipo, setAjustePuntosTipo, ajustePuntosMonto, setAjustePuntosMonto, ajustePuntosNota, setAjustePuntosNota, procesandoAjuste, setProcesandoAjuste, historialPuntos }: ProgramaPuntosProps) {
+  // Canje pendiente de confirmar (antes: confirm() del navegador).
+  const [premioACanjear, setPremioACanjear] = useState<any | null>(null)
+
+  async function canjear() {
+    const p = premioACanjear
+    if (!p) return
+    setProcesandoCanje(p.id)
+    const res = await canjearPremioAction(paciente.id, p.id)
+    setProcesandoCanje(null)
+    setPremioACanjear(null)
+    if (res.success) {
+      showMsg('Canje realizado con éxito')
+      loadData()
+    } else {
+      showMsg('No se pudo realizar el canje. Probá de nuevo.', 'error')
+    }
+  }
+
   return (
     <>
+      <ConfirmDialog
+        open={!!premioACanjear}
+        title="Canjear premio"
+        tone="primary"
+        confirmLabel="Canjear"
+        onConfirm={canjear}
+        onCancel={() => setPremioACanjear(null)}
+      >
+        Vas a canjear <strong>{premioACanjear?.nombre}</strong> por <strong>{premioACanjear?.costo_puntos} puntos</strong> del saldo de {paciente.nombre}.
+      </ConfirmDialog>
       {/* SECCION 2: CATALOGO DE PREMIOS */}
       <div className="glass-card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: 14 }}>
         <div>
@@ -67,28 +97,28 @@ export function ProgramaPuntos({ configFidelizacion, premios, isMobile, paciente
                   <div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                       <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-dark)' }}>{p.nombre}</span>
-                      <span style={{ fontSize: 12, fontWeight: 700, color: '#F59E0B' }}>{p.costo_puntos} pts</span>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--warning-text)' }}>{p.costo_puntos} pts</span>
                     </div>
-                    <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                    <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
                       Valor ref: ${p.valor_referencia_ars?.toLocaleString('es-AR') ?? '—'} · Stock: {p.stock === null ? 'Ilimitado' : p.stock}
                     </div>
                   </div>
 
                   <div style={{ marginTop: 4 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--text-muted)', marginBottom: 4 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>
                       <span>Progreso</span>
                       <span>{ptsActuales} / {p.costo_puntos} pts</span>
                     </div>
                     <div style={{ height: 6, background: 'var(--border-lighter, #e2e8ed)', borderRadius: 3, overflow: 'hidden' }}>
-                      <div style={{ height: '100%', width: `${pct}%`, background: tienePuntos ? '#10B981' : '#378ADD', borderRadius: 3 }} />
+                      <div style={{ height: '100%', width: `${pct}%`, background: tienePuntos ? 'var(--success)' : 'var(--accent)', borderRadius: 3 }} />
                     </div>
                   </div>
 
                   <button
                     style={{ 
                       ...btnDarkCss, 
-                      background: canCanjear ? 'linear-gradient(135deg, #10b981, #059669)' : 'var(--border-light, #cbd5e1)', 
-                      color: canCanjear ? '#fff' : 'var(--text-muted-darker, #64748b)', 
+                      background: canCanjear ? 'var(--success)' : 'var(--border-light, #cbd5e1)', 
+                      color: canCanjear ? 'var(--success-contrast)' : 'var(--text-muted-darker, #64748b)', 
                       cursor: canCanjear ? 'pointer' : 'not-allowed',
                       fontSize: 12,
                       minHeight: 36,
@@ -96,18 +126,7 @@ export function ProgramaPuntos({ configFidelizacion, premios, isMobile, paciente
                       marginTop: 6
                     }}
                     disabled={!canCanjear || procesandoCanje === p.id}
-                    onClick={async () => {
-                      if (!confirm(`¿Confirmás el canje de "${p.nombre}" por ${p.costo_puntos} puntos?`)) return
-                      setProcesandoCanje(p.id)
-                      const res = await canjearPremioAction(paciente.id, p.id)
-                      setProcesandoCanje(null)
-                      if (res.success) {
-                        showMsg('Canje realizado con éxito ✓')
-                        loadData()
-                      } else {
-                        showMsg('Error en canje: ' + res.error, 'error')
-                      }
-                    }}
+                    onClick={() => setPremioACanjear(p)}
                   >
                     {procesandoCanje === p.id ? 'Canjeando...' : 'Canjear Premio'}
                   </button>
@@ -181,7 +200,7 @@ export function ProgramaPuntos({ configFidelizacion, premios, isMobile, paciente
             )
             setProcesandoAjuste(false)
             if (res.success) {
-              showMsg('Ajuste aplicado correctamente ✓')
+              showMsg('Ajuste aplicado correctamente')
               setAjustePuntosMonto('')
               setAjustePuntosNota('')
               loadData()
@@ -207,11 +226,11 @@ export function ProgramaPuntos({ configFidelizacion, premios, isMobile, paciente
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
               <thead>
                 <tr style={{ background: 'var(--table-header-bg)', borderBottom: '1px solid var(--border-light)' }}>
-                  <th style={{ padding: '8px 12px', textAlign: 'left', color: '#185FA5', fontWeight: 600 }}>Fecha</th>
-                  <th style={{ padding: '8px 12px', textAlign: 'left', color: '#185FA5', fontWeight: 600 }}>Operación</th>
-                  <th style={{ padding: '8px 12px', textAlign: 'center', color: '#185FA5', fontWeight: 600 }}>Puntos</th>
-                  <th style={{ padding: '8px 12px', textAlign: 'center', color: '#185FA5', fontWeight: 600 }}>Saldo</th>
-                  <th style={{ padding: '8px 12px', textAlign: 'left', color: '#185FA5', fontWeight: 600 }}>Detalles / Motivo</th>
+                  <th style={{ padding: '8px 12px', textAlign: 'left', color: 'var(--accent)', fontWeight: 600 }}>Fecha</th>
+                  <th style={{ padding: '8px 12px', textAlign: 'left', color: 'var(--accent)', fontWeight: 600 }}>Operación</th>
+                  <th style={{ padding: '8px 12px', textAlign: 'center', color: 'var(--accent)', fontWeight: 600 }}>Puntos</th>
+                  <th style={{ padding: '8px 12px', textAlign: 'center', color: 'var(--accent)', fontWeight: 600 }}>Saldo</th>
+                  <th style={{ padding: '8px 12px', textAlign: 'left', color: 'var(--accent)', fontWeight: 600 }}>Detalles / Motivo</th>
                 </tr>
               </thead>
               <tbody>
@@ -228,22 +247,22 @@ export function ProgramaPuntos({ configFidelizacion, premios, isMobile, paciente
                     migracion_inicial: 'Asiento Inicial'
                   }
                   const operacionColors: Record<string, string> = {
-                    gasto_tratamiento: '#0C447C',
-                    bonus_asistencia: '#166534',
-                    canje_premio: '#991B1B',
-                    ajuste_manual: '#633806',
-                    ajuste_reverso: '#712B13',
-                    migracion_inicial: '#444441'
+                    gasto_tratamiento: 'var(--accent)',
+                    bonus_asistencia: 'var(--success-text)',
+                    canje_premio: 'var(--danger-text)',
+                    ajuste_manual: 'var(--warning-text)',
+                    ajuste_reverso: 'var(--danger-text)',
+                    migracion_inicial: 'var(--text-muted)'
                   }
                   const sign = log.puntos_afectados > 0 ? '+' : ''
-                  const ptsColor = log.puntos_afectados > 0 ? '#10B981' : '#EF4444'
+                  const ptsColor = log.puntos_afectados > 0 ? 'var(--success-text)' : 'var(--danger-text)'
 
                   return (
                     <tr key={log.id} style={{ borderBottom: '1px solid var(--border-lighter)' }}>
                       <td style={{ padding: '10px 12px', color: 'var(--text-muted-darker)', whiteSpace: 'nowrap' }}>{dateStr}</td>
                       <td style={{ padding: '10px 12px' }}>
                         <span style={{ 
-                          fontSize: 10.5, 
+                          fontSize: 12.5, 
                           fontWeight: 700, 
                           padding: '2px 8px', 
                           borderRadius: 6, 

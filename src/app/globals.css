@@ -118,6 +118,18 @@
   --info-soft: var(--accent-soft);
   /* Texto sobre los fondos sólidos de estado (botones, contadores). En claro
      es blanco; en oscuro los fondos son claros y el texto pasa a oscuro. */
+  /* Odontograma: colores clínicos de cada estado de pieza. Son tonos medios
+     que se leen sobre fondo claro y oscuro, por eso valen igual en ambos
+     temas. La convención de colores la define el odontólogo. */
+  --diente-sano: #10b981;
+  --diente-caries: #ef4444;
+  --diente-corona: #f59e0b;
+  --diente-endodoncia: #3b82f6;
+  --diente-implante: #8b5cf6;
+  --diente-ausente: #64748b;
+  /* Rótulos sobre fotos: siempre van sobre un velo oscuro, en los dos temas. */
+  --overlay-fondo: rgba(10, 30, 61, 0.75);
+  --overlay-texto: #ffffff;
   --success-contrast: #ffffff;
   --danger-contrast: #ffffff;
   --warning-contrast: #ffffff;
@@ -237,6 +249,18 @@
   --danger-text: #fca5a5;         /* 9,4:1 */
   --info: var(--accent);
   --info-soft: var(--accent-soft);
+  /* Odontograma: colores clínicos de cada estado de pieza. Son tonos medios
+     que se leen sobre fondo claro y oscuro, por eso valen igual en ambos
+     temas. La convención de colores la define el odontólogo. */
+  --diente-sano: #10b981;
+  --diente-caries: #ef4444;
+  --diente-corona: #f59e0b;
+  --diente-endodoncia: #3b82f6;
+  --diente-implante: #8b5cf6;
+  --diente-ausente: #94a3b8;
+  /* Rótulos sobre fotos: siempre van sobre un velo oscuro, en los dos temas. */
+  --overlay-fondo: rgba(10, 30, 61, 0.75);
+  --overlay-texto: #ffffff;
   --success-contrast: #0b1220;  /* sobre #34d399: 9,74:1 */
   --danger-contrast: #0b1220;   /* sobre #f87171: 6,77:1 */
   --warning-contrast: #0b1220;

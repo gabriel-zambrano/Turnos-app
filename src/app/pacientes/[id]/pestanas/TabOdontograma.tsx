@@ -20,10 +20,10 @@ export function TabOdontograma({ renderTooth, historial }: TabOdontogramaProps) 
           </div>
 
           {/* Leyenda */}
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', fontSize: 11, borderBottom: '1px solid var(--border-light)', paddingBottom: 10 }}>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', fontSize: 12, borderBottom: '1px solid var(--border-light)', paddingBottom: 10 }}>
             {Object.entries(ESTADOS_INFO).map(([key, value]) => (
               <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                <span>{value.icon}</span>
+                <span aria-hidden="true" style={{ width: 10, height: 10, borderRadius: 999, display: 'inline-block', flexShrink: 0, background: `var(--diente-${key.toLowerCase()})` }} />
                 <span style={{ fontWeight: 600, color: 'var(--text-dark)' }}>{value.label}</span>
               </div>
             ))}
@@ -31,7 +31,7 @@ export function TabOdontograma({ renderTooth, historial }: TabOdontogramaProps) 
 
           {/* Arcada Superior */}
           <div>
-            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 8, textAlign: 'center' }}>Arcada Superior (Maxilar)</div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 8, textAlign: 'center' }}>Arcada Superior (Maxilar)</div>
             {/* Una sola hilera con scroll táctil, no una grilla que
                 se parte en varias filas.
                 Las 16 piezas con ancho mínimo de 48px necesitan unos
@@ -55,7 +55,7 @@ export function TabOdontograma({ renderTooth, historial }: TabOdontogramaProps) 
 
           {/* Arcada Inferior */}
           <div>
-            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 8, textAlign: 'center' }}>Arcada Inferior (Mandíbula)</div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 8, textAlign: 'center' }}>Arcada Inferior (Mandíbula)</div>
             {/* Una sola hilera con scroll táctil, no una grilla que
                 se parte en varias filas.
                 Las 16 piezas con ancho mínimo de 48px necesitan unos
@@ -90,10 +90,10 @@ export function TabOdontograma({ renderTooth, historial }: TabOdontogramaProps) 
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                 <thead>
                   <tr style={{ background: 'var(--table-header-bg)', borderBottom: '1px solid var(--border-light)' }}>
-                    <th style={{ padding: '8px 12px', textAlign: 'left', color: '#185FA5', fontWeight: 600 }}>Fecha</th>
-                    <th style={{ padding: '8px 12px', textAlign: 'left', color: '#185FA5', fontWeight: 600 }}>Diente</th>
-                    <th style={{ padding: '8px 12px', textAlign: 'left', color: '#185FA5', fontWeight: 600 }}>Estado</th>
-                    <th style={{ padding: '8px 12px', textAlign: 'left', color: '#185FA5', fontWeight: 600 }}>Detalles / Notas</th>
+                    <th style={{ padding: '8px 12px', textAlign: 'left', color: 'var(--accent)', fontWeight: 600 }}>Fecha</th>
+                    <th style={{ padding: '8px 12px', textAlign: 'left', color: 'var(--accent)', fontWeight: 600 }}>Diente</th>
+                    <th style={{ padding: '8px 12px', textAlign: 'left', color: 'var(--accent)', fontWeight: 600 }}>Estado</th>
+                    <th style={{ padding: '8px 12px', textAlign: 'left', color: 'var(--accent)', fontWeight: 600 }}>Detalles / Notas</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -107,7 +107,7 @@ export function TabOdontograma({ renderTooth, historial }: TabOdontogramaProps) 
                         <td style={{ padding: '10px 12px', color: 'var(--text-muted-darker)', whiteSpace: 'nowrap' }}>{dateStr}</td>
                         <td style={{ padding: '10px 12px', fontWeight: 700, color: 'var(--text-dark)' }}>Diente {log.diente}</td>
                         <td style={{ padding: '10px 12px' }}>
-                          <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 6, background: info.bg, color: info.color }}>
+                          <span style={{ fontSize: 12, fontWeight: 600, padding: '2px 8px', borderRadius: 6, background: info.bg, color: info.color }}>
                             {log.estado}
                           </span>
                         </td>

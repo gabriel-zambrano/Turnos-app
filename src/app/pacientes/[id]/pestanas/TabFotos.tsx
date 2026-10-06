@@ -1,4 +1,5 @@
 'use client'
+import { Icon } from '@/components/ui/index'
 import type { Dispatch, SetStateAction } from 'react'
 import type { PacienteFoto } from '../tipos'
 
@@ -21,9 +22,9 @@ export function TabFotos({ fotos, setModalFoto, isMobile }: TabFotosProps) {
           </div>
           <button 
             onClick={() => setModalFoto(true)}
-            style={{ background: '#185FA5', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+            style={{ background: 'var(--accent)', color: 'var(--accent-contrast)', border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}
           >
-            📷 Agregar Foto
+            <Icon name="plus" size={14} />Agregar foto
           </button>
         </div>
 
@@ -42,7 +43,7 @@ export function TabFotos({ fotos, setModalFoto, isMobile }: TabFotosProps) {
                 boxShadow: '0 4px 12px rgba(10,30,61,0.02)'
               }}>
                 <img src={foto.url} alt={foto.tipo} loading="lazy" style={{ width: '100%', aspectRatio: '4/3', objectFit: 'cover', display: 'block' }} />
-                <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'rgba(10,30,61,0.75)', color: '#fff', fontSize: 11, padding: '6px 10px', fontWeight: 600, backdropFilter: 'blur(4px)' }}>
+                <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'var(--overlay-fondo)', color: 'var(--overlay-texto)', fontSize: 12, padding: '6px 10px', fontWeight: 600, backdropFilter: 'blur(4px)' }}>
                   {foto.tipo}
                 </div>
               </div>

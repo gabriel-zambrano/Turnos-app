@@ -50,7 +50,7 @@ export function CobroVisitas({ resultadoCobro, setResultadoCobro, citasParaAprob
 
       {citasParaAprobar.length === 0 ? (
         <div style={{ padding: '1.5rem', background: 'var(--bg-input, #f0f4f8)', borderRadius: 12, fontSize: 13, color: 'var(--text-muted)', textAlign: 'center' }}>
-          🎉 No hay consultas pendientes de aprobación.
+          No hay turnos pendientes de cerrar o cobrar.
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 6 }}>
@@ -84,7 +84,7 @@ export function CobroVisitas({ resultadoCobro, setResultadoCobro, citasParaAprob
               placeholder="Monto cobrado en la cita"
             />
             {!isMontoEditable && (
-              <span style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4, display: 'block' }}>
+              <span style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4, display: 'block' }}>
                 El monto ya fue registrado en la cita y no puede editarse desde aquí.
               </span>
             )}
@@ -103,13 +103,13 @@ export function CobroVisitas({ resultadoCobro, setResultadoCobro, citasParaAprob
               </div>
               <label style={{ display: 'flex', alignItems: 'center', gap: 9, cursor: 'pointer',
                 padding: '10px 12px', borderRadius: 9, marginBottom: 12,
-                background: aprobFactura ? 'rgba(29,158,117,0.08)' : 'var(--bg-input, #f8fafc)',
-                border: `1px solid ${aprobFactura ? 'rgba(29,158,117,0.3)' : 'var(--border-color, #e2e8ed)'}` }}>
+                background: aprobFactura ? 'var(--success-soft)' : 'var(--bg-input, #f8fafc)',
+                border: `1px solid ${aprobFactura ? 'var(--success-border)' : 'var(--border-color, #e2e8ed)'}` }}>
                 <input type="checkbox" checked={aprobFactura} onChange={e => setAprobFactura(e.target.checked)}
-                  style={{ width: 17, height: 17, accentColor: '#1D9E75', cursor: 'pointer' }} />
+                  style={{ width: 17, height: 17, accentColor: 'var(--success-text)', cursor: 'pointer' }} />
                 <span style={{ fontSize: 13, color: 'var(--text-dark)', fontWeight: 500 }}>
                   Facturar este cobro
-                  <span style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)', fontWeight: 400, marginTop: 1 }}>
+                  <span style={{ display: 'block', fontSize: 12, color: 'var(--text-muted)', fontWeight: 400, marginTop: 1 }}>
                     {sugerirRequiereFactura(aprobForma, formasFacturables)
                       ? `${aprobForma} se factura según tu configuración`
                       : `${aprobForma} no se factura, salvo que el paciente lo pida`}
