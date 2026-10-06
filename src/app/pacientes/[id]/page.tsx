@@ -18,7 +18,7 @@ import { FIDELIZACION_HABILITADA } from '@/lib/fidelizacion-flag'
 import { citasPendientesDeAprobar } from '@/lib/citas-para-aprobar'
 import { textoPagoPrevio } from '@/lib/cobro-previo'
 import { cobrarTurno, mensajeCobro } from '@/lib/cobro-turno'
-import { Icon } from '@/components/ui/index'
+import { Icon, Modal } from '@/components/ui/index'
 import { CobroVisitas } from './pestanas/CobroVisitas'
 import { ProgramaPuntos } from './pestanas/ProgramaPuntos'
 
@@ -1198,9 +1198,7 @@ export default function PacienteDetalle() {
 
       {/* Modal para Mobile (para mejorar usabilidad) */}
       {modalRegistro && isMobile && dienteSel && (
-        <div style={overlayCss(true)} onClick={() => setModalRegistro(false)}>
-          <div style={modalCss(true)} onClick={e => e.stopPropagation()}>
-            <div style={modalTitleCss}>Actualizar Diente {dienteSel}</div>
+        <Modal open onClose={() => setModalRegistro(false)} title={`Actualizar diente ${dienteSel}`}>
             
             <div style={groupCss}>
               <label style={labelCss}>Estado</label>
@@ -1227,15 +1225,12 @@ export default function PacienteDetalle() {
                 {saving ? 'Guardando...' : 'Guardar'}
               </button>
             </div>
-          </div>
-        </div>
+        </Modal>
       )}
 
       {/* Modal para Editar Ficha Médica */}
       {modalFicha && paciente && (
-        <div style={overlayCss(isMobile)} onClick={() => setModalFicha(false)}>
-          <div style={modalCss(isMobile)} onClick={e => e.stopPropagation()}>
-            <div style={modalTitleCss}>Editar Ficha Médica</div>
+        <Modal open onClose={() => setModalFicha(false)} title="Editar ficha médica">
             
             <div style={grid2Css}>
               <div style={groupCss}>
@@ -1341,15 +1336,12 @@ export default function PacienteDetalle() {
               </button>
             </div>
 
-          </div>
-        </div>
+        </Modal>
       )}
 
       {/* Modal para Agendar Turno Directo */}
       {modalTurno && (
-        <div style={overlayCss(isMobile)} onClick={() => setModalTurno(false)}>
-          <div style={modalCss(isMobile)} onClick={e => e.stopPropagation()}>
-            <div style={modalTitleCss}>Agendar Nuevo Turno</div>
+        <Modal open onClose={() => setModalTurno(false)} title="Agendar nuevo turno">
             
             <div style={grid2Css}>
               <div style={groupCss}>
@@ -1421,15 +1413,12 @@ export default function PacienteDetalle() {
                 {guardandoTurno ? 'Agendando...' : 'Agendar Turno'}
               </button>
             </div>
-          </div>
-        </div>
+        </Modal>
       )}
 
       {/* Modal para Agregar Foto Clínica */}
       {modalFoto && (
-        <div style={overlayCss(isMobile)} onClick={() => setModalFoto(false)}>
-          <div style={modalCss(isMobile)} onClick={e => e.stopPropagation()}>
-            <div style={modalTitleCss}>Subir Foto Clínica</div>
+        <Modal open onClose={() => setModalFoto(false)} title="Subir foto clínica">
             
             <div style={groupCss}>
               <label style={labelCss}>Etapa del Tratamiento</label>
@@ -1460,14 +1449,11 @@ export default function PacienteDetalle() {
             <div style={footerCss}>
               <button style={btnLightCss} onClick={() => setModalFoto(false)} disabled={uploadingFoto}>Cancelar</button>
             </div>
-          </div>
-        </div>
+        </Modal>
       )}
 
       {modalConsent && (
-        <div onClick={() => setModalConsent(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: '1rem' }}>
-          <div onClick={e => e.stopPropagation()} style={{ background: 'var(--bg-card)', borderRadius: 16, padding: '1.5rem', width: '100%', maxWidth: 520, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 8px 32px rgba(0,0,0,0.12)' }}>
-            <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-dark)', marginBottom: '1rem' }}>Nuevo consentimiento</div>
+        <Modal open onClose={() => setModalConsent(false)} title="Nuevo consentimiento" maxWidth={520} dismissible={!cGuardando}>
 
             <div style={{ marginBottom: 14 }}>
               <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>Plantilla</label>
@@ -1516,14 +1502,11 @@ export default function PacienteDetalle() {
                 </button>
               )}
             </div>
-          </div>
-        </div>
+        </Modal>
       )}
 
       {modalCuidados && (
-        <div onClick={() => setModalCuidados(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: '1rem' }}>
-          <div onClick={e => e.stopPropagation()} style={{ background: 'var(--bg-card)', borderRadius: 16, padding: '1.5rem', width: '100%', maxWidth: 420, boxShadow: '0 8px 32px rgba(0,0,0,0.12)' }}>
-            <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-dark)', marginBottom: 6 }}>Enviar cuidados posteriores</div>
+        <Modal open onClose={() => setModalCuidados(false)} title="Enviar cuidados posteriores" maxWidth={420} dismissible={!enviandoCuidados}>
             <p style={{ fontSize: 12.5, color: 'var(--text-muted)', marginBottom: '1rem', lineHeight: 1.5 }}>
               Se envía por email a <strong>{paciente.nombre}</strong>{paciente.email ? ` (${paciente.email})` : ''} el instructivo del tratamiento elegido.
             </p>
@@ -1549,8 +1532,7 @@ export default function PacienteDetalle() {
                 {enviandoCuidados ? 'Enviando…' : 'Enviar email'}
               </button>
             </div>
-          </div>
-        </div>
+        </Modal>
       )}
 
       {toast && <Toast msg={toast.msg} tipo={toast.tipo} isMobile={isMobile} />}

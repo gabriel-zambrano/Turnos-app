@@ -1,4 +1,6 @@
 'use client'
+import { useState } from 'react'
+import { ConfirmDialog } from '@/components/ui/index'
 import type { Dispatch, SetStateAction } from 'react'
 import type { Paciente } from '../tipos'
 import { btnDarkCss, groupCss, labelCss, selectCss, inputCss } from '@/components/UI'
@@ -29,8 +31,36 @@ export interface ProgramaPuntosProps {
 }
 
 export function ProgramaPuntos({ configFidelizacion, premios, isMobile, paciente, procesandoCanje, setProcesandoCanje, showMsg, loadData, ajustePuntosTipo, setAjustePuntosTipo, ajustePuntosMonto, setAjustePuntosMonto, ajustePuntosNota, setAjustePuntosNota, procesandoAjuste, setProcesandoAjuste, historialPuntos }: ProgramaPuntosProps) {
+  // Canje pendiente de confirmar (antes: confirm() del navegador).
+  const [premioACanjear, setPremioACanjear] = useState<any | null>(null)
+
+  async function canjear() {
+    const p = premioACanjear
+    if (!p) return
+    setProcesandoCanje(p.id)
+    const res = await canjearPremioAction(paciente.id, p.id)
+    setProcesandoCanje(null)
+    setPremioACanjear(null)
+    if (res.success) {
+      showMsg('Canje realizado con éxito')
+      loadData()
+    } else {
+      showMsg('No se pudo realizar el canje. Probá de nuevo.', 'error')
+    }
+  }
+
   return (
     <>
+      <ConfirmDialog
+        open={!!premioACanjear}
+        title="Canjear premio"
+        tone="primary"
+        confirmLabel="Canjear"
+        onConfirm={canjear}
+        onCancel={() => setPremioACanjear(null)}
+      >
+        Vas a canjear <strong>{premioACanjear?.nombre}</strong> por <strong>{premioACanjear?.costo_puntos} puntos</strong> del saldo de {paciente.nombre}.
+      </ConfirmDialog>
       {/* SECCION 2: CATALOGO DE PREMIOS */}
       <div className="glass-card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: 14 }}>
         <div>
@@ -96,18 +126,7 @@ export function ProgramaPuntos({ configFidelizacion, premios, isMobile, paciente
                       marginTop: 6
                     }}
                     disabled={!canCanjear || procesandoCanje === p.id}
-                    onClick={async () => {
-                      if (!confirm(`¿Confirmás el canje de "${p.nombre}" por ${p.costo_puntos} puntos?`)) return
-                      setProcesandoCanje(p.id)
-                      const res = await canjearPremioAction(paciente.id, p.id)
-                      setProcesandoCanje(null)
-                      if (res.success) {
-                        showMsg('Canje realizado con éxito')
-                        loadData()
-                      } else {
-                        showMsg('Error en canje: ' + res.error, 'error')
-                      }
-                    }}
+                    onClick={() => setPremioACanjear(p)}
                   >
                     {procesandoCanje === p.id ? 'Canjeando...' : 'Canjear Premio'}
                   </button>
