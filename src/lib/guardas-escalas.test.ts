@@ -110,28 +110,98 @@ describe('escalas · el trinquete no se puede aflojar', () => {
   }
 })
 
+/**
+ * Bloques CSS de primer nivel, con su selector y su cuerpo.
+ *
+ * La primera versión de esto hacía `s.indexOf('[data-theme="dark"]')` para
+ * partir el archivo en dos. Falló: la línea 85 de globals.css es un COMENTARIO
+ * que menciona `[data-theme="dark"]` para documentar la regla de que todo token
+ * exista en los dos temas. El índice caía en el comentario, el tramo "claro"
+ * terminaba antes de las sombras, y el test reportaba que faltaban tokens que
+ * estaban perfectamente definidos.
+ *
+ * Buscar un texto que también aparece en prosa no sirve. Esto recorre las
+ * llaves y arma los bloques de verdad.
+ */
+function bloques(css: string): { selector: string; cuerpo: string }[] {
+  const sinComentarios = css.replace(/\/\*[\s\S]*?\*\//g, '')
+  const out: { selector: string; cuerpo: string }[] = []
+  let i = 0
+  while (i < sinComentarios.length) {
+    const abre = sinComentarios.indexOf('{', i)
+    if (abre === -1) break
+    const selector = sinComentarios.slice(i, abre).trim()
+    let nivel = 1
+    let j = abre + 1
+    while (j < sinComentarios.length && nivel > 0) {
+      if (sinComentarios[j] === '{') nivel++
+      else if (sinComentarios[j] === '}') nivel--
+      j++
+    }
+    out.push({ selector, cuerpo: sinComentarios.slice(abre + 1, j - 1) })
+    i = j
+  }
+  return out
+}
+
 describe('escalas · las escalas existen y son completas', () => {
   const css = () => readFileSync(join(process.cwd(), 'src/app/globals.css'), 'utf8')
 
   it('los tokens de radio están definidos', () => {
     const s = css()
     for (const t of ['--radius-sm', '--radius-md', '--radius-lg', '--radius-xl', '--radius-pill']) {
-      expect(s.includes(t), `falta ${t} en globals.css`).toBe(true)
+      expect(new RegExp(`${t}\\s*:`).test(s), `falta ${t} en globals.css`).toBe(true)
     }
   })
 
   it('los tokens de sombra están definidos en los DOS temas', () => {
-    const s = css()
-    const claro = s.slice(s.indexOf(':root'), s.indexOf('[data-theme="dark"]'))
-    const oscuro = s.slice(s.indexOf('[data-theme="dark"]'))
+    const bs = bloques(css())
+
+    // Control del propio detector: si el parser no encuentra los dos tipos de
+    // bloque, el test pasaría en verde sin haber comprobado nada.
+    const claros = bs.filter(b => /^:root\b/.test(b.selector))
+    const oscuros = bs.filter(b => /^\[data-theme="dark"\]\s*$/.test(b.selector))
+    expect(claros.length, 'el parser no encontró ningún bloque :root').toBeGreaterThan(0)
+    expect(oscuros.length, 'el parser no encontró el bloque [data-theme="dark"]').toBeGreaterThan(0)
+
+    const definido = (bloques: typeof bs, token: string) =>
+      bloques.some(b => new RegExp(`${token}\\s*:`).test(b.cuerpo))
+
     for (const t of ['--shadow-subtle', '--shadow-card', '--shadow-pop', '--shadow-modal']) {
-      expect(claro.includes(t), `falta ${t} en :root`).toBe(true)
+      expect(definido(claros, t), `falta ${t} en :root`).toBe(true)
       expect(
-        oscuro.includes(t),
+        definido(oscuros, t),
         `${t} no se redefine en [data-theme="dark"]. Una sombra pensada para ` +
         `fondo claro sobre fondo oscuro no se ve, o se ve como un halo sucio.`
       ).toBe(true)
     }
+  })
+
+  it('TODA sombra de :root existe también en el tema oscuro', () => {
+    // Generaliza el test anterior, que solo miraba las cuatro declaradas y por
+    // eso no habría visto un --shadow-* nuevo agregado a un solo tema. Es la
+    // regla que el propio globals.css pide en su comentario de cabecera:
+    // "Todo token nuevo existe también en [data-theme='dark']".
+    const bs = bloques(css())
+    const cuerpoClaro = bs.filter(b => /^:root\b/.test(b.selector)).map(b => b.cuerpo).join('\n')
+    const cuerpoOscuro = bs.filter(b => /^\[data-theme="dark"\]\s*$/.test(b.selector)).map(b => b.cuerpo).join('\n')
+
+    // `Array.from` y no `[...new Set()]`: el target es es5 sin
+    // downlevelIteration, y desparramar un Set no compila.
+    const enClaro = Array.from(
+      new Set(cuerpoClaro.match(/--shadow-[a-z0-9-]+(?=\s*:)/g) ?? [])
+    )
+    expect(enClaro.length, 'no se detectó ninguna sombra en :root').toBeGreaterThan(0)
+
+    const huerfanas = enClaro.filter(t => !new RegExp(`${t}\\s*:`).test(cuerpoOscuro))
+    expect(
+      huerfanas,
+      `Estas sombras existen en :root y NO en [data-theme="dark"]:\n` +
+      `  ${huerfanas.join(', ')}\n\n` +
+      `En tema oscuro van a heredar el valor claro: una sombra calculada para\n` +
+      `fondo blanco sobre un fondo casi negro no se ve, o se ve como suciedad\n` +
+      `alrededor del elemento.`
+    ).toEqual([])
   })
 
   it('una sola familia tipográfica', () => {

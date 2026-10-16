@@ -13,3 +13,6 @@ tsconfig.tsbuildinfo
 
 # Config local de agentes (Claude/Antigravity)
 .claude/
+
+# Mensaje de commit temporal: andamio, no versionarlo
+.git-commit-msg.txt
