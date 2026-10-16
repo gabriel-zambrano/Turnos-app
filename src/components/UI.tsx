@@ -31,7 +31,7 @@ export const overlayCss = (isMobile = false): React.CSSProperties => ({
 })
 export const modalCss = (isMobile = false): React.CSSProperties => ({
   background: 'var(--bg-modal, #ffffff)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
-  borderRadius: isMobile ? '20px 20px 0 0' : 16, padding: '1.75rem',
+  borderRadius: isMobile ? '20px 20px 0 0' : 'var(--radius-xl)', padding: '1.75rem',
   width: '100%', maxWidth: isMobile ? '100vw' : 540, maxHeight: isMobile ? '90dvh' : '90vh', overflowY: 'auto',
   border: '1px solid var(--border-light, rgba(15,30,61,0.08))',
   boxShadow: '0 20px 50px -10px rgba(10,30,61,0.22), 0 0 1px rgba(0,0,0,0.1)',

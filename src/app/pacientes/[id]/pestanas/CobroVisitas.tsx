@@ -49,7 +49,7 @@ export function CobroVisitas({ resultadoCobro, setResultadoCobro, citasParaAprob
       )}
 
       {citasParaAprobar.length === 0 ? (
-        <div style={{ padding: '1.5rem', background: 'var(--bg-input, #f0f4f8)', borderRadius: 12, fontSize: 13, color: 'var(--text-muted)', textAlign: 'center' }}>
+        <div style={{ padding: '1.5rem', background: 'var(--bg-input, #f0f4f8)', borderRadius: 'var(--radius-lg)', fontSize: 13, color: 'var(--text-muted)', textAlign: 'center' }}>
           No hay turnos pendientes de cerrar o cobrar.
         </div>
       ) : (
@@ -102,7 +102,7 @@ export function CobroVisitas({ resultadoCobro, setResultadoCobro, citasParaAprob
                 </select>
               </div>
               <label style={{ display: 'flex', alignItems: 'center', gap: 9, cursor: 'pointer',
-                padding: '10px 12px', borderRadius: 9, marginBottom: 12,
+                padding: '10px 12px', borderRadius: 'var(--radius-md)', marginBottom: 12,
                 background: aprobFactura ? 'var(--success-soft)' : 'var(--bg-input, #f8fafc)',
                 border: `1px solid ${aprobFactura ? 'var(--success-border)' : 'var(--border-color, #e2e8ed)'}` }}>
                 <input type="checkbox" checked={aprobFactura} onChange={e => setAprobFactura(e.target.checked)}

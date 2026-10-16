@@ -149,10 +149,15 @@
   --space-6: 24px;
   --space-8: 32px;
   --space-12: 48px;
-  --radius-sm: 6px;    /* controles */
-  --radius-md: 10px;   /* superficies */
-  --radius-lg: 16px;   /* tarjetas y modales */
-  --radius-xl: 22px;   /* tarjetas destacadas / wallet */
+  /* Escala de radios · alineada a lo que el producto ya usaba.
+     Antes era 6 / 10 / 16 / 22, y ninguno de los dos valores dominantes del
+     código estaba en la escala: había 66 usos de 8px y 29 de 12px contra 6 y
+     10 declarados. Una escala que el código no usa no es una escala: es una
+     intención. Se corrigió la escala, no las 95 llamadas. */
+  --radius-sm: 4px;    /* detalles: chips, badges, celdas */
+  --radius-md: 8px;    /* controles: inputs, botones, filas */
+  --radius-lg: 12px;   /* superficies: tarjetas, paneles */
+  --radius-xl: 16px;   /* contenedores: modales, hojas */
   --radius-pill: 999px;
   --shadow-subtle: 0 1px 3px rgba(10, 30, 61, 0.04), 0 6px 16px rgba(10, 30, 61, 0.03);
   --shadow-card: 0 10px 30px rgba(10, 37, 64, 0.04), 0 1px 3px rgba(10, 37, 64, 0.02);

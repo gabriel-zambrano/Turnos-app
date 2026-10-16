@@ -20,7 +20,7 @@ export function TabConsentimientos({ consentimientos, abrirModalConsent, tenant,
             <h3 style={{ fontSize: 15, color: 'var(--text-dark, #0a1e3d)', fontWeight: 700, margin: 0 }}>Consentimientos informados</h3>
             <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '2px 0 0' }}>Firma digital del paciente, presencial o por link.</p>
           </div>
-          <button onClick={abrirModalConsent} style={{ fontSize: 13, fontWeight: 600, padding: '8px 14px', borderRadius: 8, border: 'none', background: 'var(--success)', color: 'var(--success-contrast)', cursor: 'pointer', fontFamily: 'DM Sans, sans-serif' }}>
+          <button onClick={abrirModalConsent} style={{ fontSize: 13, fontWeight: 600, padding: '8px 14px', borderRadius: 'var(--radius-md)', border: 'none', background: 'var(--success)', color: 'var(--success-contrast)', cursor: 'pointer', fontFamily: 'DM Sans, sans-serif' }}>
             + Nuevo consentimiento
           </button>
         </div>
@@ -46,11 +46,11 @@ export function TabConsentimientos({ consentimientos, abrirModalConsent, tenant,
                 ) : (
                   <button
                     onClick={() => { const l = `${urlPublicaDeClinica(tenant)}/firmar/${c.token_firma}`; navigator.clipboard?.writeText(l); showMsg('Link copiado') }}
-                    style={{ fontSize: 12.5, padding: '4px 9px', borderRadius: 8, border: '1px solid var(--border-color)', background: 'var(--bg-card)', color: 'var(--text-muted)', cursor: 'pointer', fontFamily: 'DM Sans, sans-serif', fontWeight: 600 }}
+                    style={{ fontSize: 12.5, padding: '4px 9px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', background: 'var(--bg-card)', color: 'var(--text-muted)', cursor: 'pointer', fontFamily: 'DM Sans, sans-serif', fontWeight: 600 }}
                   >Copiar link</button>
                 )}
                 {c.estado === 'firmado' && (
-                  <a href={`/api/consentimientos/pdf/${c.id}`} target="_blank" rel="noopener noreferrer" title="Ver PDF" style={{ width: 32, height: 32, borderRadius: 8, border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--success-text)', textDecoration: 'none', flexShrink: 0 }}>
+                  <a href={`/api/consentimientos/pdf/${c.id}`} target="_blank" rel="noopener noreferrer" title="Ver PDF" style={{ width: 32, height: 32, borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--success-text)', textDecoration: 'none', flexShrink: 0 }}>
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                   </a>
                 )}

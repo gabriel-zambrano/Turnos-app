@@ -87,7 +87,7 @@ export function ProgramaPuntos({ configFidelizacion, premios, isMobile, paciente
                 <div key={p.id} style={{ 
                   background: 'var(--bg-input, #f8fafc)', 
                   border: '1px solid var(--border-light, #e2e8f0)', 
-                  borderRadius: 12, 
+                  borderRadius: 'var(--radius-lg)', 
                   padding: 14, 
                   display: 'flex', 
                   flexDirection: 'column', 
@@ -109,8 +109,8 @@ export function ProgramaPuntos({ configFidelizacion, premios, isMobile, paciente
                       <span>Progreso</span>
                       <span>{ptsActuales} / {p.costo_puntos} pts</span>
                     </div>
-                    <div style={{ height: 6, background: 'var(--border-lighter, #e2e8ed)', borderRadius: 3, overflow: 'hidden' }}>
-                      <div style={{ height: '100%', width: `${pct}%`, background: tienePuntos ? 'var(--success)' : 'var(--accent)', borderRadius: 3 }} />
+                    <div style={{ height: 6, background: 'var(--border-lighter, #e2e8ed)', borderRadius: 'var(--radius-sm)', overflow: 'hidden' }}>
+                      <div style={{ height: '100%', width: `${pct}%`, background: tienePuntos ? 'var(--success)' : 'var(--accent)', borderRadius: 'var(--radius-sm)' }} />
                     </div>
                   </div>
 

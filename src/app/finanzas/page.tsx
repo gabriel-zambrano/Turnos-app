@@ -18,7 +18,7 @@ interface EgresoManual  { id: string; fecha: string; concepto: string; monto: nu
 interface CitaAsistida { id: string; paciente_id: string; fecha_hora: string; tipo_tratamiento: string; precio_cobrado: number | null; sena: number | null; valor: number | null; pacientes: { nombre: string; telefono: string; dni_cuit?: string | null; tipo_documento?: string | null } | null }
 
 const inputSt: React.CSSProperties = {
-  fontSize: 13, padding: '7px 10px', borderRadius: 8,
+  fontSize: 13, padding: '7px 10px', borderRadius: 'var(--radius-md)',
   border: '1px solid var(--border-color)', fontFamily: 'DM Sans, sans-serif',
   color: 'var(--text-dark)', width: '100%', boxSizing: 'border-box', outline: 'none',
 }
@@ -637,7 +637,7 @@ export default function FinanzasPage() {
   )
 
   const tabBtn = (t: typeof tab) => ({
-    padding: '0.45rem 1rem', borderRadius: 8, border: 'none', cursor: 'pointer',
+    padding: '0.45rem 1rem', borderRadius: 'var(--radius-md)', border: 'none', cursor: 'pointer',
     fontSize: 13, fontWeight: 600, fontFamily: 'DM Sans, sans-serif',
     background: tab === t ? 'var(--text-dark)' : 'transparent',
     color: tab === t ? 'var(--bg-card)' : 'var(--text-muted)',
@@ -717,7 +717,7 @@ export default function FinanzasPage() {
           sub={`${MESES[mesActual - 1]} ${anioActual}`}
           right={
             <button onClick={() => { setFMeta(metaIngresos || ''); setModalMeta(true) }}
-              style={{ fontSize:12, padding:'6px 14px', borderRadius:8, border:'0.5px solid var(--success)', background:'var(--success-soft)', color:'var(--success-text)', cursor:'pointer', fontWeight:600, fontFamily:'DM Sans, sans-serif' }}>
+              style={{ fontSize:12, padding:'6px 14px', borderRadius:'var(--radius-md)', border:'0.5px solid var(--success)', background:'var(--success-soft)', color:'var(--success-text)', cursor:'pointer', fontWeight:600, fontFamily:'DM Sans, sans-serif' }}>
               {metaIngresos > 0 ? `Meta: ${fmt(metaIngresos)}` : '+ Fijar meta mensual'}
             </button>
           }
@@ -822,24 +822,24 @@ export default function FinanzasPage() {
 
                 {/* Pastillas de detalle con montos */}
                 <div style={{ display:'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap:8 }}>
-                  <div style={{ display:'flex', alignItems:'center', gap:8, background:'var(--bg-input)', border:'0.5px solid var(--border-color)', borderRadius:8, padding:'7px 10px' }}>
-                    <div style={{ width:10, height:10, borderRadius:3, background:'var(--danger)', flexShrink:0 }} />
+                  <div style={{ display:'flex', alignItems:'center', gap:8, background:'var(--bg-input)', border:'0.5px solid var(--border-color)', borderRadius:'var(--radius-md)', padding:'7px 10px' }}>
+                    <div style={{ width:10, height:10, borderRadius:'var(--radius-sm)', background:'var(--danger)', flexShrink:0 }} />
                     <div style={{ flex:1, fontSize:12 }}>
                       <span style={{ color:'var(--text-muted)' }}>Costos fijos: </span>
                       <strong style={{ color:'var(--danger-text)' }}>{fmt(totalCostos)}</strong>
                       <span style={{ color:'var(--text-muted)' }}> ({porcentajeCargaFija}%)</span>
                     </div>
                   </div>
-                  <div style={{ display:'flex', alignItems:'center', gap:8, background:'var(--bg-input)', border:'0.5px solid var(--border-color)', borderRadius:8, padding:'7px 10px' }}>
-                    <div style={{ width:10, height:10, borderRadius:3, background:'var(--warning)', flexShrink:0 }} />
+                  <div style={{ display:'flex', alignItems:'center', gap:8, background:'var(--bg-input)', border:'0.5px solid var(--border-color)', borderRadius:'var(--radius-md)', padding:'7px 10px' }}>
+                    <div style={{ width:10, height:10, borderRadius:'var(--radius-sm)', background:'var(--warning)', flexShrink:0 }} />
                     <div style={{ flex:1, fontSize:12 }}>
                       <span style={{ color:'var(--text-muted)' }}>Egresos variables: </span>
                       <strong style={{ color:'var(--warning-text)' }}>{fmt(totalEgresosMes)}</strong>
                       <span style={{ color:'var(--text-muted)' }}> ({porcentajeEgresos}%)</span>
                     </div>
                   </div>
-                  <div style={{ display:'flex', alignItems:'center', gap:8, background:'var(--bg-input)', border:'0.5px solid var(--border-color)', borderRadius:8, padding:'7px 10px' }}>
-                    <div style={{ width:10, height:10, borderRadius:3, background:'var(--success)', flexShrink:0 }} />
+                  <div style={{ display:'flex', alignItems:'center', gap:8, background:'var(--bg-input)', border:'0.5px solid var(--border-color)', borderRadius:'var(--radius-md)', padding:'7px 10px' }}>
+                    <div style={{ width:10, height:10, borderRadius:'var(--radius-sm)', background:'var(--success)', flexShrink:0 }} />
                     <div style={{ flex:1, fontSize:12 }}>
                       <span style={{ color:'var(--text-muted)' }}>Ganancia neta: </span>
                       <strong style={{ color:'var(--success-text)' }}>{fmt(gananciaNetaReal)}</strong>
@@ -855,7 +855,7 @@ export default function FinanzasPage() {
                   type="button"
                   onClick={() => setVistaDecisiones('estructura')}
                   style={{
-                    padding:'6px 14px', borderRadius:8, border:'none', cursor:'pointer',
+                    padding:'6px 14px', borderRadius:'var(--radius-md)', border:'none', cursor:'pointer',
                     fontSize:12, fontWeight:600, fontFamily:'DM Sans, sans-serif',
                     background: vistaDecisiones === 'estructura' ? 'var(--text-dark)' : 'transparent',
                     color: vistaDecisiones === 'estructura' ? 'var(--bg-card)' : 'var(--text-muted)',
@@ -868,7 +868,7 @@ export default function FinanzasPage() {
                   type="button"
                   onClick={() => setVistaDecisiones('simulador')}
                   style={{
-                    padding:'6px 14px', borderRadius:8, border:'none', cursor:'pointer',
+                    padding:'6px 14px', borderRadius:'var(--radius-md)', border:'none', cursor:'pointer',
                     fontSize:12, fontWeight:600, fontFamily:'DM Sans, sans-serif',
                     background: vistaDecisiones === 'simulador' ? 'var(--text-dark)' : 'transparent',
                     color: vistaDecisiones === 'simulador' ? 'var(--bg-card)' : 'var(--text-muted)',
@@ -881,7 +881,7 @@ export default function FinanzasPage() {
                   type="button"
                   onClick={() => setVistaDecisiones('tratamientos')}
                   style={{
-                    padding:'6px 14px', borderRadius:8, border:'none', cursor:'pointer',
+                    padding:'6px 14px', borderRadius:'var(--radius-md)', border:'none', cursor:'pointer',
                     fontSize:12, fontWeight:600, fontFamily:'DM Sans, sans-serif',
                     background: vistaDecisiones === 'tratamientos' ? 'var(--text-dark)' : 'transparent',
                     color: vistaDecisiones === 'tratamientos' ? 'var(--bg-card)' : 'var(--text-muted)',
@@ -966,8 +966,8 @@ export default function FinanzasPage() {
                           <span>Progreso de meta mensual ({Math.round(progreso)}%)</span>
                           <span>{fmt(totalMes)} / {fmt(metaIngresos)}</span>
                         </div>
-                        <div style={{ height:8, background:'var(--bg-input)', borderRadius:4, overflow:'hidden', border:'0.5px solid var(--border-color)' }}>
-                          <div style={{ height:'100%', width:`${progreso}%`, background: progreso >= 100 ? 'var(--success)' : progreso >= 60 ? 'var(--warning)' : 'var(--danger)', borderRadius:4, transition:'width .5s ease' }} />
+                        <div style={{ height:8, background:'var(--bg-input)', borderRadius:'var(--radius-sm)', overflow:'hidden', border:'0.5px solid var(--border-color)' }}>
+                          <div style={{ height:'100%', width:`${progreso}%`, background: progreso >= 100 ? 'var(--success)' : progreso >= 60 ? 'var(--warning)' : 'var(--danger)', borderRadius:'var(--radius-sm)', transition:'width .5s ease' }} />
                         </div>
                       </div>
                     )}
@@ -981,7 +981,7 @@ export default function FinanzasPage() {
                         <div style={{ fontSize:12, color:'var(--text-muted)' }}>Tildá para incluir en el cálculo</div>
                       </div>
                       <button onClick={() => setModalCosto(true)}
-                        style={{ fontSize:12, fontWeight:600, padding:'5px 12px', borderRadius:8, border:'none', background:'var(--success)', color:'var(--success-contrast)', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>
+                        style={{ fontSize:12, fontWeight:600, padding:'5px 12px', borderRadius:'var(--radius-md)', border:'none', background:'var(--success)', color:'var(--success-contrast)', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>
                         + Agregar
                       </button>
                     </div>
@@ -1030,7 +1030,7 @@ export default function FinanzasPage() {
                     {simuladorDelta !== 0 && (
                       <button
                         onClick={() => setSimuladorDelta(0)}
-                        style={{ fontSize:12, fontWeight:600, padding:'5px 12px', borderRadius:8, border:'0.5px solid var(--border-color)', background:'var(--bg-input)', color:'var(--text-muted)', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}
+                        style={{ fontSize:12, fontWeight:600, padding:'5px 12px', borderRadius:'var(--radius-md)', border:'0.5px solid var(--border-color)', background:'var(--bg-input)', color:'var(--text-muted)', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}
                       >
                         Restablecer a 0
                       </button>
@@ -1052,7 +1052,7 @@ export default function FinanzasPage() {
                           key={sc.label}
                           onClick={() => setSimuladorDelta(sc.delta)}
                           style={{
-                            fontSize:12, padding:'6px 12px', borderRadius:8, cursor:'pointer', fontFamily:'DM Sans, sans-serif', fontWeight:600,
+                            fontSize:12, padding:'6px 12px', borderRadius:'var(--radius-md)', cursor:'pointer', fontFamily:'DM Sans, sans-serif', fontWeight:600,
                             border: simuladorDelta === sc.delta ? '1px solid var(--accent)' : '0.5px solid var(--border-color)',
                             background: simuladorDelta === sc.delta ? 'var(--accent-soft)' : 'var(--bg-input)',
                             color: simuladorDelta === sc.delta ? 'var(--accent)' : 'var(--text-dark)',
@@ -1066,7 +1066,7 @@ export default function FinanzasPage() {
                   </div>
 
                   {/* Slider de ajuste libre */}
-                  <div style={{ background:'var(--bg-input)', border:'0.5px solid var(--border-color)', borderRadius:12, padding:'1rem 1.25rem', marginBottom:18 }}>
+                  <div style={{ background:'var(--bg-input)', border:'0.5px solid var(--border-color)', borderRadius:'var(--radius-lg)', padding:'1rem 1.25rem', marginBottom:18 }}>
                     <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
                       <span style={{ fontSize:13, fontWeight:600 }}>Variación de Costos Fijos a Simular:</span>
                       <strong style={{ fontSize:15, color: simuladorDelta > 0 ? 'var(--danger-text)' : simuladorDelta < 0 ? 'var(--success-text)' : 'var(--text-dark)' }}>
@@ -1091,7 +1091,7 @@ export default function FinanzasPage() {
 
                   {/* Cuadrícula Comparativa: Actual vs Simulado */}
                   <div style={{ display:'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap:12, marginBottom:16 }}>
-                    <div style={{ background:'var(--bg-card)', border:'0.5px solid var(--border-color)', borderRadius:12, padding:'1rem' }}>
+                    <div style={{ background:'var(--bg-card)', border:'0.5px solid var(--border-color)', borderRadius:'var(--radius-lg)', padding:'1rem' }}>
                       <div style={{ fontSize:12, fontWeight:600, color:'var(--text-muted)', textTransform:'uppercase' }}>Nueva Estructura Fija</div>
                       <div style={{ fontSize:18, fontWeight:700, color:'var(--danger-text)', margin:'4px 0' }}>{fmt(costosSimulados)}</div>
                       <div style={{ fontSize:12, color:'var(--text-muted)' }}>
@@ -1099,7 +1099,7 @@ export default function FinanzasPage() {
                       </div>
                     </div>
 
-                    <div style={{ background:'var(--bg-card)', border:'0.5px solid var(--border-color)', borderRadius:12, padding:'1rem' }}>
+                    <div style={{ background:'var(--bg-card)', border:'0.5px solid var(--border-color)', borderRadius:'var(--radius-lg)', padding:'1rem' }}>
                       <div style={{ fontSize:12, fontWeight:600, color:'var(--text-muted)', textTransform:'uppercase' }}>Ganancia Neta Proyectada</div>
                       <div style={{ fontSize:18, fontWeight:700, color: gananciaSimulada >= 0 ? 'var(--success-text)' : 'var(--danger-text)', margin:'4px 0' }}>{fmt(gananciaSimulada)}</div>
                       <div style={{ fontSize:12, color:'var(--text-muted)' }}>
@@ -1107,7 +1107,7 @@ export default function FinanzasPage() {
                       </div>
                     </div>
 
-                    <div style={{ background:'var(--bg-card)', border:'0.5px solid var(--border-color)', borderRadius:12, padding:'1rem' }}>
+                    <div style={{ background:'var(--bg-card)', border:'0.5px solid var(--border-color)', borderRadius:'var(--radius-lg)', padding:'1rem' }}>
                       <div style={{ fontSize:12, fontWeight:600, color:'var(--text-muted)', textTransform:'uppercase' }}>Break-Even Requerido</div>
                       <div style={{ fontSize:18, fontWeight:700, color:'var(--accent)', margin:'4px 0' }}>{fmt(breakEvenSimuladoDiario)}/día</div>
                       <div style={{ fontSize:12, color:'var(--text-muted)' }}>
@@ -1117,7 +1117,7 @@ export default function FinanzasPage() {
                   </div>
 
                   {/* Diagnóstico de Decisión */}
-                  <div style={{ background:'var(--accent-soft)', border:'0.5px solid var(--border-color)', borderRadius:12, padding:'0.9rem 1.1rem', fontSize:13, lineHeight:1.55 }}>
+                  <div style={{ background:'var(--accent-soft)', border:'0.5px solid var(--border-color)', borderRadius:'var(--radius-lg)', padding:'0.9rem 1.1rem', fontSize:13, lineHeight:1.55 }}>
                     {simuladorDelta > 0 ? (
                       <>
                         <span style={{ fontWeight:700, color:'var(--accent)' }}>Conclusión de viabilidad: </span>
@@ -1154,17 +1154,17 @@ export default function FinanzasPage() {
 
                   {/* Métricas base de sillón */}
                   <div style={{ display:'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap:12, marginBottom:18 }}>
-                    <div style={{ background:'var(--bg-input)', border:'0.5px solid var(--border-color)', borderRadius:12, padding:'1rem', textAlign:'center' }}>
+                    <div style={{ background:'var(--bg-input)', border:'0.5px solid var(--border-color)', borderRadius:'var(--radius-lg)', padding:'1rem', textAlign:'center' }}>
                       <div style={{ fontSize:12, color:'var(--text-muted)', fontWeight:600, textTransform:'uppercase' }}>Ticket Medio por Turno</div>
                       <div style={{ fontSize:19, fontWeight:700, color:'var(--accent)', marginTop:4 }}>{fmt(ticketPromedio)}</div>
                       <div style={{ fontSize:12, color:'var(--text-muted)', marginTop:2 }}>Promedio de cobro en agenda</div>
                     </div>
-                    <div style={{ background:'var(--bg-input)', border:'0.5px solid var(--border-color)', borderRadius:12, padding:'1rem', textAlign:'center' }}>
+                    <div style={{ background:'var(--bg-input)', border:'0.5px solid var(--border-color)', borderRadius:'var(--radius-lg)', padding:'1rem', textAlign:'center' }}>
                       <div style={{ fontSize:12, color:'var(--text-muted)', fontWeight:600, textTransform:'uppercase' }}>Turnos Necesarios</div>
                       <div style={{ fontSize:19, fontWeight:700, color:'var(--danger-text)', marginTop:4 }}>{turnosParaCostos} turnos</div>
                       <div style={{ fontSize:12, color:'var(--text-muted)', marginTop:2 }}>Para pagar el 100% de costos fijos</div>
                     </div>
-                    <div style={{ background:'var(--bg-input)', border:'0.5px solid var(--border-color)', borderRadius:12, padding:'1rem', textAlign:'center' }}>
+                    <div style={{ background:'var(--bg-input)', border:'0.5px solid var(--border-color)', borderRadius:'var(--radius-lg)', padding:'1rem', textAlign:'center' }}>
                       <div style={{ fontSize:12, color:'var(--text-muted)', fontWeight:600, textTransform:'uppercase' }}>Ritmo de Sillón Mínimo</div>
                       <div style={{ fontSize:19, fontWeight:700, color:'var(--warning-text)', marginTop:4 }}>{(turnosParaCostos / 22).toFixed(1)} turnos/día</div>
                       <div style={{ fontSize:12, color:'var(--text-muted)', marginTop:2 }}>Base calculada sobre 22 días hábiles</div>
@@ -1178,7 +1178,7 @@ export default function FinanzasPage() {
                   ) : (
                     <div style={{ display:'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)', gap:10 }}>
                       {tratamientosEquivalencia.map(t => (
-                        <div key={t.nombre} style={{ background:'var(--bg-input)', border:'0.5px solid var(--border-color)', borderRadius:12, padding:'1rem 1.1rem', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                        <div key={t.nombre} style={{ background:'var(--bg-input)', border:'0.5px solid var(--border-color)', borderRadius:'var(--radius-lg)', padding:'1rem 1.1rem', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
                           <div>
                             <div style={{ fontSize:14, fontWeight:700, color:'var(--text-dark)' }}>{t.nombre}</div>
                             <div style={{ fontSize:12, color:'var(--text-muted)', marginTop:2 }}>Precio base: {fmt(t.precio)}</div>
@@ -1224,7 +1224,7 @@ export default function FinanzasPage() {
                 </p>
                 <div style={{ display:'flex', alignItems:'center', gap:10, marginTop:8, flexWrap:'wrap', justifyContent:'center' }}>
                   <input type="date" value={fechaCaja} onChange={e => setFechaCaja(e.target.value)} style={{ ...inputSt, width: 'auto', padding: '6px 12px' }} />
-                  <button onClick={() => { setMAperturaVal(0); setModalApertura(true) }} style={{ fontSize:13, fontWeight:600, padding:'8px 18px', borderRadius:8, border:'none', background:'var(--success)', color:'var(--success-contrast)', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>
+                  <button onClick={() => { setMAperturaVal(0); setModalApertura(true) }} style={{ fontSize:13, fontWeight:600, padding:'8px 18px', borderRadius:'var(--radius-md)', border:'none', background:'var(--success)', color:'var(--success-contrast)', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>
                     Abrir Caja Diaria
                   </button>
                 </div>
@@ -1235,18 +1235,18 @@ export default function FinanzasPage() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <div style={{ fontWeight:700, fontSize:18, color:'var(--text-dark)' }}>Control de Caja</div>
                     {cajaActiva.estado === 'cerrada' ? (
-                      <span style={{ fontSize: 12, background: 'var(--danger-soft)', color: 'var(--danger-text)', padding: '2px 8px', borderRadius: 12, fontWeight: 700 }}><span style={{ display:'inline-flex', alignItems:'center', gap:6 }}><Icon name="lock" size={12} />Cerrada</span></span>
+                      <span style={{ fontSize: 12, background: 'var(--danger-soft)', color: 'var(--danger-text)', padding: '2px 8px', borderRadius: 'var(--radius-lg)', fontWeight: 700 }}><span style={{ display:'inline-flex', alignItems:'center', gap:6 }}><Icon name="lock" size={12} />Cerrada</span></span>
                     ) : (
-                      <span style={{ fontSize: 12, background: 'var(--success-soft)', color: 'var(--success-text)', padding: '2px 8px', borderRadius: 12, fontWeight: 700 }}>Abierta</span>
+                      <span style={{ fontSize: 12, background: 'var(--success-soft)', color: 'var(--success-text)', padding: '2px 8px', borderRadius: 'var(--radius-lg)', fontWeight: 700 }}>Abierta</span>
                     )}
                   </div>
                   <div style={{ display:'flex', gap:10, alignItems: 'center' }}>
                     <input type="date" aria-label="Día de la caja" title="Se listan los turnos con fecha de este día, aunque se hayan cobrado otro día" value={fechaCaja} onChange={e => setFechaCaja(e.target.value)} style={{ ...inputSt, width: 'auto', padding: '5px 10px' }} />
                     {cajaActiva.estado === 'abierta' ? (
                       <>
-                        <button onClick={() => { setFFecha(fechaCaja); setModalIngreso(true) }} style={{ fontSize:12, fontWeight:600, padding:'6px 12px', borderRadius:8, border:'none', background:'var(--success)', color:'var(--success-contrast)', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>+ Ingreso</button>
-                        <button onClick={() => { setFFecha(fechaCaja); setModalEgreso(true) }} style={{ fontSize:12, fontWeight:600, padding:'6px 12px', borderRadius:8, border:'none', background:'var(--danger)', color:'var(--danger-contrast)', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>- Egreso</button>
-                        <button onClick={() => { setMCierreVal(''); setCajaObs(''); setModalCierre(true) }} style={{ fontSize:12, fontWeight:600, padding:'6px 12px', borderRadius:8, border:'1px solid var(--danger)', background:'var(--danger-soft)', color:'var(--danger-text)', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>Cerrar Caja (Arqueo)</button>
+                        <button onClick={() => { setFFecha(fechaCaja); setModalIngreso(true) }} style={{ fontSize:12, fontWeight:600, padding:'6px 12px', borderRadius:'var(--radius-md)', border:'none', background:'var(--success)', color:'var(--success-contrast)', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>+ Ingreso</button>
+                        <button onClick={() => { setFFecha(fechaCaja); setModalEgreso(true) }} style={{ fontSize:12, fontWeight:600, padding:'6px 12px', borderRadius:'var(--radius-md)', border:'none', background:'var(--danger)', color:'var(--danger-contrast)', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>- Egreso</button>
+                        <button onClick={() => { setMCierreVal(''); setCajaObs(''); setModalCierre(true) }} style={{ fontSize:12, fontWeight:600, padding:'6px 12px', borderRadius:'var(--radius-md)', border:'1px solid var(--danger)', background:'var(--danger-soft)', color:'var(--danger-text)', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>Cerrar Caja (Arqueo)</button>
                       </>
                     ) : (
                       <span style={{ fontSize: 12, fontWeight: 700, padding: '5px 12px', background: 'var(--danger-soft)', color: 'var(--danger-text)', borderRadius: 'var(--radius-sm)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
@@ -1270,7 +1270,7 @@ export default function FinanzasPage() {
                       <div style={{ display:'flex', alignItems:'center', gap:6 }}>
                         {editandoPrecio === c.id ? (
                           <>
-                            <input type="number" autoFocus defaultValue={getPrecio(c)} onChange={e => setPrecioEdit(e.target.value === '' ? '' : Number(e.target.value))} style={{ width:90, fontSize:13, padding:'4px 8px', borderRadius:7, border:'1px solid var(--success)', fontFamily:'DM Sans, sans-serif', textAlign:'right' }} />
+                            <input type="number" autoFocus defaultValue={getPrecio(c)} onChange={e => setPrecioEdit(e.target.value === '' ? '' : Number(e.target.value))} style={{ width:90, fontSize:13, padding:'4px 8px', borderRadius:'var(--radius-md)', border:'1px solid var(--success)', fontFamily:'DM Sans, sans-serif', textAlign:'right' }} />
                             <button onClick={() => precioEdit !== '' && guardarPrecioCita(c, precioEdit as number)} style={{ fontSize:12, padding:'4px 8px', borderRadius:'var(--radius-sm)', border:'none', background:'var(--success)', color:'var(--success-contrast)', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }} aria-label="Guardar precio"><Icon name="check" size={14} /></button>
                             <button onClick={() => setEditandoPrecio(null)} style={{ fontSize:12, padding:'4px 8px', borderRadius:'var(--radius-sm)', border:'0.5px solid var(--border-color)', background:'var(--bg-card)', color:'var(--text-muted)', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }} aria-label="Cancelar edición"><Icon name="close" size={13} /></button>
                           </>
@@ -1285,7 +1285,7 @@ export default function FinanzasPage() {
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     title={fac.simulada ? 'Factura de prueba, sin validez fiscal — clic para ver el PDF' : `CAE: ${fac.cae} — clic para ver el PDF`}
-                                    style={{ fontSize: 12, background: fac.simulada ? 'var(--warning-soft)' : 'var(--success-soft)', color: fac.simulada ? 'var(--warning-text)' : 'var(--success-text)', padding: '3px 8px', borderRadius: 12, fontWeight: 700, marginRight: 4, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 3 }}
+                                    style={{ fontSize: 12, background: fac.simulada ? 'var(--warning-soft)' : 'var(--success-soft)', color: fac.simulada ? 'var(--warning-text)' : 'var(--success-text)', padding: '3px 8px', borderRadius: 'var(--radius-lg)', fontWeight: 700, marginRight: 4, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 3 }}
                                   >
                                     {fac.simulada ? 'Simulada' : 'Facturado'} N°{fac.nro_comprobante} ⬇
                                   </a>
@@ -1318,7 +1318,7 @@ export default function FinanzasPage() {
                             })()}
                             <div style={{ fontSize:14, fontWeight:700, color: c.precio_cobrado !== null ? 'var(--accent)' : 'var(--success-text)' }}>{fmt(getPrecio(c))}</div>
                             {cajaActiva.estado === 'abierta' && (
-                              <button onClick={() => { setEditandoPrecio(c.id); setPrecioEdit(getPrecio(c)) }} style={{ fontSize:12, padding:'2px 7px', borderRadius:5, border:'0.5px solid var(--border-color)', background:'var(--bg-card)', color:'var(--text-muted)', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }} aria-label="Editar precio"><Icon name="edit" size={13} /></button>
+                              <button onClick={() => { setEditandoPrecio(c.id); setPrecioEdit(getPrecio(c)) }} style={{ fontSize:12, padding:'2px 7px', borderRadius:'var(--radius-sm)', border:'0.5px solid var(--border-color)', background:'var(--bg-card)', color:'var(--text-muted)', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }} aria-label="Editar precio"><Icon name="edit" size={13} /></button>
                             )}
                           </>
                         )}
@@ -1342,7 +1342,7 @@ export default function FinanzasPage() {
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 title={fac.simulada ? 'Factura de prueba, sin validez fiscal — clic para ver el PDF' : `CAE: ${fac.cae} — clic para ver el PDF`}
-                                style={{ fontSize: 12, background: fac.simulada ? 'var(--warning-soft)' : 'var(--success-soft)', color: fac.simulada ? 'var(--warning-text)' : 'var(--success-text)', padding: '3px 8px', borderRadius: 12, fontWeight: 700, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 3 }}
+                                style={{ fontSize: 12, background: fac.simulada ? 'var(--warning-soft)' : 'var(--success-soft)', color: fac.simulada ? 'var(--warning-text)' : 'var(--success-text)', padding: '3px 8px', borderRadius: 'var(--radius-lg)', fontWeight: 700, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 3 }}
                               >
                                 {fac.simulada ? 'Simulada' : 'Facturado'} N°{fac.nro_comprobante} ⬇
                               </a>
@@ -1393,7 +1393,7 @@ export default function FinanzasPage() {
 
                 {/* Balance / Arqueo Summary */}
                 {cajaActiva.estado === 'abierta' ? (
-                  <div style={{ background: cajaDia >= 0 ? 'var(--success-soft)' : 'var(--danger-soft)', padding: '1rem', borderRadius: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: `1px solid ${cajaDia >= 0 ? 'var(--success)' : 'var(--danger)'}` }}>
+                  <div style={{ background: cajaDia >= 0 ? 'var(--success-soft)' : 'var(--danger-soft)', padding: '1rem', borderRadius: 'var(--radius-lg)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: `1px solid ${cajaDia >= 0 ? 'var(--success)' : 'var(--danger)'}` }}>
                     <div style={{ fontSize: 14, fontWeight: 700, color: cajaDia >= 0 ? 'var(--success-text)' : 'var(--danger-text)' }}>CAJA DEL DÍA (SISTEMA)</div>
                     <div style={{ fontSize: 24, fontWeight: 800, color: cajaDia >= 0 ? 'var(--success-text)' : 'var(--danger-text)' }}>{fmt(cajaDia + cajaActiva.monto_apertura)}</div>
                   </div>
@@ -1405,19 +1405,19 @@ export default function FinanzasPage() {
                       <div style={{ background: 'var(--bg-input)', padding: '1.25rem', borderRadius: 14, border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: 12 }}>
                         <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text-dark)' }}>Resumen del Arqueo de Caja</div>
                         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(4, 1fr)', gap: 12 }}>
-                          <div style={{ padding: 10, background: 'var(--bg-card)', borderRadius: 8, border: '0.5px solid var(--border-color)' }}>
+                          <div style={{ padding: 10, background: 'var(--bg-card)', borderRadius: 'var(--radius-md)', border: '0.5px solid var(--border-color)' }}>
                             <div style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600 }}>MONTO APERTURA</div>
                             <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-dark)', marginTop: 4 }}>{fmt(cajaActiva.monto_apertura)}</div>
                           </div>
-                          <div style={{ padding: 10, background: 'var(--bg-card)', borderRadius: 8, border: '0.5px solid var(--border-color)' }}>
+                          <div style={{ padding: 10, background: 'var(--bg-card)', borderRadius: 'var(--radius-md)', border: '0.5px solid var(--border-color)' }}>
                             <div style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600 }}>SISTEMA (CALCULADO)</div>
                             <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-dark)', marginTop: 4 }}>{fmt(totalSistema)}</div>
                           </div>
-                          <div style={{ padding: 10, background: 'var(--bg-card)', borderRadius: 8, border: '0.5px solid var(--border-color)' }}>
+                          <div style={{ padding: 10, background: 'var(--bg-card)', borderRadius: 'var(--radius-md)', border: '0.5px solid var(--border-color)' }}>
                             <div style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600 }}>CONTADO (DECLARADO)</div>
                             <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-dark)', marginTop: 4 }}>{fmt(cajaActiva.monto_cierre_declarado ?? 0)}</div>
                           </div>
-                          <div style={{ padding: 10, background: diff === 0 ? 'var(--success-soft)' : 'var(--warning-soft)', borderRadius: 8, border: `0.5px solid ${diff === 0 ? 'var(--success)' : 'var(--warning)'}` }}>
+                          <div style={{ padding: 10, background: diff === 0 ? 'var(--success-soft)' : 'var(--warning-soft)', borderRadius: 'var(--radius-md)', border: `0.5px solid ${diff === 0 ? 'var(--success)' : 'var(--warning)'}` }}>
                             <div style={{ fontSize: 12, color: diff === 0 ? 'var(--success-text)' : 'var(--warning-text)', fontWeight: 600 }}>DIFERENCIA</div>
                             <div style={{ fontSize: 15, fontWeight: 800, color: diff === 0 ? 'var(--success-text)' : diff > 0 ? 'var(--success-text)' : 'var(--danger-text)', marginTop: 4 }}>
                               {diff === 0 ? 'Cuadrada' : (diff > 0 ? `+${fmt(diff)} (Sobrante)` : `${fmt(diff)} (Faltante)`)}
@@ -1425,7 +1425,7 @@ export default function FinanzasPage() {
                           </div>
                         </div>
                         {cajaActiva.observaciones && (
-                          <div style={{ fontSize: 12, color: 'var(--text-muted-darker)', fontStyle: 'italic', padding: '8px 12px', background: 'var(--bg-card)', border: '0.5px solid var(--border-color)', borderRadius: 8 }}>
+                          <div style={{ fontSize: 12, color: 'var(--text-muted-darker)', fontStyle: 'italic', padding: '8px 12px', background: 'var(--bg-card)', border: '0.5px solid var(--border-color)', borderRadius: 'var(--radius-md)' }}>
                             <strong>Observaciones del Cierre:</strong> {cajaActiva.observaciones}
                           </div>
                         )}
@@ -1452,7 +1452,7 @@ export default function FinanzasPage() {
                     const wpUrl = pac?.telefono ? `https://wa.me/${pac.telefono.replace(/\D/g, '')}?text=${mensaje}` : null
 
                     return (
-                      <div key={c.id} style={{ display:'flex', flexWrap:'wrap', alignItems:'center', justifyContent:'space-between', padding:'1rem', borderRadius:12, border:'1px solid var(--border-color)', background:'var(--bg-input)', gap:10 }}>
+                      <div key={c.id} style={{ display:'flex', flexWrap:'wrap', alignItems:'center', justifyContent:'space-between', padding:'1rem', borderRadius:'var(--radius-lg)', border:'1px solid var(--border-color)', background:'var(--bg-input)', gap:10 }}>
                         <div style={{ display: 'flex', flexDirection:'column', gap:4 }}>
                           <div style={{ fontSize:14, fontWeight:700, color:'var(--text-dark)' }}>{pac?.nombre}</div>
                           <div style={{ fontSize:12, color:'var(--text-muted)' }}>Tratamiento: <strong>{c.tipo_tratamiento}</strong> ({new Date(c.fecha_hora).toLocaleDateString('es-AR')})</div>
@@ -1465,11 +1465,11 @@ export default function FinanzasPage() {
                           </div>
                           <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
                             {wpUrl && (
-                              <a href={wpUrl} target="_blank" rel="noreferrer" style={{ fontSize:12, fontWeight:600, padding:'6px 12px', borderRadius:8, background:'var(--success)', color:'var(--success-contrast)', textDecoration:'none', textAlign:'center' }}>
+                              <a href={wpUrl} target="_blank" rel="noreferrer" style={{ fontSize:12, fontWeight:600, padding:'6px 12px', borderRadius:'var(--radius-md)', background:'var(--success)', color:'var(--success-contrast)', textDecoration:'none', textAlign:'center' }}>
                                 Reclamar
                               </a>
                             )}
-                            <button onClick={() => abrirSaldar(c)} style={{ fontSize:12, fontWeight:600, padding:'6px 12px', borderRadius:8, border:'1px solid var(--border-color)', background:'var(--bg-card)', color:'var(--text-dark)', cursor:'pointer' }}>
+                            <button onClick={() => abrirSaldar(c)} style={{ fontSize:12, fontWeight:600, padding:'6px 12px', borderRadius:'var(--radius-md)', border:'1px solid var(--border-color)', background:'var(--bg-card)', color:'var(--text-dark)', cursor:'pointer' }}>
                               Saldar Deuda
                             </button>
                           </div>
@@ -1490,8 +1490,8 @@ export default function FinanzasPage() {
             <div style={{ fontSize:12, fontWeight:600, color:'var(--text-muted)', marginBottom:4 }}>Ingresos objetivo ($)</div>
             <input type="number" style={inputSt} value={fMeta} onChange={e => setFMeta(e.target.value === '' ? '' : Number(e.target.value))} placeholder="Ej: 500000" autoFocus />
             <div style={{ display:'flex', gap:8, marginTop:'1.25rem', justifyContent:'flex-end' }}>
-              <button onClick={() => setModalMeta(false)} style={{ fontSize:13, padding:'7px 16px', borderRadius:8, border:'1px solid var(--border-color)', background:'var(--bg-card)', color:'var(--text-muted)', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>Cancelar</button>
-              <button onClick={guardarMeta} disabled={saving} style={{ fontSize:13, fontWeight:600, padding:'7px 18px', borderRadius:8, border:'none', background: saving ? 'var(--border-color)' : 'var(--success)', color: saving ? 'var(--text-muted)' : 'var(--success-contrast)', cursor: saving ? 'not-allowed' : 'pointer', fontFamily:'DM Sans, sans-serif' }}>
+              <button onClick={() => setModalMeta(false)} style={{ fontSize:13, padding:'7px 16px', borderRadius:'var(--radius-md)', border:'1px solid var(--border-color)', background:'var(--bg-card)', color:'var(--text-muted)', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>Cancelar</button>
+              <button onClick={guardarMeta} disabled={saving} style={{ fontSize:13, fontWeight:600, padding:'7px 18px', borderRadius:'var(--radius-md)', border:'none', background: saving ? 'var(--border-color)' : 'var(--success)', color: saving ? 'var(--text-muted)' : 'var(--success-contrast)', cursor: saving ? 'not-allowed' : 'pointer', fontFamily:'DM Sans, sans-serif' }}>
                 {saving ? 'Guardando...' : 'Guardar'}
               </button>
             </div>
@@ -1511,8 +1511,8 @@ export default function FinanzasPage() {
               </div>
             </div>
             <div style={{ display:'flex', gap:8, marginTop:'1.25rem', justifyContent:'flex-end' }}>
-              <button onClick={() => setModalCosto(false)} style={{ fontSize:13, padding:'7px 16px', borderRadius:8, border:'1px solid var(--border-color)', background:'var(--bg-card)', color:'var(--text-muted)', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>Cancelar</button>
-              <button onClick={agregarCosto} disabled={saving} style={{ fontSize:13, fontWeight:600, padding:'7px 18px', borderRadius:8, border:'none', background: saving ? 'var(--border-color)' : 'var(--success)', color: saving ? 'var(--text-muted)' : 'var(--success-contrast)', cursor: saving ? 'not-allowed' : 'pointer', fontFamily:'DM Sans, sans-serif' }}>
+              <button onClick={() => setModalCosto(false)} style={{ fontSize:13, padding:'7px 16px', borderRadius:'var(--radius-md)', border:'1px solid var(--border-color)', background:'var(--bg-card)', color:'var(--text-muted)', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>Cancelar</button>
+              <button onClick={agregarCosto} disabled={saving} style={{ fontSize:13, fontWeight:600, padding:'7px 18px', borderRadius:'var(--radius-md)', border:'none', background: saving ? 'var(--border-color)' : 'var(--success)', color: saving ? 'var(--text-muted)' : 'var(--success-contrast)', cursor: saving ? 'not-allowed' : 'pointer', fontFamily:'DM Sans, sans-serif' }}>
                 {saving ? 'Guardando...' : 'Agregar'}
               </button>
             </div>
@@ -1541,7 +1541,7 @@ export default function FinanzasPage() {
                   {FORMAS_PAGO.map(f => <option key={f} value={f}>{f}</option>)}
                 </select>
               </div>
-              <label style={{ display:'flex', alignItems:'center', gap:9, cursor:'pointer', padding:'10px 12px', borderRadius:9,
+              <label style={{ display:'flex', alignItems:'center', gap:9, cursor:'pointer', padding:'10px 12px', borderRadius:'var(--radius-md)',
                 background: fIngFactura ? 'var(--success-soft)' : 'var(--bg-input)',
                 border:`1px solid ${fIngFactura ? 'var(--success-border)' : 'var(--border-color)'}` }}>
                 <input type="checkbox" checked={fIngFactura} onChange={e => setFIngFactura(e.target.checked)}
@@ -1550,8 +1550,8 @@ export default function FinanzasPage() {
               </label>
             </div>
             <div style={{ display:'flex', gap:8, marginTop:'1.25rem', justifyContent:'flex-end' }}>
-              <button onClick={() => setModalIngreso(false)} style={{ fontSize:13, padding:'7px 16px', borderRadius:8, border:'1px solid var(--border-color)', background:'var(--bg-card)', color:'var(--text-muted)', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>Cancelar</button>
-              <button onClick={agregarIngreso} disabled={saving} style={{ fontSize:13, fontWeight:600, padding:'7px 18px', borderRadius:8, border:'none', background: saving ? 'var(--border-color)' : 'var(--success)', color: saving ? 'var(--text-muted)' : 'var(--success-contrast)', cursor: saving ? 'not-allowed' : 'pointer', fontFamily:'DM Sans, sans-serif' }}>
+              <button onClick={() => setModalIngreso(false)} style={{ fontSize:13, padding:'7px 16px', borderRadius:'var(--radius-md)', border:'1px solid var(--border-color)', background:'var(--bg-card)', color:'var(--text-muted)', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>Cancelar</button>
+              <button onClick={agregarIngreso} disabled={saving} style={{ fontSize:13, fontWeight:600, padding:'7px 18px', borderRadius:'var(--radius-md)', border:'none', background: saving ? 'var(--border-color)' : 'var(--success)', color: saving ? 'var(--text-muted)' : 'var(--success-contrast)', cursor: saving ? 'not-allowed' : 'pointer', fontFamily:'DM Sans, sans-serif' }}>
                 {saving ? 'Guardando...' : 'Registrar'}
               </button>
             </div>
@@ -1575,8 +1575,8 @@ export default function FinanzasPage() {
               </div>
             </div>
             <div style={{ display:'flex', gap:8, marginTop:'1.25rem', justifyContent:'flex-end' }}>
-              <button onClick={() => setModalEgreso(false)} style={{ fontSize:13, padding:'7px 16px', borderRadius:8, border:'1px solid var(--border-color)', background:'var(--bg-card)', color:'var(--text-muted)', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>Cancelar</button>
-              <button onClick={agregarEgreso} disabled={saving} style={{ fontSize:13, fontWeight:600, padding:'7px 18px', borderRadius:8, border:'none', background: saving ? 'var(--border-color)' : 'var(--danger)', color: saving ? 'var(--text-muted)' : 'var(--danger-contrast)', cursor: saving ? 'not-allowed' : 'pointer', fontFamily:'DM Sans, sans-serif' }}>
+              <button onClick={() => setModalEgreso(false)} style={{ fontSize:13, padding:'7px 16px', borderRadius:'var(--radius-md)', border:'1px solid var(--border-color)', background:'var(--bg-card)', color:'var(--text-muted)', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>Cancelar</button>
+              <button onClick={agregarEgreso} disabled={saving} style={{ fontSize:13, fontWeight:600, padding:'7px 18px', borderRadius:'var(--radius-md)', border:'none', background: saving ? 'var(--border-color)' : 'var(--danger)', color: saving ? 'var(--text-muted)' : 'var(--danger-contrast)', cursor: saving ? 'not-allowed' : 'pointer', fontFamily:'DM Sans, sans-serif' }}>
                 {saving ? 'Guardando...' : 'Registrar Gasto'}
               </button>
             </div>
@@ -1595,8 +1595,8 @@ export default function FinanzasPage() {
               </div>
             </div>
             <div style={{ display:'flex', gap:8, marginTop:'1.25rem', justifyContent:'flex-end' }}>
-              <button onClick={() => setModalApertura(false)} style={{ fontSize:13, padding:'7px 16px', borderRadius:8, border:'1px solid var(--border-color)', background:'var(--bg-card)', color:'var(--text-muted)', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>Cancelar</button>
-              <button onClick={abrirCaja} disabled={saving} style={{ fontSize:13, fontWeight:600, padding:'7px 18px', borderRadius:8, border:'none', background: saving ? 'var(--border-color)' : 'var(--success)', color: saving ? 'var(--text-muted)' : 'var(--success-contrast)', cursor: saving ? 'not-allowed' : 'pointer', fontFamily:'DM Sans, sans-serif' }}>
+              <button onClick={() => setModalApertura(false)} style={{ fontSize:13, padding:'7px 16px', borderRadius:'var(--radius-md)', border:'1px solid var(--border-color)', background:'var(--bg-card)', color:'var(--text-muted)', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>Cancelar</button>
+              <button onClick={abrirCaja} disabled={saving} style={{ fontSize:13, fontWeight:600, padding:'7px 18px', borderRadius:'var(--radius-md)', border:'none', background: saving ? 'var(--border-color)' : 'var(--success)', color: saving ? 'var(--text-muted)' : 'var(--success-contrast)', cursor: saving ? 'not-allowed' : 'pointer', fontFamily:'DM Sans, sans-serif' }}>
                 {saving ? 'Abriendo...' : 'Abrir Caja'}
               </button>
             </div>
@@ -1612,7 +1612,7 @@ export default function FinanzasPage() {
             <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 20 }}>
               
               {/* Panel Izquierdo: Desglose Sistema */}
-              <div style={{ background: 'var(--bg-input)', padding: '12px 14px', borderRadius: 12, border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div style={{ background: 'var(--bg-input)', padding: '12px 14px', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: 10 }}>
                 <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--text-muted-darker)', textTransform: 'uppercase', letterSpacing: '0.04em', borderBottom: '1px solid var(--border-color)', paddingBottom: 6 }}>
                   Cálculo del Sistema
                 </div>
@@ -1730,8 +1730,8 @@ export default function FinanzasPage() {
             </div>
 
             <div style={{ display:'flex', gap:8, marginTop:'1.5rem', justifyContent:'flex-end', borderTop: '1px solid var(--border-light)', paddingTop: '12px' }}>
-              <button onClick={() => setModalCierre(false)} style={{ fontSize:13, padding:'7px 16px', borderRadius:8, border:'1px solid var(--border-color)', background:'var(--bg-card)', color:'var(--text-muted)', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>Cancelar</button>
-              <button onClick={cerrarCaja} disabled={saving} style={{ fontSize:13, fontWeight:600, padding:'7px 18px', borderRadius:8, border:'none', background: saving ? 'var(--border-color)' : 'var(--danger)', color: saving ? 'var(--text-muted)' : 'var(--danger-contrast)', cursor: saving ? 'not-allowed' : 'pointer', fontFamily:'DM Sans, sans-serif' }}>
+              <button onClick={() => setModalCierre(false)} style={{ fontSize:13, padding:'7px 16px', borderRadius:'var(--radius-md)', border:'1px solid var(--border-color)', background:'var(--bg-card)', color:'var(--text-muted)', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>Cancelar</button>
+              <button onClick={cerrarCaja} disabled={saving} style={{ fontSize:13, fontWeight:600, padding:'7px 18px', borderRadius:'var(--radius-md)', border:'none', background: saving ? 'var(--border-color)' : 'var(--danger)', color: saving ? 'var(--text-muted)' : 'var(--danger-contrast)', cursor: saving ? 'not-allowed' : 'pointer', fontFamily:'DM Sans, sans-serif' }}>
                 {saving ? 'Cerrando...' : 'Cerrar Caja'}
               </button>
             </div>
@@ -1758,7 +1758,7 @@ export default function FinanzasPage() {
                 </select>
               </div>
 
-              <label style={{ display:'flex', alignItems:'center', gap:9, cursor:'pointer', padding:'10px 12px', borderRadius:9,
+              <label style={{ display:'flex', alignItems:'center', gap:9, cursor:'pointer', padding:'10px 12px', borderRadius:'var(--radius-md)',
                 background: saldarFactura ? 'var(--success-soft)' : 'var(--bg-input)',
                 border:`1px solid ${saldarFactura ? 'var(--success-border)' : 'var(--border-color)'}` }}>
                 <input type="checkbox" checked={saldarFactura} onChange={e => setSaldarFactura(e.target.checked)}
@@ -1775,8 +1775,8 @@ export default function FinanzasPage() {
             </div>
 
             <div style={{ display:'flex', gap:8, marginTop:'1.25rem', justifyContent:'flex-end' }}>
-              <button onClick={() => setModalSaldar(false)} style={{ fontSize:13, padding:'7px 16px', borderRadius:8, border:'1px solid var(--border-color)', background:'var(--bg-card)', color:'var(--text-muted)', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>Cancelar</button>
-              <button onClick={confirmarSaldar} disabled={saving} style={{ fontSize:13, fontWeight:600, padding:'7px 18px', borderRadius:8, border:'none', background: saving ? 'var(--border-color)' : 'var(--success)', color: saving ? 'var(--text-muted)' : 'var(--success-contrast)', cursor: saving ? 'not-allowed' : 'pointer', fontFamily:'DM Sans, sans-serif' }}>
+              <button onClick={() => setModalSaldar(false)} style={{ fontSize:13, padding:'7px 16px', borderRadius:'var(--radius-md)', border:'1px solid var(--border-color)', background:'var(--bg-card)', color:'var(--text-muted)', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>Cancelar</button>
+              <button onClick={confirmarSaldar} disabled={saving} style={{ fontSize:13, fontWeight:600, padding:'7px 18px', borderRadius:'var(--radius-md)', border:'none', background: saving ? 'var(--border-color)' : 'var(--success)', color: saving ? 'var(--text-muted)' : 'var(--success-contrast)', cursor: saving ? 'not-allowed' : 'pointer', fontFamily:'DM Sans, sans-serif' }}>
                 {saving ? 'Registrando...' : 'Registrar cobro'}
               </button>
             </div>
@@ -1790,7 +1790,7 @@ export default function FinanzasPage() {
             </p>
 
             <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
-              <div style={{ display:'flex', justifyContent:'space-between', background:'var(--bg-input)', padding:'8px 12px', borderRadius:8, fontSize:12 }}>
+              <div style={{ display:'flex', justifyContent:'space-between', background:'var(--bg-input)', padding:'8px 12px', borderRadius:'var(--radius-md)', fontSize:12 }}>
                 <span style={{ color:'var(--text-muted)' }}>Concepto:</span>
                 <span style={{ fontWeight:600, color:'var(--text-dark)' }}>{facturandoItem.concepto}</span>
               </div>
@@ -1800,7 +1800,7 @@ export default function FinanzasPage() {
                 // Sin pagos cargados se factura el total, como siempre.
                 if (!d || (!d.esParcial && !d.nadaFacturable)) {
                   return (
-                    <div style={{ display:'flex', justifyContent:'space-between', background:'var(--success-soft)', padding:'8px 12px', borderRadius:8, fontSize:12, marginBottom:4 }}>
+                    <div style={{ display:'flex', justifyContent:'space-between', background:'var(--success-soft)', padding:'8px 12px', borderRadius:'var(--radius-md)', fontSize:12, marginBottom:4 }}>
                       <span style={{ color:'var(--success-text)' }}>{facturandoItem.tipo === 'cita' ? 'Cobrado:' : 'Monto del ingreso:'}</span>
                       <span style={{ fontWeight:700, color:'var(--success-text)' }}>{fmt(facturandoItem.monto)}</span>
                     </div>
@@ -1810,7 +1810,7 @@ export default function FinanzasPage() {
                 // Cobro mixto o íntegramente no facturable: se muestra el
                 // desglose para que no haya sorpresas después de emitir.
                 return (
-                  <div style={{ background:'var(--warning-soft)', border:'1px solid var(--warning-border)', padding:'10px 12px', borderRadius:8, fontSize:12, marginBottom:4 }}>
+                  <div style={{ background:'var(--warning-soft)', border:'1px solid var(--warning-border)', padding:'10px 12px', borderRadius:'var(--radius-md)', fontSize:12, marginBottom:4 }}>
                     <div style={{ display:'flex', justifyContent:'space-between', color:'var(--warning-text)', marginBottom:4 }}>
                       <span>Cobrado en total:</span><span>{fmt(d.total)}</span>
                     </div>
@@ -1913,14 +1913,14 @@ export default function FinanzasPage() {
             )}
 
             {fError && (
-              <div role="alert" style={{ marginTop:12, padding:'10px 12px', borderRadius:8, fontSize:12.5, lineHeight:1.45,
+              <div role="alert" style={{ marginTop:12, padding:'10px 12px', borderRadius:'var(--radius-md)', fontSize:12.5, lineHeight:1.45,
                 background:'var(--danger-soft)', border:'1px solid var(--danger-border)', color:'var(--danger-text)' }}>
                 {fError}
               </div>
             )}
 
             {fConfirmarNoFacturable && (
-              <div role="alert" style={{ marginTop:12, padding:'10px 12px', borderRadius:8, fontSize:12.5, lineHeight:1.45,
+              <div role="alert" style={{ marginTop:12, padding:'10px 12px', borderRadius:'var(--radius-md)', fontSize:12.5, lineHeight:1.45,
                 background:'var(--warning-soft)', border:'1px solid var(--warning-border)', color:'var(--warning-text)' }}>
                 <div>{fConfirmarNoFacturable.mensaje}</div>
                 <div style={{ marginTop:6, fontWeight:600 }}>
@@ -1933,14 +1933,14 @@ export default function FinanzasPage() {
               <button 
                 onClick={() => { setModalFacturar(false); setFConfirmarNoFacturable(null); setFError(null) }} 
                 disabled={facturando}
-                style={{ fontSize:13, padding:'7px 16px', borderRadius:8, border:'1px solid var(--border-color)', background:'var(--bg-card)', color:'var(--text-muted)', cursor: facturando ? 'not-allowed' : 'pointer', fontFamily:'DM Sans, sans-serif' }}
+                style={{ fontSize:13, padding:'7px 16px', borderRadius:'var(--radius-md)', border:'1px solid var(--border-color)', background:'var(--bg-card)', color:'var(--text-muted)', cursor: facturando ? 'not-allowed' : 'pointer', fontFamily:'DM Sans, sans-serif' }}
               >
                 Cancelar
               </button>
               <button 
                 onClick={() => emitirFacturaElectronica(fConfirmarNoFacturable !== null)}
                 disabled={facturando} aria-busy={facturando}
-                style={{ fontSize:13, fontWeight:600, padding:'7px 18px', borderRadius:8, border:'none', background: facturando ? 'var(--border-color)' : 'var(--success)', color: facturando ? 'var(--text-muted)' : 'var(--success-contrast)', cursor: facturando ? 'not-allowed' : 'pointer', fontFamily:'DM Sans, sans-serif' }}
+                style={{ fontSize:13, fontWeight:600, padding:'7px 18px', borderRadius:'var(--radius-md)', border:'none', background: facturando ? 'var(--border-color)' : 'var(--success)', color: facturando ? 'var(--text-muted)' : 'var(--success-contrast)', cursor: facturando ? 'not-allowed' : 'pointer', fontFamily:'DM Sans, sans-serif' }}
               >
                 {facturando ? 'Emitiendo…' : fConfirmarNoFacturable ? `Emitir igual por ${fmt(fConfirmarNoFacturable.total)}` : 'Emitir factura'}
               </button>

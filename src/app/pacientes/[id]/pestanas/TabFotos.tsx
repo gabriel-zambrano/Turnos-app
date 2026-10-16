@@ -22,14 +22,14 @@ export function TabFotos({ fotos, setModalFoto, isMobile }: TabFotosProps) {
           </div>
           <button 
             onClick={() => setModalFoto(true)}
-            style={{ background: 'var(--accent)', color: 'var(--accent-contrast)', border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}
+            style={{ background: 'var(--accent)', color: 'var(--accent-contrast)', border: 'none', borderRadius: 'var(--radius-md)', padding: '8px 16px', fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}
           >
             <Icon name="plus" size={14} />Agregar foto
           </button>
         </div>
 
         {fotos.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '3rem 1rem', color: 'var(--text-muted)', fontSize: 13, background: 'var(--bg-input)', borderRadius: 12 }}>
+          <div style={{ textAlign: 'center', padding: '3rem 1rem', color: 'var(--text-muted)', fontSize: 13, background: 'var(--bg-input)', borderRadius: 'var(--radius-lg)' }}>
             Aún no hay fotos clínicas registradas para este paciente.
           </div>
         ) : (

@@ -743,7 +743,7 @@ export default function PacienteDetalle() {
           alignItems: 'center',
           gap: 6,
           padding: '8px 4px',
-          borderRadius: 12,
+          borderRadius: 'var(--radius-lg)',
           background: isSelected ? 'var(--bg-card-hover)' : 'var(--bg-card)',
           border: isSelected ? '2px solid var(--accent)' : '1px solid var(--border-light)',
           cursor: 'pointer',
@@ -876,7 +876,7 @@ export default function PacienteDetalle() {
               datos. No se les puede dar por prestado: hay que pedírselo en la
               próxima visita y registrarlo desde acá. */}
           {!tieneConsentimientoVigente(paciente as any) && (
-            <div style={{ background: 'var(--warning-soft)', border: '1px solid var(--warning-border)', borderRadius: 12, padding: '14px 16px', display: 'flex', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+            <div style={{ background: 'var(--warning-soft)', border: '1px solid var(--warning-border)', borderRadius: 'var(--radius-lg)', padding: '14px 16px', display: 'flex', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
               <Icon name="alert" size={18} />
               <div style={{ flex: 1, minWidth: 220 }}>
                 <div style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--warning-text)', marginBottom: 3 }}>
@@ -1006,7 +1006,7 @@ export default function PacienteDetalle() {
                       onClick={() => setTabActiva(tab.id as any)}
                       style={{
                         padding: '8px 14px',
-                        borderRadius: 8,
+                        borderRadius: 'var(--radius-md)',
                         border: 'none',
                         background: active ? `color-mix(in srgb, ${secondaryColor} 8%, transparent)` : 'transparent',
                         color: active ? secondaryColor : 'var(--text-muted-darker, #4a6080)',
@@ -1114,8 +1114,8 @@ export default function PacienteDetalle() {
                     <span style={{ fontSize: 12.5, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Progreso del Plan</span>
                     <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--accent)' }}>{paciente.progreso_plan_porcentaje || 0}%</span>
                   </div>
-                  <div style={{ height: 8, background: 'var(--border-lighter, #f1f5f9)', borderRadius: 4, overflow: 'hidden' }}>
-                    <div style={{ height: '100%', width: `${paciente.progreso_plan_porcentaje || 0}%`, background: 'linear-gradient(90deg, var(--accent), var(--success))', borderRadius: 4, transition: 'width 0.4s ease' }} />
+                  <div style={{ height: 8, background: 'var(--border-lighter, #f1f5f9)', borderRadius: 'var(--radius-sm)', overflow: 'hidden' }}>
+                    <div style={{ height: '100%', width: `${paciente.progreso_plan_porcentaje || 0}%`, background: 'linear-gradient(90deg, var(--accent), var(--success))', borderRadius: 'var(--radius-sm)', transition: 'width 0.4s ease' }} />
                   </div>
                 </div>
 
@@ -1131,12 +1131,12 @@ export default function PacienteDetalle() {
                     <span>Total visitas asistidas: <strong>{paciente.total_visitas_asistidas ?? 0}</strong></span>
                     <span>Racha de asistencia: <strong>{paciente.visitas_consecutivas_sin_faltar ?? 0} / {configFidelizacion?.racha_objetivo ?? 3}</strong> para bonus (+{configFidelizacion?.racha_bonus_puntos ?? 150} pts)</span>
                   </div>
-                  <div style={{ height: 6, background: 'var(--border-lighter, #f1f5f9)', borderRadius: 3, overflow: 'hidden', marginTop: 8 }}>
+                  <div style={{ height: 6, background: 'var(--border-lighter, #f1f5f9)', borderRadius: 'var(--radius-sm)', overflow: 'hidden', marginTop: 8 }}>
                     <div style={{ 
                       height: '100%', 
                       width: `${Math.min(100, ((paciente.visitas_consecutivas_sin_faltar ?? 0) / (configFidelizacion?.racha_objetivo ?? 3)) * 100)}%`, 
                       background: 'linear-gradient(90deg, var(--warning), var(--warning))', 
-                      borderRadius: 3, 
+                      borderRadius: 'var(--radius-sm)', 
                       transition: 'width 0.4s ease' 
                     }} />
                   </div>
@@ -1162,7 +1162,7 @@ export default function PacienteDetalle() {
                   
                   {dienteSel ? (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                      <div style={{ background: 'var(--bg-input)', padding: 12, borderRadius: 12, border: '1px solid var(--border-light)' }}>
+                      <div style={{ background: 'var(--bg-input)', padding: 12, borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-light)' }}>
                         <div style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600 }}>ESTADO ACTUAL</div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
                           <span aria-hidden="true" style={{ width: 10, height: 10, borderRadius: 'var(--radius-pill)', display: 'inline-block', flexShrink: 0, background: `var(--diente-${getDienteEstadoActual(dienteSel).toLowerCase()})` }} />
@@ -1511,8 +1511,8 @@ export default function PacienteDetalle() {
             ) : linkRemoto ? (
               <div style={{ background: 'var(--success-soft)', border: '1px solid var(--success-border)', borderRadius: 'var(--radius-md)', padding: '0.9rem', marginBottom: 12 }}>
                 <div style={{ fontSize: 12, color: 'var(--success-text)', fontWeight: 600, marginBottom: 6 }}>Link generado — compartilo con el paciente:</div>
-                <div style={{ fontSize: 12, color: 'var(--text-dark)', wordBreak: 'break-all', background: 'var(--bg-card)', padding: '8px 10px', borderRadius: 8, border: '1px solid var(--success-border)' }}>{linkRemoto}</div>
-                <button onClick={() => { navigator.clipboard?.writeText(linkRemoto); showMsg('Link copiado') }} style={{ marginTop: 8, fontSize: 12, fontWeight: 600, padding: '6px 12px', borderRadius: 8, border: 'none', background: 'var(--success)', color: 'var(--success-contrast)', cursor: 'pointer', fontFamily: 'DM Sans, sans-serif' }}>Copiar link</button>
+                <div style={{ fontSize: 12, color: 'var(--text-dark)', wordBreak: 'break-all', background: 'var(--bg-card)', padding: '8px 10px', borderRadius: 'var(--radius-md)', border: '1px solid var(--success-border)' }}>{linkRemoto}</div>
+                <button onClick={() => { navigator.clipboard?.writeText(linkRemoto); showMsg('Link copiado') }} style={{ marginTop: 8, fontSize: 12, fontWeight: 600, padding: '6px 12px', borderRadius: 'var(--radius-md)', border: 'none', background: 'var(--success)', color: 'var(--success-contrast)', cursor: 'pointer', fontFamily: 'DM Sans, sans-serif' }}>Copiar link</button>
               </div>
             ) : (
               <p style={{ fontSize: 12.5, color: 'var(--text-muted)', marginBottom: 12, lineHeight: 1.5 }}>
@@ -1521,9 +1521,9 @@ export default function PacienteDetalle() {
             )}
 
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: '1rem' }}>
-              <button onClick={() => setModalConsent(false)} style={{ fontSize: 13, padding: '7px 16px', borderRadius: 8, border: '1px solid var(--border-color)', background: 'var(--bg-card)', color: 'var(--text-muted)', cursor: 'pointer', fontFamily: 'DM Sans, sans-serif' }}>Cerrar</button>
+              <button onClick={() => setModalConsent(false)} style={{ fontSize: 13, padding: '7px 16px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', background: 'var(--bg-card)', color: 'var(--text-muted)', cursor: 'pointer', fontFamily: 'DM Sans, sans-serif' }}>Cerrar</button>
               {!linkRemoto && (
-                <button onClick={guardarConsentimiento} disabled={cGuardando} style={{ fontSize: 13, fontWeight: 600, padding: '7px 18px', borderRadius: 8, border: 'none', background: cGuardando ? 'var(--bg-input)' : 'var(--success)', color: cGuardando ? 'var(--text-muted)' : 'var(--success-contrast)', cursor: cGuardando ? 'not-allowed' : 'pointer', fontFamily: 'DM Sans, sans-serif' }}>
+                <button onClick={guardarConsentimiento} disabled={cGuardando} style={{ fontSize: 13, fontWeight: 600, padding: '7px 18px', borderRadius: 'var(--radius-md)', border: 'none', background: cGuardando ? 'var(--bg-input)' : 'var(--success)', color: cGuardando ? 'var(--text-muted)' : 'var(--success-contrast)', cursor: cGuardando ? 'not-allowed' : 'pointer', fontFamily: 'DM Sans, sans-serif' }}>
                   {cGuardando ? 'Guardando…' : cModo === 'presencial' ? 'Registrar firma' : 'Generar link'}
                 </button>
               )}
@@ -1537,11 +1537,11 @@ export default function PacienteDetalle() {
               Se envía por email a <strong>{paciente.nombre}</strong>{paciente.email ? ` (${paciente.email})` : ''} el instructivo del tratamiento elegido.
             </p>
             {!paciente.email ? (
-              <div style={{ background: 'var(--warning-soft)', color: 'var(--warning-text)', padding: '10px 12px', borderRadius: 8, fontSize: 12.5, marginBottom: 12 }}>
+              <div style={{ background: 'var(--warning-soft)', color: 'var(--warning-text)', padding: '10px 12px', borderRadius: 'var(--radius-md)', fontSize: 12.5, marginBottom: 12 }}>
                 Este paciente no tiene email cargado. Agregá su email en la ficha para poder enviarle los cuidados.
               </div>
             ) : tratamientosCuidados.length === 0 ? (
-              <div style={{ background: 'var(--bg-input)', color: 'var(--text-muted)', padding: '10px 12px', borderRadius: 8, fontSize: 12.5, marginBottom: 12 }}>
+              <div style={{ background: 'var(--bg-input)', color: 'var(--text-muted)', padding: '10px 12px', borderRadius: 'var(--radius-md)', fontSize: 12.5, marginBottom: 12 }}>
                 Todavía no cargaste cuidados posteriores en ningún tratamiento. Cargalos en <strong>Precios</strong>.
               </div>
             ) : (
@@ -1553,8 +1553,8 @@ export default function PacienteDetalle() {
               </div>
             )}
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: '0.5rem' }}>
-              <button onClick={() => setModalCuidados(false)} style={{ fontSize: 13, padding: '7px 16px', borderRadius: 8, border: '1px solid var(--border-color)', background: 'var(--bg-card)', color: 'var(--text-muted)', cursor: 'pointer', fontFamily: 'DM Sans, sans-serif' }}>Cerrar</button>
-              <button onClick={enviarCuidados} disabled={enviandoCuidados || !paciente.email || tratamientosCuidados.length === 0} style={{ fontSize: 13, fontWeight: 600, padding: '7px 18px', borderRadius: 8, border: 'none', background: (enviandoCuidados || !paciente.email || !tratamientosCuidados.length) ? 'var(--bg-input)' : 'var(--success)', color: (enviandoCuidados || !paciente.email || !tratamientosCuidados.length) ? 'var(--text-muted)' : 'var(--success-contrast)', cursor: enviandoCuidados ? 'wait' : 'pointer', fontFamily: 'DM Sans, sans-serif' }}>
+              <button onClick={() => setModalCuidados(false)} style={{ fontSize: 13, padding: '7px 16px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', background: 'var(--bg-card)', color: 'var(--text-muted)', cursor: 'pointer', fontFamily: 'DM Sans, sans-serif' }}>Cerrar</button>
+              <button onClick={enviarCuidados} disabled={enviandoCuidados || !paciente.email || tratamientosCuidados.length === 0} style={{ fontSize: 13, fontWeight: 600, padding: '7px 18px', borderRadius: 'var(--radius-md)', border: 'none', background: (enviandoCuidados || !paciente.email || !tratamientosCuidados.length) ? 'var(--bg-input)' : 'var(--success)', color: (enviandoCuidados || !paciente.email || !tratamientosCuidados.length) ? 'var(--text-muted)' : 'var(--success-contrast)', cursor: enviandoCuidados ? 'wait' : 'pointer', fontFamily: 'DM Sans, sans-serif' }}>
                 {enviandoCuidados ? 'Enviando…' : 'Enviar email'}
               </button>
             </div>

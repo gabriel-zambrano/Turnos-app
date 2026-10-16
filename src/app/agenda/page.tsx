@@ -283,7 +283,7 @@ function AgendaHeaderMobile({ fecha, vista, esHoy, onPrev, onNext, onVista, onNu
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="9 18 15 12 9 6"/></svg>
       </button>
 
-      <div style={{display:'flex',background:'rgba(15, 30, 61, 0.04)',borderRadius:8,overflow:'hidden',marginRight:4,height:32,border:'1px solid var(--border-light, rgba(15, 30, 61, 0.06))',padding:2,flexShrink:0}}>
+      <div style={{display:'flex',background:'rgba(15, 30, 61, 0.04)',borderRadius:'var(--radius-md)',overflow:'hidden',marginRight:4,height:32,border:'1px solid var(--border-light, rgba(15, 30, 61, 0.06))',padding:2,flexShrink:0}}>
         {(['semana','dia','lista'] as const).map(v=>(
           <button key={v} onClick={()=>onVista(v)} style={{padding:'0 9px',fontSize:12,borderRadius:'var(--radius-sm)',border:'none',cursor:'pointer',background:vista===v?'var(--bg-card, #fff)':'transparent',color:vista===v?'var(--text-dark, #0a1e3d)':'var(--text-muted, #687e96)',fontWeight:vista===v?700:500,boxShadow:vista===v?'0 1px 3px rgba(10,30,61,0.08)':undefined,fontFamily:'DM Sans, sans-serif'}}>{v==='semana'?'Sem':v==='dia'?'Día':'Lista'}</button>
         ))}
@@ -843,7 +843,7 @@ export default function Agenda() {
                       style={{
                         background:'var(--bg-card, #fff)',
                         border:'1px solid var(--border-color, #e2e8ed)',
-                        borderRadius:8,
+                        borderRadius:'var(--radius-md)',
                         width: 36,
                         height: 36,
                         display: 'flex',
@@ -872,7 +872,7 @@ export default function Agenda() {
                       style={{
                         background:'var(--bg-card, #fff)',
                         border:'1px solid var(--border-color, #e2e8ed)',
-                        borderRadius:8,
+                        borderRadius:'var(--radius-md)',
                         width: 36,
                         height: 36,
                         display: 'flex',
@@ -889,7 +889,7 @@ export default function Agenda() {
                       style={{
                         background:'var(--bg-card, #fff)',
                         border:'1px solid var(--border-color, #e2e8ed)',
-                        borderRadius:8,
+                        borderRadius:'var(--radius-md)',
                         height: 36,
                         padding:'0 14px',
                         cursor:'pointer',
@@ -903,14 +903,14 @@ export default function Agenda() {
                     </button>
                   </div>
                   <div style={{display:'flex',gap:8,alignItems:'center'}}>
-                    <div style={{display:'flex',background:'rgba(15, 30, 61, 0.04)',border:'1px solid var(--border-light, rgba(15, 30, 61, 0.06))',borderRadius:9,overflow:'hidden',padding: 2, height: 34}}>
+                    <div style={{display:'flex',background:'rgba(15, 30, 61, 0.04)',border:'1px solid var(--border-light, rgba(15, 30, 61, 0.06))',borderRadius:'var(--radius-md)',overflow:'hidden',padding: 2, height: 34}}>
                       {(['semana','dia'] as const).map(v=>(
                         <button key={v} onClick={()=>setVista(v)} 
                           style={{
                             padding:'0 14px',
                             fontSize:12,
                             border:'none',
-                            borderRadius: 7,
+                            borderRadius: 'var(--radius-md)',
                             cursor:'pointer',
                             background:vista===v?'var(--bg-card, #fff)':'transparent',
                             color:vista===v?'var(--text-dark, #0a1e3d)':'var(--text-muted, #8fa3bc)',
@@ -942,7 +942,7 @@ export default function Agenda() {
                         padding: '0 12px',
                         fontSize: 12,
                         fontWeight: 600,
-                        borderRadius: 8,
+                        borderRadius: 'var(--radius-md)',
                         border: '1px solid var(--border-color, #e2e8ed)',
                         background: 'var(--bg-card, #fff)',
                         color: 'var(--text-dark, #333)',
@@ -987,7 +987,7 @@ export default function Agenda() {
             <div style={{
               background: 'var(--danger-soft)',
               border: '1px solid var(--danger-border)',
-              borderRadius: 12,
+              borderRadius: 'var(--radius-lg)',
               padding: '12px 16px',
               margin: isMobile ? '0.75rem' : '0 0 16px 0',
               display: 'flex',
@@ -1081,7 +1081,7 @@ export default function Agenda() {
                               fontSize: '8px',
                               fontWeight: 800,
                               padding: '2px 6px',
-                              borderRadius: 4,
+                              borderRadius: 'var(--radius-sm)',
                               textTransform: 'uppercase',
                               boxShadow: '0 1px 3px rgba(245, 158, 11, 0.3)',
                               display: 'flex',
@@ -1378,7 +1378,7 @@ export default function Agenda() {
                               fontSize: '9px',
                               fontWeight: 700,
                               padding: '2px 5px',
-                              borderRadius: 4,
+                              borderRadius: 'var(--radius-sm)',
                               boxShadow: '0 2px 4px rgba(239, 68, 68, 0.25)',
                               fontFamily: 'DM Sans, sans-serif'
                             }}>
@@ -1443,7 +1443,7 @@ export default function Agenda() {
                               borderTop: isSobreturno ? undefined : '1px solid var(--border-light, rgba(0,0,0,0.03))',
                               borderRight: isSobreturno ? undefined : '1px solid var(--border-light, rgba(0,0,0,0.03))',
                               borderBottom: isSobreturno ? undefined : '1px solid var(--border-light, rgba(0,0,0,0.03))',
-                              borderRadius:12,
+                              borderRadius:'var(--radius-lg)',
                               padding:isMobile ? (isSobreturno ? '2px 4px' : '4px 6px') : '6px 10px',
                               overflow: isHovered ? 'visible' : 'hidden',
                               cursor:'pointer',
@@ -1465,7 +1465,7 @@ export default function Agenda() {
                                 fontSize: '7.5px',
                                 fontWeight: 800,
                                 padding: '1px 4px',
-                                borderRadius: 4,
+                                borderRadius: 'var(--radius-sm)',
                                 textTransform: 'uppercase',
                                 boxShadow: '0 1px 3px rgba(245, 158, 11, 0.3)',
                                 zIndex: 10,
@@ -1716,7 +1716,7 @@ export default function Agenda() {
                   style={{
                     background: 'rgba(18, 140, 126, 0.08)',
                     border: '1px solid rgba(18, 140, 126, 0.15)',
-                    borderRadius: 8,
+                    borderRadius: 'var(--radius-md)',
                     color: 'var(--success-text)',
                     cursor: enviandoWA ? 'not-allowed' : 'pointer',
                     fontSize: 12,
@@ -1767,7 +1767,7 @@ export default function Agenda() {
 
             {/* Cuándo — primero y destacado. Es lo que más se edita desde el
                 celular, así que no puede estar al final de un scroll largo. */}
-            <div style={{background:'var(--bg-input, #f8fafc)', border:'1px solid var(--border-color, #e2e8ed)', borderRadius:12, padding:'0.85rem', marginBottom:'0.85rem'}}>
+            <div style={{background:'var(--bg-input, #f8fafc)', border:'1px solid var(--border-color, #e2e8ed)', borderRadius:'var(--radius-lg)', padding:'0.85rem', marginBottom:'0.85rem'}}>
               <div style={grid2Css}>
                 <div><label style={labelCss}>Fecha</label><input type="date" style={{...selectCss}} value={fFecha} onChange={e=>setFFecha(e.target.value)}/></div>
                 <div>
@@ -1786,7 +1786,7 @@ export default function Agenda() {
               <div style={{display:'flex', gap:6, marginTop:10}}>
                 {[-30,-15,15,30].map(min=>(
                   <button key={min} onClick={()=>desplazarHora(min)}
-                    style={{flex:1, minHeight:isMobile?40:32, borderRadius:8, cursor:'pointer',
+                    style={{flex:1, minHeight:isMobile?40:32, borderRadius:'var(--radius-md)', cursor:'pointer',
                       border:'1px solid var(--border-color, #dde5ef)', background:'var(--bg-card, #fff)',
                       color:'var(--text-muted-darker, #4a6080)', fontSize:13, fontWeight:600, fontFamily:'DM Sans, sans-serif'}}>
                     {min>0?`+${min}`:min}
@@ -1886,8 +1886,8 @@ export default function Agenda() {
         const safeY = Math.max(64, Math.min(menuPos.y, window.innerHeight - MENU_H - (isMobile ? 72 : 8)))
         return(
         <div style={{position:'fixed',top:safeY,left:safeX,zIndex:1000,background:'var(--bg-card)',borderRadius:'var(--radius-md)',boxShadow:'0 4px 20px rgba(0,0,0,0.15)',padding:'0.5rem',display:'flex',flexDirection:'column',gap:4,minWidth:180}} onClick={e=>e.stopPropagation()}>
-          <button style={{padding:'0.6rem 1rem',borderRadius:7,border:'none',background:'var(--bg-input)',cursor:'pointer',textAlign:'left',fontSize:13,fontWeight:500}} onClick={()=>{setMenuPos(null);openNueva(menuPos.f,menuPos.h)}}>Nueva cita</button>
-          <button style={{padding:'0.6rem 1rem',borderRadius:7,border:'none',background:'var(--bg-input)',cursor:'pointer',textAlign:'left',fontSize:13,fontWeight:500}} onClick={()=>{setMenuPos(null);setFBloqFecha(menuPos.f);setFBloqDesde(menuPos.h);setFBloqHasta(menuPos.h>='12:00'?'20:00':'12:00');setFBloqMotivo('');setModal('bloqueo')}}>Bloquear horario</button>
+          <button style={{padding:'0.6rem 1rem',borderRadius:'var(--radius-md)',border:'none',background:'var(--bg-input)',cursor:'pointer',textAlign:'left',fontSize:13,fontWeight:500}} onClick={()=>{setMenuPos(null);openNueva(menuPos.f,menuPos.h)}}>Nueva cita</button>
+          <button style={{padding:'0.6rem 1rem',borderRadius:'var(--radius-md)',border:'none',background:'var(--bg-input)',cursor:'pointer',textAlign:'left',fontSize:13,fontWeight:500}} onClick={()=>{setMenuPos(null);setFBloqFecha(menuPos.f);setFBloqDesde(menuPos.h);setFBloqHasta(menuPos.h>='12:00'?'20:00':'12:00');setFBloqMotivo('');setModal('bloqueo')}}>Bloquear horario</button>
         </div>
         )
       })()}
@@ -1954,7 +1954,7 @@ export default function Agenda() {
                       disabled={guardandoPropuesta}
                       style={{
                         padding: '14px 16px',
-                        borderRadius: 12,
+                        borderRadius: 'var(--radius-lg)',
                         border: `1px solid ${tenant?.secondaryColor || 'var(--accent)'}40`,
                         background: `linear-gradient(135deg, ${(tenant?.secondaryColor || 'var(--accent)')}08, ${(tenant?.secondaryColor || 'var(--accent)')}18)`,
                         color: tenant?.secondaryColor || 'var(--accent)',
@@ -1979,7 +1979,7 @@ export default function Agenda() {
                       disabled={guardandoPropuesta}
                       style={{
                         padding: '14px 16px',
-                        borderRadius: 12,
+                        borderRadius: 'var(--radius-lg)',
                         border: `1px solid ${tenant?.secondaryColor || 'var(--accent)'}40`,
                         background: `linear-gradient(135deg, ${(tenant?.secondaryColor || 'var(--accent)')}08, ${(tenant?.secondaryColor || 'var(--accent)')}18)`,
                         color: tenant?.secondaryColor || 'var(--accent)',
@@ -2026,7 +2026,7 @@ export default function Agenda() {
               rel="noopener noreferrer"
               style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%',
-                padding: '0.8rem 1rem', borderRadius: 12, border: 'none', background: 'var(--success)', color: 'var(--success-contrast)', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'DM Sans, sans-serif', boxShadow: '0 4px 12px rgba(37,211,102,0.25)', textDecoration: 'none', marginBottom: 12
+                padding: '0.8rem 1rem', borderRadius: 'var(--radius-lg)', border: 'none', background: 'var(--success)', color: 'var(--success-contrast)', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'DM Sans, sans-serif', boxShadow: '0 4px 12px rgba(37,211,102,0.25)', textDecoration: 'none', marginBottom: 12
               }}
               onClick={() => setWhatsappCita(null)}
             >
@@ -2035,7 +2035,7 @@ export default function Agenda() {
             </a>
             <button 
               onClick={() => setWhatsappCita(null)}
-              style={{ width: '100%', padding: '0.8rem 1rem', borderRadius: 12, border: 'none', background: 'var(--bg-app)', color: 'var(--text-muted)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
+              style={{ width: '100%', padding: '0.8rem 1rem', borderRadius: 'var(--radius-lg)', border: 'none', background: 'var(--bg-app)', color: 'var(--text-muted)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
             >
               Cerrar
             </button>

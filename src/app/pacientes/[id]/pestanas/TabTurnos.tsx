@@ -23,7 +23,7 @@ export function TabTurnos({ paciente, citas, setModalTurno, cambiarEstadoCita }:
           </div>
           <button 
             onClick={() => setModalTurno(true)}
-            style={{ background: 'var(--accent)', color: 'var(--accent-contrast)', border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
+            style={{ background: 'var(--accent)', color: 'var(--accent-contrast)', border: 'none', borderRadius: 'var(--radius-md)', padding: '8px 16px', fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
           >
             <Icon name="plus" size={14} />Agendar turno
           </button>
@@ -77,7 +77,7 @@ export function TabTurnos({ paciente, citas, setModalTurno, cambiarEstadoCita }:
                           onChange={e => cambiarEstadoCita(cita.id, e.target.value)}
                           style={{ 
                             padding: '4px 8px', 
-                            borderRadius: 8, 
+                            borderRadius: 'var(--radius-md)', 
                             border: '1px solid var(--border-light)', 
                             background: 'var(--bg-input)', 
                             color: 'var(--text-dark)', 

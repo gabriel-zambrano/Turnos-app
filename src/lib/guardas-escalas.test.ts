@@ -29,34 +29,42 @@ import { join } from 'node:path'
 //
 //   Cuando bajes un número, actualizá el tope acá. Es parte del trabajo.
 //
-// DECISIÓN PENDIENTE — no la resuelve este archivo
+// LA ESCALA SE CORRIGIÓ · 16/10/2026
 //
-//   De los 127 radios crudos que quedan, 66 son `8` y 29 son `12`. Ninguno
-//   de los dos está en la escala, que define 6 y 10.
+//   Era 6 / 10 / 16 / 22 y el código usaba otra cosa: 66 llamadas a 8px y 29
+//   a 12px, contra 6 y 10 declarados. Los dos valores dominantes del producto
+//   no existían en su propia escala.
 //
-//   O sea: la escala y el código no coinciden, y el código tiene la mayoría.
-//   Antes de migrar 95 lugares hay que decidir cuál manda. Lo más probable
-//   es que convenga corregir la ESCALA a 4 / 8 / 12 / 16 / 999 —los valores
-//   que el producto ya usa— en vez de reescribir 95 llamadas a 6 y 10.
+//   Se corrigió la ESCALA, no las 95 llamadas: 4 / 8 / 12 / 16 / 999. Es más
+//   barato y respeta lo que el producto ya era. Cambiar 95 lugares para que
+//   coincidieran con una escala que nadie usaba habría movido un 12 a 16 —un
+//   33% más de redondeo— en decenas de superficies.
 //
-//   Migrar a una escala equivocada cuesta el doble: una vez para entrar y
-//   otra para salir.
+//   Costo asumido: los 70 lugares que ya usaban los tokens viejos cambiaron
+//   de 6→4, 10→8 y 16→12. Un píxel o dos, revisado en pantalla.
 // ═══════════════════════════════════════════════════════════════════════════
 
 /**
  * Tope de valores crudos por archivo. Solo puede bajar.
- * Medido el 15/10/2026 después de migrar las 57 coincidencias exactas.
+ *
+ * Medido el 16/10/2026, después de corregir la escala a 4/8/12/16 y migrar
+ * 118 llamadas. De 184 radios crudos quedan 9.
+ *
+ * Los 9 que faltan son seis `14` y tres `20`: los únicos cuyo salto al
+ * escalón más cercano se vería (2px y 4px). Se dejan a propósito, para que
+ * alguien mire esas pantallas y decida, en vez de que un script lo resuelva
+ * a ciegas.
  */
 const TOPES: Record<string, { radios: number; sombras: number }> = {
-  'src/app/finanzas/page.tsx':                              { radios: 74, sombras: 0 },
-  'src/app/agenda/page.tsx':                                { radios: 22, sombras: 11 },
-  'src/app/pacientes/[id]/page.tsx':                        { radios: 16, sombras: 0 },
-  'src/app/pacientes/[id]/pestanas/CobroVisitas.tsx':       { radios: 2,  sombras: 0 },
-  'src/app/pacientes/[id]/pestanas/ProgramaPuntos.tsx':     { radios: 3,  sombras: 0 },
-  'src/app/pacientes/[id]/pestanas/TabConsentimientos.tsx': { radios: 3,  sombras: 0 },
-  'src/app/pacientes/[id]/pestanas/TabFotos.tsx':           { radios: 3,  sombras: 1 },
-  'src/app/pacientes/[id]/pestanas/TabOdontograma.tsx':     { radios: 2,  sombras: 0 },
-  'src/app/pacientes/[id]/pestanas/TabTurnos.tsx':          { radios: 2,  sombras: 0 },
+  'src/app/finanzas/page.tsx':                              { radios: 5, sombras: 0 },
+  'src/app/agenda/page.tsx':                                { radios: 1, sombras: 11 },
+  'src/app/pacientes/[id]/page.tsx':                        { radios: 0, sombras: 0 },
+  'src/app/pacientes/[id]/pestanas/CobroVisitas.tsx':       { radios: 0, sombras: 0 },
+  'src/app/pacientes/[id]/pestanas/ProgramaPuntos.tsx':     { radios: 0, sombras: 0 },
+  'src/app/pacientes/[id]/pestanas/TabConsentimientos.tsx': { radios: 0, sombras: 0 },
+  'src/app/pacientes/[id]/pestanas/TabFotos.tsx':           { radios: 1, sombras: 1 },
+  'src/app/pacientes/[id]/pestanas/TabOdontograma.tsx':     { radios: 2, sombras: 0 },
+  'src/app/pacientes/[id]/pestanas/TabTurnos.tsx':          { radios: 0, sombras: 0 },
 }
 
 function fuente(rel: string): string {
