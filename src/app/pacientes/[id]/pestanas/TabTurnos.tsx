@@ -64,7 +64,7 @@ export function TabTurnos({ paciente, citas, setModalTurno, cambiarEstadoCita }:
                           fontSize: 12, 
                           fontWeight: 700, 
                           padding: '3px 8px', 
-                          borderRadius: 6, 
+                          borderRadius: 'var(--radius-sm)', 
                           background: cita.estado === 'confirmado' ? 'var(--est-confirmado-bg)' : cita.estado === 'pendiente' ? 'var(--est-pendiente-bg)' : cita.estado === 'asistio' || cita.estado === 'completado' ? 'var(--est-asistio-bg)' : 'var(--est-cancelado-bg)',
                           color: cita.estado === 'confirmado' ? 'var(--est-confirmado-color)' : cita.estado === 'pendiente' ? 'var(--est-pendiente-color)' : cita.estado === 'asistio' || cita.estado === 'completado' ? 'var(--est-asistio-color)' : 'var(--est-cancelado-color)'
                         }}>

@@ -32,7 +32,7 @@ export function TabConsentimientos({ consentimientos, abrirModalConsent, tenant,
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {consentimientos.map(c => (
-              <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 10, border: '1px solid var(--border-light, rgba(56,138,221,0.12))' }}>
+              <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-light, rgba(56,138,221,0.12))' }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-dark)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.titulo}</div>
                   <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
@@ -42,7 +42,7 @@ export function TabConsentimientos({ consentimientos, abrirModalConsent, tenant,
                   </div>
                 </div>
                 {c.estado === 'firmado' ? (
-                  <span style={{ fontSize: 12.5, background: 'var(--success-soft)', color: 'var(--success-text)', padding: '2px 8px', borderRadius: 10, fontWeight: 700 }}>Firmado</span>
+                  <span style={{ fontSize: 12.5, background: 'var(--success-soft)', color: 'var(--success-text)', padding: '2px 8px', borderRadius: 'var(--radius-md)', fontWeight: 700 }}>Firmado</span>
                 ) : (
                   <button
                     onClick={() => { const l = `${urlPublicaDeClinica(tenant)}/firmar/${c.token_firma}`; navigator.clipboard?.writeText(l); showMsg('Link copiado') }}

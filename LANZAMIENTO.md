@@ -127,7 +127,7 @@ WHERE n.nspname = 'public' AND c.relkind IN ('r','v','m')
   AND c.relname <> 'tenants_public';
 ```
 
-**Cero filas = sano.** Cualquier fila significa que R-18 reincidió. Anotar cada corrida en `P0-05_BITACORA.md`.
+**Cero filas = sano.** Cualquier fila significa que R-18 reincidió. Anotar cada corrida en `docs/historico/P0-05_BITACORA.md`.
 
 ## 5.3 · Cuentas con acceso
 
@@ -189,7 +189,7 @@ La cuenta de mantenimiento **aparece listada en la pantalla de Equipo**. Eso es 
 | Evidencia del último gate | `RELEASE_GATE_FINAL.md` |
 | Purgar Sentry y Drive | `PURGA_PII_HISTORICA.md` |
 | Cobros / facturación | `RUNBOOK-COBROS.md` · `RUNBOOK-ARCA.md` |
-| Decisiones de multirol pendientes | `DO-6_DECISIONES_PENDIENTES.md` |
+| Decisiones de multirol pendientes | `docs/historico/DO-6_DECISIONES_PENDIENTES.md` |
 
 **Los otros ~48 `.md` son histórico.**
 

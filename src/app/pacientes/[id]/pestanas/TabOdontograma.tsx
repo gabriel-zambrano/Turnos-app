@@ -23,7 +23,7 @@ export function TabOdontograma({ renderTooth, historial }: TabOdontogramaProps) 
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', fontSize: 12, borderBottom: '1px solid var(--border-light)', paddingBottom: 10 }}>
             {Object.entries(ESTADOS_INFO).map(([key, value]) => (
               <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                <span aria-hidden="true" style={{ width: 10, height: 10, borderRadius: 999, display: 'inline-block', flexShrink: 0, background: `var(--diente-${key.toLowerCase()})` }} />
+                <span aria-hidden="true" style={{ width: 10, height: 10, borderRadius: 'var(--radius-pill)', display: 'inline-block', flexShrink: 0, background: `var(--diente-${key.toLowerCase()})` }} />
                 <span style={{ fontWeight: 600, color: 'var(--text-dark)' }}>{value.label}</span>
               </div>
             ))}
@@ -107,7 +107,7 @@ export function TabOdontograma({ renderTooth, historial }: TabOdontogramaProps) 
                         <td style={{ padding: '10px 12px', color: 'var(--text-muted-darker)', whiteSpace: 'nowrap' }}>{dateStr}</td>
                         <td style={{ padding: '10px 12px', fontWeight: 700, color: 'var(--text-dark)' }}>Diente {log.diente}</td>
                         <td style={{ padding: '10px 12px' }}>
-                          <span style={{ fontSize: 12, fontWeight: 600, padding: '2px 8px', borderRadius: 6, background: info.bg, color: info.color }}>
+                          <span style={{ fontSize: 12, fontWeight: 600, padding: '2px 8px', borderRadius: 'var(--radius-sm)', background: info.bg, color: info.color }}>
                             {log.estado}
                           </span>
                         </td>

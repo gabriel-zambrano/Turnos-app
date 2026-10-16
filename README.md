@@ -116,7 +116,7 @@ manuales que solo suman sobre lo que da el plan, para no revocarle una función 
 una clínica que ya la venía usando. La decisión se toma al leer, con
 `featureHabilitada()`.
 
-Detalle y justificación de cada decisión en `DECISIONES-PRODUCTO.md`.
+Detalle y justificación de cada decisión en `docs/historico/DECISIONES-PRODUCTO.md`.
 
 ---
 
@@ -135,9 +135,9 @@ service worker (`public/sw.js`) **no cachea nada de `/api/`, `/paciente/` ni
 
 | Archivo | Contenido |
 |---|---|
-| `ESTADO-PROYECTO.md` | Handoff: qué está hecho y qué falta |
-| `DECISIONES-PRODUCTO.md` | Decisiones de negocio y las que quedan pendientes |
-| `PENDIENTES-ROADMAP.md` | Ideas y mejoras por área |
-| `REVISION-MEJORAS-2026-07.md` | Auditoría verificada contra el código |
+| `docs/historico/ESTADO-PROYECTO.md` | Handoff: qué está hecho y qué falta |
+| `docs/historico/DECISIONES-PRODUCTO.md` | Decisiones de negocio y las que quedan pendientes |
+| `docs/historico/PENDIENTES-ROADMAP.md` | Ideas y mejoras por área |
+| `docs/historico/REVISION-MEJORAS-2026-07.md` | Auditoría verificada contra el código |
 | `RUNBOOK-ARCA.md` | Certificados y facturación electrónica |
-| `RUNBOOK-LANZAMIENTO.md` | Checklist de salida a producción |
+| `docs/historico/RUNBOOK-LANZAMIENTO.md` | Checklist de salida a producción |

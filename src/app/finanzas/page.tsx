@@ -725,10 +725,10 @@ export default function FinanzasPage() {
 
         <div className="app-content" style={{ maxWidth:1100, margin:'0 auto' }}>
           
-          <div className="tabs-scroll" style={{ display: 'flex', gap: 4, background: 'var(--bg-input)', borderRadius: 10, padding: 4, marginBottom: '1.5rem', width: 'fit-content' }}>
+          <div className="tabs-scroll" style={{ display: 'flex', gap: 4, background: 'var(--bg-input)', borderRadius: 'var(--radius-md)', padding: 4, marginBottom: '1.5rem', width: 'fit-content' }}>
             <button onClick={() => setTab('resumen')} style={tabBtn('resumen')}>Resumen Mensual</button>
             <button onClick={() => setTab('caja')} style={tabBtn('caja')}>Caja Diaria</button>
-            <button onClick={() => setTab('deudores')} style={tabBtn('deudores')}>Deudores <span style={{background:'var(--danger)', color:'var(--danger-contrast)', padding:'2px 6px', borderRadius:10, fontSize:12, marginLeft:6}}>{deudores.length}</span></button>
+            <button onClick={() => setTab('deudores')} style={tabBtn('deudores')}>Deudores <span style={{background:'var(--danger)', color:'var(--danger-contrast)', padding:'2px 6px', borderRadius:'var(--radius-md)', fontSize:12, marginLeft:6}}>{deudores.length}</span></button>
           </div>
 
           {errorCarga && (
@@ -780,7 +780,7 @@ export default function FinanzasPage() {
                     <div>
                       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6 }}>
                         <span style={{ fontSize:12, fontWeight:600, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.05em' }}>{label}</span>
-                        <span style={{ fontSize:12, fontWeight:700, padding:'1px 6px', borderRadius:6, background:'var(--bg-input)', border:'0.5px solid var(--border-color)', color:'var(--text-muted)' }}>{tag}</span>
+                        <span style={{ fontSize:12, fontWeight:700, padding:'1px 6px', borderRadius:'var(--radius-sm)', background:'var(--bg-input)', border:'0.5px solid var(--border-color)', color:'var(--text-muted)' }}>{tag}</span>
                       </div>
                       <div style={{ fontSize: isMobile ? 16 : 20, fontWeight:700, color:accent, letterSpacing:'-0.02em' }}>{value}</div>
                     </div>
@@ -790,7 +790,7 @@ export default function FinanzasPage() {
               </div>
 
               {/* 2. Cascada de Distribución Financiera: ¿Adónde va cada peso? */}
-              <div style={{ background:'var(--bg-card)', border:'0.5px solid var(--border-color)', borderRadius:16, padding:'1.1rem 1.35rem', marginBottom:'1.5rem' }}>
+              <div style={{ background:'var(--bg-card)', border:'0.5px solid var(--border-color)', borderRadius:'var(--radius-lg)', padding:'1.1rem 1.35rem', marginBottom:'1.5rem' }}>
                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12, flexWrap:'wrap', gap:8 }}>
                   <div>
                     <div style={{ fontSize:14, fontWeight:700, color:'var(--text-dark)' }}>Distribución de Ingresos y Carga de Estructura</div>
@@ -814,7 +814,7 @@ export default function FinanzasPage() {
                 </div>
 
                 {/* Barra segmentada continua */}
-                <div style={{ height:12, background:'var(--bg-input)', borderRadius:6, display:'flex', overflow:'hidden', marginBottom:12, border:'0.5px solid var(--border-color)' }}>
+                <div style={{ height:12, background:'var(--bg-input)', borderRadius:'var(--radius-sm)', display:'flex', overflow:'hidden', marginBottom:12, border:'0.5px solid var(--border-color)' }}>
                   <div style={{ width:`${porcentajeCargaFija}%`, background:'var(--danger)', transition:'width .4s ease' }} title={`Costos Fijos: ${porcentajeCargaFija}%`} />
                   <div style={{ width:`${porcentajeEgresos}%`, background:'var(--warning)', transition:'width .4s ease' }} title={`Egresos Variables: ${porcentajeEgresos}%`} />
                   <div style={{ width:`${porcentajeGanancia}%`, background:'var(--success)', transition:'width .4s ease' }} title={`Ganancia Neta: ${porcentajeGanancia}%`} />
@@ -850,7 +850,7 @@ export default function FinanzasPage() {
               </div>
 
               {/* 3. Selector de Perspectivas de Decisión */}
-              <div style={{ display:'flex', gap:6, marginBottom:'1rem', background:'var(--bg-input)', padding:4, borderRadius:10, width:'fit-content', border:'0.5px solid var(--border-color)', flexWrap:'wrap' }}>
+              <div style={{ display:'flex', gap:6, marginBottom:'1rem', background:'var(--bg-input)', padding:4, borderRadius:'var(--radius-md)', width:'fit-content', border:'0.5px solid var(--border-color)', flexWrap:'wrap' }}>
                 <button
                   type="button"
                   onClick={() => setVistaDecisiones('estructura')}
@@ -896,7 +896,7 @@ export default function FinanzasPage() {
               {vistaDecisiones === 'estructura' && (
                 <div style={{ display:'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 340px', gap:16, alignItems:'start' }}>
                   {/* Punto de equilibrio y Día de Liberación */}
-                  <div style={{ background:'var(--bg-card)', border:'0.5px solid var(--border-color)', borderRadius:16, padding:'1.25rem' }}>
+                  <div style={{ background:'var(--bg-card)', border:'0.5px solid var(--border-color)', borderRadius:'var(--radius-lg)', padding:'1.25rem' }}>
                     <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14 }}>
                       <div style={{ fontWeight:700, fontSize:15, color:'var(--text-dark)' }}>Punto de Equilibrio Operativo</div>
                       {metaIngresos > 0 && (
@@ -906,7 +906,7 @@ export default function FinanzasPage() {
 
                     {/* Banner Día de Liberación */}
                     {diaLiberacion !== null ? (
-                      <div style={{ background:'var(--success-soft)', border:'0.5px solid var(--success-border)', borderRadius:10, padding:'0.9rem 1rem', marginBottom:14, display:'flex', alignItems:'flex-start', gap:10 }}>
+                      <div style={{ background:'var(--success-soft)', border:'0.5px solid var(--success-border)', borderRadius:'var(--radius-md)', padding:'0.9rem 1rem', marginBottom:14, display:'flex', alignItems:'flex-start', gap:10 }}>
                         <span style={{ color:'var(--success-text)', marginTop:2 }}><Icon name="check" size={18} /></span>
                         <div>
                           <div style={{ fontSize:13, fontWeight:700, color:'var(--success-text)' }}>¡Día de liberación alcanzado!</div>
@@ -916,7 +916,7 @@ export default function FinanzasPage() {
                         </div>
                       </div>
                     ) : (
-                      <div style={{ background:'var(--accent-soft)', border:'0.5px solid var(--border-color)', borderRadius:10, padding:'0.9rem 1rem', marginBottom:14, display:'flex', alignItems:'flex-start', gap:10 }}>
+                      <div style={{ background:'var(--accent-soft)', border:'0.5px solid var(--border-color)', borderRadius:'var(--radius-md)', padding:'0.9rem 1rem', marginBottom:14, display:'flex', alignItems:'flex-start', gap:10 }}>
                         <span style={{ color:'var(--accent)', marginTop:2 }}><Icon name="clock" size={18} /></span>
                         <div>
                           <div style={{ fontSize:13, fontWeight:700, color:'var(--accent)' }}>Día de liberación proyectado</div>
@@ -928,17 +928,17 @@ export default function FinanzasPage() {
                     )}
 
                     <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:10, marginBottom:14 }}>
-                      <div style={{ background:'var(--danger-soft)', borderRadius:10, padding:'0.85rem', textAlign:'center' }}>
+                      <div style={{ background:'var(--danger-soft)', borderRadius:'var(--radius-md)', padding:'0.85rem', textAlign:'center' }}>
                         <div style={{ fontSize:12, color:'var(--danger-text)', fontWeight:700, marginBottom:4, textTransform:'uppercase' }}>Costos fijos</div>
                         <div style={{ fontSize:15, fontWeight:700, color:'var(--danger-text)' }}>{fmt(totalCostos)}</div>
                         <div style={{ fontSize:12, color:'var(--danger-text)', marginTop:2 }}>{fmt(breakEvenDiario)}/día</div>
                       </div>
-                      <div style={{ background:'var(--accent-soft)', borderRadius:10, padding:'0.85rem', textAlign:'center' }}>
+                      <div style={{ background:'var(--accent-soft)', borderRadius:'var(--radius-md)', padding:'0.85rem', textAlign:'center' }}>
                         <div style={{ fontSize:12, color:'var(--accent)', fontWeight:700, marginBottom:4, textTransform:'uppercase' }}>Meta mensual</div>
                         <div style={{ fontSize:15, fontWeight:700, color:'var(--accent)' }}>{metaIngresos > 0 ? fmt(metaIngresos) : '—'}</div>
                         <div style={{ fontSize:12, color:'var(--accent)', marginTop:2 }}>{metaIngresos > 0 ? `${fmt(metaIngresos / diasEnMes(mesActual, anioActual))}/día` : 'Sin definir'}</div>
                       </div>
-                      <div style={{ background: gananciaNetaReal >= 0 ? 'var(--success-soft)' : 'var(--warning-soft)', borderRadius:10, padding:'0.85rem', textAlign:'center' }}>
+                      <div style={{ background: gananciaNetaReal >= 0 ? 'var(--success-soft)' : 'var(--warning-soft)', borderRadius:'var(--radius-md)', padding:'0.85rem', textAlign:'center' }}>
                         <div style={{ fontSize:12, color: gananciaNetaReal >= 0 ? 'var(--success-text)' : 'var(--danger-text)', fontWeight:700, marginBottom:4, textTransform:'uppercase' }}>{gananciaNetaReal >= 0 ? 'Ganancia Neta' : 'Déficit'}</div>
                         <div style={{ fontSize:15, fontWeight:700, color: gananciaNetaReal >= 0 ? 'var(--success-text)' : 'var(--warning-text)' }}>{fmt(Math.abs(gananciaNetaReal))}</div>
                         <div style={{ fontSize:12, color: gananciaNetaReal >= 0 ? 'var(--success-text)' : 'var(--warning-text)', marginTop:2 }}>{gananciaNetaReal >= 0 ? 'líquido libre' : 'bajo costos'}</div>
@@ -946,7 +946,7 @@ export default function FinanzasPage() {
                     </div>
 
                     {metaIngresos > 0 && restante > 0 && (
-                      <div style={{ background:'var(--bg-input)', borderRadius:10, padding:'0.85rem 1rem', fontSize:13, color:'var(--text-dark)', lineHeight:1.6, border:'0.5px solid var(--border-color)' }}>
+                      <div style={{ background:'var(--bg-input)', borderRadius:'var(--radius-md)', padding:'0.85rem 1rem', fontSize:13, color:'var(--text-dark)', lineHeight:1.6, border:'0.5px solid var(--border-color)' }}>
                         Para cumplir la meta necesitás facturar{' '}
                         <strong style={{ color:'var(--accent)' }}>{fmt(objetivoDiario)}/día</strong>{' '}
                         durante los próximos <strong>{diasRest} días</strong>.
@@ -954,7 +954,7 @@ export default function FinanzasPage() {
                       </div>
                     )}
                     {restante === 0 && metaIngresos > 0 && (
-                      <div style={{ background:'var(--success-soft)', borderRadius:10, padding:'0.85rem 1rem', fontSize:14, color:'var(--success-text)', fontWeight:700, textAlign:'center' }}>
+                      <div style={{ background:'var(--success-soft)', borderRadius:'var(--radius-md)', padding:'0.85rem 1rem', fontSize:14, color:'var(--success-text)', fontWeight:700, textAlign:'center' }}>
                         <span style={{ display:'inline-flex', alignItems:'center', gap:6 }}><Icon name="check" size={16} />Meta del mes cumplida</span>
                       </div>
                     )}
@@ -974,7 +974,7 @@ export default function FinanzasPage() {
                   </div>
 
                   {/* Lista de Costos Fijos */}
-                  <div style={{ background:'var(--bg-card)', border:'0.5px solid var(--border-color)', borderRadius:16, padding:'1.25rem' }}>
+                  <div style={{ background:'var(--bg-card)', border:'0.5px solid var(--border-color)', borderRadius:'var(--radius-lg)', padding:'1.25rem' }}>
                     <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
                       <div>
                         <div style={{ fontWeight:700, fontSize:15, color:'var(--text-dark)' }}>Costos Fijos</div>
@@ -999,7 +999,7 @@ export default function FinanzasPage() {
                               )}
                             </div>
                             <div style={{ fontSize:13, fontWeight:700, color:'var(--danger-text)', flexShrink:0 }}>{fmt(c.monto)}</div>
-                            <button onClick={() => eliminarCosto(c.id)} style={{ fontSize:12, padding:'2px 8px', borderRadius:6, border:'0.5px solid var(--border-color)', background:'var(--bg-card)', color:'var(--danger-text)', cursor:'pointer', fontFamily:'DM Sans, sans-serif', flexShrink:0 }} title="Eliminar costo">×</button>
+                            <button onClick={() => eliminarCosto(c.id)} style={{ fontSize:12, padding:'2px 8px', borderRadius:'var(--radius-sm)', border:'0.5px solid var(--border-color)', background:'var(--bg-card)', color:'var(--danger-text)', cursor:'pointer', fontFamily:'DM Sans, sans-serif', flexShrink:0 }} title="Eliminar costo">×</button>
                           </div>
                         )
                       })
@@ -1019,7 +1019,7 @@ export default function FinanzasPage() {
 
               {/* VISTA B: SIMULADOR DE DECISIONES ("¿QUÉ PASA SI...?") */}
               {vistaDecisiones === 'simulador' && (
-                <div style={{ background:'var(--bg-card)', border:'0.5px solid var(--border-color)', borderRadius:16, padding:'1.35rem' }}>
+                <div style={{ background:'var(--bg-card)', border:'0.5px solid var(--border-color)', borderRadius:'var(--radius-lg)', padding:'1.35rem' }}>
                   <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:16, flexWrap:'wrap', gap:10 }}>
                     <div>
                       <div style={{ fontWeight:700, fontSize:16, color:'var(--text-dark)' }}>Simulador de Decisiones sobre Costos Fijos</div>
@@ -1144,7 +1144,7 @@ export default function FinanzasPage() {
 
               {/* VISTA C: EQUIVALENCIA EN TRABAJO CLÍNICO */}
               {vistaDecisiones === 'tratamientos' && (
-                <div style={{ background:'var(--bg-card)', border:'0.5px solid var(--border-color)', borderRadius:16, padding:'1.35rem' }}>
+                <div style={{ background:'var(--bg-card)', border:'0.5px solid var(--border-color)', borderRadius:'var(--radius-lg)', padding:'1.35rem' }}>
                   <div style={{ marginBottom:16 }}>
                     <div style={{ fontWeight:700, fontSize:16, color:'var(--text-dark)' }}>¿Cuánto trabajo de sillón paga tu estructura fija?</div>
                     <div style={{ fontSize:13, color:'var(--text-muted)', marginTop:2 }}>
@@ -1212,11 +1212,11 @@ export default function FinanzasPage() {
 
           {tab === 'caja' && (
             cajaLoading ? (
-              <div style={{ background:'var(--bg-card)', border:'0.5px solid var(--border-color)', borderRadius:16, padding:'3rem 1.25rem', textAlign:'center' }}>
+              <div style={{ background:'var(--bg-card)', border:'0.5px solid var(--border-color)', borderRadius:'var(--radius-lg)', padding:'3rem 1.25rem', textAlign:'center' }}>
                 <Spinner />
               </div>
             ) : !cajaActiva ? (
-              <div style={{ background:'var(--bg-card)', border:'0.5px solid var(--border-color)', borderRadius:16, padding:'3rem 2rem', textAlign:'center', display:'flex', flexDirection:'column', alignItems:'center', gap:16 }}>
+              <div style={{ background:'var(--bg-card)', border:'0.5px solid var(--border-color)', borderRadius:'var(--radius-lg)', padding:'3rem 2rem', textAlign:'center', display:'flex', flexDirection:'column', alignItems:'center', gap:16 }}>
                 <Icon name="money" size={32} style={{ color:'var(--accent)' }} />
                 <div style={{ fontWeight:700, fontSize:18, color:'var(--text-dark)' }}>Caja Diaria no iniciada</div>
                 <p style={{ fontSize:13, color:'var(--text-muted)', maxWidth:420, lineHeight:1.5 }}>
@@ -1230,7 +1230,7 @@ export default function FinanzasPage() {
                 </div>
               </div>
             ) : (
-              <div style={{ background:'var(--bg-card)', border:'0.5px solid var(--border-color)', borderRadius:16, padding:'1.25rem' }}>
+              <div style={{ background:'var(--bg-card)', border:'0.5px solid var(--border-color)', borderRadius:'var(--radius-lg)', padding:'1.25rem' }}>
                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16, flexWrap:'wrap', gap:10 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <div style={{ fontWeight:700, fontSize:18, color:'var(--text-dark)' }}>Control de Caja</div>
@@ -1249,7 +1249,7 @@ export default function FinanzasPage() {
                         <button onClick={() => { setMCierreVal(''); setCajaObs(''); setModalCierre(true) }} style={{ fontSize:12, fontWeight:600, padding:'6px 12px', borderRadius:8, border:'1px solid var(--danger)', background:'var(--danger-soft)', color:'var(--danger-text)', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }}>Cerrar Caja (Arqueo)</button>
                       </>
                     ) : (
-                      <span style={{ fontSize: 12, fontWeight: 700, padding: '5px 12px', background: 'var(--danger-soft)', color: 'var(--danger-text)', borderRadius: 6, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                      <span style={{ fontSize: 12, fontWeight: 700, padding: '5px 12px', background: 'var(--danger-soft)', color: 'var(--danger-text)', borderRadius: 'var(--radius-sm)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                         <span style={{ display:'inline-flex', alignItems:'center', gap:6 }}><Icon name="lock" size={13} />Caja cerrada para ediciones</span>
                       </span>
                     )}
@@ -1271,8 +1271,8 @@ export default function FinanzasPage() {
                         {editandoPrecio === c.id ? (
                           <>
                             <input type="number" autoFocus defaultValue={getPrecio(c)} onChange={e => setPrecioEdit(e.target.value === '' ? '' : Number(e.target.value))} style={{ width:90, fontSize:13, padding:'4px 8px', borderRadius:7, border:'1px solid var(--success)', fontFamily:'DM Sans, sans-serif', textAlign:'right' }} />
-                            <button onClick={() => precioEdit !== '' && guardarPrecioCita(c, precioEdit as number)} style={{ fontSize:12, padding:'4px 8px', borderRadius:6, border:'none', background:'var(--success)', color:'var(--success-contrast)', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }} aria-label="Guardar precio"><Icon name="check" size={14} /></button>
-                            <button onClick={() => setEditandoPrecio(null)} style={{ fontSize:12, padding:'4px 8px', borderRadius:6, border:'0.5px solid var(--border-color)', background:'var(--bg-card)', color:'var(--text-muted)', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }} aria-label="Cancelar edición"><Icon name="close" size={13} /></button>
+                            <button onClick={() => precioEdit !== '' && guardarPrecioCita(c, precioEdit as number)} style={{ fontSize:12, padding:'4px 8px', borderRadius:'var(--radius-sm)', border:'none', background:'var(--success)', color:'var(--success-contrast)', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }} aria-label="Guardar precio"><Icon name="check" size={14} /></button>
+                            <button onClick={() => setEditandoPrecio(null)} style={{ fontSize:12, padding:'4px 8px', borderRadius:'var(--radius-sm)', border:'0.5px solid var(--border-color)', background:'var(--bg-card)', color:'var(--text-muted)', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }} aria-label="Cancelar edición"><Icon name="close" size={13} /></button>
                           </>
                         ) : (
                           <>
@@ -1303,7 +1303,7 @@ export default function FinanzasPage() {
                                   <button
                                     onClick={() => abrirModalFacturar(c, 'cita')}
                                     disabled={cajaActiva.estado === 'cerrada'}
-                                    style={{ fontSize: 12, padding: '3px 7px', borderRadius: 6, marginRight: 4, cursor: cajaActiva.estado === 'cerrada' ? 'not-allowed' : 'pointer', fontFamily: 'DM Sans, sans-serif', fontWeight: 600,
+                                    style={{ fontSize: 12, padding: '3px 7px', borderRadius: 'var(--radius-sm)', marginRight: 4, cursor: cajaActiva.estado === 'cerrada' ? 'not-allowed' : 'pointer', fontFamily: 'DM Sans, sans-serif', fontWeight: 600,
                                       border: `1px solid ${atenuado ? 'var(--border-color)' : parcial ? 'var(--warning)' : 'var(--success)'}`,
                                       background: atenuado ? 'var(--bg-input)' : parcial ? 'var(--warning-soft)' : 'var(--success-soft)',
                                       color: atenuado ? 'var(--text-muted)' : parcial ? 'var(--warning-text)' : 'var(--success-text)',
@@ -1352,7 +1352,7 @@ export default function FinanzasPage() {
                               <button 
                                 onClick={() => abrirModalFacturar(m, 'ingreso')} 
                                 disabled={cajaActiva.estado === 'cerrada'}
-                                style={{ fontSize: 12, padding: '3px 7px', borderRadius: 6, border: '1px solid var(--success)', background: 'var(--success-soft)', color: 'var(--success-text)', cursor: cajaActiva.estado === 'cerrada' ? 'not-allowed' : 'pointer', fontFamily: 'DM Sans, sans-serif', fontWeight: 600, opacity: cajaActiva.estado === 'cerrada' ? 0.6 : 1 }}
+                                style={{ fontSize: 12, padding: '3px 7px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--success)', background: 'var(--success-soft)', color: 'var(--success-text)', cursor: cajaActiva.estado === 'cerrada' ? 'not-allowed' : 'pointer', fontFamily: 'DM Sans, sans-serif', fontWeight: 600, opacity: cajaActiva.estado === 'cerrada' ? 0.6 : 1 }}
                                 title="Emitir Factura Electrónica ARCA"
                               >
                                 <span style={{ display:'inline-flex', alignItems:'center', gap:6 }}><Icon name="invoice" size={13} />Facturar</span>
@@ -1363,7 +1363,7 @@ export default function FinanzasPage() {
                         })()}
                         <div style={{ fontSize:14, fontWeight:700, color:'var(--accent)' }}>{fmt(m.monto)}</div>
                         {cajaActiva.estado === 'abierta' && (
-                          <button onClick={() => eliminarIngreso(m.id)} style={{ fontSize:12, padding:'2px 8px', borderRadius:6, border:'0.5px solid var(--border-color)', background:'var(--bg-card)', color:'var(--danger-text)', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }} aria-label="Eliminar ingreso"><Icon name="trash" size={13} /></button>
+                          <button onClick={() => eliminarIngreso(m.id)} style={{ fontSize:12, padding:'2px 8px', borderRadius:'var(--radius-sm)', border:'0.5px solid var(--border-color)', background:'var(--bg-card)', color:'var(--danger-text)', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }} aria-label="Eliminar ingreso"><Icon name="trash" size={13} /></button>
                         )}
                       </div>
                     </div>
@@ -1384,7 +1384,7 @@ export default function FinanzasPage() {
                       <div style={{ display:'flex', alignItems:'center', gap:8 }}>
                         <div style={{ fontSize:14, fontWeight:700, color:'var(--danger-text)' }}>{fmt(e.monto)}</div>
                         {cajaActiva.estado === 'abierta' && (
-                          <button onClick={() => eliminarEgreso(e.id)} style={{ fontSize:12, padding:'2px 8px', borderRadius:6, border:'0.5px solid var(--border-color)', background:'var(--bg-card)', color:'var(--danger-text)', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }} aria-label="Eliminar egreso"><Icon name="trash" size={13} /></button>
+                          <button onClick={() => eliminarEgreso(e.id)} style={{ fontSize:12, padding:'2px 8px', borderRadius:'var(--radius-sm)', border:'0.5px solid var(--border-color)', background:'var(--bg-card)', color:'var(--danger-text)', cursor:'pointer', fontFamily:'DM Sans, sans-serif' }} aria-label="Eliminar egreso"><Icon name="trash" size={13} /></button>
                         )}
                       </div>
                     </div>
@@ -1438,7 +1438,7 @@ export default function FinanzasPage() {
           )}
 
           {tab === 'deudores' && (
-            <div style={{ background:'var(--bg-card)', border:'0.5px solid var(--border-color)', borderRadius:16, padding:'1.25rem' }}>
+            <div style={{ background:'var(--bg-card)', border:'0.5px solid var(--border-color)', borderRadius:'var(--radius-lg)', padding:'1.25rem' }}>
               <div style={{ fontWeight:700, fontSize:18, color:'var(--text-dark)', marginBottom:16 }}>Pacientes con Saldo Pendiente</div>
               
               {deudores.length === 0 ? (
@@ -1703,7 +1703,7 @@ export default function FinanzasPage() {
                         background: bg, 
                         border: border, 
                         color: color, 
-                        borderRadius: 10, 
+                        borderRadius: 'var(--radius-md)', 
                         padding: '10px 12px', 
                         fontSize: 12.5, 
                         fontWeight: 700, 

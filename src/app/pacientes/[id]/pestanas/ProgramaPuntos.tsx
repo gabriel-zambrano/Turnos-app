@@ -265,7 +265,7 @@ export function ProgramaPuntos({ configFidelizacion, premios, isMobile, paciente
                           fontSize: 12.5, 
                           fontWeight: 700, 
                           padding: '2px 8px', 
-                          borderRadius: 6, 
+                          borderRadius: 'var(--radius-sm)', 
                           background: `${operacionColors[log.tipo_movimiento]}12`, 
                           color: operacionColors[log.tipo_movimiento] 
                         }}>

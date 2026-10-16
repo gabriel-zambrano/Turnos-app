@@ -65,7 +65,7 @@ WHERE n.nspname = 'public' AND c.relkind IN ('r','v','m')
 
 **Cero filas = sano.** Cualquier fila significa que R-18 reincidió.
 
-**Criterio de cierre de R-18: cuatro semanas consecutivas en cero.** Anotar cada corrida en `P0-05_BITACORA.md`.
+**Criterio de cierre de R-18: cuatro semanas consecutivas en cero.** Anotar cada corrida en `docs/historico/P0-05_BITACORA.md`.
 
 ---
 

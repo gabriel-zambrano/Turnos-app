@@ -948,7 +948,7 @@ export default function PacienteDetalle() {
                     <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--warning-text)', display: 'inline-flex', alignItems: 'center', gap: 4 }}><Icon name="alert" size={12} />Sin turnos</span>
                     <button 
                       onClick={() => { setTabActiva('turnos'); setModalTurno(true); }}
-                      style={{ background: 'var(--accent)', border: 'none', color: 'var(--accent-contrast)', borderRadius: 6, padding: '2px 8px', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'DM Sans, sans-serif' }}
+                      style={{ background: 'var(--accent)', border: 'none', color: 'var(--accent-contrast)', borderRadius: 'var(--radius-sm)', padding: '2px 8px', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'DM Sans, sans-serif' }}
                     >
                       + Agendar
                     </button>
@@ -1089,7 +1089,7 @@ export default function PacienteDetalle() {
                 </div>
 
                 {paciente.alergias ? (
-                  <div style={{ background: 'var(--danger-soft)', border: '1px solid var(--danger-border)', borderRadius: 10, padding: '10px 12px', color: 'var(--danger-text)', display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                  <div style={{ background: 'var(--danger-soft)', border: '1px solid var(--danger-border)', borderRadius: 'var(--radius-md)', padding: '10px 12px', color: 'var(--danger-text)', display: 'flex', alignItems: 'flex-start', gap: 8 }}>
                     <Icon name="alert" size={16} />
                     <div>
                       <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Alergias Importantes</div>
@@ -1097,7 +1097,7 @@ export default function PacienteDetalle() {
                     </div>
                   </div>
                 ) : (
-                  <div style={{ background: 'var(--success-soft)', border: '1px solid var(--success-border)', borderRadius: 10, padding: '10px 12px', color: 'var(--success-text)', fontSize: 12, fontWeight: 600 }}>
+                  <div style={{ background: 'var(--success-soft)', border: '1px solid var(--success-border)', borderRadius: 'var(--radius-md)', padding: '10px 12px', color: 'var(--success-text)', fontSize: 12, fontWeight: 600 }}>
                     <Icon name="check" size={14} style={{ verticalAlign: '-2px', marginRight: 4 }} />Sin alergias conocidas.
                   </div>
                 )}
@@ -1165,7 +1165,7 @@ export default function PacienteDetalle() {
                       <div style={{ background: 'var(--bg-input)', padding: 12, borderRadius: 12, border: '1px solid var(--border-light)' }}>
                         <div style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600 }}>ESTADO ACTUAL</div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
-                          <span aria-hidden="true" style={{ width: 10, height: 10, borderRadius: 999, display: 'inline-block', flexShrink: 0, background: `var(--diente-${getDienteEstadoActual(dienteSel).toLowerCase()})` }} />
+                          <span aria-hidden="true" style={{ width: 10, height: 10, borderRadius: 'var(--radius-pill)', display: 'inline-block', flexShrink: 0, background: `var(--diente-${getDienteEstadoActual(dienteSel).toLowerCase()})` }} />
                           <span style={{ fontSize: 14, fontWeight: 700, color: ESTADOS_INFO[getDienteEstadoActual(dienteSel)]?.color }}>
                             {getDienteEstadoActual(dienteSel)}
                           </span>
@@ -1337,7 +1337,7 @@ export default function PacienteDetalle() {
             </div>
 
             {FIDELIZACION_HABILITADA && (
-            <div style={{ ...groupCss, background: 'var(--bg-input, rgba(0,0,0,0.02))', padding: 12, borderRadius: 10, border: '1px solid var(--border-light, #dde5ef)', marginTop: 8, marginBottom: 16 }}>
+            <div style={{ ...groupCss, background: 'var(--bg-input, rgba(0,0,0,0.02))', padding: 12, borderRadius: 'var(--radius-md)', border: '1px solid var(--border-light, #dde5ef)', marginTop: 8, marginBottom: 16 }}>
               <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-dark)', display: 'block' }}>Puntos de Ajuste Manual</span>
               <span style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4, display: 'block', lineHeight: 1.4 }}>
                 Los puntos y ajustes manuales se gestionan ahora desde la pestaña <strong>Club de Puntos</strong> en la ficha del paciente para mantener el historial auditado.
@@ -1489,7 +1489,7 @@ export default function PacienteDetalle() {
             </div>
 
             {plantillas.find(p => p.id === cPlantillaId) && (
-              <div style={{ fontSize: 12.5, color: 'var(--text-muted-darker)', lineHeight: 1.5, whiteSpace: 'pre-wrap', background: 'var(--bg-input)', border: '1px solid var(--border-light)', borderRadius: 10, padding: '0.9rem', maxHeight: 180, overflowY: 'auto', marginBottom: 16 }}>
+              <div style={{ fontSize: 12.5, color: 'var(--text-muted-darker)', lineHeight: 1.5, whiteSpace: 'pre-wrap', background: 'var(--bg-input)', border: '1px solid var(--border-light)', borderRadius: 'var(--radius-md)', padding: '0.9rem', maxHeight: 180, overflowY: 'auto', marginBottom: 16 }}>
                 {plantillas.find(p => p.id === cPlantillaId)?.contenido}
               </div>
             )}
@@ -1497,7 +1497,7 @@ export default function PacienteDetalle() {
             {/* Selector de modo */}
             <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
               {(['presencial', 'remota'] as const).map(m => (
-                <button key={m} onClick={() => { setCModo(m); setLinkRemoto('') }} style={{ flex: 1, padding: '10px', borderRadius: 10, border: cModo === m ? '1.5px solid var(--success)' : '1px solid var(--border-color)', background: cModo === m ? 'var(--success-soft)' : 'var(--bg-card)', color: cModo === m ? 'var(--success-text)' : 'var(--text-muted)', fontWeight: 700, fontSize: 12.5, cursor: 'pointer', fontFamily: 'DM Sans, sans-serif' }}>
+                <button key={m} onClick={() => { setCModo(m); setLinkRemoto('') }} style={{ flex: 1, padding: '10px', borderRadius: 'var(--radius-md)', border: cModo === m ? '1.5px solid var(--success)' : '1px solid var(--border-color)', background: cModo === m ? 'var(--success-soft)' : 'var(--bg-card)', color: cModo === m ? 'var(--success-text)' : 'var(--text-muted)', fontWeight: 700, fontSize: 12.5, cursor: 'pointer', fontFamily: 'DM Sans, sans-serif' }}>
                   {m === 'presencial' ? 'Firma presencial' : 'Enviar link'}
                 </button>
               ))}
@@ -1509,7 +1509,7 @@ export default function PacienteDetalle() {
                 <SignaturePad onChange={setCFirma} />
               </div>
             ) : linkRemoto ? (
-              <div style={{ background: 'var(--success-soft)', border: '1px solid var(--success-border)', borderRadius: 10, padding: '0.9rem', marginBottom: 12 }}>
+              <div style={{ background: 'var(--success-soft)', border: '1px solid var(--success-border)', borderRadius: 'var(--radius-md)', padding: '0.9rem', marginBottom: 12 }}>
                 <div style={{ fontSize: 12, color: 'var(--success-text)', fontWeight: 600, marginBottom: 6 }}>Link generado — compartilo con el paciente:</div>
                 <div style={{ fontSize: 12, color: 'var(--text-dark)', wordBreak: 'break-all', background: 'var(--bg-card)', padding: '8px 10px', borderRadius: 8, border: '1px solid var(--success-border)' }}>{linkRemoto}</div>
                 <button onClick={() => { navigator.clipboard?.writeText(linkRemoto); showMsg('Link copiado') }} style={{ marginTop: 8, fontSize: 12, fontWeight: 600, padding: '6px 12px', borderRadius: 8, border: 'none', background: 'var(--success)', color: 'var(--success-contrast)', cursor: 'pointer', fontFamily: 'DM Sans, sans-serif' }}>Copiar link</button>

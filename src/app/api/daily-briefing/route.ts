@@ -7,8 +7,10 @@ import { esCron } from '@/lib/cron-auth'
 function fmt(n: number) {
   return '$' + Math.round(n).toLocaleString('es-AR')
 }
-// `pct` se eliminó junto con las métricas de asistencia: su único uso era
-// calcular un porcentaje sobre `estado = 'completado'`, que nunca ocurre.
+/** Porcentaje entero. Denominador 0 devuelve 0, no NaN. */
+function pct(a: number, b: number) {
+  return b === 0 ? 0 : Math.round((a / b) * 100)
+}
 function diff(hoy: number, prom: number) {
   if (prom === 0) return { val: 0, up: true }
   const d = Math.round(((hoy - prom) / prom) * 100)
@@ -74,14 +76,14 @@ export async function GET(req: NextRequest) {
       // 2. Consultar citas filtrando estrictamente por tenant_id
       const { data: citasHoy } = await supabase
         .from('citas')
-        .select('valor, saldo, tipo_tratamiento')
+        .select('estado, valor, saldo, tipo_tratamiento')
         .eq('tenant_id', tenant.id)
         .gte('fecha_hora', hoy.toISOString())
         .lt('fecha_hora', manana.toISOString())
 
       const { data: citasSemana } = await supabase
         .from('citas')
-        .select('valor, fecha_hora')
+        .select('estado, valor, fecha_hora')
         .eq('tenant_id', tenant.id)
         .gte('fecha_hora', hace7.toISOString())
         .lt('fecha_hora', hoy.toISOString())
@@ -112,29 +114,48 @@ export async function GET(req: NextRequest) {
       const citasHoyArr = citasHoy || []
       const citasSemanaArr = citasSemana || []
 
-      // ── Sin métricas de asistencia, a propósito ──
+      // ── Asistencia: leer los estados que la app realmente escribe ──
       //
-      // El briefing mostraba "Asistencia: 0%" todos los días desde que existe.
-      // No era un error de cálculo: se apoyaba en `estado = 'completado'` y en
-      // `no_show`, y NINGUNA cita llega nunca a esos valores. Verificado sobre
-      // 579 turnos pasados en 6 meses: 0 completados, 0 marcados como
-      // inasistencia. El ciclo de vida termina en 'confirmado' y ahí se queda.
+      // Esto estuvo roto desde el principio y la corrección anterior lo empeoró.
       //
-      // Un correo diario que repite un número falso enseña a no abrirlo, y en
-      // este correo está el único aviso accionable que tiene el sistema (los
-      // pacientes que mañana no van a recibir recordatorio). Preferimos mostrar
-      // menos y que lo poco sea cierto.
+      // El briefing contaba `estado = 'completado'` y la columna `no_show`.
+      // NINGUNO de los dos se escribe nunca: el ciclo real de una cita es
       //
-      // Para reponerlo hace falta primero registrar asistencia de verdad: un
-      // "Atendido / No vino" en la agenda del día. Mientras eso no exista, esta
-      // métrica no puede volver.
+      //     pendiente → confirmado → asistio | ausente | cancelado
+      //
+      // La agenda tiene el botón "✓ Asistió" (agenda/page.tsx) que escribe
+      // `estado: 'asistio'`, y la inasistencia entra por
+      // `fn_registrar_inasistencia` como `estado: 'ausente'`.
+      //
+      // Al ver 0 en 'completado' se concluyó "el consultorio no registra
+      // asistencia" y se quitó la métrica. La conclusión correcta era que la
+      // consulta preguntaba por el nombre equivocado: el dato estaba.
+      //
+      // La tasa de ausentismo es la métrica que justifica cobrar el plan Pro
+      // —es la que demuestra que los recordatorios sirven—, así que vuelve.
       const totalHoy = citasHoyArr.length
+      const asistieronHoy = citasHoyArr.filter(c => c.estado === 'asistio').length
+      const ausentesHoy = citasHoyArr.filter(c => c.estado === 'ausente').length
       const ingresosHoy = citasHoyArr.reduce((s, c) => s + (c.valor ?? 0), 0)
       const saldoHoy = citasHoyArr.reduce((s, c) => s + (c.saldo ?? 0), 0)
 
+      // Solo sobre turnos ya resueltos. Incluir los pendientes del día en el
+      // denominador haría que la asistencia arranque en 0% cada mañana y suba
+      // durante la jornada, que es justo el número sin sentido que se quería
+      // evitar.
+      const resueltosHoy = asistieronHoy + ausentesHoy
+      const asistenciaHoy = pct(asistieronHoy, resueltosHoy)
+
+      const resueltosSemana = citasSemanaArr.filter(
+        c => c.estado === 'asistio' || c.estado === 'ausente'
+      )
       const promDiario = {
         citas: Math.round(citasSemanaArr.length / 7),
         ingresos: citasSemanaArr.reduce((s, c) => s + (c.valor ?? 0), 0) / 7,
+        asistencia: pct(
+          resueltosSemana.filter(c => c.estado === 'asistio').length,
+          resueltosSemana.length
+        ),
       }
 
       const tratMap: Record<string, number> = {}
@@ -148,6 +169,7 @@ export async function GET(req: NextRequest) {
       const insights: { emoji: string; texto: string }[] = []
       const dIngresos = diff(ingresosHoy, promDiario.ingresos)
       const dCitas = diff(totalHoy, promDiario.citas)
+      const dAsistencia = diff(asistenciaHoy, promDiario.asistencia)
 
       // Va primero: es lo único del briefing sobre lo que todavía se puede
       // actuar esta noche. El resto es información de lo que ya pasó.
@@ -171,6 +193,9 @@ export async function GET(req: NextRequest) {
 
       if (dIngresos.val > 0) insights.push({ emoji: dIngresos.up ? '📈' : '📉', texto: `Facturación ${dIngresos.up ? '+' : '-'}${dIngresos.val}% vs promedio semanal` })
       if (dCitas.val > 0) insights.push({ emoji: dCitas.up ? '🗓️' : '⚠️', texto: `${dCitas.up ? 'Más' : 'Menos'} citas que el promedio (${dCitas.val}% de diferencia)` })
+      // El ausentismo es plata que no entró con el sillón ocupado. Va arriba.
+      if (ausentesHoy > 0) insights.push({ emoji: '🚨', texto: `${ausentesHoy} ${ausentesHoy > 1 ? 'inasistencias' : 'inasistencia'} hoy sobre ${resueltosHoy} ${resueltosHoy > 1 ? 'turnos resueltos' : 'turno resuelto'}` })
+      if (resueltosHoy > 0 && asistenciaHoy >= 90) insights.push({ emoji: '⭐', texto: `Asistencia del día: ${asistenciaHoy}%` })
       if (saldoHoy > 0) insights.push({ emoji: '💳', texto: `Saldo pendiente del día: ${fmt(saldoHoy)}` })
       if (topTrat) insights.push({ emoji: '🦷', texto: `Tratamiento más frecuente: ${topTrat[0]} (${topTrat[1]} citas)` })
 
@@ -178,7 +203,8 @@ export async function GET(req: NextRequest) {
 
       const html = generateEmail({
         fecha: fechaFormateada,
-        totalHoy, ingresosHoy, saldoHoy,
+        totalHoy, asistieronHoy, resueltosHoy, asistenciaHoy,
+        ingresosHoy, saldoHoy,
         promDiario, insights, dIngresos, dCitas,
       })
 
@@ -204,13 +230,16 @@ function generateEmail(d: {
   fecha: string
   totalHoy: number
   ingresosHoy: number
+  asistieronHoy: number
+  resueltosHoy: number
+  asistenciaHoy: number
   saldoHoy: number
-  promDiario: { citas: number; ingresos: number }
+  promDiario: { citas: number; ingresos: number; asistencia: number }
   insights: { emoji: string; texto: string }[]
   dIngresos: { val: number; up: boolean }
   dCitas: { val: number; up: boolean }
 }) {
-  const { fecha, totalHoy, ingresosHoy, saldoHoy, promDiario, insights, dIngresos, dCitas } = d
+  const { fecha, totalHoy, asistieronHoy, resueltosHoy, asistenciaHoy, ingresosHoy, saldoHoy, promDiario, insights, dIngresos, dCitas } = d
 
   return `<!DOCTYPE html>
 <html lang="es">
@@ -232,14 +261,22 @@ function generateEmail(d: {
   <tr><td style="background:#0d1421;border-left:1px solid #1e3a5f;border-right:1px solid #1e3a5f;padding:24px 36px;">
     <table width="100%" cellpadding="0" cellspacing="0">
       <tr>
-        <td width="50%" style="padding-right:8px;">
+        <td width="${resueltosHoy > 0 ? '33%' : '50%'}" style="padding-right:8px;">
           <div style="background:#0a1628;border:1px solid #1e3a5f;border-radius:12px;padding:16px;">
             <div style="font-size:10px;font-weight:600;color:#475569;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px;">Facturación</div>
             <div style="font-size:22px;font-weight:700;color:#f1f5f9;">${fmt(ingresosHoy)}</div>
             <div style="font-size:11px;color:${dIngresos.up ? '#10b981' : '#ef4444'};margin-top:4px;">${dIngresos.up ? '↑' : '↓'} ${dIngresos.val}% vs promedio</div>
           </div>
         </td>
-        <td width="50%" style="padding-left:8px;">
+        ${resueltosHoy > 0 ? `
+        <td width="33%" style="padding:0 4px;">
+          <div style="background:#0a1628;border:1px solid #1e3a5f;border-radius:12px;padding:16px;">
+            <div style="font-size:10px;font-weight:600;color:#475569;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px;">Asistencia</div>
+            <div style="font-size:22px;font-weight:700;color:${asistenciaHoy >= 80 ? '#10b981' : '#f59e0b'};">${asistenciaHoy}%</div>
+            <div style="font-size:11px;color:#64748b;margin-top:4px;">${asistieronHoy} de ${resueltosHoy} resueltos</div>
+          </div>
+        </td>` : ''}
+        <td width="${resueltosHoy > 0 ? '33%' : '50%'}" style="padding-left:8px;">
           <div style="background:#0a1628;border:1px solid #1e3a5f;border-radius:12px;padding:16px;">
             <div style="font-size:10px;font-weight:600;color:#475569;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px;">Citas</div>
             <div style="font-size:22px;font-weight:700;color:#f1f5f9;">${totalHoy}</div>
@@ -264,6 +301,11 @@ function generateEmail(d: {
           <td style="padding:12px 16px;font-size:12px;color:#64748b;">Promedio ingresos/día</td>
           <td align="right" style="padding:12px 16px;font-size:12px;font-weight:600;color:#f1f5f9;">${fmt(promDiario.ingresos)}</td>
         </tr>
+        ${promDiario.asistencia > 0 ? `
+        <tr>
+          <td style="padding:12px 16px;font-size:12px;color:#64748b;">Promedio asistencia (7 días)</td>
+          <td align="right" style="padding:12px 16px;font-size:12px;font-weight:600;color:#f1f5f9;">${promDiario.asistencia}%</td>
+        </tr>` : ''}
       </table>
     </div>
   </td></tr>

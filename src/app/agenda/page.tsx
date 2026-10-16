@@ -244,7 +244,7 @@ function AgendaHeaderMobile({ fecha, vista, esHoy, onPrev, onNext, onVista, onNu
     border: '1px solid var(--border-light, rgba(56,138,221,0.10))',
     background: 'var(--bg-card, rgba(255,255,255,0.6))',
     color: 'var(--text-dark, #0a1e3d)',
-    cursor: 'pointer', borderRadius: 10, flexShrink: 0,
+    cursor: 'pointer', borderRadius: 'var(--radius-md)', flexShrink: 0,
     fontFamily: 'DM Sans, sans-serif',
   }
 
@@ -285,7 +285,7 @@ function AgendaHeaderMobile({ fecha, vista, esHoy, onPrev, onNext, onVista, onNu
 
       <div style={{display:'flex',background:'rgba(15, 30, 61, 0.04)',borderRadius:8,overflow:'hidden',marginRight:4,height:32,border:'1px solid var(--border-light, rgba(15, 30, 61, 0.06))',padding:2,flexShrink:0}}>
         {(['semana','dia','lista'] as const).map(v=>(
-          <button key={v} onClick={()=>onVista(v)} style={{padding:'0 9px',fontSize:12,borderRadius:6,border:'none',cursor:'pointer',background:vista===v?'var(--bg-card, #fff)':'transparent',color:vista===v?'var(--text-dark, #0a1e3d)':'var(--text-muted, #687e96)',fontWeight:vista===v?700:500,boxShadow:vista===v?'0 1px 3px rgba(10,30,61,0.08)':undefined,fontFamily:'DM Sans, sans-serif'}}>{v==='semana'?'Sem':v==='dia'?'Día':'Lista'}</button>
+          <button key={v} onClick={()=>onVista(v)} style={{padding:'0 9px',fontSize:12,borderRadius:'var(--radius-sm)',border:'none',cursor:'pointer',background:vista===v?'var(--bg-card, #fff)':'transparent',color:vista===v?'var(--text-dark, #0a1e3d)':'var(--text-muted, #687e96)',fontWeight:vista===v?700:500,boxShadow:vista===v?'0 1px 3px rgba(10,30,61,0.08)':undefined,fontFamily:'DM Sans, sans-serif'}}>{v==='semana'?'Sem':v==='dia'?'Día':'Lista'}</button>
         ))}
       </div>
 
@@ -294,7 +294,7 @@ function AgendaHeaderMobile({ fecha, vista, esHoy, onPrev, onNext, onVista, onNu
         border: '1px solid var(--border-color, rgba(239,68,68,0.15))',
         background: 'var(--bg-card, #fff)',
         color: 'var(--danger-text)',
-        borderRadius: 10, fontSize: 16, cursor: 'pointer', flexShrink: 0,
+        borderRadius: 'var(--radius-md)', fontSize: 16, cursor: 'pointer', flexShrink: 0,
         fontFamily: 'DM Sans, sans-serif',
         boxShadow: '0 2px 6px rgba(239,68,68,0.05)',
       }} aria-label="Bloquear horario" title="Bloquear horario"><Icon name="lock" size={16} /></button>
@@ -302,7 +302,7 @@ function AgendaHeaderMobile({ fecha, vista, esHoy, onPrev, onNext, onVista, onNu
       <button onClick={onNueva} style={{
         width: 38, height: 38, display: 'flex', alignItems: 'center', justifyContent: 'center',
         border: 'none', background: 'var(--text-dark, #0a1e3d)', color: 'var(--bg-app, #fff)',
-        borderRadius: 10, fontSize: 20, cursor: 'pointer', flexShrink: 0,
+        borderRadius: 'var(--radius-md)', fontSize: 20, cursor: 'pointer', flexShrink: 0,
         fontFamily: 'DM Sans, sans-serif',
         boxShadow: '0 2px 6px rgba(10,30,61,0.15)',
       }}>+</button>
@@ -1043,7 +1043,7 @@ export default function Agenda() {
                       color: 'var(--text-muted)', 
                       fontSize: 14,
                       background: 'var(--bg-card, rgba(255,255,255,0.4))',
-                      borderRadius: 16,
+                      borderRadius: 'var(--radius-lg)',
                       border: '1px dashed var(--border-light)'
                     }}>
                       <EmptyState compact icon="calendar" title="No hay turnos este día" description="Pasá a la vista Día y tocá un horario libre para agendar." />
@@ -1121,7 +1121,7 @@ export default function Agenda() {
                               fontStyle: 'italic', 
                               background: 'var(--bg-input, rgba(0,0,0,0.02))', 
                               padding: '8px 12px', 
-                              borderRadius: 10, 
+                              borderRadius: 'var(--radius-md)', 
                               border: '1px solid var(--border-lighter)',
                               marginTop: 4 
                             }}>
@@ -1397,7 +1397,7 @@ export default function Agenda() {
                           <div key={b.id} role="button" tabIndex={0} aria-label={`Eliminar bloqueo ${b.motivo||''} ${b.hora_inicio.slice(0,5)} a ${b.hora_fin.slice(0,5)}`}
                             onClick={e=>{e.stopPropagation();setBloqueoABorrar({ id: b.id, texto: `${b.motivo||'Bloqueo'} de ${b.hora_inicio.slice(0,5)} a ${b.hora_fin.slice(0,5)}` })}}
                             onKeyDown={e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();e.stopPropagation();setBloqueoABorrar({ id: b.id, texto: `${b.motivo||'Bloqueo'} de ${b.hora_inicio.slice(0,5)} a ${b.hora_fin.slice(0,5)}` })}}}
-                            style={{position:'absolute',top,left:2,right:2,height:Math.max(height-2,18),background:'repeating-linear-gradient(45deg, var(--border-light, #e0e0e0), var(--border-light, #e0e0e0) 4px, var(--bg-card, #f0f0f0) 4px, var(--bg-card, #f0f0f0) 8px)',borderRadius:6,cursor:'pointer',display:'flex',alignItems:'center',padding:'0 8px',zIndex:1}}>
+                            style={{position:'absolute',top,left:2,right:2,height:Math.max(height-2,18),background:'repeating-linear-gradient(45deg, var(--border-light, #e0e0e0), var(--border-light, #e0e0e0) 4px, var(--bg-card, #f0f0f0) 4px, var(--bg-card, #f0f0f0) 8px)',borderRadius:'var(--radius-sm)',cursor:'pointer',display:'flex',alignItems:'center',padding:'0 8px',zIndex:1}}>
                             <span style={{fontSize:12,fontWeight:600,color:'var(--text-muted, #888)'}}>{b.motivo||'Bloqueado'} {b.hora_inicio.slice(0,5)}–{b.hora_fin.slice(0,5)}</span>
                           </div>
                         )
@@ -1550,7 +1550,7 @@ export default function Agenda() {
                                       <div style={{marginTop: 5, display: 'flex', gap: 4, width: '100%', position: 'relative', zIndex: 10}} onClick={e => e.stopPropagation()}>
                                         <button 
                                           onClick={(e) => { e.stopPropagation(); cambiarEstado(c.id, 'asistio') }}
-                                          style={{ flex: 1, border: 'none', background: 'var(--success-soft)', color: 'var(--success-text)', borderRadius: 6, padding: '2px 4px', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'transform 0.1s' }}
+                                          style={{ flex: 1, border: 'none', background: 'var(--success-soft)', color: 'var(--success-text)', borderRadius: 'var(--radius-sm)', padding: '2px 4px', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'transform 0.1s' }}
                                           onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.03)'}
                                           onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
                                         >
@@ -1558,7 +1558,7 @@ export default function Agenda() {
                                         </button>
                                         <button 
                                           onClick={(e) => { e.stopPropagation(); cambiarEstado(c.id, 'cancelado') }}
-                                          style={{ flex: 1, border: 'none', background: 'var(--danger-soft)', color: 'var(--danger-text)', borderRadius: 6, padding: '2px 4px', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'transform 0.1s' }}
+                                          style={{ flex: 1, border: 'none', background: 'var(--danger-soft)', color: 'var(--danger-text)', borderRadius: 'var(--radius-sm)', padding: '2px 4px', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'transform 0.1s' }}
                                           onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.03)'}
                                           onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
                                         >
@@ -1620,7 +1620,7 @@ export default function Agenda() {
                                         <div style={{display: 'flex', gap: 4, width: '100%', position: 'relative', zIndex: 10}} onClick={e => e.stopPropagation()}>
                                           <button 
                                             onClick={(e) => { e.stopPropagation(); cambiarEstado(c.id, 'asistio') }}
-                                            style={{ flex: 1, border: 'none', background: 'var(--success-soft)', color: 'var(--success-text)', borderRadius: 6, padding: '3px 6px', fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2, transition: 'transform 0.1s' }}
+                                            style={{ flex: 1, border: 'none', background: 'var(--success-soft)', color: 'var(--success-text)', borderRadius: 'var(--radius-sm)', padding: '3px 6px', fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2, transition: 'transform 0.1s' }}
                                             onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.03)'}
                                             onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
                                           >
@@ -1628,7 +1628,7 @@ export default function Agenda() {
                                           </button>
                                           <button 
                                             onClick={(e) => { e.stopPropagation(); cambiarEstado(c.id, 'cancelado') }}
-                                            style={{ flex: 1, border: 'none', background: 'var(--danger-soft)', color: 'var(--danger-text)', borderRadius: 6, padding: '3px 6px', fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2, transition: 'transform 0.1s' }}
+                                            style={{ flex: 1, border: 'none', background: 'var(--danger-soft)', color: 'var(--danger-text)', borderRadius: 'var(--radius-sm)', padding: '3px 6px', fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2, transition: 'transform 0.1s' }}
                                             onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.03)'}
                                             onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
                                           >
@@ -1646,7 +1646,7 @@ export default function Agenda() {
                                                 e.stopPropagation()
                                                 openCobroExpress(c)
                                               }}
-                                              style={{ border: 'none', background: 'var(--success)', color: 'var(--success-contrast)', borderRadius: 6, padding: '2px 6px', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 2, transition: 'transform 0.1s' }}
+                                              style={{ border: 'none', background: 'var(--success)', color: 'var(--success-contrast)', borderRadius: 'var(--radius-sm)', padding: '2px 6px', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 2, transition: 'transform 0.1s' }}
                                               onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.03)'}
                                               onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
                                             >
@@ -1885,7 +1885,7 @@ export default function Agenda() {
         const safeX = Math.max(8, Math.min(menuPos.x, window.innerWidth  - MENU_W - 8))
         const safeY = Math.max(64, Math.min(menuPos.y, window.innerHeight - MENU_H - (isMobile ? 72 : 8)))
         return(
-        <div style={{position:'fixed',top:safeY,left:safeX,zIndex:1000,background:'var(--bg-card)',borderRadius:10,boxShadow:'0 4px 20px rgba(0,0,0,0.15)',padding:'0.5rem',display:'flex',flexDirection:'column',gap:4,minWidth:180}} onClick={e=>e.stopPropagation()}>
+        <div style={{position:'fixed',top:safeY,left:safeX,zIndex:1000,background:'var(--bg-card)',borderRadius:'var(--radius-md)',boxShadow:'0 4px 20px rgba(0,0,0,0.15)',padding:'0.5rem',display:'flex',flexDirection:'column',gap:4,minWidth:180}} onClick={e=>e.stopPropagation()}>
           <button style={{padding:'0.6rem 1rem',borderRadius:7,border:'none',background:'var(--bg-input)',cursor:'pointer',textAlign:'left',fontSize:13,fontWeight:500}} onClick={()=>{setMenuPos(null);openNueva(menuPos.f,menuPos.h)}}>Nueva cita</button>
           <button style={{padding:'0.6rem 1rem',borderRadius:7,border:'none',background:'var(--bg-input)',cursor:'pointer',textAlign:'left',fontSize:13,fontWeight:500}} onClick={()=>{setMenuPos(null);setFBloqFecha(menuPos.f);setFBloqDesde(menuPos.h);setFBloqHasta(menuPos.h>='12:00'?'20:00':'12:00');setFBloqMotivo('');setModal('bloqueo')}}>Bloquear horario</button>
         </div>

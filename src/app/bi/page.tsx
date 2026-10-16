@@ -47,7 +47,9 @@ interface Cita {
   sena: number | null
   saldo: number | null
   costo_insumos: number | null
-  no_show: boolean | null
+  // `no_show` se quitó a propósito: la columna existe en la tabla pero nadie
+  // la escribe. Su presencia acá es lo que hizo creer durante meses que el
+  // consultorio no registraba ausentismo. La inasistencia vive en `estado`.
   duracion_minutos: number
   paciente_id: string | null
 }
@@ -156,7 +158,7 @@ export default function BiPage() {
       desde.setDate(desde.getDate() - parseInt(rango))
       const { data } = await supabase
         .from('citas')
-        .select('id,fecha_hora,tipo_tratamiento,estado,valor,sena,saldo,costo_insumos,no_show,duracion_minutos,paciente_id')
+        .select('id,fecha_hora,tipo_tratamiento,estado,valor,sena,saldo,costo_insumos,duracion_minutos,paciente_id')
         .eq('tenant_id', tenantId)
         .gte('fecha_hora', desde.toISOString())
         .order('fecha_hora', { ascending: true })
@@ -251,16 +253,36 @@ export default function BiPage() {
   }
 
   // ── Métricas ─────────────────────────────────────────────
+  // ── Estados reales de una cita ──
+  //
+  //     pendiente → confirmado → asistio | ausente | cancelado
+  //
+  // Acá había dos errores que se anulaban entre sí y daban números creíbles:
+  //
+  //   · `completadas` contaba `estado === 'confirmado'`. Confirmar NO es
+  //     asistir: el paciente confirma la víspera, y venir o no venir es lo
+  //     que pasa después. La "tasa de conversión" medía confirmaciones.
+  //   · `noShows` leía la columna `no_show`, que NADIE escribe nunca. La
+  //     inasistencia se registra como `estado = 'ausente'` vía
+  //     `fn_registrar_inasistencia`. Esa tasa daba 0% siempre.
+  //
+  // Un 0% permanente al lado de una conversión inflada es peor que no mostrar
+  // nada: parecía que el consultorio no tenía ausentismo.
   const total = citas.length
-  const completadas = citas.filter(c => c.estado === 'confirmado').length
+  const asistieron = citas.filter(c => c.estado === 'asistio').length
   const canceladas = citas.filter(c => c.estado === 'cancelado').length
-  const noShows = citas.filter(c => c.no_show).length
+  const noShows = citas.filter(c => c.estado === 'ausente').length
+
+  // Denominador: solo turnos ya resueltos. Sobre el total, las tasas bajarían
+  // sin motivo cada vez que se cargan turnos futuros.
+  const resueltas = asistieron + noShows
+  const completadas = asistieron
   const ingresos = citas.reduce((s, c) => s + (c.valor ?? 0), 0)
   const saldoPendiente = citas.reduce((s, c) => s + (c.saldo ?? 0), 0)
   const costos = citas.reduce((s, c) => s + (c.costo_insumos ?? 0), 0)
   const gananciaNeta = ingresos - costos
-  const tasaConversion = pct(completadas, total)
-  const tasaNoShow = pct(noShows, total)
+  const tasaConversion = pct(asistieron, resueltas)
+  const tasaNoShow = pct(noShows, resueltas)
   const tasaCancelacion = pct(canceladas, total)
   const ticketPromedio = completadas > 0 ? ingresos / completadas : 0
  
@@ -352,7 +374,7 @@ export default function BiPage() {
     if (!mesMap[k]) mesMap[k] = { ingresos: 0, citas: 0, completadas: 0 }
     mesMap[k].ingresos += c.valor ?? 0
     mesMap[k].citas++
-    if (c.estado === 'confirmado') mesMap[k].completadas++
+    if (c.estado === 'asistio') mesMap[k].completadas++
   })
   const porMes = Object.entries(mesMap).map(([mes, d]) => ({ mes, ...d }))
 
@@ -417,7 +439,7 @@ export default function BiPage() {
                   <KPI label="Saldo pendiente" value={fmt(saldoPendiente)} sub="por cobrar" color={saldoPendiente > 0 ? '#dc2626' : '#059669'} />
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 14, marginBottom: '1.5rem' }}>
-                  <KPI label="Tasa de conversión" value={`${tasaConversion}%`} sub={`${completadas} completadas`} color={tasaConversion >= 70 ? '#059669' : '#d97706'} />
+                  <KPI label="Tasa de asistencia" value={`${tasaConversion}%`} sub={`${asistieron} de ${resueltas} resueltos`} color={tasaConversion >= 70 ? '#059669' : '#d97706'} />
                   <KPI label="Ocupación sillón" value={`${tasaOcupacion}%`} sub={`${Math.round(minutosOcupados/60)}hs ocupadas`} color={tasaOcupacion >= 60 ? '#059669' : '#64748b'} />
                   <KPI label="Recurrencia pac." value={`${tasaRecurrencia}%`} sub={`${recurrentes} recurrentes`} color={tasaRecurrencia >= 30 ? '#059669' : '#64748b'} />
                   <KPI label="No-shows" value={`${tasaNoShow}%`} sub={`${noShows} inasistencias`} color={tasaNoShow > 10 ? '#dc2626' : '#64748b'} />

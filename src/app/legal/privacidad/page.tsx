@@ -3,7 +3,7 @@ import Link from 'next/link'
 
 export default function Privacidad() {
   return (
-    <div style={{ minHeight: '100vh', background: '#0a122c', color: '#cbd5e1', fontFamily: 'Outfit, Inter, sans-serif', padding: '60px 20px' }}>
+    <div style={{ minHeight: '100vh', background: '#0a122c', color: '#cbd5e1', fontFamily: 'var(--font-sans)', padding: '60px 20px' }}>
       <div style={{ maxWidth: 800, margin: '0 auto', background: 'rgba(15, 23, 42, 0.6)', border: '1px solid rgba(255, 255, 255, 0.05)', borderRadius: 24, padding: '48px 32px', backdropFilter: 'blur(10px)' }}>
 
         <Link href="/" style={{ color: '#38bdf8', textDecoration: 'none', fontSize: 14, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 6, marginBottom: 32 }}>

@@ -67,7 +67,7 @@ const FAQ = [
 
 export default function Precios() {
   return (
-    <div style={{ minHeight: '100vh', background: '#0a122c', color: '#cbd5e1', fontFamily: 'Outfit, Inter, sans-serif', padding: '60px 20px' }}>
+    <div style={{ minHeight: '100vh', background: '#0a122c', color: '#cbd5e1', fontFamily: 'var(--font-sans)', padding: '60px 20px' }}>
       <div style={{ maxWidth: 1100, margin: '0 auto' }}>
 
         <div style={{ textAlign: 'center', marginBottom: 48 }}>
